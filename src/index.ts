@@ -2,9 +2,11 @@ import { Hono } from "hono";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "./config";
-import { initDb, getRecentItems, getItemsByAdapter } from "./db";
+import { initDb, getRecentItems, getItemsByAdapter, type ContentItemRow } from "./db";
 import { discoverAdapters } from "./adapters/index";
 import { renderDashboard } from "./views";
+import { createModel, lensItems, summarizeItem, generateDigest } from "./llm";
+import type { ContentItem } from "./adapters/types";
 
 const app = new Hono();
 
@@ -17,6 +19,28 @@ initDb();
 // discover adapters
 const adapters = await discoverAdapters();
 
+// init LLM model (null if not configured)
+const llmModel = config.llm ? createModel(config.llm) : null;
+
+/** Convert ContentItemRow (DB) to ContentItem (adapter) for LLM functions */
+function rowToContentItem(row: ContentItemRow): ContentItem {
+  return {
+    id: row.id,
+    title: row.title,
+    url: row.url,
+    source: row.source,
+    timestamp: new Date(row.timestamp),
+    body: row.body ?? undefined,
+  };
+}
+
+/** Reorder rows based on lensed ContentItem order */
+function reorderRows(rows: ContentItemRow[], lensed: ContentItem[]): ContentItemRow[] {
+  const rowMap = new Map<string, ContentItemRow>();
+  for (const row of rows) rowMap.set(row.id, row);
+  return lensed.map((item) => rowMap.get(item.id)!).filter(Boolean);
+}
+
 // serve static css
 app.get("/styles.css", async (c) => {
   const css = readFileSync(join(import.meta.dir, "styles.css"), "utf-8");
@@ -24,23 +48,43 @@ app.get("/styles.css", async (c) => {
 });
 
 // main dashboard route — server-rendered HTML via Hono JSX
-app.get("/", (c) => {
+app.get("/", async (c) => {
   const panelNames = config.layout?.panels ?? ["all"];
   const now = new Date().toISOString().replace("T", " ").slice(0, 19);
-  const hasLlm = !!(config.llm?.provider && config.llm?.api_key);
+  const hasLlm = !!llmModel;
 
-  const panels = panelNames.map((name) => {
-    if (name === "all") {
-      return { type: "feed" as const, title: "All", items: getRecentItems(50) };
-    }
-    if (name === "digest") {
-      return { type: "digest" as const, title: "Digest", items: [] };
-    }
-    return { type: "feed" as const, title: name, items: getItemsByAdapter(name, 50) };
-  });
+  let digestText: string | null = null;
 
-  // llm and digest/summary references for graceful degradation
-  const html = renderDashboard({ panels, hasLlm, updatedAt: now });
+  const panels = await Promise.all(
+    panelNames.map(async (name) => {
+      if (name === "digest") {
+        // Generate digest via LLM if available
+        if (llmModel) {
+          const allItems = getRecentItems(50).map(rowToContentItem);
+          digestText = await generateDigest(
+            llmModel,
+            allItems,
+            config.llm?.digest ?? {}
+          );
+        }
+        return { type: "digest" as const, title: "Digest", items: [] as ContentItemRow[] };
+      }
+
+      let rows =
+        name === "all" ? getRecentItems(50) : getItemsByAdapter(name, 50);
+
+      // Apply lensing if LLM + interests configured
+      if (llmModel && config.llm?.interests?.length) {
+        const contentItems = rows.map(rowToContentItem);
+        const lensed = await lensItems(llmModel, contentItems, config.llm.interests);
+        rows = reorderRows(rows, lensed);
+      }
+
+      return { type: "feed" as const, title: name === "all" ? "All" : name, items: rows };
+    })
+  );
+
+  const html = renderDashboard({ panels, hasLlm, updatedAt: now, digestText });
   return c.html(html);
 });
 

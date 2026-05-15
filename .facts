@@ -53,16 +53,16 @@
 
 - label: LLM integration uses the pi-ai package (@mariozechner/pi-ai) for multi-provider support — imported in src/llm.ts
   command: test -f src/llm.ts && grep -q '@mariozechner/pi-ai' src/llm.ts
-  tags: [spec]
+  tags: [implemented]
 - label: LLM provider, model, and API key are configured in config.yaml under an llm section
   command: grep -q 'llm' config.example.yaml 2>/dev/null || grep -q 'llm' config.yaml 2>/dev/null
   tags: [spec, implemented]
 - label: LLM is used for two features: summarizing individual content items and generating a daily digest across all sources
   command: grep -q 'summar' src/llm.ts && grep -q 'digest' src/llm.ts
-  tags: [spec]
+  tags: [implemented]
 - label: lensing: content is filtered and ranked by a user-defined interest profile in config.yaml — LLM scores relevance per item
   command: grep -q 'lens' src/llm.ts || grep -q 'interest' src/llm.ts
-  tags: [spec]
+  tags: [implemented]
 - label: dashboard renders all content without LLM when no LLM is configured — summaries and digest are simply absent
   command: grep -rq 'llm\|summary\|digest' src/index.ts
   tags: [spec]

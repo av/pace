@@ -42,16 +42,19 @@ const Panel: FC<{ title: string; items: ContentItemRow[] }> = ({ title, items })
   </div>
 );
 
-const DigestPanel: FC<{ hasLlm: boolean }> = ({ hasLlm }) => (
+const DigestPanel: FC<{ hasLlm: boolean; digestText?: string | null }> = ({ hasLlm, digestText }) => (
   <div class="panel">
     <div class="panel-header"><h2>Digest</h2></div>
     <div class="panel-body">
-      <div class="digest-placeholder">
-        {hasLlm
-          ? "Digest will be generated on next refresh"
-          : "Configure LLM in config.yaml to enable digests"
-        }
-      </div>
+      {digestText
+        ? <div class="digest-content">{digestText}</div>
+        : <div class="digest-placeholder">
+            {hasLlm
+              ? "Digest will be generated on next refresh"
+              : "Configure LLM in config.yaml to enable digests"
+            }
+          </div>
+      }
     </div>
   </div>
 );
@@ -60,9 +63,10 @@ interface DashboardProps {
   panels: Array<{ type: string; title: string; items: ContentItemRow[] }>;
   hasLlm: boolean;
   updatedAt: string;
+  digestText?: string | null;
 }
 
-const Dashboard: FC<DashboardProps> = ({ panels, hasLlm, updatedAt }) => (
+const Dashboard: FC<DashboardProps> = ({ panels, hasLlm, updatedAt, digestText }) => (
   <html lang="en">
     <head>
       <meta charset="utf-8" />
@@ -78,7 +82,7 @@ const Dashboard: FC<DashboardProps> = ({ panels, hasLlm, updatedAt }) => (
       <div class="grid">
         {panels.map((panel) =>
           panel.type === "digest"
-            ? <DigestPanel hasLlm={hasLlm} />
+            ? <DigestPanel hasLlm={hasLlm} digestText={digestText} />
             : <Panel title={panel.title} items={panel.items} />
         )}
       </div>
