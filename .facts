@@ -1,0 +1,41 @@
+# architecture
+
+- pace is a self-hostable personal dashboard that aggregates content from diverse online sources @draft
+- backend uses TypeScript with Hono web framework running on Bun @draft
+- data is stored in SQLite via Bun's built-in sqlite module @draft
+- frontend is server-rendered HTML with Hono JSX, minimal vanilla JS for interactivity @draft
+- app is deployable via Docker with a single docker-compose.yml @draft
+
+# visual style
+
+- UI uses a minimalist monochrome/neutral dark palette — no blue or violet accent colors @draft
+- cards and panels have no left-colored borders or top-colored borders @draft
+- typography is system sans-serif for body, system monospace for data @draft
+- layout is responsive — grid on desktop, single column on mobile @draft
+
+# adapters
+
+- content sources are pluggable via an adapter interface @draft
+- each adapter implements a standard interface: fetch, normalize, and return typed content items @draft
+- ships with adapters for: RSS/Atom feeds, GitHub releases, HackerNews, Reddit, Twitter/X @draft
+- adapters are configured per-user in a YAML or JSON config file @draft
+- adding a new adapter requires implementing one file — no framework registration ceremony @draft
+
+# llm
+
+- LLM integration uses @mariozechner/pi-ai for multi-provider support @draft
+- users configure their own LLM provider and model in the config file @draft
+- LLM is used for: summarizing content items, generating daily digest, and personalized lensing @draft
+- lensing means filtering and ranking content through a user-defined perspective/interest profile @draft
+- LLM calls are optional — the dashboard works without any LLM configured @draft
+
+# customization
+
+- users can configure which adapters are active and their parameters @draft
+- dashboard layout sections are configurable — users choose which panels appear and in what order @draft
+- refresh intervals are configurable per adapter @draft
+- summary/digest preferences are configurable: length, style, focus areas @draft
+
+# project setup
+
+- project is initialized with git, facts, and .gitignore @spec
