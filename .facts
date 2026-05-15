@@ -1,40 +1,86 @@
 # architecture
 
-- pace is a self-hostable personal dashboard that aggregates content from diverse online sources @draft
-- backend uses TypeScript with Hono web framework running on Bun @draft
-- data is stored in SQLite via Bun's built-in sqlite module @draft
-- frontend is server-rendered HTML with Hono JSX, minimal vanilla JS for interactivity @draft
-- app is deployable via Docker with a single docker-compose.yml @draft
+- label: pace is a self-hostable personal dashboard — single container, no external services required beyond optional LLM
+  command: grep -q 'pace' package.json
+  tags: [spec]
+- label: backend is TypeScript on Bun with Hono as the web framework — entry point is src/index.ts
+  command: test -f src/index.ts && grep -q 'Hono' src/index.ts
+  tags: [spec]
+- label: data is stored in a single SQLite database via bun:sqlite — schema defined in src/db.ts
+  command: test -f src/db.ts && grep -q 'bun:sqlite' src/db.ts
+  tags: [spec]
+- label: frontend is server-rendered HTML via Hono JSX — no client-side framework, only vanilla JS for interactivity
+  command: grep -rq 'hono/jsx' src/
+  tags: [spec]
+- label: app ships with a Dockerfile and docker-compose.yml — docker compose up starts the full stack
+  command: test -f Dockerfile && test -f docker-compose.yml
+  tags: [spec]
 
 # visual style
 
-- UI uses a minimalist monochrome/neutral dark palette — no blue or violet accent colors @draft
-- cards and panels have no left-colored borders or top-colored borders @draft
-- typography is system sans-serif for body, system monospace for data @draft
-- layout is responsive — grid on desktop, single column on mobile @draft
+- label: UI uses a dark monochrome palette — backgrounds are neutral grays, no blue or violet accent colors anywhere
+  command: test -f src/styles.css && ! grep -Piq '(#[0-9a-f]{3,8}|rgb|hsl).*?(blue|violet|indigo|purple)' src/styles.css
+  tags: [spec]
+- label: cards have no colored left or top borders — borders are neutral gray or transparent only
+  command: test -f src/styles.css
+  tags: [spec]
+- label: typography uses system-ui sans-serif for body text and ui-monospace for data/timestamps
+  command: grep -q 'system-ui' src/styles.css && grep -q 'ui-monospace' src/styles.css
+  tags: [spec]
+- label: layout is a CSS grid on viewports >= 768px, single column below — no media query JS
+  command: grep -q '@media' src/styles.css && grep -q 'grid' src/styles.css
+  tags: [spec]
 
 # adapters
 
-- content sources are pluggable via an adapter interface @draft
-- each adapter implements a standard interface: fetch, normalize, and return typed content items @draft
-- ships with adapters for: RSS/Atom feeds, GitHub releases, HackerNews, Reddit, Twitter/X @draft
-- adapters are configured per-user in a YAML or JSON config file @draft
-- adding a new adapter requires implementing one file — no framework registration ceremony @draft
+- label: content sources are pluggable via an Adapter interface defined in src/adapters/types.ts
+  command: test -f src/adapters/types.ts && grep -q 'interface.*Adapter' src/adapters/types.ts
+  tags: [spec]
+- label: each adapter exports a function that fetches, normalizes, and returns ContentItem[] — ContentItem has title, url, source, timestamp, and optional body
+  command: grep -q 'ContentItem' src/adapters/types.ts
+  tags: [spec]
+- label: ships with built-in adapters: rss, github-releases, hackernews, reddit, twitter
+  command: ls src/adapters/rss.ts src/adapters/github-releases.ts src/adapters/hackernews.ts src/adapters/reddit.ts src/adapters/twitter.ts 2>/dev/null | wc -l | grep -q 5
+  tags: [spec]
+- label: adapters are configured in config.yaml — each entry specifies adapter type and its parameters
+  command: test -f config.yaml || test -f config.example.yaml
+  tags: [spec]
+- label: adding a new adapter means adding one file in src/adapters/ that implements the Adapter interface — no registration step
+  command: grep -rq 'src/adapters' src/adapters/index.ts 2>/dev/null || ls src/adapters/*.ts | wc -l | grep -qv 0
+  tags: [spec]
 
 # llm
 
-- LLM integration uses @mariozechner/pi-ai for multi-provider support @draft
-- users configure their own LLM provider and model in the config file @draft
-- LLM is used for: summarizing content items, generating daily digest, and personalized lensing @draft
-- lensing means filtering and ranking content through a user-defined perspective/interest profile @draft
-- LLM calls are optional — the dashboard works without any LLM configured @draft
+- label: LLM integration uses the pi-ai package (@mariozechner/pi-ai) for multi-provider support — imported in src/llm.ts
+  command: test -f src/llm.ts && grep -q '@mariozechner/pi-ai' src/llm.ts
+  tags: [spec]
+- label: LLM provider, model, and API key are configured in config.yaml under an llm section
+  command: grep -q 'llm' config.example.yaml 2>/dev/null || grep -q 'llm' config.yaml 2>/dev/null
+  tags: [spec]
+- label: LLM is used for two features: summarizing individual content items and generating a daily digest across all sources
+  command: grep -q 'summar' src/llm.ts && grep -q 'digest' src/llm.ts
+  tags: [spec]
+- label: lensing: content is filtered and ranked by a user-defined interest profile in config.yaml — LLM scores relevance per item
+  command: grep -q 'lens' src/llm.ts || grep -q 'interest' src/llm.ts
+  tags: [spec]
+- label: dashboard renders all content without LLM when no LLM is configured — summaries and digest are simply absent
+  command: grep -rq 'llm\|summary\|digest' src/index.ts
+  tags: [spec]
 
 # customization
 
-- users can configure which adapters are active and their parameters @draft
-- dashboard layout sections are configurable — users choose which panels appear and in what order @draft
-- refresh intervals are configurable per adapter @draft
-- summary/digest preferences are configurable: length, style, focus areas @draft
+- label: config.yaml lists active adapters with per-adapter parameters (urls, tokens, subreddits, etc.)
+  command: test -f config.example.yaml
+  tags: [spec]
+- label: dashboard layout is configurable — config.yaml defines which panels appear and their order
+  command: grep -q 'layout\|panels\|sections' config.example.yaml
+  tags: [spec]
+- label: each adapter has a configurable refresh interval in minutes — defaults to 15 if unset
+  command: grep -q 'interval\|refresh' src/adapters/types.ts
+  tags: [spec]
+- label: digest preferences are configurable in config.yaml: max length, focus areas, and summary style (brief/detailed)
+  command: grep -q 'digest\|summary' config.example.yaml
+  tags: [spec]
 
 # project setup
 
