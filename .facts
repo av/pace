@@ -41,7 +41,7 @@
   tags: [spec, implemented]
 - label: ships with built-in adapters: rss, github-releases, hackernews, reddit, twitter
   command: ls src/adapters/rss.ts src/adapters/github-releases.ts src/adapters/hackernews.ts src/adapters/reddit.ts src/adapters/twitter.ts 2>/dev/null | wc -l | grep -q 5
-  tags: [spec]
+  tags: [implemented]
 - label: adapters are configured in config.yaml — each entry specifies adapter type and its parameters
   command: test -f config.yaml || test -f config.example.yaml
   tags: [spec, implemented]
