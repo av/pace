@@ -2,52 +2,52 @@
 
 - label: pace is a self-hostable personal dashboard — single container, no external services required beyond optional LLM
   command: grep -q 'pace' package.json
-  tags: [spec]
+  tags: [spec, implemented]
 - label: backend is TypeScript on Bun with Hono as the web framework — entry point is src/index.ts
   command: test -f src/index.ts && grep -q 'Hono' src/index.ts
-  tags: [spec]
+  tags: [spec, implemented]
 - label: data is stored in a single SQLite database via bun:sqlite — schema defined in src/db.ts
   command: test -f src/db.ts && grep -q 'bun:sqlite' src/db.ts
-  tags: [spec]
+  tags: [spec, implemented]
 - label: frontend is server-rendered HTML via Hono JSX — no client-side framework, only vanilla JS for interactivity
   command: grep -rq 'hono/jsx' src/
-  tags: [spec]
+  tags: [spec, implemented]
 - label: app ships with a Dockerfile and docker-compose.yml — docker compose up starts the full stack
   command: test -f Dockerfile && test -f docker-compose.yml
-  tags: [spec]
+  tags: [spec, implemented]
 
 # visual style
 
 - label: UI uses a dark monochrome palette — backgrounds are neutral grays, no blue or violet accent colors anywhere
   command: test -f src/styles.css && ! grep -Piq '(#[0-9a-f]{3,8}|rgb|hsl).*?(blue|violet|indigo|purple)' src/styles.css
-  tags: [spec]
+  tags: [spec, implemented]
 - label: cards have no colored left or top borders — borders are neutral gray or transparent only
   command: test -f src/styles.css
-  tags: [spec]
+  tags: [spec, implemented]
 - label: typography uses system-ui sans-serif for body text and ui-monospace for data/timestamps
   command: grep -q 'system-ui' src/styles.css && grep -q 'ui-monospace' src/styles.css
-  tags: [spec]
+  tags: [spec, implemented]
 - label: layout is a CSS grid on viewports >= 768px, single column below — no media query JS
   command: grep -q '@media' src/styles.css && grep -q 'grid' src/styles.css
-  tags: [spec]
+  tags: [spec, implemented]
 
 # adapters
 
 - label: content sources are pluggable via an Adapter interface defined in src/adapters/types.ts
   command: test -f src/adapters/types.ts && grep -q 'interface.*Adapter' src/adapters/types.ts
-  tags: [spec]
+  tags: [spec, implemented]
 - label: each adapter exports a function that fetches, normalizes, and returns ContentItem[] — ContentItem has title, url, source, timestamp, and optional body
   command: grep -q 'ContentItem' src/adapters/types.ts
-  tags: [spec]
+  tags: [spec, implemented]
 - label: ships with built-in adapters: rss, github-releases, hackernews, reddit, twitter
   command: ls src/adapters/rss.ts src/adapters/github-releases.ts src/adapters/hackernews.ts src/adapters/reddit.ts src/adapters/twitter.ts 2>/dev/null | wc -l | grep -q 5
   tags: [spec]
 - label: adapters are configured in config.yaml — each entry specifies adapter type and its parameters
   command: test -f config.yaml || test -f config.example.yaml
-  tags: [spec]
+  tags: [spec, implemented]
 - label: adding a new adapter means adding one file in src/adapters/ that implements the Adapter interface — no registration step
   command: grep -rq 'src/adapters' src/adapters/index.ts 2>/dev/null || ls src/adapters/*.ts | wc -l | grep -qv 0
-  tags: [spec]
+  tags: [spec, implemented]
 
 # llm
 
@@ -56,7 +56,7 @@
   tags: [spec]
 - label: LLM provider, model, and API key are configured in config.yaml under an llm section
   command: grep -q 'llm' config.example.yaml 2>/dev/null || grep -q 'llm' config.yaml 2>/dev/null
-  tags: [spec]
+  tags: [spec, implemented]
 - label: LLM is used for two features: summarizing individual content items and generating a daily digest across all sources
   command: grep -q 'summar' src/llm.ts && grep -q 'digest' src/llm.ts
   tags: [spec]
@@ -71,16 +71,16 @@
 
 - label: config.yaml lists active adapters with per-adapter parameters (urls, tokens, subreddits, etc.)
   command: test -f config.example.yaml
-  tags: [spec]
+  tags: [spec, implemented]
 - label: dashboard layout is configurable — config.yaml defines which panels appear and their order
   command: grep -q 'layout\|panels\|sections' config.example.yaml
-  tags: [spec]
+  tags: [spec, implemented]
 - label: each adapter has a configurable refresh interval in minutes — defaults to 15 if unset
   command: grep -q 'interval\|refresh' src/adapters/types.ts
-  tags: [spec]
+  tags: [spec, implemented]
 - label: digest preferences are configurable in config.yaml: max length, focus areas, and summary style (brief/detailed)
   command: grep -q 'digest\|summary' config.example.yaml
-  tags: [spec]
+  tags: [spec, implemented]
 
 # project setup
 

@@ -1,0 +1,33 @@
+adapters:
+  - type: rss
+    params:
+      urls:
+        - https://example.com/feed.xml
+    refresh_interval: 30  # minutes, default 15
+
+  - type: hackernews
+    params:
+      stories: top
+      limit: 30
+
+layout:
+  panels:
+    - all      # combined feed
+    - digest   # LLM digest
+
+llm:
+  provider: openai  # or anthropic, google, etc.
+  model: gpt-4o-mini
+  api_key: ${OPENAI_API_KEY}
+
+  digest:
+    max_length: 500
+    style: brief  # brief or detailed
+    focus_areas:
+      - ai
+      - programming
+
+  interests:
+    - artificial intelligence
+    - typescript
+    - open source
