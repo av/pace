@@ -104,6 +104,15 @@ adapters:
   #     limit: 20                    # max items to return (up to 100)
   #   refresh_interval: 30
 
+  # - type: devto
+  #   params:
+  #     tags: ["typescript", "webdev", "react"]  # array of tags to fetch (fetches each separately, merges + deduplicates)
+  #     top: 7                       # period: 1 (day), 7 (week), 30 (month), 365 (year) — or "day"/"week"/"month"/"year"
+  #     min_reactions: 10            # optional: only include articles with this many reactions or more
+  #     limit: 15                    # max items to return (up to 30 per page)
+  #     # username: "benawad"        # optional: fetch articles from a specific author (instead of or in addition to tags)
+  #   refresh_interval: 30
+
 # Layout: recursive flexbox tree
 # Each node is either a container (direction + children) or a panel (panel + source + transforms)
 layout:
