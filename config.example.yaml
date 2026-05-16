@@ -1,14 +1,25 @@
+# pace config — flexbox layout + source + transforms
+
 adapters:
+  - type: hackernews
+    params:
+      stories: top
+      limit: 30
+    refresh_interval: 15
+
   - type: rss
     params:
       urls:
         - https://example.com/feed.xml
-    refresh_interval: 30  # minutes, default 15
+    refresh_interval: 30
 
-  - type: hackernews
-    params:
-      stories: top  # top, new, or best
-      limit: 30
+  # - type: reddit
+  #   params:
+  #     subreddits:
+  #       - programming
+  #       - selfhosted
+  #     sort: hot
+  #     limit: 25
 
   # - type: github-releases
   #   params:
@@ -16,32 +27,147 @@ adapters:
   #       - oven-sh/bun
   #       - honojs/hono
 
-  # - type: reddit
+  # - type: youtube
   #   params:
-  #     subreddits:
-  #       - programming
-  #       - selfhosted
-  #     sort: hot  # hot, new, or top
-  #     limit: 25
+  #     channels:
+  #       - UCXuqSBlHAE6Xw-yeJA0Tunw  # Linus Tech Tips
+  #       - UCsBjURrPoezykLs9EqgamOA  # Fireship
+  #     playlists: []  # optional: YouTube playlist IDs
+  #     limit: 15
+  #   refresh_interval: 30
 
+# Layout: recursive flexbox tree
+# Each node is either a container (direction + children) or a panel (panel + source + transforms)
 layout:
-  panels:
-    - all      # combined feed
-    - digest   # LLM digest
+  direction: row
+  children:
+    - panel: hackernews
+      flex: 2
+      source: hackernews
+      transforms:
+        - type: latest
+          count: 30
 
-llm:
-  provider: openai  # or anthropic, google, etc.
-  model: gpt-4o-mini
-  api_key: ${OPENAI_API_KEY}
+    - panel: rss
+      flex: 1
+      source: rss
+      transforms:
+        - type: latest
+          count: 20
 
-  digest:
-    max_length: 500
-    style: brief  # brief or detailed
-    focus_areas:
-      - ai
-      - programming
+# --- Layout examples ---
+#
+# Three columns, middle split into two rows:
+#
+# layout:
+#   direction: row
+#   children:
+#     - panel: hackernews
+#       flex: 1
+#       source: hackernews
+#       transforms:
+#         - type: latest
+#           count: 25
+#
+#     - direction: column
+#       flex: 1
+#       children:
+#         - panel: reddit
+#           source:
+#             adapter: reddit
+#             params: { subreddits: [programming], sort: hot }
+#           transforms:
+#             - type: filter
+#               keywords: [rust, typescript]
+#         - panel: releases
+#           source: github-releases
+#
+#     - panel: rss
+#       flex: 1
+#       source: rss
+#
+# Header + main + footer:
+#
+# layout:
+#   direction: column
+#   children:
+#     - panel: digest
+#       flex: 0
+#       source: all
+#       transforms:
+#         - type: latest
+#           count: 50
+#         - type: llm-merge
+#           prompt: "Summarize the key themes and highlights"
+#
+#     - direction: row
+#       flex: 1
+#       children:
+#         - panel: hackernews
+#           flex: 2
+#           source: hackernews
+#           transforms:
+#             - type: latest
+#               count: 25
+#             - type: llm-rank
+#         - panel: rss
+#           flex: 1
+#           source: rss
+#
+#     - panel: recent
+#       flex: 0
+#       source: all
+#       transforms:
+#         - type: latest
+#           count: 5
+#
+# Multi-source panel (merge items from multiple adapters):
+#
+#     - panel: combined
+#       source: [hackernews, reddit]
+#       transforms:
+#         - type: latest
+#           count: 40
+#         - type: llm-merge
+#           prompt: "Group related items about the same topic"
 
-  interests:
-    - artificial intelligence
-    - typescript
-    - open source
+# --- Transform reference ---
+#
+# - type: latest          # take N most recent items
+#   count: 50
+#
+# - type: filter          # keep items matching keywords
+#   keywords: [ai, rust]
+#   fields: [title, body] # optional, default: [title, body]
+#
+# - type: exclude         # remove items matching keywords
+#   keywords: [sponsored]
+#   fields: [title, body]
+#
+# - type: sort            # sort items
+#   field: timestamp      # timestamp, title, or source
+#   direction: desc       # asc or desc
+#
+# - type: dedupe          # deduplicate items
+#   by: url               # url or title
+#
+# - type: llm-summarize   # add LLM summaries to items
+#
+# - type: llm-filter      # keep only items matching LLM criteria
+#   criteria: "relevant to AI research"
+#
+# - type: llm-rank        # reorder by relevance to interests
+#   interests: [ai, typescript]  # optional, falls back to llm.interests
+#
+# - type: llm-merge       # group/merge related items via LLM
+#   prompt: "Group items about the same topic"
+
+# LLM config (optional — LLM transforms gracefully degrade without it)
+# llm:
+#   provider: openai
+#   model: gpt-4o-mini
+#   api_key: ${OPENAI_API_KEY}
+#   interests:
+#     - artificial intelligence
+#     - typescript
+#     - open source
