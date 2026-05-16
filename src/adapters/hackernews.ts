@@ -14,7 +14,7 @@ interface HNItem {
 
 async function fetchItem(id: number): Promise<HNItem | null> {
   try {
-    const res = await fetch(`${HN_API}/item/${id}.json`);
+    const res = await fetch(`${HN_API}/item/${id}.json`, { signal: AbortSignal.timeout(10000) });
     if (!res.ok) return null;
     return await res.json();
   } catch {
@@ -37,13 +37,13 @@ async function fetchInBatches(ids: number[]): Promise<HNItem[]> {
 const adapter: Adapter = {
   name: "hackernews",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const stories = (config.params.stories as string) ?? "top";
-    const limit = (config.params.limit as number) ?? 30;
+    const stories = (config.params?.stories as string) ?? "top";
+    const limit = (config.params?.limit as number) ?? 30;
     const validTypes = ["top", "new", "best"];
     const storyType = validTypes.includes(stories) ? stories : "top";
 
     try {
-      const res = await fetch(`${HN_API}/${storyType}stories.json`);
+      const res = await fetch(`${HN_API}/${storyType}stories.json`, { signal: AbortSignal.timeout(15000) });
       if (!res.ok) {
         console.warn(`hackernews: failed to fetch ${storyType}stories: ${res.status}`);
         return [];

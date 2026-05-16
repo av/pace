@@ -60,7 +60,18 @@ export function loadConfig(): AppConfig {
     };
   }
 
-  const parsed = yaml.load(raw) as Record<string, unknown>;
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = yaml.load(raw) as Record<string, unknown>;
+  } catch (err) {
+    console.warn("config: failed to parse YAML, using defaults:", err);
+    return { adapters: [], layout: { panels: ["all"] } };
+  }
+
+  if (!parsed || typeof parsed !== "object") {
+    return { adapters: [], layout: { panels: ["all"] } };
+  }
+
   const resolved = resolveEnvInObject(parsed) as Record<string, unknown>;
 
   return {

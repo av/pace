@@ -20,7 +20,10 @@ function relativeTime(timestamp: string): string {
 const ContentItemCard: FC<{ item: ContentItemRow }> = ({ item }) => (
   <div class="item">
     <div class="item-title">
-      <a href={item.url} target="_blank" rel="noopener">{item.title}</a>
+      {item.url
+        ? <a href={item.url} target="_blank" rel="noopener">{item.title}</a>
+        : <span>{item.title}</span>
+      }
     </div>
     <div class="item-meta">
       <span class="item-source">{item.source}</span>
@@ -90,6 +93,7 @@ const Dashboard: FC<DashboardProps> = ({ panels, hasLlm, updatedAt, digestText }
   </html>
 );
 
-export function renderDashboard(props: DashboardProps): ReturnType<typeof Dashboard> {
-  return Dashboard(props);
+export function renderDashboard(props: DashboardProps): string {
+  const html = Dashboard(props);
+  return "<!DOCTYPE html>" + html.toString();
 }

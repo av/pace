@@ -55,10 +55,12 @@ function parseItem(raw: any, source: string): ContentItem {
   // body — RSS uses description, Atom uses summary or content
   const body = raw.description ?? raw.summary ?? raw.content?.["#text"] ?? raw.content ?? undefined;
 
+  const resolvedUrl = link || undefined;
+
   return {
     id: `rss:${link || title}`,
     title: String(title),
-    url: String(link),
+    url: resolvedUrl ? String(resolvedUrl) : "",
     source,
     timestamp,
     body: body ? String(body) : undefined,
@@ -69,6 +71,7 @@ async function fetchFeed(url: string): Promise<ContentItem[]> {
   try {
     const res = await fetch(url, {
       headers: { "User-Agent": "pace/1.0" },
+      signal: AbortSignal.timeout(15000),
     });
     if (!res.ok) {
       console.warn(`rss: failed to fetch ${url}: ${res.status}`);
@@ -88,7 +91,7 @@ async function fetchFeed(url: string): Promise<ContentItem[]> {
 const adapter: Adapter = {
   name: "rss",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const urls = (config.params.urls as string[]) ?? [];
+    const urls = (config.params?.urls as string[]) ?? [];
     if (urls.length === 0) return [];
 
     const results = await Promise.all(urls.map(fetchFeed));

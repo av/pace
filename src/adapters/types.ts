@@ -9,7 +9,7 @@ export interface ContentItem {
 
 export interface AdapterConfig {
   type: string;
-  params: Record<string, unknown>;
+  params?: Record<string, unknown>;
   refresh_interval?: number;
 }
 

@@ -20,6 +20,7 @@ async function fetchSubreddit(
   try {
     const res = await fetch(url, {
       headers: { "User-Agent": "pace/1.0" },
+      signal: AbortSignal.timeout(15000),
     });
     if (!res.ok) {
       console.warn(`reddit: failed to fetch r/${subreddit}: ${res.status}`);
@@ -45,9 +46,9 @@ async function fetchSubreddit(
 const adapter: Adapter = {
   name: "reddit",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const subreddits = (config.params.subreddits as string[]) ?? [];
-    const sort = (config.params.sort as string) ?? "hot";
-    const limit = (config.params.limit as number) ?? 25;
+    const subreddits = (config.params?.subreddits as string[]) ?? [];
+    const sort = (config.params?.sort as string) ?? "hot";
+    const limit = (config.params?.limit as number) ?? 25;
     const validSorts = ["hot", "new", "top"];
     const effectiveSort = validSorts.includes(sort) ? sort : "hot";
 

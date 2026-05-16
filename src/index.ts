@@ -9,10 +9,15 @@ import { createModel, lensItems, summarizeItem, generateDigest } from "./llm";
 import { startScheduler } from "./scheduler";
 import type { ContentItem } from "./adapters/types";
 
+import { mkdirSync } from "node:fs";
+
 const app = new Hono();
 
 // load config
 const config = loadConfig();
+
+// ensure data directory exists before DB init
+mkdirSync(join(process.cwd(), "data"), { recursive: true });
 
 // init database
 initDb();
@@ -22,10 +27,6 @@ const adapters = await discoverAdapters();
 
 // init LLM model (null if not configured)
 const llmModel = config.llm ? createModel(config.llm) : null;
-
-// ensure data directory exists for local dev
-import { mkdirSync } from "node:fs";
-mkdirSync(join(process.cwd(), "data"), { recursive: true });
 
 // start adapter scheduler — fetches content on startup and periodically
 startScheduler(config.adapters, adapters);
@@ -92,11 +93,16 @@ app.get("/", async (c) => {
     })
   );
 
-  const html = renderDashboard({ panels, hasLlm, updatedAt: now, digestText });
-  return c.html(html);
+  const content = renderDashboard({ panels, hasLlm, updatedAt: now, digestText });
+  return c.html(content);
 });
 
 const port = parseInt(process.env.PORT ?? "3000", 10);
+
+import { stopScheduler } from "./scheduler";
+
+process.on("SIGTERM", () => { stopScheduler(); process.exit(0); });
+process.on("SIGINT", () => { stopScheduler(); process.exit(0); });
 
 console.log(`pace listening on http://localhost:${port}`);
 

@@ -18,7 +18,7 @@ const PROVIDER_ENV_KEYS: Record<string, string> = {
  * Create a pi-ai Model from config. Returns null if config is incomplete.
  */
 export function createModel(config: LlmConfig): Model<Api> | null {
-  if (!config.provider || !config.model) return null;
+  if (!config.provider || !config.model || !config.api_key) return null;
 
   // Set the API key in env if provided
   if (config.api_key) {

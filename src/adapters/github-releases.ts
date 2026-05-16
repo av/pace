@@ -23,7 +23,7 @@ async function fetchRepoReleases(
   }
 
   try {
-    const res = await fetch(url, { headers });
+    const res = await fetch(url, { headers, signal: AbortSignal.timeout(15000) });
     if (!res.ok) {
       console.warn(`github-releases: failed to fetch ${repo}: ${res.status}`);
       return [];
@@ -46,8 +46,8 @@ async function fetchRepoReleases(
 const adapter: Adapter = {
   name: "github-releases",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const repos = (config.params.repos as string[]) ?? [];
-    const token = config.params.token as string | undefined;
+    const repos = (config.params?.repos as string[]) ?? [];
+    const token = config.params?.token as string | undefined;
     if (repos.length === 0) return [];
 
     const results = await Promise.all(

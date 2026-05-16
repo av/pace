@@ -45,8 +45,15 @@ export function initDb(): void {
 export function saveItems(adapterName: string, items: ContentItem[]): void {
   const db = getDb();
   const stmt = db.prepare(`
-    INSERT OR REPLACE INTO content_items (id, adapter_name, title, url, source, body, timestamp, fetched_at)
+    INSERT INTO content_items (id, adapter_name, title, url, source, body, timestamp, fetched_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    ON CONFLICT(id) DO UPDATE SET
+      title = excluded.title,
+      url = excluded.url,
+      source = excluded.source,
+      body = excluded.body,
+      timestamp = excluded.timestamp,
+      fetched_at = datetime('now')
   `);
 
   const tx = db.transaction(() => {
@@ -70,6 +77,11 @@ export function getRecentItems(limit: number = 50): ContentItemRow[] {
   const db = getDb();
   return db.prepare(`
     SELECT * FROM content_items
+    WHERE id IN (
+      SELECT id FROM content_items
+      GROUP BY url
+      HAVING id = MIN(id)
+    )
     ORDER BY timestamp DESC
     LIMIT ?
   `).all(limit) as ContentItemRow[];
