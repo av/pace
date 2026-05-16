@@ -13,6 +13,7 @@ interface SchedulerEntry {
 
 const entries: SchedulerEntry[] = [];
 let llmModel: Model<Api> | null = null;
+let pruneTimer: ReturnType<typeof setInterval> | null = null;
 
 export function startScheduler(
   adapterConfigs: AdapterConfig[],
@@ -47,6 +48,7 @@ export function startScheduler(
   }
 
   pruneOldItems();
+  pruneTimer = setInterval(pruneOldItems, 24 * 60 * 60 * 1000);
 }
 
 async function runAdapter(entry: SchedulerEntry): Promise<void> {
@@ -109,4 +111,8 @@ export function stopScheduler(): void {
     if (entry.timer) clearInterval(entry.timer);
   }
   entries.length = 0;
+  if (pruneTimer) {
+    clearInterval(pruneTimer);
+    pruneTimer = null;
+  }
 }

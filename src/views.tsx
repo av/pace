@@ -4,9 +4,21 @@ import { jsx, Fragment } from "hono/jsx";
 import type { FC } from "hono/jsx";
 import type { ContentItemRow } from "./db";
 
+function safeUrl(url: string): string | null {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    if (["http:", "https:", "mailto:"].includes(parsed.protocol)) return url;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function relativeTime(timestamp: string): string {
   const now = Date.now();
   const then = new Date(timestamp).getTime();
+  if (isNaN(then)) return "";
   const diff = now - then;
   const minutes = Math.floor(diff / 60000);
   if (minutes < 1) return "just now";
@@ -17,11 +29,13 @@ function relativeTime(timestamp: string): string {
   return `${days}d ago`;
 }
 
-const ContentItemCard: FC<{ item: ContentItemRow }> = ({ item }) => (
+const ContentItemCard: FC<{ item: ContentItemRow }> = ({ item }) => {
+  const href = safeUrl(item.url);
+  return (
   <div class="item">
     <div class="item-title">
-      {item.url
-        ? <a href={item.url} target="_blank" rel="noopener">{item.title}</a>
+      {href
+        ? <a href={href} target="_blank" rel="noopener noreferrer">{item.title}</a>
         : <span>{item.title}</span>
       }
     </div>
@@ -31,7 +45,8 @@ const ContentItemCard: FC<{ item: ContentItemRow }> = ({ item }) => (
     </div>
     {item.summary && <div class="item-summary">{item.summary}</div>}
   </div>
-);
+  );
+};
 
 const Panel: FC<{ title: string; items: ContentItemRow[] }> = ({ title, items }) => (
   <div class="panel">

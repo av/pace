@@ -1,5 +1,5 @@
 import { readdir } from "node:fs/promises";
-import { join, basename } from "node:path";
+import { join } from "node:path";
 import type { Adapter } from "./types";
 
 const EXCLUDED = new Set(["types.ts", "index.ts"]);

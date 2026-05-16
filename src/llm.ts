@@ -39,7 +39,7 @@ export function createModel(config: LlmConfig): Model<Api> | null {
       name: config.model,
       api: "openai-completions",
       provider: config.provider,
-      baseUrl: (config as any).base_url ?? "http://localhost:11434/v1",
+      baseUrl: config.base_url ?? "http://localhost:11434/v1",
       reasoning: false,
       input: ["text"],
       cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },

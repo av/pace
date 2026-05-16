@@ -13,6 +13,7 @@ export interface LlmConfig {
   provider?: string;
   model?: string;
   api_key?: string;
+  base_url?: string;
   digest?: LlmDigestConfig;
   interests?: string[];
 }

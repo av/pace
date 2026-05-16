@@ -5,9 +5,13 @@ WORKDIR /app
 COPY package.json bun.lock* ./
 RUN bun install --production
 
-COPY . .
+COPY src/ src/
+COPY config.example.yaml ./
 
 RUN mkdir -p /app/data
+
+RUN adduser --disabled-password --gecos "" pace
+USER pace
 
 EXPOSE 3000
 

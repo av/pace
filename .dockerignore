@@ -4,3 +4,7 @@ data
 config.yaml
 *.db
 .dockerignore
+.facts
+.agents/
+bunfig.toml
+tsconfig.json

@@ -1,6 +1,14 @@
 import { XMLParser } from "fast-xml-parser";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
+function simpleHash(str: string): string {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) {
+    h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+  }
+  return (h >>> 0).toString(36);
+}
+
 const parser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "@_",
@@ -63,8 +71,10 @@ function parseItem(raw: any, source: string): ContentItem {
 
   const resolvedUrl = link || undefined;
 
+  const idSuffix = link || `${title}:${simpleHash(body ?? "")}`;
+
   return {
-    id: `rss:${link || title}`,
+    id: `rss:${idSuffix}`,
     title: String(title),
     url: resolvedUrl ? String(resolvedUrl) : "",
     source,
