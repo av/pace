@@ -80,6 +80,21 @@ adapters:
   #     limit: 15
   #   refresh_interval: 30
 
+  # - type: arxiv
+  #   params:
+  #     categories:               # ArXiv categories to fetch (e.g. cs.AI, cs.LG, cs.CL, stat.ML)
+  #       - cs.AI
+  #       - cs.LG
+  #     query: ""                 # optional: keyword search query (alongside or instead of categories)
+  #     limit: 20                 # max items per category/query (up to 100)
+  #   refresh_interval: 60
+
+  # - type: arxiv
+  #   params:
+  #     query: "quantum computing"   # keyword-only search (no categories needed)
+  #     limit: 10
+  #   refresh_interval: 120
+
 # Layout: recursive flexbox tree
 # Each node is either a container (direction + children) or a panel (panel + source + transforms)
 layout:
