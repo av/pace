@@ -6,4 +6,3 @@ config.yaml
 .dockerignore
 .facts
 .agents/
-tsconfig.json

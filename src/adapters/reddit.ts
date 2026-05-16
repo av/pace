@@ -48,7 +48,7 @@ const adapter: Adapter = {
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
     const subreddits = (config.params?.subreddits as string[]) ?? [];
     const sort = (config.params?.sort as string) ?? "hot";
-    const limit = (config.params?.limit as number) ?? 25;
+    const limit = Math.min((config.params?.limit as number) ?? 25, 100);
     const validSorts = ["hot", "new", "top"];
     const effectiveSort = validSorts.includes(sort) ? sort : "hot";
 

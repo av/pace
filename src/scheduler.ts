@@ -68,7 +68,7 @@ async function runAdapter(entry: SchedulerEntry): Promise<void> {
           `SELECT id, title, url, source, body, timestamp FROM content_items
            WHERE adapter_name = ? AND summary IS NULL
            ORDER BY timestamp DESC LIMIT 10`
-        ).all(adapter.name) as any[];
+        ).all(adapter.name) as { id: string; title: string; url: string; source: string; body: string | null; timestamp: string }[];
 
         for (const row of unsummarized) {
           const summary = await summarizeItem(llmModel, {

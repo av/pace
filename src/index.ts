@@ -119,7 +119,8 @@ app.get("/", async (c) => {
   return c.html(content);
 });
 
-const port = parseInt(process.env.PORT ?? "3000", 10);
+const parsedPort = parseInt(process.env.PORT ?? "3000", 10);
+const port = isNaN(parsedPort) ? 3000 : parsedPort;
 
 import { stopScheduler } from "./scheduler";
 
