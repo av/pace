@@ -1,4 +1,4 @@
-FROM oven/bun:latest
+FROM oven/bun:1
 
 WORKDIR /app
 
@@ -8,9 +8,10 @@ RUN bun install --production
 COPY src/ src/
 COPY config.example.yaml ./
 
-RUN mkdir -p /app/data
+RUN mkdir -p /app/data && \
+    useradd --system --no-create-home pace && \
+    chown pace:pace /app/data
 
-RUN adduser --disabled-password --gecos "" pace
 USER pace
 
 EXPOSE 3000

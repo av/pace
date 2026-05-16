@@ -104,6 +104,10 @@ export function getItemsByAdapter(adapterName: string, limit: number = 50): Cont
   `).all(adapterName, adapterName, limit) as ContentItemRow[];
 }
 
+export function closeDb(): void {
+  if (db) db.close();
+}
+
 export interface ContentItemRow {
   id: string;
   adapter_name: string;

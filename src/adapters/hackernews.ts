@@ -38,7 +38,7 @@ const adapter: Adapter = {
   name: "hackernews",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
     const stories = (config.params?.stories as string) ?? "top";
-    const limit = (config.params?.limit as number) ?? 30;
+    const limit = Math.min((config.params?.limit as number) ?? 30, 100);
     const validTypes = ["top", "new", "best"];
     const storyType = validTypes.includes(stories) ? stories : "top";
 

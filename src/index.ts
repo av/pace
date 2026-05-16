@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { readFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "./config";
-import { initDb, getRecentItems, getItemsByAdapter, type ContentItemRow } from "./db";
+import { initDb, closeDb, getRecentItems, getItemsByAdapter, type ContentItemRow } from "./db";
 import { discoverAdapters } from "./adapters/index";
 import { renderDashboard } from "./views";
 import { createModel, lensItems, generateDigest } from "./llm";
@@ -16,6 +16,7 @@ app.use("*", async (c, next) => {
   c.header("X-Content-Type-Options", "nosniff");
   c.header("X-Frame-Options", "DENY");
   c.header("Referrer-Policy", "strict-origin-when-cross-origin");
+  c.header("Content-Security-Policy", "default-src 'self'");
 });
 
 const config = loadConfig();
@@ -42,7 +43,7 @@ function rowToContentItem(row: ContentItemRow): ContentItem {
 function reorderRows(rows: ContentItemRow[], lensed: ContentItem[]): ContentItemRow[] {
   const rowMap = new Map<string, ContentItemRow>();
   for (const row of rows) rowMap.set(row.id, row);
-  return lensed.map((item) => rowMap.get(item.id)!).filter(Boolean);
+  return lensed.map((item) => rowMap.get(item.id)).filter((row): row is ContentItemRow => !!row);
 }
 
 const LLM_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
@@ -122,8 +123,8 @@ const port = parseInt(process.env.PORT ?? "3000", 10);
 
 import { stopScheduler } from "./scheduler";
 
-process.on("SIGTERM", () => { stopScheduler(); process.exit(0); });
-process.on("SIGINT", () => { stopScheduler(); process.exit(0); });
+process.on("SIGTERM", () => { stopScheduler(); closeDb(); process.exit(0); });
+process.on("SIGINT", () => { stopScheduler(); closeDb(); process.exit(0); });
 
 console.log(`pace listening on http://localhost:${port}`);
 

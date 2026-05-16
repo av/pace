@@ -75,9 +75,13 @@ export function loadConfig(): AppConfig {
 
   const resolved = resolveEnvInObject(parsed) as Record<string, unknown>;
 
+  const rawLayout = resolved.layout as LayoutConfig | undefined;
+
   return {
-    adapters: (resolved.adapters as AdapterConfig[]) ?? [],
-    layout: (resolved.layout as LayoutConfig) ?? { panels: ["all"] },
+    adapters: Array.isArray(resolved.adapters) ? resolved.adapters : [],
+    layout: {
+      panels: Array.isArray(rawLayout?.panels) ? rawLayout.panels : ["all"],
+    },
     llm: resolved.llm as LlmConfig | undefined,
   };
 }
