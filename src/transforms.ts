@@ -1,5 +1,5 @@
 import type { Model, Api } from "@mariozechner/pi-ai";
-import type { TransformConfig, LlmConfig } from "./config";
+import type { TransformConfig, LlmConfig, KeywordScoreEntry } from "./config";
 import type { ContentItemRow } from "./db";
 import type { ContentItem } from "./adapters/types";
 import { summarizeItem, lensItems, mergeItems, filterItemsByLlm } from "./llm";
@@ -240,6 +240,113 @@ const transforms: Record<string, TransformFn> = {
     // Fallback for unknown strategy
     console.warn(`[dedupe] unknown strategy "${strategy}", passing items through`);
     return items;
+  },
+
+  "keyword-score": async (items, config) => {
+    const cfg = config as {
+      type: "keyword-score";
+      keywords: KeywordScoreEntry[];
+      min_score?: number;
+      annotate?: boolean;
+    };
+    const keywords = cfg.keywords ?? [];
+    const minScore = cfg.min_score ?? undefined;
+    const annotate = cfg.annotate ?? false;
+
+    if (keywords.length === 0) return items;
+
+    // Pre-compile regex patterns for regex entries, plain lowercase strings for others
+    const matchers = keywords.map((kw) => {
+      if (kw.regex) {
+        try {
+          return { regex: new RegExp(kw.term, "gi"), weight: kw.weight, term: kw.term };
+        } catch {
+          console.warn(`[keyword-score] invalid regex "${kw.term}", treating as literal`);
+          return { regex: null, literal: kw.term.toLowerCase(), weight: kw.weight, term: kw.term };
+        }
+      }
+      return { regex: null, literal: kw.term.toLowerCase(), weight: kw.weight, term: kw.term };
+    });
+
+    interface ScoredItem {
+      row: ContentItemRow;
+      score: number;
+      matchedTerms: string[];
+    }
+
+    const scored: ScoredItem[] = items.map((item) => {
+      const title = (item.title ?? "").toLowerCase();
+      const body = (item.body ?? "").toLowerCase();
+      const titleOrig = item.title ?? "";
+      const bodyOrig = item.body ?? "";
+      let score = 0;
+      const matchedTerms: string[] = [];
+
+      for (const matcher of matchers) {
+        let matchCount = 0;
+
+        if (matcher.regex) {
+          // Reset lastIndex for global regex
+          matcher.regex.lastIndex = 0;
+          const titleMatches = titleOrig.match(matcher.regex);
+          const bodyMatches = bodyOrig.match(matcher.regex);
+          matchCount = (titleMatches?.length ?? 0) + (bodyMatches?.length ?? 0);
+        } else {
+          // Case-insensitive literal matching - count occurrences
+          const literal = matcher.literal!;
+          let idx = 0;
+          while ((idx = title.indexOf(literal, idx)) !== -1) {
+            matchCount++;
+            idx += literal.length;
+          }
+          idx = 0;
+          while ((idx = body.indexOf(literal, idx)) !== -1) {
+            matchCount++;
+            idx += literal.length;
+          }
+        }
+
+        if (matchCount > 0) {
+          score += matcher.weight * matchCount;
+          matchedTerms.push(`${matcher.term}(${matchCount > 1 ? "x" + matchCount : ""}${matcher.weight > 0 ? "+" : ""}${matcher.weight})`);
+        }
+      }
+
+      return { row: item, score, matchedTerms };
+    });
+
+    // Filter by minimum score if specified
+    let filtered = scored;
+    if (minScore !== undefined) {
+      const before = filtered.length;
+      filtered = filtered.filter((s) => s.score >= minScore);
+      if (filtered.length < before) {
+        console.log(
+          `[keyword-score] filtered out ${before - filtered.length} item(s) below min_score=${minScore}`
+        );
+      }
+    }
+
+    // Sort by score descending (stable: items with same score keep original order)
+    filtered.sort((a, b) => b.score - a.score);
+
+    // Annotate items with matched keywords if requested
+    const result = filtered.map((s) => {
+      if (annotate && s.matchedTerms.length > 0) {
+        const annotation = `\n---\n[keyword-score: ${s.score}] ${s.matchedTerms.join(", ")}`;
+        return { ...s.row, body: (s.row.body ?? "") + annotation };
+      }
+      return s.row;
+    });
+
+    console.log(
+      `[keyword-score] scored ${items.length} items, ${result.length} passed` +
+        (result.length > 0
+          ? ` (top score: ${filtered[0]?.score}, bottom: ${filtered[filtered.length - 1]?.score})`
+          : "")
+    );
+
+    return result;
   },
 
   "llm-summarize": async (items, _config, ctx) => {

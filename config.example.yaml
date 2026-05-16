@@ -185,6 +185,21 @@ layout:
 #   keep: highest-score   # which duplicate to keep: highest-score, earliest, or latest
 #   log: true             # log which items were deduped (default: true)
 #
+# - type: keyword-score   # score/rank items by keyword relevance
+#   keywords:
+#     - term: "rust"          # literal match (case-insensitive)
+#       weight: 10
+#     - term: "typescript"
+#       weight: 8
+#     - term: "blockchain|crypto|nft"   # regex pattern
+#       weight: -20
+#       regex: true
+#     - term: "AI|machine learning|LLM"
+#       weight: 15
+#       regex: true
+#   min_score: 0             # optional: drop items scoring below this (default: keep all)
+#   annotate: true           # optional: append matched keywords and score to body (default: false)
+#
 # - type: llm-summarize   # add LLM summaries to items
 #
 # - type: llm-filter      # keep only items matching LLM criteria

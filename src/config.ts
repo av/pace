@@ -33,12 +33,19 @@ export interface SourceConfig {
 
 // --- Transforms ---
 
+export interface KeywordScoreEntry {
+  term: string;
+  weight: number;
+  regex?: boolean;
+}
+
 export type TransformConfig =
   | { type: "latest"; count: number }
   | { type: "filter"; keywords: string[]; fields?: ("title" | "body" | "source")[] }
   | { type: "exclude"; keywords: string[]; fields?: ("title" | "body" | "source")[] }
   | { type: "sort"; field: "timestamp" | "title" | "source"; direction?: "asc" | "desc" }
   | { type: "dedupe"; strategy?: "url" | "domain-normalized" | "title-similarity"; threshold?: number; keep?: "highest-score" | "earliest" | "latest"; log?: boolean }
+  | { type: "keyword-score"; keywords: KeywordScoreEntry[]; min_score?: number; annotate?: boolean }
   | { type: "llm-summarize" }
   | { type: "llm-filter"; criteria: string }
   | { type: "llm-rank"; interests?: string[] }
