@@ -4,7 +4,10 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./data:/app/data
+      - pace-data:/app/data
       # Uncomment to use custom config (create config.yaml from config.example.yaml first):
       # - ./config.yaml:/app/config.yaml:ro
     restart: unless-stopped
+
+volumes:
+  pace-data:
