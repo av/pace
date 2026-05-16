@@ -28,6 +28,14 @@ adapters:
   #       - oven-sh/bun
   #       - honojs/hono
 
+  # - type: lobsters
+  #   params:
+  #     feed: hottest        # hottest, newest, active (aliases: hot, front, new, recent)
+  #     limit: 25            # max items to return (up to 100)
+  #     min_score: 0         # filter: only include items with this many points or more
+  #     tags: []             # optional: filter by tags (e.g. [programming, rust, devops])
+  #   refresh_interval: 15
+
   # - type: youtube
   #   params:
   #     channels:
