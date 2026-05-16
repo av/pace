@@ -524,6 +524,346 @@ const transforms: Record<string, TransformFn> = {
     return result;
   },
 
+  cluster: async (items, config) => {
+    const cfg = config as {
+      type: "cluster";
+      strategy?: "domain" | "keywords" | "source" | "auto";
+      min_cluster_size?: number;
+      max_clusters?: number;
+      similarity_threshold?: number;
+      annotate?: boolean;
+    };
+
+    const strategy = cfg.strategy ?? "auto";
+    const minClusterSize = cfg.min_cluster_size ?? 2;
+    const maxClusters = cfg.max_clusters ?? 10;
+    const similarityThreshold = cfg.similarity_threshold ?? 0.3;
+    const annotate = cfg.annotate ?? true;
+
+    if (items.length < 2) return items;
+
+    // --- Signal extraction ---
+
+    // Stop words that don't contribute to topic clustering
+    const STOP_WORDS = new Set([
+      "a", "an", "the", "and", "or", "but", "in", "on", "at", "to", "for",
+      "of", "with", "by", "from", "is", "it", "its", "this", "that", "are",
+      "was", "were", "be", "been", "has", "have", "had", "do", "does", "did",
+      "will", "would", "could", "should", "may", "might", "can", "shall",
+      "not", "no", "nor", "so", "if", "then", "than", "too", "very", "just",
+      "about", "up", "out", "how", "what", "when", "where", "who", "which",
+      "why", "all", "each", "every", "both", "few", "more", "most", "other",
+      "some", "such", "only", "own", "same", "as", "into", "through", "during",
+      "before", "after", "above", "below", "between", "under", "over", "again",
+      "new", "now", "get", "got", "use", "using", "used", "via", "also",
+      "one", "two", "first", "like", "still", "even", "much", "well", "back",
+      "here", "there", "while", "yet", "these", "those", "them", "they",
+      "your", "you", "my", "we", "our", "his", "her", "their", "i", "me",
+      "him", "she", "he", "us", "who", "whom",
+      // Common metadata words that appear in body annotations (not useful for clustering)
+      "points", "point", "comments", "comment", "discuss", "discussion",
+      "stars", "star", "likes", "like", "views", "view", "votes", "vote",
+      "upvotes", "upvote", "boosts", "boost", "favorites", "favourite",
+      "reactions", "reaction", "replies", "reply", "https", "http", "www",
+      "com", "org", "net", "reddit", "github", "show", "item", "news",
+      "ycombinator", "lobste", "read", "min", "cover",
+    ]);
+
+    function extractDomain(url: string): string {
+      try {
+        const u = new URL(url);
+        // Strip www. prefix and return hostname
+        return u.hostname.replace(/^www\./, "");
+      } catch {
+        return "";
+      }
+    }
+
+    function extractKeywords(text: string): string[] {
+      // Extract significant words (3+ chars, not stop words, not numbers)
+      return text
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, " ")
+        .split(/\s+/)
+        .filter((w) => w.length >= 3 && !STOP_WORDS.has(w) && !/^\d+$/.test(w));
+    }
+
+    interface ItemSignals {
+      domain: string;
+      keywords: Set<string>;
+      source: string;
+    }
+
+    // Extract signals for each item
+    const signals: ItemSignals[] = items.map((item) => {
+      const titleKeywords = extractKeywords(item.title ?? "");
+      // For body, extract only descriptive keywords:
+      // 1. Strip URLs (they contain domain noise like "ycombinator", "lobste", etc.)
+      // 2. Strip common metadata patterns (N points | by author | N comments | discuss: ...)
+      const body = item.body ?? "";
+      const bodyClean = body
+        .replace(/https?:\/\/[^\s|]+/g, "") // remove URLs
+        .replace(/\d+\s*(points?|comments?|reactions?|replies?|views?|stars?|boosts?|favorites?|likes?|upvotes?)/gi, "") // remove metric counts
+        .replace(/\bby\s+\S+/g, "") // remove "by author"
+        .replace(/\btags?:\s*[^\n|]+/gi, "") // remove "tags: ..."
+        .replace(/\bdiscuss:/gi, "") // remove "discuss:"
+        .replace(/[|]/g, " "); // pipe to space
+      const bodyKeywords = extractKeywords(bodyClean.slice(0, 150));
+      // Title keywords are most important — give them double weight by including them
+      // Body keywords supplement but title is the primary signal
+      const allKeywords = new Set([...titleKeywords, ...bodyKeywords]);
+
+      return {
+        domain: extractDomain(item.url),
+        keywords: allKeywords,
+        source: item.source ?? item.adapter_name ?? "",
+      };
+    });
+
+    // --- Similarity computation ---
+
+    function domainSimilarity(a: ItemSignals, b: ItemSignals): number {
+      if (!a.domain || !b.domain) return 0;
+      // Exact domain match
+      if (a.domain === b.domain) return 1.0;
+      // Check if one is subdomain of the other (e.g., blog.github.com vs github.com)
+      const aParts = a.domain.split(".");
+      const bParts = b.domain.split(".");
+      const aBase = aParts.slice(-2).join(".");
+      const bBase = bParts.slice(-2).join(".");
+      if (aBase === bBase) return 0.7;
+      return 0;
+    }
+
+    function keywordSimilarity(a: ItemSignals, b: ItemSignals): number {
+      if (a.keywords.size === 0 || b.keywords.size === 0) return 0;
+      // Jaccard similarity: |intersection| / |union|
+      let intersection = 0;
+      for (const kw of a.keywords) {
+        if (b.keywords.has(kw)) intersection++;
+      }
+      const union = a.keywords.size + b.keywords.size - intersection;
+      if (union === 0) return 0;
+      return intersection / union;
+    }
+
+    function sourceSimilarity(a: ItemSignals, b: ItemSignals): number {
+      if (!a.source || !b.source) return 0;
+      return a.source === b.source ? 1.0 : 0;
+    }
+
+    function computeSimilarity(a: ItemSignals, b: ItemSignals): number {
+      switch (strategy) {
+        case "domain":
+          return domainSimilarity(a, b);
+        case "keywords":
+          return keywordSimilarity(a, b);
+        case "source":
+          return sourceSimilarity(a, b);
+        case "auto":
+        default: {
+          // Weighted combination of all signals
+          // Domain is strongest signal (same site = strongly related)
+          // Keywords catch topical overlap across different sources
+          // Source is a weak signal (same feed doesn't mean same topic)
+          const domain = domainSimilarity(a, b) * 0.5;
+          const keywords = keywordSimilarity(a, b) * 0.45;
+          const source = sourceSimilarity(a, b) * 0.05;
+          return domain + keywords + source;
+        }
+      }
+    }
+
+    // --- Clustering via greedy agglomerative approach ---
+    // Assign each item to a cluster. Start with each item in its own cluster.
+    // Merge clusters greedily based on average pairwise similarity.
+
+    const clusterAssignment = items.map((_, i) => i); // each item starts in its own cluster
+
+    // Compute pairwise similarities (only upper triangle)
+    const similarities: Array<{ i: number; j: number; sim: number }> = [];
+    for (let i = 0; i < items.length; i++) {
+      for (let j = i + 1; j < items.length; j++) {
+        const sim = computeSimilarity(signals[i], signals[j]);
+        if (sim >= similarityThreshold) {
+          similarities.push({ i, j, sim });
+        }
+      }
+    }
+
+    // Sort by similarity descending
+    similarities.sort((a, b) => b.sim - a.sim);
+
+    // Union-Find for cluster merging
+    function find(x: number): number {
+      while (clusterAssignment[x] !== x) {
+        clusterAssignment[x] = clusterAssignment[clusterAssignment[x]]; // path compression
+        x = clusterAssignment[x];
+      }
+      return x;
+    }
+
+    function union(x: number, y: number): void {
+      const rx = find(x);
+      const ry = find(y);
+      if (rx !== ry) clusterAssignment[rx] = ry;
+    }
+
+    // Merge pairs above threshold
+    for (const { i, j } of similarities) {
+      union(i, j);
+    }
+
+    // Collect clusters
+    const clusterMap = new Map<number, number[]>(); // root -> item indices
+    for (let i = 0; i < items.length; i++) {
+      const root = find(i);
+      const group = clusterMap.get(root) ?? [];
+      group.push(i);
+      clusterMap.set(root, group);
+    }
+
+    // Separate significant clusters from singletons
+    const clusters: Array<{ indices: number[]; label: string }> = [];
+    const unclustered: number[] = [];
+
+    for (const [, indices] of clusterMap) {
+      if (indices.length >= minClusterSize) {
+        clusters.push({ indices, label: "" });
+      } else {
+        unclustered.push(...indices);
+      }
+    }
+
+    // Sort clusters by size descending, limit to max_clusters
+    clusters.sort((a, b) => b.indices.length - a.indices.length);
+    if (clusters.length > maxClusters) {
+      // Move excess clusters to unclustered
+      for (let i = maxClusters; i < clusters.length; i++) {
+        unclustered.push(...clusters[i].indices);
+      }
+      clusters.splice(maxClusters);
+    }
+
+    // --- Label generation ---
+    function generateLabel(indices: number[]): string {
+      // Find the most common domain in the cluster
+      const domainCounts = new Map<string, number>();
+      const keywordCounts = new Map<string, number>();
+
+      for (const idx of indices) {
+        const sig = signals[idx];
+        if (sig.domain) {
+          domainCounts.set(sig.domain, (domainCounts.get(sig.domain) ?? 0) + 1);
+        }
+        for (const kw of sig.keywords) {
+          keywordCounts.set(kw, (keywordCounts.get(kw) ?? 0) + 1);
+        }
+      }
+
+      // If majority share a domain, use that
+      const topDomain = [...domainCounts.entries()].sort((a, b) => b[1] - a[1])[0];
+      if (topDomain && topDomain[1] >= indices.length * 0.6) {
+        // Pretty-print known domains
+        const domain = topDomain[0];
+        const domainLabels: Record<string, string> = {
+          "github.com": "GitHub",
+          "reddit.com": "Reddit",
+          "news.ycombinator.com": "Hacker News",
+          "lobste.rs": "Lobsters",
+          "arxiv.org": "ArXiv Papers",
+          "stackoverflow.com": "Stack Overflow",
+          "dev.to": "Dev.to",
+          "youtube.com": "YouTube",
+          "medium.com": "Medium",
+          "twitter.com": "Twitter/X",
+          "x.com": "Twitter/X",
+        };
+        return domainLabels[domain] ?? domain.split(".")[0].charAt(0).toUpperCase() + domain.split(".")[0].slice(1);
+      }
+
+      // Otherwise, use top 2-3 shared keywords
+      // Only consider keywords that appear in more than half the cluster
+      const minKeywordCount = Math.ceil(indices.length * 0.4);
+      const topKeywords = [...keywordCounts.entries()]
+        .filter(([, count]) => count >= minKeywordCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([kw]) => kw);
+
+      if (topKeywords.length > 0) {
+        // Capitalize and join
+        return topKeywords
+          .map((kw) => kw.charAt(0).toUpperCase() + kw.slice(1))
+          .join("/");
+      }
+
+      // Fallback: use source if consistent
+      const sourceCounts = new Map<string, number>();
+      for (const idx of indices) {
+        const src = signals[idx].source;
+        if (src) sourceCounts.set(src, (sourceCounts.get(src) ?? 0) + 1);
+      }
+      const topSource = [...sourceCounts.entries()].sort((a, b) => b[1] - a[1])[0];
+      if (topSource && topSource[1] >= indices.length * 0.6) {
+        return topSource[0];
+      }
+
+      return `Cluster ${clusters.length + 1}`;
+    }
+
+    // Generate labels for each cluster
+    for (const cluster of clusters) {
+      cluster.label = generateLabel(cluster.indices);
+    }
+
+    // --- Sort within clusters by engagement score ---
+    for (const cluster of clusters) {
+      cluster.indices.sort((a, b) => {
+        const scoreA = extractEngagementScore(items[a].body);
+        const scoreB = extractEngagementScore(items[b].body);
+        return scoreB - scoreA; // highest first
+      });
+    }
+
+    // --- Flatten: clusters first (in order of size), then unclustered ---
+    const result: ContentItemRow[] = [];
+
+    for (const cluster of clusters) {
+      for (let pos = 0; pos < cluster.indices.length; pos++) {
+        const idx = cluster.indices[pos];
+        const item = items[idx];
+        if (annotate) {
+          const prefix = `[${cluster.label}] `;
+          const body = item.body ?? "";
+          result.push({ ...item, body: prefix + body });
+        } else {
+          result.push(item);
+        }
+      }
+    }
+
+    // Add unclustered items at the end, sorted by timestamp (newest first)
+    unclustered.sort((a, b) => {
+      const tA = new Date(items[a].timestamp).getTime();
+      const tB = new Date(items[b].timestamp).getTime();
+      return tB - tA;
+    });
+    for (const idx of unclustered) {
+      result.push(items[idx]);
+    }
+
+    // Log summary
+    const clusterSummary = clusters
+      .map((c) => `"${c.label}" (${c.indices.length} items)`)
+      .join(", ");
+    console.log(
+      `[cluster] strategy=${strategy}, ${clusters.length} cluster(s): ${clusterSummary || "none"}, ${unclustered.length} unclustered`
+    );
+
+    return result;
+  },
+
   "llm-summarize": async (items, _config, ctx) => {
     if (!ctx.llmModel) return items;
     const results: ContentItemRow[] = [];

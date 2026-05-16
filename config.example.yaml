@@ -255,6 +255,14 @@ layout:
 #   min_score: 0             # optional: drop items scoring below this (default: keep all)
 #   annotate: true           # optional: append matched keywords and score to body (default: false)
 #
+# - type: cluster         # group related items into topic clusters (no LLM)
+#   strategy: auto        # domain (group by URL domain), keywords (title/body keyword overlap),
+#                         # source (group by feed source), auto (weighted combination of all signals)
+#   min_cluster_size: 2   # minimum items needed to form a cluster (default: 2)
+#   max_clusters: 10      # maximum number of clusters to keep (default: 10)
+#   similarity_threshold: 0.3  # minimum similarity score to link items (0-1, default: 0.3)
+#   annotate: true        # prepend cluster label to item body, e.g. "[GitHub] ..." (default: true)
+#
 # - type: llm-summarize   # add LLM summaries to items
 #
 # - type: llm-filter      # keep only items matching LLM criteria
