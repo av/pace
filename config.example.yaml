@@ -95,6 +95,15 @@ adapters:
   #     limit: 10
   #   refresh_interval: 120
 
+  # - type: stackexchange
+  #   params:
+  #     site: stackoverflow          # any Stack Exchange site: stackoverflow, serverfault, superuser, askubuntu, etc.
+  #     tags: ["typescript", "react"] # filter by tags (array); questions must match ALL tags
+  #     sort: hot                    # activity, votes, creation, hot, week, month
+  #     min_score: 5                 # optional: only include questions with this score or more
+  #     limit: 20                    # max items to return (up to 100)
+  #   refresh_interval: 30
+
 # Layout: recursive flexbox tree
 # Each node is either a container (direction + children) or a panel (panel + source + transforms)
 layout:
