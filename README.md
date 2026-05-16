@@ -46,7 +46,7 @@ Each adapter has a `refresh_interval` in minutes (default: 15, minimum: 1).
 
 ### LLM
 
-Supports any provider via [@mariozechner/pi-ai](https://github.com/nickclaw/pi-ai) — OpenAI, Anthropic, Google, Groq, Mistral, xAI, DeepSeek, or any OpenAI-compatible endpoint via `base_url`.
+Supports any provider via [@mariozechner/pi-ai](https://github.com/badlogic/pi-mono) — OpenAI, Anthropic, Google, Groq, Mistral, xAI, DeepSeek, or any OpenAI-compatible endpoint via `base_url`.
 
 ```yaml
 llm:

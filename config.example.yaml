@@ -7,8 +7,22 @@ adapters:
 
   - type: hackernews
     params:
-      stories: top
+      stories: top  # top, new, or best
       limit: 30
+
+  # - type: github-releases
+  #   params:
+  #     repos:
+  #       - oven-sh/bun
+  #       - honojs/hono
+
+  # - type: reddit
+  #   params:
+  #     subreddits:
+  #       - programming
+  #       - selfhosted
+  #     sort: hot  # hot, new, or top
+  #     limit: 25
 
 layout:
   panels:
