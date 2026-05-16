@@ -48,12 +48,18 @@ function parseItem(raw: any, source: string): ContentItem {
     link = alt?.["@_href"] ?? raw.link[0]?.["@_href"] ?? "";
   }
 
-  // timestamp — RSS uses pubDate, Atom uses updated or published
   const dateStr = raw.pubDate ?? raw.updated ?? raw.published ?? "";
-  const timestamp = dateStr ? new Date(dateStr) : new Date();
+  const parsed = dateStr ? new Date(dateStr) : new Date();
+  const timestamp = isNaN(parsed.getTime()) ? new Date() : parsed;
 
-  // body — RSS uses description, Atom uses summary or content
-  const body = raw.description ?? raw.summary ?? raw.content?.["#text"] ?? raw.content ?? undefined;
+  const rawDesc = raw.description;
+  const rawSummary = raw.summary;
+  const rawContent = raw.content;
+  const body =
+    (typeof rawDesc === "string" ? rawDesc : rawDesc?.["#text"]) ??
+    (typeof rawSummary === "string" ? rawSummary : rawSummary?.["#text"]) ??
+    (typeof rawContent === "string" ? rawContent : rawContent?.["#text"]) ??
+    undefined;
 
   const resolvedUrl = link || undefined;
 

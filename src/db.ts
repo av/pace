@@ -10,6 +10,7 @@ export function getDb(): Database {
     db = new Database(dbPath, { create: true });
     db.exec("PRAGMA journal_mode=WAL");
     db.exec("PRAGMA foreign_keys=ON");
+    db.exec("PRAGMA busy_timeout=5000");
   }
   return db;
 }
@@ -19,7 +20,7 @@ export function initDb(): void {
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS content_items (
-      id TEXT PRIMARY KEY,
+      id TEXT NOT NULL PRIMARY KEY,
       adapter_name TEXT NOT NULL,
       title TEXT NOT NULL,
       url TEXT NOT NULL,
@@ -79,7 +80,7 @@ export function getRecentItems(limit: number = 50): ContentItemRow[] {
     SELECT * FROM content_items
     WHERE id IN (
       SELECT id FROM content_items
-      GROUP BY url
+      GROUP BY CASE WHEN url = '' THEN id ELSE url END
       HAVING id = MIN(id)
     )
     ORDER BY timestamp DESC
@@ -92,9 +93,15 @@ export function getItemsByAdapter(adapterName: string, limit: number = 50): Cont
   return db.prepare(`
     SELECT * FROM content_items
     WHERE adapter_name = ?
+      AND id IN (
+        SELECT id FROM content_items
+        WHERE adapter_name = ?
+        GROUP BY CASE WHEN url = '' THEN id ELSE url END
+        HAVING id = MIN(id)
+      )
     ORDER BY timestamp DESC
     LIMIT ?
-  `).all(adapterName, limit) as ContentItemRow[];
+  `).all(adapterName, adapterName, limit) as ContentItemRow[];
 }
 
 export interface ContentItemRow {

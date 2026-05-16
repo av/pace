@@ -5,7 +5,7 @@ import { loadConfig } from "./config";
 import { initDb, getRecentItems, getItemsByAdapter, type ContentItemRow } from "./db";
 import { discoverAdapters } from "./adapters/index";
 import { renderDashboard } from "./views";
-import { createModel, lensItems, summarizeItem, generateDigest } from "./llm";
+import { createModel, lensItems, generateDigest } from "./llm";
 import { startScheduler } from "./scheduler";
 import type { ContentItem } from "./adapters/types";
 
@@ -29,7 +29,7 @@ const adapters = await discoverAdapters();
 const llmModel = config.llm ? createModel(config.llm) : null;
 
 // start adapter scheduler — fetches content on startup and periodically
-startScheduler(config.adapters, adapters);
+startScheduler(config.adapters, adapters, llmModel);
 
 /** Convert ContentItemRow (DB) to ContentItem (adapter) for LLM functions */
 function rowToContentItem(row: ContentItemRow): ContentItem {
@@ -50,11 +50,13 @@ function reorderRows(rows: ContentItemRow[], lensed: ContentItem[]): ContentItem
   return lensed.map((item) => rowMap.get(item.id)!).filter(Boolean);
 }
 
-// serve static css
-app.get("/styles.css", async (c) => {
-  const css = readFileSync(join(import.meta.dir, "styles.css"), "utf-8");
-  return c.body(css, 200, { "Content-Type": "text/css" });
+// serve static css (cached at startup)
+const cssContent = readFileSync(join(import.meta.dir, "styles.css"), "utf-8");
+app.get("/styles.css", (c) => {
+  return c.body(cssContent, 200, { "Content-Type": "text/css", "Cache-Control": "public, max-age=3600" });
 });
+
+app.get("/health", (c) => c.json({ status: "ok" }));
 
 // main dashboard route — server-rendered HTML via Hono JSX
 app.get("/", async (c) => {
