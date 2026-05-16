@@ -6,6 +6,7 @@ import { initDb, getRecentItems, getItemsByAdapter, type ContentItemRow } from "
 import { discoverAdapters } from "./adapters/index";
 import { renderDashboard } from "./views";
 import { createModel, lensItems, summarizeItem, generateDigest } from "./llm";
+import { startScheduler } from "./scheduler";
 import type { ContentItem } from "./adapters/types";
 
 const app = new Hono();
@@ -21,6 +22,13 @@ const adapters = await discoverAdapters();
 
 // init LLM model (null if not configured)
 const llmModel = config.llm ? createModel(config.llm) : null;
+
+// ensure data directory exists for local dev
+import { mkdirSync } from "node:fs";
+mkdirSync(join(process.cwd(), "data"), { recursive: true });
+
+// start adapter scheduler — fetches content on startup and periodically
+startScheduler(config.adapters, adapters);
 
 /** Convert ContentItemRow (DB) to ContentItem (adapter) for LLM functions */
 function rowToContentItem(row: ContentItemRow): ContentItem {
