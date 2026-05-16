@@ -3,8 +3,9 @@
 adapters:
   - type: hackernews
     params:
-      stories: top
-      limit: 30
+      feed: top            # top, new, best, ask, show, job (aliases: front, newest, askhn, showhn, jobs)
+      limit: 30            # max items to return (up to 200)
+      min_score: 0         # filter: only include items with this many points or more
     refresh_interval: 15
 
   - type: rss
