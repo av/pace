@@ -105,7 +105,7 @@ export function getItemsByAdapter(adapterName: string, limit: number = 50): Cont
 }
 
 export function closeDb(): void {
-  if (db) db.close();
+  try { if (db) db.close(); } catch {}
 }
 
 export interface ContentItemRow {

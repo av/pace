@@ -66,8 +66,9 @@ export async function summarizeItem(
   item: ContentItem
 ): Promise<string | null> {
   try {
-    const userContent = item.body
-      ? `Title: ${item.title}\n\n${item.body}`
+    const bodySnippet = item.body ? item.body.slice(0, 2000) : "";
+    const userContent = bodySnippet
+      ? `Title: ${item.title}\n\n${bodySnippet}`
       : `Title: ${item.title}`;
 
     const context: Context = {

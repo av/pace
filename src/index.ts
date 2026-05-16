@@ -89,7 +89,9 @@ app.get("/", async (c) => {
               allItems,
               config.llm?.digest ?? {}
             );
-            digestCache.entry = { value: digestText, expiresAt: Date.now() + LLM_CACHE_TTL };
+            if (digestText) {
+              digestCache.entry = { value: digestText, expiresAt: Date.now() + LLM_CACHE_TTL };
+            }
           }
         }
         return { type: "digest" as const, title: "Digest", items: [] as ContentItemRow[] };
@@ -120,7 +122,7 @@ app.get("/", async (c) => {
 });
 
 const parsedPort = parseInt(process.env.PORT ?? "3000", 10);
-const port = isNaN(parsedPort) ? 3000 : parsedPort;
+const port = isNaN(parsedPort) || parsedPort < 1 || parsedPort > 65535 ? 3000 : parsedPort;
 
 import { stopScheduler } from "./scheduler";
 
