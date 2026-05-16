@@ -57,6 +57,20 @@ adapters:
   #     tags: []             # optional: filter by tags (e.g. [programming, rust, devops])
   #   refresh_interval: 15
 
+  # - type: mastodon
+  #   params:
+  #     instance: fosstodon.org       # Mastodon instance (default: mastodon.social)
+  #     limit: 20                     # max items to return (up to 40)
+  #     only_media: false             # only posts with media attachments
+  #     # Mode is auto-detected: accounts > hashtags > public timeline
+  #     # Public timeline (default if no hashtags/accounts):
+  #     #   Note: mastodon.social requires auth for public timeline; use other instances
+  #     # Hashtag timeline:
+  #     hashtags: []                  # array of hashtags (without #): [rust, opensource, linux]
+  #     # Account posts:
+  #     accounts: []                  # array of @user@instance handles: [@kev@fosstodon.org]
+  #   refresh_interval: 15
+
   # - type: youtube
   #   params:
   #     channels:
