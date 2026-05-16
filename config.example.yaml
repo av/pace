@@ -31,6 +31,24 @@ adapters:
   #       - oven-sh/bun
   #       - honojs/hono
 
+  # - type: github               # unified GitHub adapter (releases + trending modes)
+  #   params:
+  #     mode: releases            # releases or trending
+  #     repos:                    # (releases mode) repos to track
+  #       - facebook/react
+  #       - denoland/deno
+  #       - oven-sh/bun
+  #     limit: 5                  # max items per repo (up to 50)
+  #   refresh_interval: 60
+
+  # - type: github
+  #   params:
+  #     mode: trending            # fetch GitHub trending repos
+  #     language: typescript      # language filter (empty for all languages)
+  #     since: weekly             # daily, weekly, or monthly
+  #     limit: 15                 # max repos to return (up to 50)
+  #   refresh_interval: 60
+
   # - type: lobsters
   #   params:
   #     feed: hottest        # hottest, newest, active (aliases: hot, front, new, recent)
