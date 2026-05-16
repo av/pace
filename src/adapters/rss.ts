@@ -63,10 +63,12 @@ function parseItem(raw: any, source: string): ContentItem {
   const rawDesc = raw.description;
   const rawSummary = raw.summary;
   const rawContent = raw.content;
+  const rawEncoded = raw["content:encoded"];
   const body =
     (typeof rawDesc === "string" ? rawDesc : rawDesc?.["#text"]) ??
     (typeof rawSummary === "string" ? rawSummary : rawSummary?.["#text"]) ??
     (typeof rawContent === "string" ? rawContent : rawContent?.["#text"]) ??
+    (typeof rawEncoded === "string" ? rawEncoded : rawEncoded?.["#text"]) ??
     undefined;
 
   const resolvedUrl = link || undefined;
