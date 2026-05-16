@@ -16,11 +16,14 @@ adapters:
 
   # - type: reddit
   #   params:
-  #     subreddits:
+  #     subreddits:            # array of subreddit names; supports multireddits (e.g. "programming+typescript")
   #       - programming
   #       - selfhosted
-  #     sort: hot
-  #     limit: 25
+  #     sort: hot              # hot, new, top, rising
+  #     time: day              # time period for "top" sort: hour, day, week, month, year, all
+  #     limit: 25             # max items to return (up to 100)
+  #     min_score: 0          # filter: only include posts with this many upvotes or more
+  #   refresh_interval: 15
 
   # - type: github-releases
   #   params:
