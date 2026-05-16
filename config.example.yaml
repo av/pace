@@ -214,6 +214,14 @@ layout:
 #   keep: highest-score   # which duplicate to keep: highest-score, earliest, or latest
 #   log: true             # log which items were deduped (default: true)
 #
+# - type: time-decay      # rank items by engagement + recency ("hot" ranking)
+#   half_life: "12h"       # how quickly items lose relevance (e.g. "6h", "12h", "24h", "3d", "1w")
+#   engagement_weight: 0.7 # weight for engagement score (points/stars/boosts/etc.)
+#   recency_weight: 0.3    # weight for recency score (must sum to 1 with engagement_weight)
+#   decay: exponential     # decay function: exponential (HN-style) or linear
+#   annotate: false        # append computed hot-score breakdown to item body
+#   min_score: 0           # optional: drop items below this final hot-score
+#
 # - type: keyword-score   # score/rank items by keyword relevance
 #   keywords:
 #     - term: "rust"          # literal match (case-insensitive)

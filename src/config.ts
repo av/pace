@@ -46,6 +46,7 @@ export type TransformConfig =
   | { type: "sort"; field: "timestamp" | "title" | "source"; direction?: "asc" | "desc" }
   | { type: "dedupe"; strategy?: "url" | "domain-normalized" | "title-similarity"; threshold?: number; keep?: "highest-score" | "earliest" | "latest"; log?: boolean }
   | { type: "keyword-score"; keywords: KeywordScoreEntry[]; min_score?: number; annotate?: boolean }
+  | { type: "time-decay"; half_life?: string; engagement_weight?: number; recency_weight?: number; decay?: "exponential" | "linear"; annotate?: boolean; min_score?: number }
   | { type: "llm-summarize" }
   | { type: "llm-filter"; criteria: string }
   | { type: "llm-rank"; interests?: string[] }

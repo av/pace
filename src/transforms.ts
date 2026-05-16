@@ -68,6 +68,84 @@ function pickWinner(
   return best;
 }
 
+/**
+ * Parse a human-readable duration string into milliseconds.
+ * Supports: "30m", "6h", "12h", "1d", "3d", "1w", "2w" etc.
+ */
+function parseHalfLife(str: string): number {
+  const match = str.trim().match(/^(\d+(?:\.\d+)?)\s*(m|min|h|hr|d|day|w|wk)s?$/i);
+  if (!match) {
+    console.warn(`[time-decay] invalid half_life "${str}", defaulting to 12h`);
+    return 12 * 60 * 60 * 1000;
+  }
+  const value = parseFloat(match[1]);
+  const unit = match[2].toLowerCase();
+  const MS_MINUTE = 60 * 1000;
+  const MS_HOUR = 60 * MS_MINUTE;
+  const MS_DAY = 24 * MS_HOUR;
+  const MS_WEEK = 7 * MS_DAY;
+  switch (unit) {
+    case "m":
+    case "min":
+      return value * MS_MINUTE;
+    case "h":
+    case "hr":
+      return value * MS_HOUR;
+    case "d":
+    case "day":
+      return value * MS_DAY;
+    case "w":
+    case "wk":
+      return value * MS_WEEK;
+    default:
+      return value * MS_HOUR;
+  }
+}
+
+/**
+ * Extract a numeric engagement score from body metadata.
+ * Parses patterns like "N points", "N boosts", "N stars", "N favorites", "N upvotes", etc.
+ * Similar to extractScore from dedupe.ts but broader in scope.
+ */
+function extractEngagementScore(body: string | null): number {
+  if (!body) return 0;
+  let total = 0;
+
+  // Match "N points" (HN, Lobsters)
+  const pointsMatch = body.match(/(\d+)\s*points?/i);
+  if (pointsMatch) total += parseInt(pointsMatch[1], 10);
+
+  // Match "score: N"
+  const scoreMatch = body.match(/score:\s*(\d+)/i);
+  if (scoreMatch) total += parseInt(scoreMatch[1], 10);
+
+  // Match "N upvotes"
+  const upvotesMatch = body.match(/(\d+)\s*upvotes?/i);
+  if (upvotesMatch) total += parseInt(upvotesMatch[1], 10);
+
+  // Match "N boosts" (Mastodon/Fediverse)
+  const boostsMatch = body.match(/(\d+)\s*boosts?/i);
+  if (boostsMatch) total += parseInt(boostsMatch[1], 10);
+
+  // Match "N favorites" / "N favourites" (Mastodon/Fediverse)
+  const favMatch = body.match(/(\d+)\s*favou?rites?/i);
+  if (favMatch) total += parseInt(favMatch[1], 10);
+
+  // Match "N stars" (GitHub)
+  const starsMatch = body.match(/(\d+)\s*stars?/i);
+  if (starsMatch) total += parseInt(starsMatch[1], 10);
+
+  // Match "N likes"
+  const likesMatch = body.match(/(\d+)\s*likes?/i);
+  if (likesMatch) total += parseInt(likesMatch[1], 10);
+
+  // Match "N comments" as a secondary signal (weighted lower — add half)
+  const commentsMatch = body.match(/(\d+)\s*comments?/i);
+  if (commentsMatch) total += Math.floor(parseInt(commentsMatch[1], 10) / 2);
+
+  return total;
+}
+
 type TransformFn = (
   items: ContentItemRow[],
   config: TransformConfig,
@@ -343,6 +421,103 @@ const transforms: Record<string, TransformFn> = {
       `[keyword-score] scored ${items.length} items, ${result.length} passed` +
         (result.length > 0
           ? ` (top score: ${filtered[0]?.score}, bottom: ${filtered[filtered.length - 1]?.score})`
+          : "")
+    );
+
+    return result;
+  },
+
+  "time-decay": async (items, config) => {
+    const cfg = config as {
+      type: "time-decay";
+      half_life?: string;
+      engagement_weight?: number;
+      recency_weight?: number;
+      decay?: "exponential" | "linear";
+      annotate?: boolean;
+      min_score?: number;
+    };
+
+    const halfLifeStr = cfg.half_life ?? "12h";
+    const engagementWeight = cfg.engagement_weight ?? 0.7;
+    const recencyWeight = cfg.recency_weight ?? 0.3;
+    const decayType = cfg.decay ?? "exponential";
+    const annotate = cfg.annotate ?? false;
+    const minScore = cfg.min_score ?? undefined;
+
+    // Parse half-life string into milliseconds
+    const halfLifeMs = parseHalfLife(halfLifeStr);
+
+    const now = Date.now();
+
+    // Compute engagement scores and find the max for normalization
+    const engagementScores = items.map((item) => extractEngagementScore(item.body));
+    const maxEngagement = Math.max(1, ...engagementScores); // avoid division by zero
+
+    // Compute time-decay scores
+    interface DecayScored {
+      row: ContentItemRow;
+      engagementNorm: number;
+      recencyNorm: number;
+      finalScore: number;
+    }
+
+    const scored: DecayScored[] = items.map((item, i) => {
+      // Normalize engagement to [0, 1] using log scale for better distribution
+      const rawEngagement = engagementScores[i];
+      const engagementNorm = maxEngagement > 1
+        ? Math.log(1 + rawEngagement) / Math.log(1 + maxEngagement)
+        : (rawEngagement > 0 ? 1 : 0);
+
+      // Compute age in ms
+      const itemTime = new Date(item.timestamp).getTime();
+      const ageMs = Math.max(0, now - itemTime);
+
+      // Compute recency score via decay function
+      let recencyNorm: number;
+      if (decayType === "exponential") {
+        // Exponential decay: score = 2^(-age / half_life)
+        recencyNorm = Math.pow(2, -(ageMs / halfLifeMs));
+      } else {
+        // Linear decay: score = max(0, 1 - age / (2 * half_life))
+        // Items older than 2x half-life get score 0
+        recencyNorm = Math.max(0, 1 - ageMs / (2 * halfLifeMs));
+      }
+
+      // Combined weighted score
+      const finalScore = engagementWeight * engagementNorm + recencyWeight * recencyNorm;
+
+      return { row: item, engagementNorm, recencyNorm, finalScore };
+    });
+
+    // Filter by minimum score if specified
+    let filtered = scored;
+    if (minScore !== undefined) {
+      const before = filtered.length;
+      filtered = filtered.filter((s) => s.finalScore >= minScore);
+      if (filtered.length < before) {
+        console.log(
+          `[time-decay] filtered out ${before - filtered.length} item(s) below min_score=${minScore}`
+        );
+      }
+    }
+
+    // Sort by final score descending (stable sort preserves order for ties)
+    filtered.sort((a, b) => b.finalScore - a.finalScore);
+
+    // Annotate items with computed scores if requested
+    const result = filtered.map((s) => {
+      if (annotate) {
+        const annotation = `\n---\n[hot-score: ${s.finalScore.toFixed(3)}] engagement=${s.engagementNorm.toFixed(3)} recency=${s.recencyNorm.toFixed(3)} (${decayType}, half_life=${halfLifeStr})`;
+        return { ...s.row, body: (s.row.body ?? "") + annotation };
+      }
+      return s.row;
+    });
+
+    console.log(
+      `[time-decay] ranked ${items.length} items (decay=${decayType}, half_life=${halfLifeStr}, weights=${engagementWeight}/${recencyWeight})` +
+        (result.length > 0
+          ? ` top=${filtered[0]?.finalScore.toFixed(3)}, bottom=${filtered[filtered.length - 1]?.finalScore.toFixed(3)}`
           : "")
     );
 
