@@ -157,8 +157,12 @@ layout:
 #   field: timestamp      # timestamp, title, or source
 #   direction: desc       # asc or desc
 #
-# - type: dedupe          # deduplicate items
-#   by: url               # url or title
+# - type: dedupe          # deduplicate items across feeds
+#   strategy: url         # url (exact match), domain-normalized (strips tracking params/www),
+#                         # or title-similarity (fuzzy Levenshtein matching)
+#   threshold: 0.85       # similarity threshold for title-similarity (0-1, default 0.85)
+#   keep: highest-score   # which duplicate to keep: highest-score, earliest, or latest
+#   log: true             # log which items were deduped (default: true)
 #
 # - type: llm-summarize   # add LLM summaries to items
 #

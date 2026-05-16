@@ -3,30 +3,66 @@ import { join } from "node:path";
 import yaml from "js-yaml";
 import type { AdapterConfig } from "./adapters/types";
 
-export interface LlmDigestConfig {
-  max_length?: number;
-  style?: "brief" | "detailed";
-  focus_areas?: string[];
+// --- Layout Tree ---
+
+export interface FlexContainerConfig {
+  direction: "row" | "column";
+  flex?: number;
+  gap?: string;
+  children: LayoutNodeConfig[];
 }
+
+export interface PanelConfig {
+  panel: string;
+  flex?: number;
+  source: SourceValue;
+  transforms?: TransformConfig[];
+}
+
+export type LayoutNodeConfig = FlexContainerConfig | PanelConfig;
+
+// --- Sources ---
+
+export type SourceValue = string | string[] | SourceConfig | SourceConfig[];
+
+export interface SourceConfig {
+  adapter: string;
+  params?: Record<string, unknown>;
+  refresh_interval?: number;
+}
+
+// --- Transforms ---
+
+export type TransformConfig =
+  | { type: "latest"; count: number }
+  | { type: "filter"; keywords: string[]; fields?: ("title" | "body" | "source")[] }
+  | { type: "exclude"; keywords: string[]; fields?: ("title" | "body" | "source")[] }
+  | { type: "sort"; field: "timestamp" | "title" | "source"; direction?: "asc" | "desc" }
+  | { type: "dedupe"; strategy?: "url" | "domain-normalized" | "title-similarity"; threshold?: number; keep?: "highest-score" | "earliest" | "latest"; log?: boolean }
+  | { type: "llm-summarize" }
+  | { type: "llm-filter"; criteria: string }
+  | { type: "llm-rank"; interests?: string[] }
+  | { type: "llm-merge"; prompt?: string };
+
+// --- LLM ---
 
 export interface LlmConfig {
   provider?: string;
   model?: string;
   api_key?: string;
   base_url?: string;
-  digest?: LlmDigestConfig;
   interests?: string[];
 }
 
-export interface LayoutConfig {
-  panels?: string[];
-}
+// --- Top-level ---
 
 export interface AppConfig {
   adapters: AdapterConfig[];
-  layout: LayoutConfig;
+  layout: LayoutNodeConfig;
   llm?: LlmConfig;
 }
+
+// --- Helpers ---
 
 function resolveEnvVars(value: string): string {
   return value.replace(/\$\{(\w+)\}/g, (_, name) => process.env[name] ?? "");
@@ -45,8 +81,44 @@ function resolveEnvInObject(obj: unknown): unknown {
   return obj;
 }
 
+export function isPanel(node: LayoutNodeConfig): node is PanelConfig {
+  return "panel" in node;
+}
+
+export function isContainer(node: LayoutNodeConfig): node is FlexContainerConfig {
+  return "direction" in node && "children" in node;
+}
+
+export function normalizeSource(source: SourceValue): SourceConfig[] {
+  if (typeof source === "string") {
+    return [{ adapter: source }];
+  }
+  if (Array.isArray(source)) {
+    return source.map((s) =>
+      typeof s === "string" ? { adapter: s } : s
+    );
+  }
+  return [source];
+}
+
+export function collectPanels(node: LayoutNodeConfig): PanelConfig[] {
+  if (isPanel(node)) return [node];
+  return node.children.flatMap(collectPanels);
+}
+
+function validatePanelIds(node: LayoutNodeConfig): void {
+  const panels = collectPanels(node);
+  const ids = new Set<string>();
+  for (const p of panels) {
+    if (ids.has(p.panel)) {
+      throw new Error(`config: duplicate panel ID "${p.panel}"`);
+    }
+    ids.add(p.panel);
+  }
+}
+
 export function loadConfig(): AppConfig {
-  const configPath = join(process.cwd(), "config.yaml");
+  const configPath = process.env.PACE_CONFIG ?? join(process.cwd(), "config.yaml");
   const examplePath = join(process.cwd(), "config.example.yaml");
 
   let raw: string;
@@ -57,7 +129,10 @@ export function loadConfig(): AppConfig {
   } else {
     return {
       adapters: [],
-      layout: { panels: ["all"] },
+      layout: {
+        direction: "row",
+        children: [{ panel: "all", source: "all", transforms: [{ type: "latest", count: 50 }] }],
+      },
     };
   }
 
@@ -66,22 +141,34 @@ export function loadConfig(): AppConfig {
     parsed = yaml.load(raw) as Record<string, unknown>;
   } catch (err) {
     console.warn("config: failed to parse YAML, using defaults:", err);
-    return { adapters: [], layout: { panels: ["all"] } };
+    return {
+      adapters: [],
+      layout: {
+        direction: "row",
+        children: [{ panel: "all", source: "all", transforms: [{ type: "latest", count: 50 }] }],
+      },
+    };
   }
 
   if (!parsed || typeof parsed !== "object") {
-    return { adapters: [], layout: { panels: ["all"] } };
+    return {
+      adapters: [],
+      layout: {
+        direction: "row",
+        children: [{ panel: "all", source: "all", transforms: [{ type: "latest", count: 50 }] }],
+      },
+    };
   }
 
   const resolved = resolveEnvInObject(parsed) as Record<string, unknown>;
+  const adapters: AdapterConfig[] = Array.isArray(resolved.adapters) ? resolved.adapters : [];
+  const layout = resolved.layout as LayoutNodeConfig;
 
-  const rawLayout = resolved.layout as LayoutConfig | undefined;
+  validatePanelIds(layout);
 
   return {
-    adapters: Array.isArray(resolved.adapters) ? resolved.adapters : [],
-    layout: {
-      panels: Array.isArray(rawLayout?.panels) ? rawLayout.panels : ["all"],
-    },
+    adapters,
+    layout,
     llm: resolved.llm as LlmConfig | undefined,
   };
 }
