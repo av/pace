@@ -6,5 +6,4 @@ config.yaml
 .dockerignore
 .facts
 .agents/
-bunfig.toml
 tsconfig.json

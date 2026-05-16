@@ -29,7 +29,7 @@ export function startScheduler(
       continue;
     }
 
-    const intervalMin = config.refresh_interval ?? 15;
+    const intervalMin = Math.max(config.refresh_interval ?? 15, 1);
     const intervalMs = intervalMin * 60 * 1000;
 
     const entry: SchedulerEntry = {

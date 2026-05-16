@@ -6,7 +6,7 @@ COPY package.json bun.lock* ./
 RUN bun install --production
 
 COPY src/ src/
-COPY config.example.yaml ./
+COPY bunfig.toml config.example.yaml ./
 
 RUN mkdir -p /app/data && \
     useradd --system --no-create-home pace && \
