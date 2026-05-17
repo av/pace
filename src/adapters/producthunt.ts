@@ -1,0 +1,334 @@
+import { XMLParser } from "fast-xml-parser";
+import type { Adapter, AdapterConfig, ContentItem } from "./types";
+
+const PH_FEED_URL = "https://www.producthunt.com/feed";
+const ENRICH_BATCH_SIZE = 5;
+const ENRICH_DELAY_MS = 500;
+
+const parser = new XMLParser({
+  ignoreAttributes: false,
+  attributeNamePrefix: "@_",
+});
+
+interface PHEntry {
+  id?: string;
+  title?: string | { "#text": string };
+  content?: string | { "#text": string };
+  link?:
+    | { "@_href"?: string }
+    | Array<{ "@_href"?: string; "@_rel"?: string }>;
+  published?: string;
+  updated?: string;
+  author?: { name?: string };
+}
+
+interface EnrichedData {
+  upvotes?: number;
+  comments?: number;
+  topics?: string[];
+  makers?: string[];
+  website?: string;
+}
+
+function extractEntries(parsed: any): PHEntry[] {
+  const entries = parsed?.feed?.entry;
+  if (!entries) return [];
+  return Array.isArray(entries) ? entries : [entries];
+}
+
+function extractTitle(entry: PHEntry): string {
+  if (typeof entry.title === "string") return entry.title;
+  if (entry.title?.["#text"]) return entry.title["#text"];
+  return "(untitled)";
+}
+
+function extractLink(entry: PHEntry): string {
+  if (!entry.link) return "";
+  if (Array.isArray(entry.link)) {
+    const alt = entry.link.find((l) => l["@_rel"] === "alternate");
+    return alt?.["@_href"] ?? entry.link[0]?.["@_href"] ?? "";
+  }
+  return entry.link["@_href"] ?? "";
+}
+
+function extractContent(entry: PHEntry): { tagline: string; productLink: string } {
+  let raw = "";
+  if (typeof entry.content === "string") raw = entry.content;
+  else if (entry.content?.["#text"]) raw = entry.content["#text"];
+
+  if (!raw) return { tagline: "", productLink: "" };
+
+  // The content has HTML structure:
+  // <p>Tagline text</p>
+  // <p><a href="...">Discussion</a> | <a href="...product link...">Link</a></p>
+  // Extract just the first paragraph as the tagline
+  const firstParagraph = raw.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
+  let tagline = "";
+  if (firstParagraph) {
+    tagline = stripHtml(firstParagraph[1]);
+  } else {
+    // Fallback: strip everything but remove "Discussion | Link" noise
+    tagline = stripHtml(raw)
+      .replace(/Discussion\s*\|\s*Link/gi, "")
+      .trim();
+  }
+
+  // Extract the product link (the "Link" anchor)
+  const linkMatch = raw.match(
+    /href="(https:\/\/www\.producthunt\.com\/r\/[^"]+)"/,
+  );
+  const productLink = linkMatch ? linkMatch[1] : "";
+
+  return { tagline, productLink };
+}
+
+function extractId(entry: PHEntry): string {
+  // id format: "tag:www.producthunt.com,2005:Post/1143406"
+  if (entry.id) {
+    const match = entry.id.match(/Post\/(\d+)/);
+    if (match) return match[1];
+    return entry.id;
+  }
+  return extractLink(entry);
+}
+
+function stripHtml(html: string): string {
+  return html
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function enrichProduct(url: string): Promise<EnrichedData | null> {
+  try {
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (compatible; pace/1.0; +https://github.com/nickvdyck/pace)",
+        Accept: "text/html",
+      },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+
+    const data: EnrichedData = {};
+
+    // Extract upvote count - look for patterns like "Upvote • 215 points" or just numbers near upvote text
+    const upvoteMatch = html.match(
+      /(\d+)\s*(?:points|upvotes?)/i,
+    );
+    if (upvoteMatch) {
+      data.upvotes = parseInt(upvoteMatch[1], 10);
+    }
+
+    // Extract topics/categories from the page
+    const topicMatches = html.match(
+      /data-test="topic[^"]*"[^>]*>([^<]+)</g,
+    );
+    if (topicMatches) {
+      data.topics = topicMatches.map((m) => {
+        const textMatch = m.match(/>([^<]+)$/);
+        return textMatch ? textMatch[1].trim() : "";
+      }).filter(Boolean);
+    }
+
+    // Alternative topic extraction from links like /topics/artificial-intelligence
+    if (!data.topics || data.topics.length === 0) {
+      const topicLinks = html.match(
+        /href="\/topics\/([^"]+)"/g,
+      );
+      if (topicLinks) {
+        data.topics = [...new Set(topicLinks.map((m) => {
+          const href = m.match(/\/topics\/([^"]+)/);
+          return href
+            ? href[1].replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+            : "";
+        }).filter(Boolean))];
+      }
+    }
+
+    // Extract comment count from embedded JSON (commentsCount":68)
+    const commentJsonMatch = html.match(
+      /commentsCount":\s*(\d+)/,
+    );
+    if (commentJsonMatch) {
+      data.comments = parseInt(commentJsonMatch[1], 10);
+    }
+
+    // Extract makers from profile links like href="/@username"
+    const profileLinkMatches = html.match(
+      /href="\/@([a-zA-Z0-9_]{2,30})"/g,
+    );
+    if (profileLinkMatches) {
+      const EXCLUDED_HANDLES = new Set([
+        "producthunt", "product_hunt",
+      ]);
+      const handles = [...new Set(
+        profileLinkMatches.map((m) => {
+          const match = m.match(/\/@([a-zA-Z0-9_]{2,30})/);
+          return match ? match[1] : "";
+        }).filter((h) => h && !EXCLUDED_HANDLES.has(h.toLowerCase())),
+      )].slice(0, 3);
+      if (handles.length > 0) {
+        data.makers = handles.map((h) => `@${h}`);
+      }
+    }
+
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function buildBody(
+  tagline: string,
+  author: string,
+  productLink: string,
+  enriched: EnrichedData | null,
+): string {
+  const parts: string[] = [];
+
+  if (tagline) parts.push(tagline);
+  if (enriched?.upvotes !== undefined) parts.push(`${enriched.upvotes} upvotes`);
+  if (enriched?.comments !== undefined)
+    parts.push(`${enriched.comments} comments`);
+  if (enriched?.topics && enriched.topics.length > 0) {
+    parts.push(`topics: ${enriched.topics.join(", ")}`);
+  }
+  if (enriched?.makers && enriched.makers.length > 0) {
+    parts.push(`by ${enriched.makers.join(", ")}`);
+  } else if (author) {
+    parts.push(`by ${author}`);
+  }
+  if (productLink) {
+    parts.push(`site: ${productLink}`);
+  }
+
+  return parts.join(" | ");
+}
+
+const adapter: Adapter = {
+  name: "producthunt",
+  async fetch(config: AdapterConfig): Promise<ContentItem[]> {
+    const limit = Math.min((config.params?.limit as number) ?? 20, 50);
+    const minUpvotes = (config.params?.min_upvotes as number) ?? 0;
+    const enrich = (config.params?.enrich as boolean) ?? false;
+
+    try {
+      const res = await fetch(PH_FEED_URL, {
+        headers: {
+          "User-Agent": "pace:feed-aggregator/1.0",
+          Accept: "application/atom+xml, application/xml, text/xml",
+        },
+        signal: AbortSignal.timeout(15000),
+      });
+
+      if (!res.ok) {
+        console.warn(`producthunt: failed to fetch feed: ${res.status}`);
+        return [];
+      }
+
+      const xml = await res.text();
+      const parsed = parser.parse(xml);
+      const entries = extractEntries(parsed);
+
+      if (entries.length === 0) {
+        console.warn("producthunt: no entries found in feed");
+        return [];
+      }
+
+      // Parse basic data from feed
+      let items: Array<{
+        id: string;
+        title: string;
+        tagline: string;
+        url: string;
+        productLink: string;
+        author: string;
+        timestamp: Date;
+      }> = entries.map((entry) => {
+        const title = extractTitle(entry);
+        const url = extractLink(entry);
+        const { tagline, productLink } = extractContent(entry);
+        const author = entry.author?.name ?? "";
+        const dateStr = entry.published ?? entry.updated ?? "";
+        const date = dateStr ? new Date(dateStr) : new Date();
+        const timestamp = isNaN(date.getTime()) ? new Date() : date;
+
+        return {
+          id: extractId(entry),
+          title,
+          tagline,
+          url,
+          productLink,
+          author,
+          timestamp,
+        };
+      });
+
+      // Apply limit before enriching (enrichment is expensive)
+      items = items.slice(0, enrich ? limit : limit);
+
+      // Optionally enrich with page scraping for upvotes/topics
+      let enrichedMap = new Map<string, EnrichedData | null>();
+      if (enrich) {
+        console.log(
+          `producthunt: enriching ${items.length} items (this may take a moment)...`,
+        );
+        for (let i = 0; i < items.length; i += ENRICH_BATCH_SIZE) {
+          const batch = items.slice(i, i + ENRICH_BATCH_SIZE);
+          const results = await Promise.all(
+            batch.map((item) => enrichProduct(item.url)),
+          );
+          for (let j = 0; j < batch.length; j++) {
+            enrichedMap.set(batch[j].id, results[j]);
+          }
+          // Rate-limit between batches
+          if (i + ENRICH_BATCH_SIZE < items.length) {
+            await sleep(ENRICH_DELAY_MS);
+          }
+        }
+      }
+
+      // Filter by minimum upvotes if enrichment was enabled and threshold set
+      let filtered = items;
+      if (enrich && minUpvotes > 0) {
+        filtered = items.filter((item) => {
+          const data = enrichedMap.get(item.id);
+          return data?.upvotes !== undefined && data.upvotes >= minUpvotes;
+        });
+      }
+
+      // Limit after filtering
+      const limited = filtered.slice(0, limit);
+
+      return limited.map((item) => {
+        const enriched = enrichedMap.get(item.id) ?? null;
+
+        return {
+          id: `ph:${item.id}`,
+          title: item.title,
+          url: item.url,
+          source: "producthunt",
+          timestamp: item.timestamp,
+          body: buildBody(item.tagline, item.author, item.productLink, enriched),
+        };
+      });
+    } catch (err) {
+      console.warn("producthunt: error fetching feed:", err);
+      return [];
+    }
+  },
+};
+
+export default adapter;

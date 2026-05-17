@@ -113,6 +113,13 @@ adapters:
   #     # username: "benawad"        # optional: fetch articles from a specific author (instead of or in addition to tags)
   #   refresh_interval: 30
 
+  # - type: producthunt
+  #   params:
+  #     limit: 20                    # max items to return (up to 50, from Atom feed)
+  #     enrich: false                # set true to scrape product pages for upvotes/comments/topics/makers (slower)
+  #     min_upvotes: 0               # filter: only products with this many upvotes (requires enrich: true)
+  #   refresh_interval: 60
+
 # Layout: recursive flexbox tree
 # Each node is either a container (direction + children) or a panel (panel + source + transforms)
 layout:
