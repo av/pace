@@ -120,6 +120,18 @@ adapters:
   #     min_upvotes: 0               # filter: only products with this many upvotes (requires enrich: true)
   #   refresh_interval: 60
 
+  # - type: podcast
+  #   params:
+  #     feeds:                        # array of podcast RSS feed URLs
+  #       - https://feeds.simplecast.com/54nAGcIl  # The Changelog
+  #       - https://lexfridman.com/feed/podcast/
+  #       - https://feeds.fireside.fm/bibleinayear/rss
+  #     limit: 10                    # max episodes per feed (up to 50)
+  #   refresh_interval: 60
+  #   # Parses iTunes namespace extensions (itunes:duration, itunes:author, itunes:episode, itunes:season)
+  #   # Body format: "Duration: 1:23:45 | Show: Name | S02E05 | Description: first 200 chars... | Audio: url"
+  #   # Source label: podcast:{show-name-slug}
+
 # Layout: recursive flexbox tree
 # Each node is either a container (direction + children) or a panel (panel + source + transforms)
 layout:
