@@ -232,6 +232,181 @@ function validateRefreshInterval(value: unknown, path: string): void {
   }
 }
 
+function validatePositiveInteger(value: unknown, path: string): void {
+  if (typeof value !== "number" || !Number.isInteger(value) || value <= 0) {
+    throw new Error(`config: ${path} must be a positive integer`);
+  }
+}
+
+function validateFiniteNumber(value: unknown, path: string): void {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new Error(`config: ${path} must be a number`);
+  }
+}
+
+function validateOptionalBoolean(value: unknown, path: string): void {
+  if (value !== undefined && typeof value !== "boolean") {
+    throw new Error(`config: ${path} must be a boolean`);
+  }
+}
+
+function validateOptionalNonEmptyString(value: unknown, path: string): void {
+  if (value !== undefined && (typeof value !== "string" || value.trim().length === 0)) {
+    throw new Error(`config: ${path} must be a non-empty string`);
+  }
+}
+
+function validateStringList(value: unknown, path: string): void {
+  if (!Array.isArray(value)) {
+    throw new Error(`config: ${path} must be a list`);
+  }
+  if (value.length === 0) {
+    throw new Error(`config: ${path} must not be empty`);
+  }
+  value.forEach((entry, index) => {
+    if (typeof entry !== "string" || entry.trim().length === 0) {
+      throw new Error(`config: ${path}[${index}] must be a non-empty string`);
+    }
+  });
+}
+
+function validateOptionalStringList(value: unknown, path: string): void {
+  if (value !== undefined) {
+    validateStringList(value, path);
+  }
+}
+
+function validateEnum<T extends string>(
+  value: unknown,
+  allowed: readonly T[],
+  path: string,
+): void {
+  if (typeof value !== "string" || !(allowed as readonly string[]).includes(value)) {
+    throw new Error(`config: ${path} must be one of: ${allowed.join(", ")}`);
+  }
+}
+
+function validateOptionalEnum<T extends string>(
+  value: unknown,
+  allowed: readonly T[],
+  path: string,
+): void {
+  if (value !== undefined) {
+    validateEnum(value, allowed, path);
+  }
+}
+
+function validateOptionalUnitNumber(value: unknown, path: string): void {
+  if (value === undefined) return;
+  validateFiniteNumber(value, path);
+  if ((value as number) < 0 || (value as number) > 1) {
+    throw new Error(`config: ${path} must be between 0 and 1`);
+  }
+}
+
+function validateKeywordScoreEntries(value: unknown, path: string): void {
+  if (!Array.isArray(value)) {
+    throw new Error(`config: ${path} must be a list`);
+  }
+  if (value.length === 0) {
+    throw new Error(`config: ${path} must not be empty`);
+  }
+
+  value.forEach((entry, index) => {
+    const entryPath = `${path}[${index}]`;
+    if (!isRecord(entry)) {
+      throw new Error(`config: ${entryPath} must be an object`);
+    }
+    if (typeof entry.term !== "string" || entry.term.trim().length === 0) {
+      throw new Error(`config: ${entryPath}.term must be a non-empty string`);
+    }
+    validateFiniteNumber(entry.weight, `${entryPath}.weight`);
+    validateOptionalBoolean(entry.regex, `${entryPath}.regex`);
+  });
+}
+
+function validateTransform(transform: Record<string, unknown>, path: string): void {
+  switch (transform.type) {
+    case "latest":
+      validatePositiveInteger(transform.count, `${path}.count`);
+      break;
+    case "filter":
+    case "exclude":
+      validateStringList(transform.keywords, `${path}.keywords`);
+      if (transform.fields !== undefined) {
+        if (!Array.isArray(transform.fields) || transform.fields.length === 0) {
+          throw new Error(`config: ${path}.fields must be a non-empty list`);
+        }
+        transform.fields.forEach((field, fieldIndex) =>
+          validateEnum(field, ["title", "body", "source"], `${path}.fields[${fieldIndex}]`)
+        );
+      }
+      break;
+    case "sort":
+      validateEnum(transform.field, ["timestamp", "title", "source"], `${path}.field`);
+      validateOptionalEnum(transform.direction, ["asc", "desc"], `${path}.direction`);
+      break;
+    case "dedupe":
+      validateOptionalEnum(
+        transform.strategy,
+        ["url", "domain-normalized", "title-similarity"],
+        `${path}.strategy`,
+      );
+      validateOptionalUnitNumber(transform.threshold, `${path}.threshold`);
+      validateOptionalEnum(transform.keep, ["highest-score", "earliest", "latest"], `${path}.keep`);
+      validateOptionalBoolean(transform.log, `${path}.log`);
+      break;
+    case "keyword-score":
+      validateKeywordScoreEntries(transform.keywords, `${path}.keywords`);
+      if (transform.min_score !== undefined) {
+        validateFiniteNumber(transform.min_score, `${path}.min_score`);
+      }
+      validateOptionalBoolean(transform.annotate, `${path}.annotate`);
+      break;
+    case "time-decay":
+      validateOptionalNonEmptyString(transform.half_life, `${path}.half_life`);
+      if (transform.engagement_weight !== undefined) {
+        validateFiniteNumber(transform.engagement_weight, `${path}.engagement_weight`);
+      }
+      if (transform.recency_weight !== undefined) {
+        validateFiniteNumber(transform.recency_weight, `${path}.recency_weight`);
+      }
+      validateOptionalEnum(transform.decay, ["exponential", "linear"], `${path}.decay`);
+      validateOptionalBoolean(transform.annotate, `${path}.annotate`);
+      if (transform.min_score !== undefined) {
+        validateFiniteNumber(transform.min_score, `${path}.min_score`);
+      }
+      break;
+    case "cluster":
+      validateOptionalEnum(transform.strategy, ["domain", "keywords", "source", "auto"], `${path}.strategy`);
+      if (transform.min_cluster_size !== undefined) {
+        validatePositiveInteger(transform.min_cluster_size, `${path}.min_cluster_size`);
+      }
+      if (transform.max_clusters !== undefined) {
+        validatePositiveInteger(transform.max_clusters, `${path}.max_clusters`);
+      }
+      validateOptionalUnitNumber(transform.similarity_threshold, `${path}.similarity_threshold`);
+      validateOptionalBoolean(transform.annotate, `${path}.annotate`);
+      break;
+    case "llm-summarize":
+      break;
+    case "llm-filter":
+      validateOptionalNonEmptyString(transform.criteria, `${path}.criteria`);
+      if (transform.criteria === undefined) {
+        throw new Error(`config: ${path}.criteria is required`);
+      }
+      break;
+    case "llm-rank":
+      validateOptionalStringList(transform.interests, `${path}.interests`);
+      break;
+    case "llm-merge":
+      validateOptionalNonEmptyString(transform.prompt, `${path}.prompt`);
+      break;
+    default:
+      throw new Error(`config: ${path}.type references unknown transform "${transform.type}"`);
+  }
+}
+
 function validateTransforms(transforms: unknown, path: string): asserts transforms is TransformConfig[] {
   if (!Array.isArray(transforms)) {
     throw new Error(`config: ${path} must be a list`);
@@ -244,7 +419,23 @@ function validateTransforms(transforms: unknown, path: string): asserts transfor
     if (typeof transform.type !== "string" || transform.type.trim().length === 0) {
       throw new Error(`config: ${path}[${index}].type must be a non-empty string`);
     }
+    validateTransform(transform, `${path}[${index}]`);
   });
+}
+
+function validatePanelSourceRefs(layout: LayoutNodeConfig, sourceNames: Set<string>): void {
+  for (const panel of collectPanels(layout)) {
+    const sources = normalizeSource(panel.source);
+    sources.forEach((source, index) => {
+      if (source.adapter === "all") return;
+      if (!sourceNames.has(source.adapter)) {
+        const sourcePath = sources.length === 1
+          ? `layout panel "${panel.panel}" source`
+          : `layout panel "${panel.panel}" source[${index}]`;
+        throw new Error(`config: ${sourcePath} references unknown source "${source.adapter}"`);
+      }
+    });
+  }
 }
 
 function validateAdapterConfig(adapter: unknown, index: number): asserts adapter is IngestAdapterConfig {
@@ -368,6 +559,8 @@ export function loadConfig(): AppConfig {
     if (names.has(p.name)) throw new Error(`config: duplicate pipeline/adapter name "${p.name}"`);
     names.add(p.name);
   }
+
+  validatePanelSourceRefs(layout, names);
 
   return {
     adapters,
