@@ -441,6 +441,15 @@ function validateLlmConfig(llm: unknown): asserts llm is LlmConfig | undefined {
   }
 }
 
+function validateTopLevelKeys(config: Record<string, unknown>): void {
+  const allowed = new Set(["adapters", "pipelines", "layout", "llm"]);
+  for (const key of Object.keys(config)) {
+    if (!allowed.has(key)) {
+      throw new Error(`config: unknown top-level key "${key}"`);
+    }
+  }
+}
+
 function validatePanelSourceRefs(layout: LayoutNodeConfig, sourceNames: Set<string>): void {
   for (const panel of collectPanels(layout)) {
     const sources = normalizeSource(panel.source);
@@ -518,12 +527,15 @@ function validatePipelineConfig(
 }
 
 export function loadConfig(): AppConfig {
+  const explicitConfigPath = process.env.PACE_CONFIG !== undefined;
   const configPath = process.env.PACE_CONFIG ?? join(process.cwd(), "config.yaml");
   const examplePath = join(process.cwd(), "config.example.yaml");
 
   let raw: string;
   if (existsSync(configPath)) {
     raw = readFileSync(configPath, "utf-8");
+  } else if (explicitConfigPath) {
+    throw new Error(`config: file not found: ${configPath}`);
   } else if (existsSync(examplePath)) {
     raw = readFileSync(examplePath, "utf-8");
   } else {
@@ -538,11 +550,15 @@ export function loadConfig(): AppConfig {
     throw new Error(`config: failed to parse YAML: ${reason}`);
   }
 
-  if (!parsed || typeof parsed !== "object") {
+  if (parsed === undefined) {
     return defaultConfig();
+  }
+  if (!isRecord(parsed)) {
+    throw new Error("config: top-level config must be an object");
   }
 
   const resolved = resolveEnvInObject(parsed) as Record<string, unknown>;
+  validateTopLevelKeys(resolved);
   if (resolved.adapters !== undefined && !Array.isArray(resolved.adapters)) {
     throw new Error("config: adapters must be a list");
   }
