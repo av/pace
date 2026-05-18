@@ -16,7 +16,7 @@ export interface PanelConfig {
   panel: string;
   flex?: number;
   source: SourceValue;
-  transforms?: TransformConfig[];
+  limit?: number;
 }
 
 export type LayoutNodeConfig = FlexContainerConfig | PanelConfig;
@@ -63,10 +63,25 @@ export interface LlmConfig {
   interests?: string[];
 }
 
+// --- Ingest ---
+
+export interface IngestAdapterConfig extends AdapterConfig {
+  name?: string;
+  transforms?: TransformConfig[];
+}
+
+export interface PipelineConfig {
+  name: string;
+  sources: string[];
+  transforms: TransformConfig[];
+  refresh_interval?: number;
+}
+
 // --- Top-level ---
 
 export interface AppConfig {
-  adapters: AdapterConfig[];
+  adapters: IngestAdapterConfig[];
+  pipelines?: PipelineConfig[];
   layout: LayoutNodeConfig;
   llm?: LlmConfig;
 }
@@ -76,7 +91,7 @@ export interface AppConfig {
 function defaultLayout(): LayoutNodeConfig {
   return {
     direction: "row",
-    children: [{ panel: "all", source: "all", transforms: [{ type: "latest", count: 50 }] }],
+    children: [{ panel: "all", source: "all", limit: 50 }],
   };
 }
 
@@ -208,6 +223,91 @@ function validatePanelIds(node: LayoutNodeConfig): void {
   }
 }
 
+function validateRefreshInterval(value: unknown, path: string): void {
+  if (
+    value !== undefined &&
+    (typeof value !== "number" || !Number.isFinite(value) || value <= 0)
+  ) {
+    throw new Error(`config: ${path} must be a positive number`);
+  }
+}
+
+function validateTransforms(transforms: unknown, path: string): asserts transforms is TransformConfig[] {
+  if (!Array.isArray(transforms)) {
+    throw new Error(`config: ${path} must be a list`);
+  }
+
+  transforms.forEach((transform, index) => {
+    if (!isRecord(transform)) {
+      throw new Error(`config: ${path}[${index}] must be an object`);
+    }
+    if (typeof transform.type !== "string" || transform.type.trim().length === 0) {
+      throw new Error(`config: ${path}[${index}].type must be a non-empty string`);
+    }
+  });
+}
+
+function validateAdapterConfig(adapter: unknown, index: number): asserts adapter is IngestAdapterConfig {
+  const path = `adapters[${index}]`;
+  if (!isRecord(adapter)) {
+    throw new Error(`config: ${path} must be an object`);
+  }
+  if (typeof adapter.type !== "string" || adapter.type.trim().length === 0) {
+    throw new Error(`config: ${path}.type must be a non-empty string`);
+  }
+  if (
+    adapter.name !== undefined &&
+    (typeof adapter.name !== "string" || adapter.name.trim().length === 0)
+  ) {
+    throw new Error(`config: ${path}.name must be a non-empty string`);
+  }
+  if (adapter.params !== undefined && !isRecord(adapter.params)) {
+    throw new Error(`config: ${path}.params must be an object`);
+  }
+  validateRefreshInterval(adapter.refresh_interval, `${path}.refresh_interval`);
+  if (adapter.transforms !== undefined) {
+    validateTransforms(adapter.transforms, `${path}.transforms`);
+  }
+}
+
+function validatePipelineConfig(
+  pipeline: unknown,
+  index: number,
+  sourceNames: Set<string>,
+): asserts pipeline is PipelineConfig {
+  const path = `pipelines[${index}]`;
+  if (!isRecord(pipeline)) {
+    throw new Error(`config: ${path} must be an object`);
+  }
+  if (typeof pipeline.name !== "string" || pipeline.name.trim().length === 0) {
+    throw new Error(`config: ${path}.name must be a non-empty string`);
+  }
+  if (!Array.isArray(pipeline.sources)) {
+    throw new Error(`config: ${path}.sources must be a list`);
+  }
+  if (pipeline.sources.length === 0) {
+    throw new Error(`config: ${path}.sources must not be empty`);
+  }
+
+  const seenSources = new Set<string>();
+  pipeline.sources.forEach((source, sourceIndex) => {
+    const sourcePath = `${path}.sources[${sourceIndex}]`;
+    if (typeof source !== "string" || source.trim().length === 0) {
+      throw new Error(`config: ${sourcePath} must be a non-empty string`);
+    }
+    if (seenSources.has(source)) {
+      throw new Error(`config: ${sourcePath} duplicates source "${source}"`);
+    }
+    if (!sourceNames.has(source)) {
+      throw new Error(`config: ${sourcePath} references unknown source "${source}"`);
+    }
+    seenSources.add(source);
+  });
+
+  validateTransforms(pipeline.transforms, `${path}.transforms`);
+  validateRefreshInterval(pipeline.refresh_interval, `${path}.refresh_interval`);
+}
+
 export function loadConfig(): AppConfig {
   const configPath = process.env.PACE_CONFIG ?? join(process.cwd(), "config.yaml");
   const examplePath = join(process.cwd(), "config.example.yaml");
@@ -234,14 +334,44 @@ export function loadConfig(): AppConfig {
   }
 
   const resolved = resolveEnvInObject(parsed) as Record<string, unknown>;
-  const adapters: AdapterConfig[] = Array.isArray(resolved.adapters) ? resolved.adapters : [];
+  if (resolved.adapters !== undefined && !Array.isArray(resolved.adapters)) {
+    throw new Error("config: adapters must be a list");
+  }
+  if (resolved.pipelines !== undefined && !Array.isArray(resolved.pipelines)) {
+    throw new Error("config: pipelines must be a list");
+  }
+
+  const rawAdapters = (resolved.adapters ?? []) as unknown[];
+  const rawPipelines = (resolved.pipelines ?? []) as unknown[];
   const layout = resolved.layout ?? defaultLayout();
 
   validateLayoutNode(layout);
   validatePanelIds(layout);
 
+  rawAdapters.forEach(validateAdapterConfig);
+  const adapters = rawAdapters as IngestAdapterConfig[];
+
+  const names = new Set<string>();
+  for (const a of adapters) {
+    const n = a.name ?? a.type;
+    if (names.has(n)) throw new Error(`config: duplicate adapter name "${n}"`);
+    names.add(n);
+  }
+
+  const sourceNames = new Set(names);
+  for (const [index, p] of rawPipelines.entries()) {
+    validatePipelineConfig(p, index, sourceNames);
+  }
+  const pipelines = rawPipelines as PipelineConfig[];
+
+  for (const p of pipelines) {
+    if (names.has(p.name)) throw new Error(`config: duplicate pipeline/adapter name "${p.name}"`);
+    names.add(p.name);
+  }
+
   return {
     adapters,
+    pipelines: pipelines.length > 0 ? pipelines : undefined,
     layout,
     llm: resolved.llm as LlmConfig | undefined,
   };

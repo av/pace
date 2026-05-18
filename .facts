@@ -15,6 +15,12 @@
 - label: app ships with a Dockerfile and docker-compose.yml — docker compose up starts the full stack
   command: test -f Dockerfile && test -f docker-compose.yml
   tags: [spec, implemented]
+- label: all transforms run at ingest time in the scheduler — DB contains final cleaned data, request handler just reads and renders
+  command: grep -q 'runPipeline' src/scheduler.ts && ! grep -q 'runPipeline' src/index.ts
+  tags: [spec, implemented]
+- label: pipelines are cross-adapter transform chains — defined in config under pipelines section, items stored under pipeline name
+  command: grep -q 'PipelineConfig' src/config.ts && grep -q 'runPipelineJob' src/scheduler.ts
+  tags: [spec, implemented]
 
 # visual style
 
@@ -27,8 +33,8 @@
 - label: typography uses system-ui sans-serif for body text and ui-monospace for data/timestamps
   command: grep -q 'system-ui' src/styles.css && grep -q 'ui-monospace' src/styles.css
   tags: [spec, implemented]
-- label: layout is a CSS grid on viewports >= 768px, single column below — no media query JS
-  command: grep -q '@media' src/styles.css && grep -q 'grid' src/styles.css
+- label: layout uses recursive flexbox tree — containers (row/column + children) and leaf panels, collapses to single column below 768px
+  command: grep -q 'flex-container' src/styles.css && grep -q '@media' src/styles.css
   tags: [spec, implemented]
 
 # adapters
@@ -39,11 +45,11 @@
 - label: each adapter exports a function that fetches, normalizes, and returns ContentItem[] — ContentItem has title, url, source, timestamp, and optional body
   command: grep -q 'ContentItem' src/adapters/types.ts
   tags: [spec, implemented]
-- label: ships with built-in adapters: rss, github-releases, hackernews, reddit, twitter
-  command: ls src/adapters/rss.ts src/adapters/github-releases.ts src/adapters/hackernews.ts src/adapters/reddit.ts src/adapters/twitter.ts 2>/dev/null | wc -l | grep -q 5
-  tags: [implemented]
-- label: adapters are configured in config.yaml — each entry specifies adapter type and its parameters
-  command: test -f config.yaml || test -f config.example.yaml
+- label: adapters are configured in config.yaml with optional name, params, refresh_interval, and transforms
+  command: test -f config.example.yaml && grep -q 'transforms' config.example.yaml
+  tags: [spec, implemented]
+- label: adapter name field disambiguates multiple instances of the same type — defaults to type if omitted
+  command: grep -q 'IngestAdapterConfig' src/config.ts
   tags: [spec, implemented]
 - label: adding a new adapter means adding one file in src/adapters/ that implements the Adapter interface — no registration step
   command: grep -rq 'src/adapters' src/adapters/index.ts 2>/dev/null || ls src/adapters/*.ts | wc -l | grep -qv 0
@@ -57,23 +63,32 @@
 - label: LLM provider, model, and API key are configured in config.yaml under an llm section
   command: grep -q 'llm' config.example.yaml 2>/dev/null || grep -q 'llm' config.yaml 2>/dev/null
   tags: [spec, implemented]
-- label: LLM is used for two features: summarizing individual content items and generating a daily digest across all sources
-  command: grep -q 'summar' src/llm.ts && grep -q 'digest' src/llm.ts
-  tags: [implemented]
-- label: lensing: content is filtered and ranked by a user-defined interest profile in config.yaml — LLM scores relevance per item
-  command: grep -q 'lens' src/llm.ts || grep -q 'interest' src/llm.ts
-  tags: [implemented]
-- label: dashboard renders all content without LLM when no LLM is configured — summaries and digest are simply absent
-  command: grep -rq 'llm\|summary\|digest' src/index.ts
-  tags: [spec]
+- label: LLM features are exposed as transform pipeline steps — llm-summarize, llm-filter, llm-rank, llm-merge
+  command: grep -q 'llm-summarize\|llm-filter\|llm-rank\|llm-merge' src/transforms.ts
+  tags: [spec, implemented]
+- label: LLM transforms gracefully degrade — items pass through unchanged when no LLM is configured
+  command: grep -q 'if (!ctx.llmModel) return items' src/transforms.ts
+  tags: [spec, implemented]
+- label: lensing (llm-rank): content is reordered by LLM-scored relevance to user interests — falls back to config.llm.interests
+  command: grep -q 'lensItems' src/transforms.ts
+  tags: [spec, implemented]
+- label: llm-merge uses structured output — LLM groups items by ID, merged items replace originals
+  command: grep -q 'mergeItems' src/transforms.ts
+  tags: [spec, implemented]
 
 # customization
 
 - label: config.yaml lists active adapters with per-adapter parameters (urls, tokens, subreddits, etc.)
   command: test -f config.example.yaml
   tags: [spec, implemented]
-- label: dashboard layout is configurable — config.yaml defines which panels appear and their order
-  command: grep -q 'layout\|panels\|sections' config.example.yaml
+- label: layout is a recursive flexbox tree in config.yaml — supports nested row/column containers, flex ratios, and custom gap
+  command: grep -q 'direction' config.example.yaml && grep -q 'children' config.example.yaml
+  tags: [spec, implemented]
+- label: panels specify a source and optional limit — transforms are on adapters/pipelines, not on panels
+  command: grep -q 'limit' config.example.yaml && grep -q 'source' config.example.yaml
+  tags: [spec, implemented]
+- label: transform pipeline applies sequentially — available: latest, filter, exclude, sort, dedupe, keyword-score, time-decay, cluster, llm-summarize, llm-filter, llm-rank, llm-merge
+  command: test -f src/transforms.ts && grep -q 'runPipeline' src/transforms.ts
   tags: [spec, implemented]
 - label: each adapter has a configurable refresh interval in minutes — defaults to 15 if unset
   command: grep -q 'interval\|refresh' src/adapters/types.ts
@@ -84,9 +99,24 @@
 - label: config layout validation rejects malformed nested nodes and panel sources with config-prefixed errors before render startup
   command: tmp=$(mktemp -d); printf 'adapters: []\nlayout:\n  direction: row\n  children:\n    - not-a-layout-node\n' > "$tmp/bad-node.yaml"; printf 'adapters: []\nlayout:\n  direction: row\n  children:\n    - panel: bad\n      source:\n        params:\n          topic: missing\n' > "$tmp/bad-source.yaml"; for cfg in "$tmp/bad-node.yaml" "$tmp/bad-source.yaml"; do PACE_CONFIG="$cfg" bun -e 'import { loadConfig } from "./src/config"; try { loadConfig(); process.exit(1); } catch (err) { const msg = String(err?.message ?? err); if (!msg.startsWith("config: layout")) { console.error(msg); process.exit(2); } }' || exit 1; done
   tags: [spec, bugbash, implemented]
-- label: digest preferences are configurable in config.yaml: max length, focus areas, and summary style (brief/detailed)
-  command: grep -q 'digest\|summary' config.example.yaml
+- label: config validation rejects malformed adapter and pipeline entries with config-prefixed errors before scheduler startup
+  command: tmp=$(mktemp -d); printf 'adapters:\n  - name: missing-type\nlayout:\n  direction: row\n  children:\n    - panel: all\n      source: all\n' > "$tmp/missing-adapter-type.yaml"; printf 'adapters:\n  - not-an-object\nlayout:\n  direction: row\n  children:\n    - panel: all\n      source: all\n' > "$tmp/invalid-adapter-entry.yaml"; printf 'adapters:\n  - type: hackernews\npipelines:\n  - sources: [hackernews]\n    transforms:\n      - type: latest\n        count: 10\nlayout:\n  direction: row\n  children:\n    - panel: all\n      source: all\n' > "$tmp/missing-pipeline-name.yaml"; printf 'adapters:\n  - type: hackernews\npipelines:\n  - name: combined\n    sources: hackernews\n    transforms:\n      - type: latest\n        count: 10\nlayout:\n  direction: row\n  children:\n    - panel: combined\n      source: combined\n' > "$tmp/invalid-pipeline-sources.yaml"; printf 'adapters:\n  - type: hackernews\npipelines:\n  - name: combined\n    sources: [hackernews]\n    transforms:\n      type: latest\n      count: 10\nlayout:\n  direction: row\n  children:\n    - panel: combined\n      source: combined\n' > "$tmp/invalid-pipeline-transforms.yaml"; printf 'adapters:\n  - type: hackernews\npipelines:\n  - name: combined\n    sources: [hackernews, hackernews]\n    transforms:\n      - type: latest\n        count: 10\nlayout:\n  direction: row\n  children:\n    - panel: combined\n      source: combined\n' > "$tmp/duplicate-pipeline-source.yaml"; printf 'adapters:\n  - type: hackernews\npipelines:\n  - name: combined\n    sources: [hackernews, missing-source]\n    transforms:\n      - type: latest\n        count: 10\nlayout:\n  direction: row\n  children:\n    - panel: combined\n      source: combined\n' > "$tmp/unknown-pipeline-source.yaml"; for cfg in "$tmp"/*.yaml; do PACE_CONFIG="$cfg" bun -e 'import { loadConfig } from "./src/config"; try { loadConfig(); process.exit(1); } catch (err) { const msg = String(err?.message ?? err); if (!msg.startsWith("config:")) { console.error(msg); process.exit(2); } }' || exit 1; done
+  tags: [spec, bugbash, implemented]
+
+# cli
+
+- label: pace has a CLI launcher at src/cli.ts — supports serve command, --config, --port, --help, --version
+  command: test -f src/cli.ts && grep -q 'parseArgs' src/cli.ts
   tags: [spec, implemented]
+- label: CLI is installable globally via bun link — binary name is "pace"
+  command: grep -q '"pace"' package.json && grep -q '"bin"' package.json
+  tags: [spec, implemented]
+- label: serve is the default command — running bare "pace" starts the server
+  command: grep -q "serve" src/cli.ts
+  tags: [spec, implemented]
+- label: CLI startup reports malformed config as a config-prefixed error without a Bun stack trace
+  command: tmp=$(mktemp); printf 'adapters:\n  - type: hackernews\npipelines:\n  - name: combined\n    sources: hackernews\n    transforms:\n      - type: latest\n        count: 10\nlayout:\n  direction: row\n  children:\n    - panel: combined\n      source: combined\n' > "$tmp"; out=$(timeout 3 env PORT=31409 bun run src/cli.ts serve --config "$tmp" 2>&1); status=$?; test "$status" -eq 1 && printf "%s" "$out" | grep -q "^config: pipelines\[0\]\.sources must be a list$" && ! printf "%s" "$out" | grep -q "Bun v\| at validatePipelineConfig\|pace listening"
+  tags: [spec, bugbash, implemented]
 
 # project setup
 
