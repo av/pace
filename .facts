@@ -81,6 +81,9 @@
 - label: config without layout falls back to the default all-panel layout instead of crashing
   command: tmp=$(mktemp); printf 'adapters: []\n' > "$tmp"; PACE_CONFIG="$tmp" bun -e 'import { loadConfig, collectPanels } from "./src/config"; const cfg = loadConfig(); const panels = collectPanels(cfg.layout); if (panels.length !== 1 || panels[0].panel !== "all" || panels[0].source !== "all") process.exit(1);'
   tags: [spec, implemented, bugbash]
+- label: config layout validation rejects malformed nested nodes and panel sources with config-prefixed errors before render startup
+  command: tmp=$(mktemp -d); printf 'adapters: []\nlayout:\n  direction: row\n  children:\n    - not-a-layout-node\n' > "$tmp/bad-node.yaml"; printf 'adapters: []\nlayout:\n  direction: row\n  children:\n    - panel: bad\n      source:\n        params:\n          topic: missing\n' > "$tmp/bad-source.yaml"; for cfg in "$tmp/bad-node.yaml" "$tmp/bad-source.yaml"; do PACE_CONFIG="$cfg" bun -e 'import { loadConfig } from "./src/config"; try { loadConfig(); process.exit(1); } catch (err) { const msg = String(err?.message ?? err); if (!msg.startsWith("config: layout")) { console.error(msg); process.exit(2); } }' || exit 1; done
+  tags: [spec, bugbash, implemented]
 - label: digest preferences are configurable in config.yaml: max length, focus areas, and summary style (brief/detailed)
   command: grep -q 'digest\|summary' config.example.yaml
   tags: [spec, implemented]

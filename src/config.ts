@@ -104,12 +104,16 @@ function resolveEnvInObject(obj: unknown): unknown {
   return obj;
 }
 
-export function isPanel(node: LayoutNodeConfig): node is PanelConfig {
-  return "panel" in node;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export function isContainer(node: LayoutNodeConfig): node is FlexContainerConfig {
-  return "direction" in node && "children" in node;
+export function isPanel(node: unknown): node is PanelConfig {
+  return isRecord(node) && "panel" in node;
+}
+
+export function isContainer(node: unknown): node is FlexContainerConfig {
+  return isRecord(node) && "direction" in node && "children" in node;
 }
 
 export function normalizeSource(source: SourceValue): SourceConfig[] {
@@ -126,7 +130,71 @@ export function normalizeSource(source: SourceValue): SourceConfig[] {
 
 export function collectPanels(node: LayoutNodeConfig): PanelConfig[] {
   if (isPanel(node)) return [node];
-  return node.children.flatMap(collectPanels);
+  if (isContainer(node)) return node.children.flatMap(collectPanels);
+  throw new Error("config: layout node is invalid");
+}
+
+function validateSource(source: unknown, path: string): void {
+  if (typeof source === "string") {
+    if (source.trim().length === 0) {
+      throw new Error(`config: ${path} must not be empty`);
+    }
+    return;
+  }
+
+  if (Array.isArray(source)) {
+    if (source.length === 0) {
+      throw new Error(`config: ${path} must not be an empty list`);
+    }
+    source.forEach((entry, index) => validateSource(entry, `${path}[${index}]`));
+    return;
+  }
+
+  if (!isRecord(source)) {
+    throw new Error(`config: ${path} must be a source name or source object`);
+  }
+
+  if (typeof source.adapter !== "string" || source.adapter.trim().length === 0) {
+    throw new Error(`config: ${path}.adapter must be a non-empty string`);
+  }
+}
+
+function validateLayoutNode(node: unknown, path = "layout"): asserts node is LayoutNodeConfig {
+  if (!isRecord(node)) {
+    throw new Error(`config: ${path} must be a layout node object`);
+  }
+
+  const hasPanel = "panel" in node;
+  const hasContainer = "direction" in node || "children" in node;
+
+  if (hasPanel && hasContainer) {
+    throw new Error(`config: ${path} cannot be both a panel and a container`);
+  }
+
+  if (hasPanel) {
+    if (typeof node.panel !== "string" || node.panel.trim().length === 0) {
+      throw new Error(`config: ${path}.panel must be a non-empty string`);
+    }
+    if (!("source" in node)) {
+      throw new Error(`config: ${path}.source is required`);
+    }
+    validateSource(node.source, `${path}.source`);
+    return;
+  }
+
+  if (!hasContainer) {
+    throw new Error(`config: ${path} must define either panel or direction/children`);
+  }
+
+  if (node.direction !== "row" && node.direction !== "column") {
+    throw new Error(`config: ${path}.direction must be "row" or "column"`);
+  }
+
+  if (!Array.isArray(node.children)) {
+    throw new Error(`config: ${path}.children must be a list`);
+  }
+
+  node.children.forEach((child, index) => validateLayoutNode(child, `${path}.children[${index}]`));
 }
 
 function validatePanelIds(node: LayoutNodeConfig): void {
@@ -167,8 +235,9 @@ export function loadConfig(): AppConfig {
 
   const resolved = resolveEnvInObject(parsed) as Record<string, unknown>;
   const adapters: AdapterConfig[] = Array.isArray(resolved.adapters) ? resolved.adapters : [];
-  const layout = resolved.layout ? resolved.layout as LayoutNodeConfig : defaultLayout();
+  const layout = resolved.layout ?? defaultLayout();
 
+  validateLayoutNode(layout);
   validatePanelIds(layout);
 
   return {
