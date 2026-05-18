@@ -78,6 +78,9 @@
 - label: each adapter has a configurable refresh interval in minutes — defaults to 15 if unset
   command: grep -q 'interval\|refresh' src/adapters/types.ts
   tags: [spec, implemented]
+- label: config without layout falls back to the default all-panel layout instead of crashing
+  command: tmp=$(mktemp); printf 'adapters: []\n' > "$tmp"; PACE_CONFIG="$tmp" bun -e 'import { loadConfig, collectPanels } from "./src/config"; const cfg = loadConfig(); const panels = collectPanels(cfg.layout); if (panels.length !== 1 || panels[0].panel !== "all" || panels[0].source !== "all") process.exit(1);'
+  tags: [spec, implemented, bugbash]
 - label: digest preferences are configurable in config.yaml: max length, focus areas, and summary style (brief/detailed)
   command: grep -q 'digest\|summary' config.example.yaml
   tags: [spec, implemented]

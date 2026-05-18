@@ -73,6 +73,20 @@ export interface AppConfig {
 
 // --- Helpers ---
 
+function defaultLayout(): LayoutNodeConfig {
+  return {
+    direction: "row",
+    children: [{ panel: "all", source: "all", transforms: [{ type: "latest", count: 50 }] }],
+  };
+}
+
+function defaultConfig(): AppConfig {
+  return {
+    adapters: [],
+    layout: defaultLayout(),
+  };
+}
+
 function resolveEnvVars(value: string): string {
   return value.replace(/\$\{(\w+)\}/g, (_, name) => process.env[name] ?? "");
 }
@@ -136,13 +150,7 @@ export function loadConfig(): AppConfig {
   } else if (existsSync(examplePath)) {
     raw = readFileSync(examplePath, "utf-8");
   } else {
-    return {
-      adapters: [],
-      layout: {
-        direction: "row",
-        children: [{ panel: "all", source: "all", transforms: [{ type: "latest", count: 50 }] }],
-      },
-    };
+    return defaultConfig();
   }
 
   let parsed: Record<string, unknown>;
@@ -150,28 +158,16 @@ export function loadConfig(): AppConfig {
     parsed = yaml.load(raw) as Record<string, unknown>;
   } catch (err) {
     console.warn("config: failed to parse YAML, using defaults:", err);
-    return {
-      adapters: [],
-      layout: {
-        direction: "row",
-        children: [{ panel: "all", source: "all", transforms: [{ type: "latest", count: 50 }] }],
-      },
-    };
+    return defaultConfig();
   }
 
   if (!parsed || typeof parsed !== "object") {
-    return {
-      adapters: [],
-      layout: {
-        direction: "row",
-        children: [{ panel: "all", source: "all", transforms: [{ type: "latest", count: 50 }] }],
-      },
-    };
+    return defaultConfig();
   }
 
   const resolved = resolveEnvInObject(parsed) as Record<string, unknown>;
   const adapters: AdapterConfig[] = Array.isArray(resolved.adapters) ? resolved.adapters : [];
-  const layout = resolved.layout as LayoutNodeConfig;
+  const layout = resolved.layout ? resolved.layout as LayoutNodeConfig : defaultLayout();
 
   validatePanelIds(layout);
 
