@@ -20,6 +20,20 @@ export function startScheduler(
   adapters: Map<string, Adapter>,
   model?: Model<Api> | null,
 ): void {
+  const missingAdapterTypes = Array.from(
+    new Set(adapterConfigs.map((config) => config.type).filter((type) => !adapters.has(type)))
+  );
+  if (missingAdapterTypes.length === 1) {
+    throw new Error(
+      `scheduler: adapter type "${missingAdapterTypes[0]}" is configured but no matching adapter module was discovered`
+    );
+  }
+  if (missingAdapterTypes.length > 1) {
+    throw new Error(
+      `scheduler: adapter types ${missingAdapterTypes.map((type) => `"${type}"`).join(", ")} are configured but no matching adapter modules were discovered`
+    );
+  }
+
   llmModel = model ?? null;
 
   for (const config of adapterConfigs) {

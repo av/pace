@@ -126,6 +126,9 @@
 - label: CLI startup reports malformed config as a config-prefixed error without a Bun stack trace
   command: tmp=$(mktemp); printf 'adapters:\n  - type: hackernews\npipelines:\n  - name: combined\n    sources: hackernews\n    transforms:\n      - type: latest\n        count: 10\nlayout:\n  direction: row\n  children:\n    - panel: combined\n      source: combined\n' > "$tmp"; out=$(timeout 3 env PORT=31409 bun run src/cli.ts serve --config "$tmp" 2>&1); status=$?; test "$status" -eq 1 && printf "%s" "$out" | grep -q "^config: pipelines\[0\]\.sources must be a list$" && ! printf "%s" "$out" | grep -q "Bun v\| at validatePipelineConfig\|pace listening"
   tags: [spec, bugbash, implemented]
+- label: CLI startup reports configured adapter types missing from discovered runtime adapters as scheduler-prefixed errors before server startup
+  command: tmp=$(mktemp); printf "adapters:\n  - type: definitely_missing_adapter\nlayout:\n  direction: row\n  children:\n    - panel: missing\n      source: definitely_missing_adapter\n" > "$tmp"; out=$(timeout 3 env PORT=31441 PACE_CONFIG="$tmp" bun run src/cli.ts serve 2>&1); status=$?; test "$status" -eq 1 && printf "%s" "$out" | grep -q "^scheduler: adapter type \"definitely_missing_adapter\" is configured but no matching adapter module was discovered$" && ! printf "%s" "$out" | grep -q "pace listening\|Bun v\| at startScheduler"
+  tags: [spec, bugbash, implemented]
 
 # project setup
 

@@ -62,7 +62,7 @@ try {
   await import("./index");
 } catch (err) {
   const message = String((err as Error | undefined)?.message ?? err);
-  if (message.startsWith("config:")) {
+  if (message.startsWith("config:") || message.startsWith("scheduler:")) {
     console.error(message);
     process.exit(1);
   }
