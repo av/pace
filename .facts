@@ -133,3 +133,10 @@
 # project setup
 
 - project is initialized with git, facts, and .gitignore @spec
+
+# runtime
+
+## refresh
+- label: manual panel refresh surfaces adapter fetch failures with HTTP 502 instead of redirecting as success
+  command: tmp=$(mktemp -d); repo="$tmp/repo"; rsync -a --exclude=.git --exclude=node_modules ./ "$repo/"; printf "import type { Adapter, AdapterConfig, ContentItem } from \"./types\";\n\nconst adapter: Adapter = {\n  name: \"bugbashfail\",\n  async fetch(_config: AdapterConfig): Promise<ContentItem[]> {\n    throw new Error(\"bugbash forced fetch failure\");\n  },\n};\n\nexport default adapter;\n" > "$repo/src/adapters/bugbashfail.ts"; printf "adapters:\n  - type: bugbashfail\n    refresh_interval: 60\nlayout:\n  direction: row\n  children:\n    - panel: failing\n      source: bugbashfail\n" > "$tmp/config.yaml"; port=31454; log="$tmp/server.log"; (cd "$repo" && env PORT=$port PACE_CONFIG="$tmp/config.yaml" bun run src/cli.ts serve > "$log" 2>&1) & pid=$!; cleanup() { kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; rm -rf "$tmp"; }; trap cleanup EXIT; for i in $(seq 1 30); do curl -fsS "http://127.0.0.1:$port/health" >/dev/null 2>&1 && break; sleep 0.2; done; out=$(curl -i -sS -X POST "http://127.0.0.1:$port/refresh/failing"); printf "%s" "$out" | grep -q "^HTTP/1.1 502" && printf "%s" "$out" | grep -q "Refresh failed for bugbashfail" && ! printf "%s" "$out" | grep -q "Location: /"
+  tags: [spec, bugbash, implemented]

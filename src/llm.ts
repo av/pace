@@ -1,5 +1,5 @@
 import { getModel, complete, type Model, type Api, type Context } from "@mariozechner/pi-ai";
-import type { LlmConfig, LlmDigestConfig } from "./config";
+import type { LlmConfig } from "./config";
 import type { ContentItem } from "./adapters/types";
 
 // Map provider names to their env var for the API key
@@ -86,41 +86,105 @@ export async function summarizeItem(
 }
 
 /**
- * Generate a daily digest across all content items. Returns the digest text, or null on error.
+ * LLM-based merge: groups/merges items based on a prompt.
+ * Returns structured output: [{merged_ids, title, summary}].
+ * Merged items replace originals; unmerged pass through.
  */
-export async function generateDigest(
+export async function mergeItems(
   model: Model<Api>,
   items: ContentItem[],
-  config: LlmDigestConfig
-): Promise<string | null> {
-  if (items.length === 0) return null;
+  prompt?: string
+): Promise<ContentItem[]> {
+  if (items.length === 0) return items;
 
   try {
-    const focusAreas = config.focus_areas?.join(", ") ?? "general topics";
-    const style = config.style ?? "brief";
-    const maxLength = config.max_length ?? 500;
+    const mergePrompt = prompt ?? "Group related items about the same topic into merged summaries";
+    const systemPrompt = `${mergePrompt}
 
-    const systemPrompt = `Generate a daily digest summarizing the following content items. Focus on: ${focusAreas}. Style: ${style}. Max length: ~${maxLength} words.`;
+Given the content items below, decide which ones to merge together. Return a JSON array where each element is either:
+- A merged group: {"merged_ids": ["id1", "id2"], "title": "merged title", "summary": "combined summary"}
+- An unchanged item: {"merged_ids": ["id1"], "title": "original title", "summary": null}
+
+Every item ID must appear exactly once. Return ONLY the JSON array.`;
 
     const itemList = items
-      .map((item, i) => {
-        const snippet = item.body ? item.body.slice(0, 200) : "";
-        return `${i + 1}. [${item.source}] ${item.title}${snippet ? `\n   ${snippet}` : ""}`;
+      .map((item) => {
+        const snippet = item.body ? item.body.slice(0, 300) : "";
+        return `- id: "${item.id}" | title: "${item.title}" | source: ${item.source}${snippet ? ` | body: ${snippet}` : ""}`;
       })
       .join("\n");
 
     const context: Context = {
       systemPrompt,
-      messages: [
-        { role: "user", content: itemList, timestamp: Date.now() },
-      ],
+      messages: [{ role: "user", content: itemList, timestamp: Date.now() }],
     };
 
     const response = await complete(model, context);
     const text = extractText(response.content);
-    return text || null;
+    const jsonStr = text.replace(/```json?\s*/g, "").replace(/```/g, "").trim();
+    const groups: { merged_ids: string[]; title: string; summary: string | null }[] = JSON.parse(jsonStr);
+
+    const itemMap = new Map<string, ContentItem>();
+    for (const item of items) itemMap.set(item.id, item);
+
+    const result: ContentItem[] = [];
+    for (const group of groups) {
+      if (group.merged_ids.length === 1 && !group.summary) {
+        const original = itemMap.get(group.merged_ids[0]);
+        if (original) result.push(original);
+      } else {
+        const firstItem = itemMap.get(group.merged_ids[0]);
+        result.push({
+          id: group.merged_ids.join("+"),
+          title: group.title,
+          url: firstItem?.url ?? "",
+          source: firstItem?.source ?? "merged",
+          timestamp: firstItem?.timestamp ?? new Date(),
+          body: group.summary ?? undefined,
+        });
+      }
+    }
+
+    return result;
   } catch {
-    return null;
+    return items;
+  }
+}
+
+/**
+ * LLM-based filter: keep only items matching criteria.
+ */
+export async function filterItemsByLlm(
+  model: Model<Api>,
+  items: ContentItem[],
+  criteria: string
+): Promise<ContentItem[]> {
+  if (items.length === 0) return items;
+
+  try {
+    const systemPrompt = `Given the criteria: "${criteria}", decide which items to keep. Return a JSON array of item IDs that match. Return ONLY the JSON array of strings.`;
+
+    const itemList = items
+      .map((item) => {
+        const snippet = item.body ? item.body.slice(0, 200) : "";
+        return `- id: "${item.id}" | title: "${item.title}" | source: ${item.source}${snippet ? ` | body: ${snippet}` : ""}`;
+      })
+      .join("\n");
+
+    const context: Context = {
+      systemPrompt,
+      messages: [{ role: "user", content: itemList, timestamp: Date.now() }],
+    };
+
+    const response = await complete(model, context);
+    const text = extractText(response.content);
+    const jsonStr = text.replace(/```json?\s*/g, "").replace(/```/g, "").trim();
+    const keepIds: string[] = JSON.parse(jsonStr);
+
+    const keepSet = new Set(keepIds);
+    return items.filter((item) => keepSet.has(item.id));
+  } catch {
+    return items;
   }
 }
 

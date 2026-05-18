@@ -1,13 +1,12 @@
 import { Hono } from "hono";
 import { readFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { loadConfig } from "./config";
-import { initDb, closeDb, getRecentItems, getItemsByAdapter, type ContentItemRow } from "./db";
+import { loadConfig, collectPanels, normalizeSource, isPanel, type PanelConfig, type LayoutNodeConfig } from "./config";
+import { initDb, closeDb, getRecentItems, getItemsByAdapter, getLastFetchedAt, getLastFetchedAtAll, type ContentItemRow } from "./db";
 import { discoverAdapters } from "./adapters/index";
-import { renderDashboard } from "./views";
-import { createModel, lensItems, generateDigest } from "./llm";
-import { startScheduler } from "./scheduler";
-import type { ContentItem } from "./adapters/types";
+import { renderDashboard, type PanelData } from "./layout";
+import { createModel } from "./llm";
+import { startScheduler, stopScheduler, refreshAdapters } from "./scheduler";
 
 const app = new Hono();
 
@@ -16,7 +15,7 @@ app.use("*", async (c, next) => {
   c.header("X-Content-Type-Options", "nosniff");
   c.header("X-Frame-Options", "DENY");
   c.header("Referrer-Policy", "strict-origin-when-cross-origin");
-  c.header("Content-Security-Policy", "default-src 'self'");
+  c.header("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'");
 });
 
 const config = loadConfig();
@@ -27,39 +26,7 @@ initDb();
 const adapters = await discoverAdapters();
 const llmModel = config.llm ? createModel(config.llm) : null;
 
-startScheduler(config.adapters, adapters, llmModel);
-
-function rowToContentItem(row: ContentItemRow): ContentItem {
-  return {
-    id: row.id,
-    title: row.title,
-    url: row.url,
-    source: row.source,
-    timestamp: new Date(row.timestamp),
-    body: row.body ?? undefined,
-  };
-}
-
-function reorderRows(rows: ContentItemRow[], lensed: ContentItem[]): ContentItemRow[] {
-  const rowMap = new Map<string, ContentItemRow>();
-  for (const row of rows) rowMap.set(row.id, row);
-  return lensed.map((item) => rowMap.get(item.id)).filter((row): row is ContentItemRow => !!row);
-}
-
-const LLM_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
-
-interface CacheEntry<T> {
-  value: T;
-  expiresAt: number;
-}
-
-const digestCache: { entry: CacheEntry<string | null> | null } = { entry: null };
-const lensCache = new Map<string, CacheEntry<ContentItem[]>>();
-
-function getCached<T>(entry: CacheEntry<T> | null): T | undefined {
-  if (entry && Date.now() < entry.expiresAt) return entry.value;
-  return undefined;
-}
+startScheduler(config, adapters, llmModel);
 
 const cssContent = readFileSync(join(import.meta.dir, "styles.css"), "utf-8");
 app.get("/styles.css", (c) => {
@@ -69,69 +36,72 @@ app.get("/styles.css", (c) => {
 app.get("/health", (c) => c.json({ status: "ok" }));
 
 app.get("/", async (c) => {
-  const panelNames = config.layout?.panels ?? ["all"];
+  const panels = collectPanels(config.layout);
   const now = new Date().toISOString().replace("T", " ").slice(0, 19);
-  const hasLlm = !!llmModel;
+  const panelData = new Map<string, PanelData>();
 
-  let digestText: string | null = null;
+  for (const panel of panels) {
+    const sources = normalizeSource(panel.source);
+    const limit = panel.limit ?? 50;
+    let items: ContentItemRow[] = [];
 
-  const panels = await Promise.all(
-    panelNames.map(async (name) => {
-      if (name === "digest") {
-        if (llmModel) {
-          const cached = getCached(digestCache.entry);
-          if (cached !== undefined) {
-            digestText = cached;
-          } else {
-            const allItems = getRecentItems(50).map(rowToContentItem);
-            digestText = await generateDigest(
-              llmModel,
-              allItems,
-              config.llm?.digest ?? {}
-            );
-            if (digestText) {
-              digestCache.entry = { value: digestText, expiresAt: Date.now() + LLM_CACHE_TTL };
-            }
-          }
-        }
-        return { type: "digest" as const, title: "Digest", items: [] as ContentItemRow[] };
-      }
+    for (const source of sources) {
+      const rows =
+        source.adapter === "all"
+          ? getRecentItems(limit)
+          : getItemsByAdapter(source.adapter, limit);
+      items = items.concat(rows);
+    }
 
-      let rows =
-        name === "all" ? getRecentItems(50) : getItemsByAdapter(name, 50);
+    if (sources.length > 1) {
+      items.sort((a, b) => (b.timestamp > a.timestamp ? 1 : b.timestamp < a.timestamp ? -1 : 0));
+      items = items.slice(0, limit);
+    }
 
-      if (llmModel && config.llm?.interests?.length) {
-        const cacheKey = name;
-        const cachedLens = getCached(lensCache.get(cacheKey) ?? null);
-        if (cachedLens !== undefined) {
-          rows = reorderRows(rows, cachedLens);
-        } else {
-          const contentItems = rows.map(rowToContentItem);
-          const lensed = await lensItems(llmModel, contentItems, config.llm.interests);
-          lensCache.set(cacheKey, { value: lensed, expiresAt: Date.now() + LLM_CACHE_TTL });
-          rows = reorderRows(rows, lensed);
-        }
-      }
+    let lastRefreshedAt: string | null = null;
+    for (const src of sources) {
+      const ts = src.adapter === "all" ? getLastFetchedAtAll() : getLastFetchedAt(src.adapter);
+      if (ts && (!lastRefreshedAt || ts > lastRefreshedAt)) lastRefreshedAt = ts;
+    }
 
-      return { type: "feed" as const, title: name === "all" ? "All" : name, items: rows };
-    })
-  );
+    panelData.set(panel.panel, { items, lastRefreshedAt });
+  }
 
-  const content = renderDashboard({ panels, hasLlm, updatedAt: now, digestText });
+  const content = renderDashboard({ layout: config.layout, panelData, updatedAt: now });
   return c.html(content);
+});
+
+const allPanels = collectPanels(config.layout);
+const panelSourceMap = new Map(allPanels.map((p) => [p.panel, normalizeSource(p.source)]));
+
+app.post("/refresh/:panel", async (c) => {
+  const panelId = c.req.param("panel");
+  const sources = panelSourceMap.get(panelId);
+  if (!sources) return c.redirect("/", 303);
+
+  const adapterNames = sources
+    .map((s) => s.adapter)
+    .filter((a) => a !== "all");
+
+  if (adapterNames.length > 0) {
+    const results = await refreshAdapters(adapterNames);
+    const failures = results.filter((result) => result.status === "failed");
+    if (failures.length > 0) {
+      const details = failures
+        .map((result) => `${result.name}${result.error ? `: ${result.error}` : ""}`)
+        .join("; ");
+      return c.text(`Refresh failed for ${details}`, 502);
+    }
+  }
+
+  return c.redirect("/", 303);
 });
 
 const parsedPort = parseInt(process.env.PORT ?? "3000", 10);
 const port = isNaN(parsedPort) || parsedPort < 1 || parsedPort > 65535 ? 3000 : parsedPort;
 
-import { stopScheduler } from "./scheduler";
-
 process.on("SIGTERM", () => { stopScheduler(); closeDb(); process.exit(0); });
 process.on("SIGINT", () => { stopScheduler(); closeDb(); process.exit(0); });
 
+Bun.serve({ port, fetch: app.fetch });
 console.log(`pace listening on http://localhost:${port}`);
-
-export default {
-  port,
-  fetch: app.fetch,
-};

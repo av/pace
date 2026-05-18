@@ -15,7 +15,7 @@ export interface TransformContext {
   llmConfig?: LlmConfig;
 }
 
-function rowToContentItem(row: ContentItemRow): ContentItem {
+export function rowToContentItem(row: ContentItemRow): ContentItem {
   return {
     id: row.id,
     title: row.title,
@@ -26,7 +26,7 @@ function rowToContentItem(row: ContentItemRow): ContentItem {
   };
 }
 
-function contentItemToRow(item: ContentItem, base?: ContentItemRow): ContentItemRow {
+export function contentItemToRow(item: ContentItem, base?: ContentItemRow): ContentItemRow {
   return {
     id: item.id,
     adapter_name: base?.adapter_name ?? "merged",

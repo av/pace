@@ -104,6 +104,60 @@ export function getItemsByAdapter(adapterName: string, limit: number = 50): Cont
   `).all(adapterName, adapterName, limit) as ContentItemRow[];
 }
 
+export function getLastFetchedAt(adapterName: string): string | null {
+  const db = getDb();
+  const row = db.prepare(
+    "SELECT MAX(fetched_at) as last_fetched FROM content_items WHERE adapter_name = ?"
+  ).get(adapterName) as { last_fetched: string | null } | null;
+  return row?.last_fetched ?? null;
+}
+
+export function getLastFetchedAtAll(): string | null {
+  const db = getDb();
+  const row = db.prepare(
+    "SELECT MAX(fetched_at) as last_fetched FROM content_items"
+  ).get() as { last_fetched: string | null } | null;
+  return row?.last_fetched ?? null;
+}
+
+export function getAllItemsByAdapter(adapterName: string): ContentItemRow[] {
+  const db = getDb();
+  return db.prepare(
+    "SELECT * FROM content_items WHERE adapter_name = ? ORDER BY timestamp DESC"
+  ).all(adapterName) as ContentItemRow[];
+}
+
+export function replaceAdapterItems(adapterName: string, items: ContentItemRow[]): void {
+  const db = getDb();
+
+  const existing = db.prepare(
+    "SELECT id, summary FROM content_items WHERE adapter_name = ? AND summary IS NOT NULL"
+  ).all(adapterName) as { id: string; summary: string }[];
+  const summaryMap = new Map(existing.map((r) => [r.id, r.summary]));
+
+  const tx = db.transaction(() => {
+    db.prepare("DELETE FROM content_items WHERE adapter_name = ?").run(adapterName);
+    const stmt = db.prepare(`
+      INSERT INTO content_items (id, adapter_name, title, url, source, body, timestamp, fetched_at, summary)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    for (const item of items) {
+      stmt.run(
+        item.id,
+        adapterName,
+        item.title,
+        item.url,
+        item.source,
+        item.body,
+        item.timestamp,
+        item.fetched_at,
+        item.summary ?? summaryMap.get(item.id) ?? null,
+      );
+    }
+  });
+  tx();
+}
+
 export function closeDb(): void {
   try { if (db) db.close(); } catch {}
 }

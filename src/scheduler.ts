@@ -1,27 +1,49 @@
-import type { Adapter, AdapterConfig } from "./adapters/types";
+import type { Adapter } from "./adapters/types";
 import type { Model, Api } from "@mariozechner/pi-ai";
-import { saveItems, getDb } from "./db";
-import { summarizeItem } from "./llm";
+import { saveItems, getAllItemsByAdapter, replaceAdapterItems, getDb } from "./db";
+import type { AppConfig, IngestAdapterConfig, PipelineConfig } from "./config";
+import { runPipeline, type TransformContext } from "./transforms";
+import type { ContentItemRow } from "./db";
 
-interface SchedulerEntry {
-  adapterConfig: AdapterConfig;
+interface AdapterEntry {
+  name: string;
+  adapterConfig: IngestAdapterConfig;
   adapter: Adapter;
   intervalMs: number;
   timer: ReturnType<typeof setInterval> | null;
   running: boolean;
 }
 
-const entries: SchedulerEntry[] = [];
-let llmModel: Model<Api> | null = null;
+interface PipelineEntry {
+  config: PipelineConfig;
+  intervalMs: number;
+  timer: ReturnType<typeof setInterval> | null;
+  running: boolean;
+}
+
+const adapterEntries: AdapterEntry[] = [];
+const pipelineEntries: PipelineEntry[] = [];
+let transformCtx: TransformContext = { llmModel: null };
 let pruneTimer: ReturnType<typeof setInterval> | null = null;
 
+export interface RefreshResult {
+  kind: "adapter" | "pipeline";
+  name: string;
+  status: "ok" | "skipped" | "failed";
+  error?: string;
+}
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
 export function startScheduler(
-  adapterConfigs: AdapterConfig[],
+  config: AppConfig,
   adapters: Map<string, Adapter>,
   model?: Model<Api> | null,
 ): void {
   const missingAdapterTypes = Array.from(
-    new Set(adapterConfigs.map((config) => config.type).filter((type) => !adapters.has(type)))
+    new Set(config.adapters.map((adapterCfg) => adapterCfg.type).filter((type) => !adapters.has(type)))
   );
   if (missingAdapterTypes.length === 1) {
     throw new Error(
@@ -34,20 +56,19 @@ export function startScheduler(
     );
   }
 
-  llmModel = model ?? null;
+  transformCtx = { llmModel: model ?? null, llmConfig: config.llm };
 
-  for (const config of adapterConfigs) {
-    const adapter = adapters.get(config.type);
-    if (!adapter) {
-      console.warn(`scheduler: no adapter found for type "${config.type}", skipping`);
-      continue;
-    }
+  for (const adapterCfg of config.adapters) {
+    const adapter = adapters.get(adapterCfg.type);
+    if (!adapter) continue;
 
-    const intervalMin = Math.max(config.refresh_interval ?? 15, 1);
+    const name = adapterCfg.name ?? adapterCfg.type;
+    const intervalMin = Math.max(adapterCfg.refresh_interval ?? 15, 1);
     const intervalMs = intervalMin * 60 * 1000;
 
-    const entry: SchedulerEntry = {
-      adapterConfig: config,
+    const entry: AdapterEntry = {
+      name,
+      adapterConfig: adapterCfg,
       adapter,
       intervalMs,
       timer: null,
@@ -56,54 +77,95 @@ export function startScheduler(
 
     runAdapter(entry);
     entry.timer = setInterval(() => runAdapter(entry), intervalMs);
-    entries.push(entry);
+    adapterEntries.push(entry);
 
-    console.log(`scheduler: ${config.type} — every ${intervalMin}m`);
+    console.log(`scheduler: ${name} — every ${intervalMin}m`);
+  }
+
+  if (config.pipelines) {
+    for (const pipelineCfg of config.pipelines) {
+      const intervalMin = Math.max(pipelineCfg.refresh_interval ?? 15, 1);
+      const intervalMs = intervalMin * 60 * 1000;
+
+      const entry: PipelineEntry = {
+        config: pipelineCfg,
+        intervalMs,
+        timer: null,
+        running: false,
+      };
+
+      // Delay first pipeline run to let source adapters fetch first
+      setTimeout(() => {
+        runPipelineJob(entry);
+        entry.timer = setInterval(() => runPipelineJob(entry), intervalMs);
+      }, 5000);
+
+      pipelineEntries.push(entry);
+      console.log(`scheduler: pipeline "${pipelineCfg.name}" — every ${intervalMin}m`);
+    }
   }
 
   pruneOldItems();
   pruneTimer = setInterval(pruneOldItems, 24 * 60 * 60 * 1000);
 }
 
-async function runAdapter(entry: SchedulerEntry): Promise<void> {
-  if (entry.running) return;
+async function runAdapter(entry: AdapterEntry): Promise<RefreshResult> {
+  if (entry.running) return { kind: "adapter", name: entry.name, status: "skipped" };
   entry.running = true;
 
-  const { adapter, adapterConfig } = entry;
+  const { name, adapter, adapterConfig } = entry;
   try {
     const items = await adapter.fetch(adapterConfig);
     if (items.length > 0) {
-      saveItems(adapter.name, items);
-      console.log(`scheduler: ${adapter.name} — fetched ${items.length} items`);
+      saveItems(name, items);
+      console.log(`scheduler: ${name} — fetched ${items.length} items`);
+    }
 
-      if (llmModel) {
-        const db = getDb();
-        const unsummarized = db.prepare(
-          `SELECT id, title, url, source, body, timestamp FROM content_items
-           WHERE adapter_name = ? AND summary IS NULL
-           ORDER BY timestamp DESC LIMIT 10`
-        ).all(adapter.name) as { id: string; title: string; url: string; source: string; body: string | null; timestamp: string }[];
-
-        for (const row of unsummarized) {
-          const summary = await summarizeItem(llmModel, {
-            id: row.id,
-            title: row.title,
-            url: row.url,
-            source: row.source,
-            timestamp: new Date(row.timestamp),
-            body: row.body ?? undefined,
-          });
-          if (summary) {
-            db.prepare("UPDATE content_items SET summary = ? WHERE id = ?").run(summary, row.id);
-          }
-        }
+    if (adapterConfig.transforms && adapterConfig.transforms.length > 0) {
+      const allItems = getAllItemsByAdapter(name);
+      const transformed = await runPipeline(allItems, adapterConfig.transforms, transformCtx);
+      replaceAdapterItems(name, transformed);
+      if (allItems.length !== transformed.length) {
+        console.log(`scheduler: ${name} — transforms: ${allItems.length} → ${transformed.length} items`);
       }
     }
   } catch (err) {
-    console.warn(`scheduler: ${adapter.name} — error:`, err);
+    console.warn(`scheduler: ${name} — error:`, err);
+    return { kind: "adapter", name, status: "failed", error: errorMessage(err) };
   } finally {
     entry.running = false;
   }
+
+  return { kind: "adapter", name, status: "ok" };
+}
+
+async function runPipelineJob(entry: PipelineEntry): Promise<RefreshResult> {
+  if (entry.running) return { kind: "pipeline", name: entry.config.name, status: "skipped" };
+  entry.running = true;
+
+  const { config } = entry;
+  try {
+    let items: ContentItemRow[] = [];
+    for (const source of config.sources) {
+      items = items.concat(getAllItemsByAdapter(source));
+    }
+    items.sort((a, b) => (b.timestamp > a.timestamp ? 1 : b.timestamp < a.timestamp ? -1 : 0));
+
+    const transformed = await runPipeline(items, config.transforms, transformCtx);
+    const namespaced = transformed.map((item) => ({
+      ...item,
+      id: `pipeline:${config.name}:${item.id}`,
+    }));
+    replaceAdapterItems(config.name, namespaced);
+    console.log(`scheduler: pipeline "${config.name}" — ${items.length} → ${transformed.length} items`);
+  } catch (err) {
+    console.warn(`scheduler: pipeline "${config.name}" — error:`, err);
+    return { kind: "pipeline", name: config.name, status: "failed", error: errorMessage(err) };
+  } finally {
+    entry.running = false;
+  }
+
+  return { kind: "pipeline", name: config.name, status: "ok" };
 }
 
 function pruneOldItems(): void {
@@ -120,11 +182,27 @@ function pruneOldItems(): void {
   }
 }
 
+export async function refreshAdapters(adapterNames: string[]): Promise<RefreshResult[]> {
+  const toRefresh = adapterEntries.filter((e) => adapterNames.includes(e.name));
+  const adapterResults = await Promise.all(toRefresh.map((e) => runAdapter(e)));
+
+  const pipelinesToRefresh = pipelineEntries.filter((e) =>
+    e.config.sources.some((s) => adapterNames.includes(s))
+  );
+  const pipelineResults = await Promise.all(pipelinesToRefresh.map((e) => runPipelineJob(e)));
+
+  return adapterResults.concat(pipelineResults);
+}
+
 export function stopScheduler(): void {
-  for (const entry of entries) {
+  for (const entry of adapterEntries) {
     if (entry.timer) clearInterval(entry.timer);
   }
-  entries.length = 0;
+  adapterEntries.length = 0;
+  for (const entry of pipelineEntries) {
+    if (entry.timer) clearInterval(entry.timer);
+  }
+  pipelineEntries.length = 0;
   if (pruneTimer) {
     clearInterval(pruneTimer);
     pruneTimer = null;
