@@ -423,6 +423,24 @@ function validateTransforms(transforms: unknown, path: string): asserts transfor
   });
 }
 
+function validateLlmConfig(llm: unknown): asserts llm is LlmConfig | undefined {
+  if (llm === undefined) return;
+  if (!isRecord(llm)) {
+    throw new Error("config: llm must be an object");
+  }
+
+  validateOptionalNonEmptyString(llm.provider, "llm.provider");
+  validateOptionalNonEmptyString(llm.model, "llm.model");
+  validateOptionalNonEmptyString(llm.api_key, "llm.api_key");
+  validateOptionalNonEmptyString(llm.base_url, "llm.base_url");
+  validateOptionalStringList(llm.interests, "llm.interests");
+
+  const configuredFields = ["provider", "model", "api_key"].filter((key) => llm[key] !== undefined);
+  if (configuredFields.length > 0 && configuredFields.length < 3) {
+    throw new Error("config: llm.provider, llm.model, and llm.api_key must be set together");
+  }
+}
+
 function validatePanelSourceRefs(layout: LayoutNodeConfig, sourceNames: Set<string>): void {
   for (const panel of collectPanels(layout)) {
     const sources = normalizeSource(panel.source);
@@ -516,8 +534,8 @@ export function loadConfig(): AppConfig {
   try {
     parsed = yaml.load(raw) as Record<string, unknown>;
   } catch (err) {
-    console.warn("config: failed to parse YAML, using defaults:", err);
-    return defaultConfig();
+    const reason = err instanceof Error ? err.message.split("\n")[0] : String(err);
+    throw new Error(`config: failed to parse YAML: ${reason}`);
   }
 
   if (!parsed || typeof parsed !== "object") {
@@ -561,6 +579,7 @@ export function loadConfig(): AppConfig {
   }
 
   validatePanelSourceRefs(layout, names);
+  validateLlmConfig(resolved.llm);
 
   return {
     adapters,
