@@ -73,15 +73,16 @@ app.get("/", async (c) => {
 
 const allPanels = collectPanels(config.layout);
 const panelSourceMap = new Map(allPanels.map((p) => [p.panel, normalizeSource(p.source)]));
+const configuredAdapterNames = config.adapters.map((adapter) => adapter.name ?? adapter.type);
 
 app.post("/refresh/:panel", async (c) => {
   const panelId = c.req.param("panel");
   const sources = panelSourceMap.get(panelId);
-  if (!sources) return c.redirect("/", 303);
+  if (!sources) return c.text(`Unknown panel: ${panelId}`, 404);
 
-  const adapterNames = sources
-    .map((s) => s.adapter)
-    .filter((a) => a !== "all");
+  const adapterNames = Array.from(new Set(sources.flatMap((s) =>
+    s.adapter === "all" ? configuredAdapterNames : [s.adapter]
+  )));
 
   if (adapterNames.length > 0) {
     const results = await refreshAdapters(adapterNames);
