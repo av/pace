@@ -6,7 +6,7 @@ import { initDb, closeDb, getRecentItems, getItemsByAdapter, getLastFetchedAt, g
 import { discoverAdapters } from "./adapters/index";
 import { renderDashboard, type PanelData } from "./layout";
 import { createModel } from "./llm";
-import { startScheduler, stopScheduler, refreshAdapters } from "./scheduler";
+import { startScheduler, stopScheduler, refreshSources } from "./scheduler";
 
 const app = new Hono();
 
@@ -80,12 +80,12 @@ app.post("/refresh/:panel", async (c) => {
   const sources = panelSourceMap.get(panelId);
   if (!sources) return c.text(`Unknown panel: ${panelId}`, 404);
 
-  const adapterNames = Array.from(new Set(sources.flatMap((s) =>
+  const sourceNames = Array.from(new Set(sources.flatMap((s) =>
     s.adapter === "all" ? configuredAdapterNames : [s.adapter]
   )));
 
-  if (adapterNames.length > 0) {
-    const results = await refreshAdapters(adapterNames);
+  if (sourceNames.length > 0) {
+    const results = await refreshSources(sourceNames);
     const failures = results.filter((result) => result.status === "failed");
     if (failures.length > 0) {
       const details = failures
