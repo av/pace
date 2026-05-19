@@ -14,6 +14,10 @@ const parser = new XMLParser({
   attributeNamePrefix: "@_",
 });
 
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
 function extractItems(parsed: any): any[] {
   // RSS 2.0
   if (parsed?.rss?.channel?.item) {
@@ -86,24 +90,31 @@ function parseItem(raw: any, source: string): ContentItem {
 }
 
 async function fetchFeed(url: string): Promise<ContentItem[]> {
+  let res: Response;
   try {
-    const res = await fetch(url, {
+    res = await fetch(url, {
       headers: { "User-Agent": "pace/1.0" },
       signal: AbortSignal.timeout(15000),
     });
-    if (!res.ok) {
-      console.warn(`rss: failed to fetch ${url}: ${res.status}`);
-      return [];
-    }
-    const xml = await res.text();
-    const parsed = parser.parse(xml);
-    const source = extractFeedTitle(parsed, url);
-    const items = extractItems(parsed);
-    return items.map((item) => parseItem(item, source));
   } catch (err) {
-    console.warn(`rss: error fetching ${url}:`, err);
-    return [];
+    throw new Error(`rss: error fetching ${url}: ${errorMessage(err)}`);
   }
+
+  if (!res.ok) {
+    throw new Error(`rss: failed to fetch ${url}: ${res.status}`);
+  }
+
+  let xml: string;
+  try {
+    xml = await res.text();
+  } catch (err) {
+    throw new Error(`rss: error reading ${url}: ${errorMessage(err)}`);
+  }
+
+  const parsed = parser.parse(xml);
+  const source = extractFeedTitle(parsed, url);
+  const items = extractItems(parsed);
+  return items.map((item) => parseItem(item, source));
 }
 
 const adapter: Adapter = {

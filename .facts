@@ -54,6 +54,9 @@
 - label: adding a new adapter means adding one file in src/adapters/ that implements the Adapter interface — no registration step
   command: grep -rq 'src/adapters' src/adapters/index.ts 2>/dev/null || ls src/adapters/*.ts | wc -l | grep -qv 0
   tags: [spec, implemented]
+- label: RSS adapter propagates HTTP and network fetch failures instead of returning an empty item list
+  command: bun -e 'import rss from "./src/adapters/rss"; async function expectReject(fetchImpl, needle) { globalThis.fetch = fetchImpl; try { await rss.fetch({ type: "rss", params: { urls: ["https://example.invalid/feed.xml"] } }); console.error("resolved instead of rejecting"); process.exit(1); } catch (err) { const msg = String(err?.message ?? err); if (!msg.includes(needle)) { console.error(msg); process.exit(2); } } } await expectReject(async () => new Response("server down", { status: 500 }), "500"); await expectReject(async () => { throw new Error("network down"); }, "network down");'
+  tags: [spec, bugbash, implemented]
 
 # llm
 
