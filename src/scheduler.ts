@@ -1,12 +1,13 @@
 import type { Adapter } from "./adapters/types";
 import type { Model, Api } from "@mariozechner/pi-ai";
-import { saveItems, getAllItemsByAdapter, replaceAdapterItems, getDb } from "./db";
+import { saveItems, getAllItemsByPanel, replacePanelItems, getDb } from "./db";
 import type { AppConfig, IngestAdapterConfig, PipelineConfig } from "./config";
 import { runPipeline, type TransformContext } from "./transforms";
 import type { ContentItemRow } from "./db";
 
 interface AdapterEntry {
   name: string;
+  panelIds: string[];
   adapterConfig: IngestAdapterConfig;
   adapter: Adapter;
   intervalMs: number;
@@ -16,6 +17,8 @@ interface AdapterEntry {
 
 interface PipelineEntry {
   config: PipelineConfig;
+  panelIds: string[];
+  readKeys: Map<string, string>;
   intervalMs: number;
   timer: ReturnType<typeof setInterval> | null;
   running: boolean;
@@ -37,9 +40,15 @@ function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
+export interface SourcePanelMap {
+  sourceToPanels: Map<string, string[]>;
+  sourceToReadKey: Map<string, string>;
+}
+
 export function startScheduler(
   config: AppConfig,
   adapters: Map<string, Adapter>,
+  panelMap: SourcePanelMap,
   model?: Model<Api> | null,
 ): void {
   const missingAdapterTypes = Array.from(
@@ -63,11 +72,13 @@ export function startScheduler(
     if (!adapter) continue;
 
     const name = adapterCfg.name ?? adapterCfg.type;
+    const panelIds = panelMap.sourceToPanels.get(name) ?? [name];
     const intervalMin = Math.max(adapterCfg.refresh_interval ?? 15, 1);
     const intervalMs = intervalMin * 60 * 1000;
 
     const entry: AdapterEntry = {
       name,
+      panelIds,
       adapterConfig: adapterCfg,
       adapter,
       intervalMs,
@@ -84,17 +95,24 @@ export function startScheduler(
 
   if (config.pipelines) {
     for (const pipelineCfg of config.pipelines) {
+      const panelIds = panelMap.sourceToPanels.get(pipelineCfg.name) ?? [pipelineCfg.name];
+      const readKeys = new Map<string, string>();
+      for (const source of pipelineCfg.sources) {
+        const key = panelMap.sourceToReadKey.get(source);
+        if (key) readKeys.set(source, key);
+      }
       const intervalMin = Math.max(pipelineCfg.refresh_interval ?? 15, 1);
       const intervalMs = intervalMin * 60 * 1000;
 
       const entry: PipelineEntry = {
         config: pipelineCfg,
+        panelIds,
+        readKeys,
         intervalMs,
         timer: null,
         running: false,
       };
 
-      // Delay first pipeline run to let source adapters fetch first
       setTimeout(() => {
         runPipelineJob(entry);
         entry.timer = setInterval(() => runPipelineJob(entry), intervalMs);
@@ -113,20 +131,22 @@ async function runAdapter(entry: AdapterEntry): Promise<RefreshResult> {
   if (entry.running) return { kind: "adapter", name: entry.name, status: "skipped" };
   entry.running = true;
 
-  const { name, adapter, adapterConfig } = entry;
+  const { name, panelIds, adapter, adapterConfig } = entry;
   try {
     const items = await adapter.fetch(adapterConfig);
     if (items.length > 0) {
-      saveItems(name, items);
+      for (const pid of panelIds) saveItems(pid, items);
       console.log(`scheduler: ${name} — fetched ${items.length} items`);
     }
 
     if (adapterConfig.transforms && adapterConfig.transforms.length > 0) {
-      const allItems = getAllItemsByAdapter(name);
-      const transformed = await runPipeline(allItems, adapterConfig.transforms, transformCtx);
-      replaceAdapterItems(name, transformed);
-      if (allItems.length !== transformed.length) {
-        console.log(`scheduler: ${name} — transforms: ${allItems.length} → ${transformed.length} items`);
+      for (const pid of panelIds) {
+        const allItems = getAllItemsByPanel(pid);
+        const transformed = await runPipeline(allItems, adapterConfig.transforms, transformCtx);
+        replacePanelItems(pid, transformed);
+        if (allItems.length !== transformed.length) {
+          console.log(`scheduler: ${name} — transforms: ${allItems.length} → ${transformed.length} items`);
+        }
       }
     }
   } catch (err) {
@@ -143,11 +163,12 @@ async function runPipelineJob(entry: PipelineEntry): Promise<RefreshResult> {
   if (entry.running) return { kind: "pipeline", name: entry.config.name, status: "skipped" };
   entry.running = true;
 
-  const { config } = entry;
+  const { config, panelIds, readKeys } = entry;
   try {
     let items: ContentItemRow[] = [];
     for (const source of config.sources) {
-      items = items.concat(getAllItemsByAdapter(source));
+      const readKey = readKeys.get(source) ?? source;
+      items = items.concat(getAllItemsByPanel(readKey));
     }
     items.sort((a, b) => (b.timestamp > a.timestamp ? 1 : b.timestamp < a.timestamp ? -1 : 0));
 
@@ -156,7 +177,7 @@ async function runPipelineJob(entry: PipelineEntry): Promise<RefreshResult> {
       ...item,
       id: `pipeline:${config.name}:${item.id}`,
     }));
-    replaceAdapterItems(config.name, namespaced);
+    for (const pid of panelIds) replacePanelItems(pid, namespaced);
     console.log(`scheduler: pipeline "${config.name}" — ${items.length} → ${transformed.length} items`);
   } catch (err) {
     console.warn(`scheduler: pipeline "${config.name}" — error:`, err);

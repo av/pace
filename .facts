@@ -18,8 +18,17 @@
 - label: all transforms run at ingest time in the scheduler — DB contains final cleaned data, request handler just reads and renders
   command: grep -q 'runPipeline' src/scheduler.ts && ! grep -q 'runPipeline' src/index.ts
   tags: [spec, implemented]
-- label: pipelines are cross-adapter transform chains — defined in config under pipelines section, items stored under pipeline name
+- label: pipelines are cross-adapter transform chains — defined in config under pipelines section, results stored under the panel ID of the panel that references the pipeline
   command: grep -q 'PipelineConfig' src/config.ts && grep -q 'runPipelineJob' src/scheduler.ts
+  tags: [spec, implemented]
+- label: items are stored per panel ID — the panel_id column in content_items is the primary storage and query key
+  command: grep -q 'panel_id TEXT NOT NULL' src/db.ts && grep -q 'getItemsByPanel' src/db.ts
+  tags: [spec, implemented]
+- label: panel ID can be set explicitly via the id field in panel config — if not set, a hash of the panel config (name, source, limit) is used
+  command: grep -q 'id.*string' src/config.ts && grep -q 'resolvePanelId' src/config.ts && grep -q 'CryptoHasher' src/config.ts
+  tags: [spec, implemented]
+- label: panel ID uniqueness is validated at config load time — both explicit and hash-derived IDs must be unique across all panels
+  command: grep -q 'duplicate panel ID' src/config.ts
   tags: [spec, implemented]
 
 # visual style
@@ -48,7 +57,7 @@
 - label: adapters are configured in config.yaml with optional name, params, refresh_interval, and transforms
   command: test -f config.example.yaml && grep -q 'transforms' config.example.yaml
   tags: [spec, implemented]
-- label: adapter name field disambiguates multiple instances of the same type — defaults to type if omitted
+- label: adapter name field disambiguates multiple instances of the same type in config — defaults to type if omitted, used for scheduler dedup and pipeline source resolution but not as DB storage key
   command: grep -q 'IngestAdapterConfig' src/config.ts
   tags: [spec, implemented]
 - label: adding a new adapter means adding one file in src/adapters/ that implements the Adapter interface — no registration step

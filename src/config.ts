@@ -14,6 +14,7 @@ export interface FlexContainerConfig {
 
 export interface PanelConfig {
   panel: string;
+  id?: string;
   flex?: number;
   source: SourceValue;
   limit?: number;
@@ -149,6 +150,14 @@ export function collectPanels(node: LayoutNodeConfig): PanelConfig[] {
   throw new Error("config: layout node is invalid");
 }
 
+export function resolvePanelId(panel: PanelConfig): string {
+  if (panel.id) return panel.id;
+  const key = JSON.stringify({ panel: panel.panel, source: panel.source, limit: panel.limit ?? null });
+  const hasher = new Bun.CryptoHasher("sha256");
+  hasher.update(key);
+  return hasher.digest("hex").slice(0, 8);
+}
+
 function validateSource(source: unknown, path: string): void {
   if (typeof source === "string") {
     if (source.trim().length === 0) {
@@ -214,12 +223,20 @@ function validateLayoutNode(node: unknown, path = "layout"): asserts node is Lay
 
 function validatePanelIds(node: LayoutNodeConfig): void {
   const panels = collectPanels(node);
+  const names = new Set<string>();
+  for (const p of panels) {
+    if (names.has(p.panel)) {
+      throw new Error(`config: duplicate panel name "${p.panel}"`);
+    }
+    names.add(p.panel);
+  }
   const ids = new Set<string>();
   for (const p of panels) {
-    if (ids.has(p.panel)) {
-      throw new Error(`config: duplicate panel ID "${p.panel}"`);
+    const id = resolvePanelId(p);
+    if (ids.has(id)) {
+      throw new Error(`config: duplicate panel ID "${id}"`);
     }
-    ids.add(p.panel);
+    ids.add(id);
   }
 }
 

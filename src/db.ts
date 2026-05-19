@@ -21,7 +21,7 @@ export function initDb(): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS content_items (
       id TEXT NOT NULL PRIMARY KEY,
-      adapter_name TEXT NOT NULL,
+      panel_id TEXT NOT NULL,
       title TEXT NOT NULL,
       url TEXT NOT NULL,
       source TEXT NOT NULL,
@@ -32,9 +32,15 @@ export function initDb(): void {
     )
   `);
 
+  const cols = db.prepare("PRAGMA table_info(content_items)").all() as { name: string }[];
+  if (cols.some((c) => c.name === "adapter_name")) {
+    db.exec("ALTER TABLE content_items RENAME COLUMN adapter_name TO panel_id");
+    db.exec("DROP INDEX IF EXISTS idx_content_items_adapter");
+  }
+
   db.exec(`
-    CREATE INDEX IF NOT EXISTS idx_content_items_adapter
-    ON content_items(adapter_name)
+    CREATE INDEX IF NOT EXISTS idx_content_items_panel
+    ON content_items(panel_id)
   `);
 
   db.exec(`
@@ -43,10 +49,10 @@ export function initDb(): void {
   `);
 }
 
-export function saveItems(adapterName: string, items: ContentItem[]): void {
+export function saveItems(panelId: string, items: ContentItem[]): void {
   const db = getDb();
   const stmt = db.prepare(`
-    INSERT INTO content_items (id, adapter_name, title, url, source, body, timestamp, fetched_at)
+    INSERT INTO content_items (id, panel_id, title, url, source, body, timestamp, fetched_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
     ON CONFLICT(id) DO UPDATE SET
       title = excluded.title,
@@ -61,7 +67,7 @@ export function saveItems(adapterName: string, items: ContentItem[]): void {
     for (const item of items) {
       stmt.run(
         item.id,
-        adapterName,
+        panelId,
         item.title,
         item.url,
         item.source,
@@ -88,27 +94,27 @@ export function getRecentItems(limit: number = 50): ContentItemRow[] {
   `).all(limit) as ContentItemRow[];
 }
 
-export function getItemsByAdapter(adapterName: string, limit: number = 50): ContentItemRow[] {
+export function getItemsByPanel(panelId: string, limit: number = 50): ContentItemRow[] {
   const db = getDb();
   return db.prepare(`
     SELECT * FROM content_items
-    WHERE adapter_name = ?
+    WHERE panel_id = ?
       AND id IN (
         SELECT id FROM content_items
-        WHERE adapter_name = ?
+        WHERE panel_id = ?
         GROUP BY CASE WHEN url = '' THEN id ELSE url END
         HAVING id = MIN(id)
       )
     ORDER BY timestamp DESC
     LIMIT ?
-  `).all(adapterName, adapterName, limit) as ContentItemRow[];
+  `).all(panelId, panelId, limit) as ContentItemRow[];
 }
 
-export function getLastFetchedAt(adapterName: string): string | null {
+export function getLastFetchedAt(panelId: string): string | null {
   const db = getDb();
   const row = db.prepare(
-    "SELECT MAX(fetched_at) as last_fetched FROM content_items WHERE adapter_name = ?"
-  ).get(adapterName) as { last_fetched: string | null } | null;
+    "SELECT MAX(fetched_at) as last_fetched FROM content_items WHERE panel_id = ?"
+  ).get(panelId) as { last_fetched: string | null } | null;
   return row?.last_fetched ?? null;
 }
 
@@ -120,31 +126,31 @@ export function getLastFetchedAtAll(): string | null {
   return row?.last_fetched ?? null;
 }
 
-export function getAllItemsByAdapter(adapterName: string): ContentItemRow[] {
+export function getAllItemsByPanel(panelId: string): ContentItemRow[] {
   const db = getDb();
   return db.prepare(
-    "SELECT * FROM content_items WHERE adapter_name = ? ORDER BY timestamp DESC"
-  ).all(adapterName) as ContentItemRow[];
+    "SELECT * FROM content_items WHERE panel_id = ? ORDER BY timestamp DESC"
+  ).all(panelId) as ContentItemRow[];
 }
 
-export function replaceAdapterItems(adapterName: string, items: ContentItemRow[]): void {
+export function replacePanelItems(panelId: string, items: ContentItemRow[]): void {
   const db = getDb();
 
   const existing = db.prepare(
-    "SELECT id, summary FROM content_items WHERE adapter_name = ? AND summary IS NOT NULL"
-  ).all(adapterName) as { id: string; summary: string }[];
+    "SELECT id, summary FROM content_items WHERE panel_id = ? AND summary IS NOT NULL"
+  ).all(panelId) as { id: string; summary: string }[];
   const summaryMap = new Map(existing.map((r) => [r.id, r.summary]));
 
   const tx = db.transaction(() => {
-    db.prepare("DELETE FROM content_items WHERE adapter_name = ?").run(adapterName);
+    db.prepare("DELETE FROM content_items WHERE panel_id = ?").run(panelId);
     const stmt = db.prepare(`
-      INSERT INTO content_items (id, adapter_name, title, url, source, body, timestamp, fetched_at, summary)
+      INSERT INTO content_items (id, panel_id, title, url, source, body, timestamp, fetched_at, summary)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const item of items) {
       stmt.run(
         item.id,
-        adapterName,
+        panelId,
         item.title,
         item.url,
         item.source,
@@ -164,7 +170,7 @@ export function closeDb(): void {
 
 export interface ContentItemRow {
   id: string;
-  adapter_name: string;
+  panel_id: string;
   title: string;
   url: string;
   source: string;

@@ -1,12 +1,12 @@
 import { Hono } from "hono";
 import { readFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { loadConfig, collectPanels, normalizeSource, isPanel, type PanelConfig, type LayoutNodeConfig } from "./config";
-import { initDb, closeDb, getRecentItems, getItemsByAdapter, getLastFetchedAt, getLastFetchedAtAll, type ContentItemRow } from "./db";
+import { loadConfig, collectPanels, normalizeSource, resolvePanelId, isPanel, type PanelConfig, type LayoutNodeConfig } from "./config";
+import { initDb, closeDb, getRecentItems, getItemsByPanel, getLastFetchedAt, getLastFetchedAtAll, type ContentItemRow } from "./db";
 import { discoverAdapters } from "./adapters/index";
 import { renderDashboard, type PanelData } from "./layout";
 import { createModel } from "./llm";
-import { startScheduler, stopScheduler, refreshSources } from "./scheduler";
+import { startScheduler, stopScheduler, refreshSources, type SourcePanelMap } from "./scheduler";
 
 const app = new Hono();
 
@@ -26,7 +26,33 @@ initDb();
 const adapters = await discoverAdapters();
 const llmModel = config.llm ? createModel(config.llm) : null;
 
-startScheduler(config, adapters, llmModel);
+const allPanelConfigs = collectPanels(config.layout);
+const sourceToPanels = new Map<string, string[]>();
+const sourceToReadKey = new Map<string, string>();
+
+for (const panel of allPanelConfigs) {
+  const pid = resolvePanelId(panel);
+  for (const source of normalizeSource(panel.source)) {
+    if (source.adapter === "all") continue;
+    const list = sourceToPanels.get(source.adapter) ?? [];
+    list.push(pid);
+    sourceToPanels.set(source.adapter, list);
+    if (!sourceToReadKey.has(source.adapter)) {
+      sourceToReadKey.set(source.adapter, pid);
+    }
+  }
+}
+
+for (const adapterCfg of config.adapters) {
+  const name = adapterCfg.name ?? adapterCfg.type;
+  if (!sourceToPanels.has(name)) {
+    sourceToPanels.set(name, [name]);
+    sourceToReadKey.set(name, name);
+  }
+}
+
+const panelMap: SourcePanelMap = { sourceToPanels, sourceToReadKey };
+startScheduler(config, adapters, panelMap, llmModel);
 
 const cssContent = readFileSync(join(import.meta.dir, "styles.css"), "utf-8");
 app.get("/styles.css", (c) => {
@@ -41,28 +67,19 @@ app.get("/", async (c) => {
   const panelData = new Map<string, PanelData>();
 
   for (const panel of panels) {
+    const pid = resolvePanelId(panel);
     const sources = normalizeSource(panel.source);
     const limit = panel.limit ?? 50;
-    let items: ContentItemRow[] = [];
+    let items: ContentItemRow[];
 
-    for (const source of sources) {
-      const rows =
-        source.adapter === "all"
-          ? getRecentItems(limit)
-          : getItemsByAdapter(source.adapter, limit);
-      items = items.concat(rows);
+    const isAll = sources.some((s) => s.adapter === "all");
+    if (isAll) {
+      items = getRecentItems(limit);
+    } else {
+      items = getItemsByPanel(pid, limit);
     }
 
-    if (sources.length > 1) {
-      items.sort((a, b) => (b.timestamp > a.timestamp ? 1 : b.timestamp < a.timestamp ? -1 : 0));
-      items = items.slice(0, limit);
-    }
-
-    let lastRefreshedAt: string | null = null;
-    for (const src of sources) {
-      const ts = src.adapter === "all" ? getLastFetchedAtAll() : getLastFetchedAt(src.adapter);
-      if (ts && (!lastRefreshedAt || ts > lastRefreshedAt)) lastRefreshedAt = ts;
-    }
+    const lastRefreshedAt = isAll ? getLastFetchedAtAll() : getLastFetchedAt(pid);
 
     panelData.set(panel.panel, { items, lastRefreshedAt });
   }
@@ -71,14 +88,17 @@ app.get("/", async (c) => {
   return c.html(content);
 });
 
-const allPanels = collectPanels(config.layout);
-const panelSourceMap = new Map(allPanels.map((p) => [p.panel, normalizeSource(p.source)]));
+const panelIdToSources = new Map(
+  allPanelConfigs.map((p) => [resolvePanelId(p), normalizeSource(p.source)])
+);
+const panelNameToId = new Map(allPanelConfigs.map((p) => [p.panel, resolvePanelId(p)]));
 const configuredAdapterNames = config.adapters.map((adapter) => adapter.name ?? adapter.type);
 
 app.post("/refresh/:panel", async (c) => {
-  const panelId = c.req.param("panel");
-  const sources = panelSourceMap.get(panelId);
-  if (!sources) return c.text(`Unknown panel: ${panelId}`, 404);
+  const param = c.req.param("panel");
+  const panelId = panelNameToId.get(param) ?? param;
+  const sources = panelIdToSources.get(panelId);
+  if (!sources) return c.text(`Unknown panel: ${param}`, 404);
 
   const sourceNames = Array.from(new Set(sources.flatMap((s) =>
     s.adapter === "all" ? configuredAdapterNames : [s.adapter]

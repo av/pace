@@ -3,7 +3,7 @@
 import { jsx, Fragment } from "hono/jsx";
 import type { FC } from "hono/jsx";
 import type { LayoutNodeConfig, PanelConfig, FlexContainerConfig } from "./config";
-import { isPanel } from "./config";
+import { isPanel, resolvePanelId } from "./config";
 import type { ContentItemRow } from "./db";
 
 function safeUrl(url: string): string | null {
@@ -78,9 +78,10 @@ export interface PanelData {
 const LayoutNode: FC<{ node: LayoutNodeConfig; panelData: Map<string, PanelData> }> = ({ node, panelData }) => {
   if (isPanel(node)) {
     const data = panelData.get(node.panel);
+    const pid = resolvePanelId(node);
     return (
       <div class="flex-panel" style={`flex:${node.flex ?? 1}; min-width:0; min-height:0;`}>
-        <Panel title={node.panel} panelId={node.panel} items={data?.items ?? []} lastRefreshedAt={data?.lastRefreshedAt} />
+        <Panel title={node.panel} panelId={pid} items={data?.items ?? []} lastRefreshedAt={data?.lastRefreshedAt} />
       </div>
     );
   }
