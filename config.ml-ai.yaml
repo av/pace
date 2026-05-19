@@ -1,0 +1,112 @@
+adapters:
+  - type: hackernews
+    params:
+      stories: top
+      limit: 50
+    refresh_interval: 10
+    transforms:
+      - type: filter
+        keywords: [ai, llm, gpt, claude, gemini, model, openai, anthropic, neural, transformer, diffusion, machine learning, deep learning]
+        fields: [title]
+      - type: exclude
+        keywords: [hiring]
+        fields: [title]
+      - type: latest
+        count: 50
+
+  - type: rss
+    params:
+      urls:
+        - https://arxiv.org/rss/cs.AI
+        - https://arxiv.org/rss/cs.LG
+        - https://arxiv.org/rss/cs.CL
+        - https://lilianweng.github.io/index.xml
+        - https://simonwillison.net/atom/everything/
+        - https://www.interconnects.ai/feed
+    refresh_interval: 30
+    transforms:
+      - type: latest
+        count: 20
+
+  - type: reddit
+    params:
+      subreddits:
+        - MachineLearning
+        - LocalLLaMA
+      sort: hot
+      limit: 30
+    refresh_interval: 15
+    transforms:
+      - type: latest
+        count: 15
+
+  - type: github-releases
+    params:
+      repos:
+        - huggingface/transformers
+        - vllm-project/vllm
+        - ggml-org/llama.cpp
+        - ollama/ollama
+        - lm-sys/FastChat
+        - anthropics/anthropic-sdk-python
+    transforms:
+      - type: latest
+        count: 15
+
+pipelines:
+  - name: firehose
+    sources: [hackernews, reddit, rss]
+    transforms:
+      - type: dedupe
+        strategy: url
+      - type: filter
+        keywords: [benchmark, sota, open source, weights, fine-tune, context window, inference speed, quantize]
+        fields: [title, body]
+      - type: latest
+        count: 10
+
+layout:
+  direction: column
+  children:
+    - direction: row
+      flex: 3
+      children:
+        - panel: papers
+          flex: 1
+          source: rss
+          limit: 20
+
+        - direction: column
+          flex: 1
+          children:
+            - panel: hacker-news-ai
+              flex: 1
+              source: hackernews
+              limit: 50
+
+            - panel: community
+              flex: 1
+              source: reddit
+              limit: 15
+
+        - panel: releases
+          flex: 1
+          source: github-releases
+          limit: 15
+
+    - panel: firehose
+      flex: 1
+      source: firehose
+      limit: 10
+
+# Uncomment to enable LLM-powered features
+# llm:
+#   provider: openai
+#   model: gpt-4o-mini
+#   api_key: ${OPENAI_API_KEY}
+#   interests:
+#     - large language models
+#     - open source AI
+#     - inference optimization
+#     - multimodal models
+#     - AI safety and alignment

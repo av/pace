@@ -1,0 +1,82 @@
+# What shipped this week?
+# Track releases from projects you depend on + discover trending repos.
+# Replace the repos list with your actual dependencies.
+
+adapters:
+  - name: gh-releases
+    type: github
+    params:
+      mode: releases
+      repos:
+        - vercel/next.js
+        - facebook/react
+        - pallets/flask
+        - django/django
+        - golang/go
+        - rust-lang/rust
+      limit: 5
+    refresh_interval: 120
+    transforms:
+      - type: latest
+        count: 20
+      - type: sort
+        field: timestamp
+        direction: desc
+
+  - name: gh-trending
+    type: github
+    params:
+      mode: trending
+      since: weekly
+      limit: 20
+    refresh_interval: 300
+    transforms:
+      - type: latest
+        count: 20
+
+  - type: lobsters
+    params:
+      feed: hottest
+      tags: [release, announce]
+      limit: 15
+      min_score: 3
+    refresh_interval: 30
+
+  - type: hackernews
+    params:
+      feed: top
+      limit: 40
+    refresh_interval: 15
+
+pipelines:
+  - name: release-chatter
+    sources: [hackernews, lobsters]
+    transforms:
+      - type: filter
+        keywords: [release, released, "v1", "v2", "v3", "v4", "v0.", launch, shipped, changelog, upgrade, breaking change, migration, announcement]
+        fields: [title]
+      - type: dedupe
+        strategy: domain-normalized
+      - type: latest
+        count: 10
+
+layout:
+  direction: row
+  children:
+    - direction: column
+      flex: 1
+      children:
+        - panel: releases
+          flex: 2
+          source: gh-releases
+          limit: 20
+
+        - panel: release-chatter
+          flex: 1
+          source: release-chatter
+          limit: 10
+
+    - panel: trending
+      flex: 1
+      source: gh-trending
+      limit: 20

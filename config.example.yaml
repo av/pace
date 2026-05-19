@@ -1,4 +1,4 @@
-# pace config — flexbox layout + source + transforms
+# pace config — adapters with ingest-time transforms + flexbox layout
 
 adapters:
   - type: hackernews
@@ -7,68 +7,62 @@ adapters:
       limit: 30            # max items to return (up to 200)
       min_score: 0         # filter: only include items with this many points or more
     refresh_interval: 15
+    transforms:
+      - type: latest
+        count: 30
 
   - type: rss
     params:
       urls:
-        - https://example.com/feed.xml
+        - https://feeds.arstechnica.com/arstechnica/index
     refresh_interval: 30
+    transforms:
+      - type: latest
+        count: 20
 
   # - type: reddit
   #   params:
-  #     subreddits:            # array of subreddit names; supports multireddits (e.g. "programming+typescript")
-  #       - programming
-  #       - selfhosted
-  #     sort: hot              # hot, new, top, rising
-  #     time: day              # time period for "top" sort: hour, day, week, month, year, all
-  #     limit: 25             # max items to return (up to 100)
-  #     min_score: 0          # filter: only include posts with this many upvotes or more
+  #     subreddits: [programming, selfhosted]
+  #     sort: hot
+  #     limit: 25
+  #     min_score: 0
   #   refresh_interval: 15
+  #   transforms:
+  #     - type: latest
+  #       count: 25
 
-  # - type: github-releases
+  # - name: gh-releases           # name disambiguates multiple adapters of same type
+  #   type: github
   #   params:
-  #     repos:
-  #       - oven-sh/bun
-  #       - honojs/hono
-
-  # - type: github               # unified GitHub adapter (releases + trending modes)
-  #   params:
-  #     mode: releases            # releases or trending
-  #     repos:                    # (releases mode) repos to track
-  #       - facebook/react
-  #       - denoland/deno
-  #       - oven-sh/bun
-  #     limit: 5                  # max items per repo (up to 50)
+  #     mode: releases
+  #     repos: [facebook/react, denoland/deno, oven-sh/bun]
+  #     limit: 5
   #   refresh_interval: 60
+  #   transforms:
+  #     - type: latest
+  #       count: 15
 
-  # - type: github
+  # - name: gh-trending
+  #   type: github
   #   params:
-  #     mode: trending            # fetch GitHub trending repos
-  #     language: typescript      # language filter (empty for all languages)
-  #     since: weekly             # daily, weekly, or monthly
-  #     limit: 15                 # max repos to return (up to 50)
+  #     mode: trending
+  #     language: typescript
+  #     since: weekly
+  #     limit: 15
   #   refresh_interval: 60
 
   # - type: lobsters
   #   params:
-  #     feed: hottest        # hottest, newest, active (aliases: hot, front, new, recent)
-  #     limit: 25            # max items to return (up to 100)
-  #     min_score: 0         # filter: only include items with this many points or more
-  #     tags: []             # optional: filter by tags (e.g. [programming, rust, devops])
+  #     feed: hottest
+  #     limit: 25
+  #     min_score: 0
   #   refresh_interval: 15
 
   # - type: mastodon
   #   params:
-  #     instance: fosstodon.org       # Mastodon instance (default: mastodon.social)
-  #     limit: 20                     # max items to return (up to 40)
-  #     only_media: false             # only posts with media attachments
-  #     # Mode is auto-detected: accounts > hashtags > public timeline
-  #     # Public timeline (default if no hashtags/accounts):
-  #     #   Note: mastodon.social requires auth for public timeline; use other instances
-  #     # Hashtag timeline:
-  #     hashtags: []                  # array of hashtags (without #): [rust, opensource, linux]
-  #     # Account posts:
-  #     accounts: []                  # array of @user@instance handles: [@kev@fosstodon.org]
+  #     instance: fosstodon.org
+  #     limit: 20
+  #     hashtags: [rust, opensource]
   #   refresh_interval: 15
 
   # - type: youtube
@@ -76,80 +70,75 @@ adapters:
   #     channels:
   #       - UCXuqSBlHAE6Xw-yeJA0Tunw  # Linus Tech Tips
   #       - UCsBjURrPoezykLs9EqgamOA  # Fireship
-  #     playlists: []  # optional: YouTube playlist IDs
   #     limit: 15
   #   refresh_interval: 30
 
   # - type: arxiv
   #   params:
-  #     categories:               # ArXiv categories to fetch (e.g. cs.AI, cs.LG, cs.CL, stat.ML)
-  #       - cs.AI
-  #       - cs.LG
-  #     query: ""                 # optional: keyword search query (alongside or instead of categories)
-  #     limit: 20                 # max items per category/query (up to 100)
+  #     categories: [cs.AI, cs.LG]
+  #     limit: 20
   #   refresh_interval: 60
-
-  # - type: arxiv
-  #   params:
-  #     query: "quantum computing"   # keyword-only search (no categories needed)
-  #     limit: 10
-  #   refresh_interval: 120
+  #   transforms:
+  #     - type: dedupe
+  #       strategy: title-similarity
+  #     - type: latest
+  #       count: 20
 
   # - type: stackexchange
   #   params:
-  #     site: stackoverflow          # any Stack Exchange site: stackoverflow, serverfault, superuser, askubuntu, etc.
-  #     tags: ["typescript", "react"] # filter by tags (array); questions must match ALL tags
-  #     sort: hot                    # activity, votes, creation, hot, week, month
-  #     min_score: 5                 # optional: only include questions with this score or more
-  #     limit: 20                    # max items to return (up to 100)
+  #     site: stackoverflow
+  #     tags: ["typescript", "react"]
+  #     sort: hot
+  #     min_score: 5
+  #     limit: 20
   #   refresh_interval: 30
 
   # - type: devto
   #   params:
-  #     tags: ["typescript", "webdev", "react"]  # array of tags to fetch (fetches each separately, merges + deduplicates)
-  #     top: 7                       # period: 1 (day), 7 (week), 30 (month), 365 (year) — or "day"/"week"/"month"/"year"
-  #     min_reactions: 10            # optional: only include articles with this many reactions or more
-  #     limit: 15                    # max items to return (up to 30 per page)
-  #     # username: "benawad"        # optional: fetch articles from a specific author (instead of or in addition to tags)
+  #     tags: ["typescript", "webdev"]
+  #     top: 7
+  #     limit: 15
   #   refresh_interval: 30
 
   # - type: producthunt
   #   params:
-  #     limit: 20                    # max items to return (up to 50, from Atom feed)
-  #     enrich: false                # set true to scrape product pages for upvotes/comments/topics/makers (slower)
-  #     min_upvotes: 0               # filter: only products with this many upvotes (requires enrich: true)
+  #     limit: 20
+  #     enrich: false
   #   refresh_interval: 60
 
   # - type: podcast
   #   params:
-  #     feeds:                        # array of podcast RSS feed URLs
-  #       - https://feeds.simplecast.com/54nAGcIl  # The Changelog
+  #     feeds:
+  #       - https://feeds.simplecast.com/54nAGcIl
   #       - https://lexfridman.com/feed/podcast/
-  #       - https://feeds.fireside.fm/bibleinayear/rss
-  #     limit: 10                    # max episodes per feed (up to 50)
+  #     limit: 10
   #   refresh_interval: 60
-  #   # Parses iTunes namespace extensions (itunes:duration, itunes:author, itunes:episode, itunes:season)
-  #   # Body format: "Duration: 1:23:45 | Show: Name | S02E05 | Description: first 200 chars... | Audio: url"
-  #   # Source label: podcast:{show-name-slug}
+
+# Pipelines: cross-adapter transforms (run after source adapters fetch)
+#
+# pipelines:
+#   - name: combined
+#     sources: [hackernews, reddit]
+#     transforms:
+#       - type: dedupe
+#         strategy: url
+#       - type: latest
+#         count: 40
 
 # Layout: recursive flexbox tree
-# Each node is either a container (direction + children) or a panel (panel + source + transforms)
+# Each node is either a container (direction + children) or a panel (panel + source)
 layout:
   direction: row
   children:
     - panel: hackernews
       flex: 2
       source: hackernews
-      transforms:
-        - type: latest
-          count: 30
+      limit: 30
 
     - panel: rss
       flex: 1
       source: rss
-      transforms:
-        - type: latest
-          count: 20
+      limit: 20
 
 # --- Layout examples ---
 #
@@ -161,75 +150,32 @@ layout:
 #     - panel: hackernews
 #       flex: 1
 #       source: hackernews
-#       transforms:
-#         - type: latest
-#           count: 25
+#       limit: 25
 #
 #     - direction: column
 #       flex: 1
 #       children:
 #         - panel: reddit
-#           source:
-#             adapter: reddit
-#             params: { subreddits: [programming], sort: hot }
-#           transforms:
-#             - type: filter
-#               keywords: [rust, typescript]
+#           source: reddit
 #         - panel: releases
-#           source: github-releases
+#           source: gh-releases
 #
 #     - panel: rss
 #       flex: 1
 #       source: rss
 #
-# Header + main + footer:
-#
-# layout:
-#   direction: column
-#   children:
-#     - panel: digest
-#       flex: 0
-#       source: all
-#       transforms:
-#         - type: latest
-#           count: 50
-#         - type: llm-merge
-#           prompt: "Summarize the key themes and highlights"
-#
-#     - direction: row
-#       flex: 1
-#       children:
-#         - panel: hackernews
-#           flex: 2
-#           source: hackernews
-#           transforms:
-#             - type: latest
-#               count: 25
-#             - type: llm-rank
-#         - panel: rss
-#           flex: 1
-#           source: rss
-#
-#     - panel: recent
-#       flex: 0
-#       source: all
-#       transforms:
-#         - type: latest
-#           count: 5
-#
-# Multi-source panel (merge items from multiple adapters):
+# Multi-source panel (reads from a pipeline):
 #
 #     - panel: combined
-#       source: [hackernews, reddit]
-#       transforms:
-#         - type: latest
-#           count: 40
-#         - type: llm-merge
-#           prompt: "Group related items about the same topic"
+#       source: combined       # references pipeline name
+#       limit: 40
 
 # --- Transform reference ---
+# Transforms run at ingest time (on adapter or pipeline), not at render time.
+# Adapters: transforms apply after each fetch cycle
+# Pipelines: transforms apply to merged items from all source adapters
 #
-# - type: latest          # take N most recent items
+# - type: latest          # keep N most recent items
 #   count: 50
 #
 # - type: filter          # keep items matching keywords
@@ -244,52 +190,33 @@ layout:
 #   field: timestamp      # timestamp, title, or source
 #   direction: desc       # asc or desc
 #
-# - type: dedupe          # deduplicate items across feeds
-#   strategy: url         # url (exact match), domain-normalized (strips tracking params/www),
-#                         # or title-similarity (fuzzy Levenshtein matching)
-#   threshold: 0.85       # similarity threshold for title-similarity (0-1, default 0.85)
-#   keep: highest-score   # which duplicate to keep: highest-score, earliest, or latest
-#   log: true             # log which items were deduped (default: true)
+# - type: dedupe          # deduplicate items
+#   strategy: url         # url, domain-normalized, or title-similarity
+#   threshold: 0.85       # similarity threshold for title-similarity (0-1)
+#   keep: highest-score   # highest-score, earliest, or latest
 #
-# - type: time-decay      # rank items by engagement + recency ("hot" ranking)
-#   half_life: "12h"       # how quickly items lose relevance (e.g. "6h", "12h", "24h", "3d", "1w")
-#   engagement_weight: 0.7 # weight for engagement score (points/stars/boosts/etc.)
-#   recency_weight: 0.3    # weight for recency score (must sum to 1 with engagement_weight)
-#   decay: exponential     # decay function: exponential (HN-style) or linear
-#   annotate: false        # append computed hot-score breakdown to item body
-#   min_score: 0           # optional: drop items below this final hot-score
+# - type: time-decay      # rank by engagement + recency
+#   half_life: "12h"
+#   engagement_weight: 0.7
+#   recency_weight: 0.3
+#   decay: exponential    # exponential or linear
 #
-# - type: keyword-score   # score/rank items by keyword relevance
+# - type: keyword-score   # score/rank by keyword relevance
 #   keywords:
-#     - term: "rust"          # literal match (case-insensitive)
+#     - term: "rust"
 #       weight: 10
-#     - term: "typescript"
-#       weight: 8
-#     - term: "blockchain|crypto|nft"   # regex pattern
-#       weight: -20
-#       regex: true
-#     - term: "AI|machine learning|LLM"
+#     - term: "AI|machine learning"
 #       weight: 15
 #       regex: true
-#   min_score: 0             # optional: drop items scoring below this (default: keep all)
-#   annotate: true           # optional: append matched keywords and score to body (default: false)
+#   min_score: 0
 #
-# - type: cluster         # group related items into topic clusters (no LLM)
-#   strategy: auto        # domain (group by URL domain), keywords (title/body keyword overlap),
-#                         # source (group by feed source), auto (weighted combination of all signals)
-#   min_cluster_size: 2   # minimum items needed to form a cluster (default: 2)
-#   max_clusters: 10      # maximum number of clusters to keep (default: 10)
-#   similarity_threshold: 0.3  # minimum similarity score to link items (0-1, default: 0.3)
-#   annotate: true        # prepend cluster label to item body, e.g. "[GitHub] ..." (default: true)
+# - type: cluster         # group related items (no LLM)
+#   strategy: auto        # domain, keywords, source, or auto
 #
 # - type: llm-summarize   # add LLM summaries to items
-#
-# - type: llm-filter      # keep only items matching LLM criteria
+# - type: llm-filter      # keep items matching LLM criteria
 #   criteria: "relevant to AI research"
-#
 # - type: llm-rank        # reorder by relevance to interests
-#   interests: [ai, typescript]  # optional, falls back to llm.interests
-#
 # - type: llm-merge       # group/merge related items via LLM
 #   prompt: "Group items about the same topic"
 

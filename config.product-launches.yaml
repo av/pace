@@ -1,0 +1,91 @@
+# New product launches, demos, and side projects.
+# Combines Product Hunt, Show HN, and builder communities.
+
+adapters:
+  - type: producthunt
+    params:
+      limit: 20
+      enrich: true
+      min_upvotes: 30
+    refresh_interval: 300
+    transforms:
+      - type: sort
+        field: timestamp
+        direction: desc
+      - type: latest
+        count: 15
+
+  - type: hackernews
+    params:
+      feed: show
+      limit: 30
+      min_score: 5
+    refresh_interval: 15
+    transforms:
+      - type: latest
+        count: 15
+
+  - type: reddit
+    params:
+      subreddits:
+        - SideProject
+        - startups
+        - indiehackers
+        - InternetIsBeautiful
+      sort: hot
+      limit: 20
+    refresh_interval: 20
+
+  - type: devto
+    params:
+      tags: ["showdev"]
+      top: 7
+      min_reactions: 10
+      limit: 15
+    refresh_interval: 60
+
+  - type: lobsters
+    params:
+      feed: hottest
+      tags: [show]
+      limit: 10
+    refresh_interval: 30
+
+pipelines:
+  - name: community
+    sources: [reddit, devto, lobsters]
+    transforms:
+      - type: dedupe
+        strategy: domain-normalized
+      - type: keyword-score
+        keywords:
+          - term: "launch|launched|ship|shipped|built|made|created|introducing"
+            weight: 10
+            regex: true
+          - term: "Show|demo|prototype|beta|alpha|mvp"
+            weight: 8
+            regex: true
+          - term: "hiring|job|career|salary"
+            weight: -20
+            regex: true
+        annotate: false
+      - type: latest
+        count: 20
+
+layout:
+  direction: row
+  children:
+    - panel: product-hunt
+      flex: 1
+      source: producthunt
+      limit: 15
+
+    - panel: show-hn
+      flex: 1
+      source: hackernews
+      limit: 15
+
+    - panel: community
+      flex: 1
+      source: community
+      limit: 20

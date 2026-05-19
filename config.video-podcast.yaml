@@ -1,0 +1,61 @@
+# Audio and video feed dashboard.
+# Replace feed URLs and channel IDs with your subscriptions.
+
+adapters:
+  - type: podcast
+    params:
+      feeds:
+        - https://feeds.simplecast.com/54nAGcIl          # The Changelog
+        - https://feeds.buzzsprout.com/2226484.rss         # Latent Space
+        - https://lexfridman.com/feed/podcast/
+      limit: 10
+    refresh_interval: 300
+    transforms:
+      - type: sort
+        field: timestamp
+        direction: desc
+      - type: latest
+        count: 15
+
+  - type: youtube
+    params:
+      channels:
+        - UCsBjURrPoezykLs9EqgamOA   # Fireship
+        - UCWN3xxRkmTPmbKwht9FuE5A   # Computerphile
+      playlists: []
+      limit: 10
+    refresh_interval: 120
+    transforms:
+      - type: sort
+        field: timestamp
+        direction: desc
+      - type: latest
+        count: 10
+
+  - type: mastodon
+    params:
+      instance: fosstodon.org
+      limit: 15
+      only_media: true
+    refresh_interval: 60
+    transforms:
+      - type: latest
+        count: 15
+
+layout:
+  direction: row
+  children:
+    - panel: podcasts
+      flex: 1
+      source: podcast
+      limit: 15
+
+    - panel: youtube
+      flex: 1
+      source: youtube
+      limit: 10
+
+    - panel: media-feed
+      flex: 1
+      source: mastodon
+      limit: 15

@@ -1,0 +1,82 @@
+adapters:
+  - type: hackernews
+    params:
+      stories: top
+      limit: 30
+    refresh_interval: 15
+    transforms:
+      - type: exclude
+        keywords: [hiring, "is hiring", "who is hiring"]
+        fields: [title]
+      - type: latest
+        count: 25
+
+  - type: rss
+    params:
+      urls:
+        - https://lobste.rs/rss
+        - https://thenewstack.io/feed/
+        - https://blog.golang.org/feed.atom
+        - https://devblogs.microsoft.com/typescript/feed/
+    refresh_interval: 30
+    transforms:
+      - type: latest
+        count: 20
+
+  - type: reddit
+    params:
+      subreddits:
+        - programming
+        - selfhosted
+        - netsec
+      sort: hot
+      limit: 25
+    refresh_interval: 20
+    transforms:
+      - type: latest
+        count: 15
+
+  - type: github-releases
+    params:
+      repos:
+        - oven-sh/bun
+        - denoland/deno
+        - nodejs/node
+        - rust-lang/rust
+        - ziglang/zig
+        - honojs/hono
+    transforms:
+      - type: sort
+        field: timestamp
+        direction: desc
+      - type: latest
+        count: 10
+
+layout:
+  direction: row
+  children:
+    - direction: column
+      flex: 2
+      children:
+        - panel: hackernews
+          flex: 2
+          source: hackernews
+          limit: 25
+
+        - panel: reddit
+          flex: 1
+          source: reddit
+          limit: 15
+
+    - direction: column
+      flex: 1
+      children:
+        - panel: blogs
+          flex: 2
+          source: rss
+          limit: 20
+
+        - panel: releases
+          flex: 1
+          source: github-releases
+          limit: 10
