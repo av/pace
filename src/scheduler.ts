@@ -13,6 +13,7 @@ interface AdapterEntry {
   intervalMs: number;
   timer: ReturnType<typeof setInterval> | null;
   running: boolean;
+  lastError?: string;
 }
 
 interface PipelineEntry {
@@ -21,7 +22,9 @@ interface PipelineEntry {
   readKeys: Map<string, string>;
   intervalMs: number;
   timer: ReturnType<typeof setInterval> | null;
+  initialTimer: ReturnType<typeof setTimeout> | null;
   running: boolean;
+  lastError?: string;
 }
 
 const adapterEntries: AdapterEntry[] = [];
@@ -51,6 +54,11 @@ export function startScheduler(
   panelMap: SourcePanelMap,
   model?: Model<Api> | null,
 ): void {
+  // Guard against duplicate starts (e.g. tests, reloads, multiple requires): ignore if already running
+  if (adapterEntries.length > 0 || pipelineEntries.length > 0) {
+    return;
+  }
+
   const missingAdapterTypes = Array.from(
     new Set(config.adapters.map((adapterCfg) => adapterCfg.type).filter((type) => !adapters.has(type)))
   );
@@ -110,10 +118,11 @@ export function startScheduler(
         readKeys,
         intervalMs,
         timer: null,
+        initialTimer: null,
         running: false,
       };
 
-      setTimeout(() => {
+      entry.initialTimer = setTimeout(() => {
         runPipelineJob(entry);
         entry.timer = setInterval(() => runPipelineJob(entry), intervalMs);
       }, 5000);
@@ -150,8 +159,10 @@ async function runAdapter(entry: AdapterEntry): Promise<RefreshResult> {
       }
     }
   } catch (err) {
-    console.warn(`scheduler: ${name} — error:`, err);
-    return { kind: "adapter", name, status: "failed", error: errorMessage(err) };
+    const msg = errorMessage(err);
+    console.warn(`scheduler: ${name} — error: ${msg}`);
+    entry.lastError = msg;
+    return { kind: "adapter", name, status: "failed", error: msg };
   } finally {
     entry.running = false;
   }
@@ -180,8 +191,10 @@ async function runPipelineJob(entry: PipelineEntry): Promise<RefreshResult> {
     for (const pid of panelIds) replacePanelItems(pid, namespaced);
     console.log(`scheduler: pipeline "${config.name}" — ${items.length} → ${transformed.length} items`);
   } catch (err) {
-    console.warn(`scheduler: pipeline "${config.name}" — error:`, err);
-    return { kind: "pipeline", name: config.name, status: "failed", error: errorMessage(err) };
+    const msg = errorMessage(err);
+    console.warn(`scheduler: pipeline "${config.name}" — error: ${msg}`);
+    entry.lastError = msg;
+    return { kind: "pipeline", name: config.name, status: "failed", error: msg };
   } finally {
     entry.running = false;
   }
@@ -239,6 +252,7 @@ export function stopScheduler(): void {
   adapterEntries.length = 0;
   for (const entry of pipelineEntries) {
     if (entry.timer) clearInterval(entry.timer);
+    if (entry.initialTimer) clearTimeout(entry.initialTimer);
   }
   pipelineEntries.length = 0;
   if (pruneTimer) {

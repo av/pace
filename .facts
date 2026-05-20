@@ -159,6 +159,15 @@
 - project is initialized with git, facts, and .gitignore @spec
 
 # runtime
+- label: startScheduler in src/scheduler.ts prevents duplicate timer registration and overlapping jobs by early-returning if entries already exist, ensuring that even if invoked multiple times only one set of adapter/pipeline/prune timers exists (verified by double-start test reporting everyCount:1 instead of 2)
+  command: cd /home/everlier/code/pace && bun run /tmp/sched-double-test.ts >/dev/null 2>&1 && cat /tmp/sched-double-evidence.json | grep -q '"everyCount": 1'
+  tags: [bugbash-iter3, implemented]
+- label: stopScheduler clears pending initial pipeline setTimeout timers (stored per PipelineEntry as initialTimer) in addition to interval timers, so that no runPipelineJob or new setInterval can fire after stopScheduler (verified by shutdown-timing test showing no extra logs post-delay, afterDelay count equals afterStop count)
+  command: cd /home/everlier/code/pace && bun run /tmp/sched-shutdown-test.ts >/dev/null 2>&1 && cat /tmp/sched-shutdown-evidence.json | grep -q '"afterDelay": 2'
+  tags: [bugbash-iter3, implemented]
+- label: runAdapter/runPipelineJob log only short error strings (via errorMessage(err)) to console.warn and store lastError on their Entry; never dump full Error objects/stacks from periodic or refresh job failures (verified by error-path test capturing clean "error: Simulated..." without "Error: " prefix in logs/evidence)
+  command: cd /home/everlier/code/pace && bun run /tmp/sched-error-test.ts >/dev/null 2>&1 && cat /tmp/sched-error-evidence.json | grep -q 'error: Simulated adapter network failure: ECONNRESET' && ! cat /tmp/sched-error-evidence.json | grep -q 'Error: Simulated'
+  tags: [bugbash-iter3, implemented]
 
 ## refresh
 - label: manual panel refresh surfaces adapter fetch failures with HTTP 502 instead of redirecting as success
