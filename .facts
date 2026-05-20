@@ -141,6 +141,18 @@
 - label: CLI startup reports configured adapter types missing from discovered runtime adapters as scheduler-prefixed errors before server startup
   command: tmp=$(mktemp); printf "adapters:\n  - type: definitely_missing_adapter\nlayout:\n  direction: row\n  children:\n    - panel: missing\n      source: definitely_missing_adapter\n" > "$tmp"; out=$(timeout 3 env PORT=31441 PACE_CONFIG="$tmp" bun run src/cli.ts serve 2>&1); status=$?; test "$status" -eq 1 && printf "%s" "$out" | grep -q "^scheduler: adapter type \"definitely_missing_adapter\" is configured but no matching adapter module was discovered$" && ! printf "%s" "$out" | grep -q "pace listening\|Bun v\| at startScheduler"
   tags: [spec, bugbash, implemented]
+- label: the CLI launcher in src/cli.ts always chdir's to the directory containing its package.json (computed via const projectRoot = join(import.meta.dir, '..'); process.chdir(projectRoot)) before the dynamic import('./index'), ensuring tsconfig.json, node_modules resolution, default config paths and data/ dir are always from the project regardless of shell cwd or global bin invocation
+  command: grep -q 'projectRoot.*chdir' src/cli.ts
+  tags: [bugbash-iter2, implemented]
+- label: CLI at src/cli.ts detects and rejects unknown options (e.g. --badflag or --prt typos) after parseArgs by checking for unexpected keys in values, printing 'Unknown option(s): --badflag' + full HELP + exit(1) before any server startup or env set
+  command: cd /home/everlier/code/pace && bun run src/cli.ts --badflag 2>&1 | grep -q 'Unknown option(s): --badflag'
+  tags: [bugbash-iter2, implemented]
+- label: CLI validates --port <value> (if supplied) before setting PORT: if not integer 1-65535 then prints 'Invalid --port value: X. Must be an integer between 1 and 65535.' to stderr and exits 1 without proceeding to import index or server
+  command: cd /home/everlier/code/pace && bun run src/cli.ts --port 99999 2>&1 | grep -q 'Invalid --port value'
+  tags: [bugbash-iter2, implemented]
+- label: for --config <path>, if the path exists but is not a regular file (e.g. directory), the CLI prints a clean 'config: /tmp/pace-config-dir is not a regular file' (or prefixed) error + exit(1) with no Bun stack trace (prevents EISDIR raw error from loadConfig readFileSync)
+  command: cd /home/everlier/code/pace && bun run src/cli.ts --config /tmp/pace-config-dir 2>&1 | grep -q 'is not a regular file'
+  tags: [bugbash-iter2, implemented]
 
 # project setup
 
