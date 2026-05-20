@@ -221,3 +221,14 @@
 - label: the bugbash skill SKILL.md cross-references AGENTS.md and requires full facts loop (list, add facts with --command verifier, check --tags "bugbash-iter4" never bare, edit --add-tag implemented) before any search_replace on SKILL.md or other files when fixing issues found by bugbash; also notes facts skills show bugbash does not apply as it is not a facts-* skill
   command: grep -q "AGENTS.md" .agents/skills/bugbash/SKILL.md && grep -q "facts check --tags" .agents/skills/bugbash/SKILL.md
   tags: [bugbash-iter4, implemented]
+
+# timeboxed
+- label: the timeboxed-iterating skill SKILL.md documents precise clock deadline check using >= (now >= deadline) with pseudocode example in Step 3 / clock math to prevent extra boundary dispatch (verified post-edit by grep -q 'now >= deadline' /home/everlier/.agents/skills/timeboxed-iterating/SKILL.md && grep -q 'ge\|>=' /home/everlier/.agents/skills/timeboxed-iterating/SKILL.md)
+  command: grep -q 'now >= deadline' /home/everlier/.agents/skills/timeboxed-iterating/SKILL.md && grep -q 'if \[' /home/everlier/.agents/skills/timeboxed-iterating/SKILL.md
+  tags: [bugbash-iter5, implemented]
+- label: the timeboxed-iterating skill SKILL.md accurately describes the dispatch mechanism using available tools (run_terminal_command background:true returning task_id, polled via get_command_or_subagent_output / kill_command_or_subagent / wait_*) and clarifies the 'spawn_subagent' description as optional/inferred for other runtimes (verified by grep -q 'run_terminal_command.*background' /home/everlier/.agents/skills/timeboxed-iterating/SKILL.md && grep -q 'get_command_or_subagent_output' ...)
+  command: grep -q 'run_terminal_command' /home/everlier/.agents/skills/timeboxed-iterating/SKILL.md && grep -q 'background:true' /home/everlier/.agents/skills/timeboxed-iterating/SKILL.md
+  tags: [bugbash-iter5, implemented]
+- label: the timeboxed-iterating skill SKILL.md includes a concrete search_replace example (with old_string=unique last line, new=last+new entry) for the required subagent progress append contract and warns on quoting/expansion for run_terminal bg cmds in harness tests (verified post by grep -q 'search_replace targeting a unique' /home/everlier/.agents/skills/timeboxed-iterating/SKILL.md && grep -q 'double-quotes.*expansion' ...)
+  command: grep -q 'search_replace' /home/everlier/.agents/skills/timeboxed-iterating/SKILL.md && grep -q 'unique string at the current end' /home/everlier/.agents/skills/timeboxed-iterating/SKILL.md
+  tags: [bugbash-iter5, implemented]
