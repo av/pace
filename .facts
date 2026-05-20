@@ -232,3 +232,14 @@
 - label: the timeboxed-iterating skill SKILL.md includes a concrete search_replace example (with old_string=unique last line, new=last+new entry) for the required subagent progress append contract and warns on quoting/expansion for run_terminal bg cmds in harness tests (verified post by grep -q 'search_replace targeting a unique' /home/everlier/.agents/skills/timeboxed-iterating/SKILL.md && grep -q 'double-quotes.*expansion' ...)
   command: grep -q 'search_replace' /home/everlier/.agents/skills/timeboxed-iterating/SKILL.md && grep -q 'unique string at the current end' /home/everlier/.agents/skills/timeboxed-iterating/SKILL.md
   tags: [bugbash-iter5, implemented]
+
+# facts-implement
+- label: the facts-implement skill SKILL.md Process, Verify and Example sections document and require filtered facts commands (e.g. facts check --tags "bugbash-iter6", facts list --tags "spec" or --section) and explicitly warn against bare facts check/list per AGENTS.md "Never run bare `facts check` unless asked"
+  command: grep -q 'facts check --tags' .agents/skills/facts-implement/SKILL.md && grep -q 'Never run bare' .agents/skills/facts-implement/SKILL.md
+  tags: [bugbash-iter6, implemented]
+- label: the facts-implement skill SKILL.md includes a Fact-driven Integration section (and updates to Guidelines/Process) cross-referencing AGENTS.md, mandating: facts list --search/--section/--tags, facts add with --command verifier, facts check --tags "bugbash-iter6" (never bare), read_file before every search_replace for "read before edit", EVIDENCE: PASS - 1-liner from check output + read_file, manual ? facts verified individually with read + 1-line PASS/FAIL, search_replace for progress append, commit before return, return ONLY summary
+  command: grep -q 'Fact-driven Integration' .agents/skills/facts-implement/SKILL.md && grep -q 'read_file before every search_replace' .agents/skills/facts-implement/SKILL.md && grep -q 'EVIDENCE: PASS' .agents/skills/facts-implement/SKILL.md
+  tags: [bugbash-iter6, implemented]
+- label: the facts-implement skill SKILL.md documents the agent/tool harness for 'use subagents to parallelize' (run_terminal_command with background:true returning task_id, polled via get_command_or_subagent_output / kill_command_or_subagent / wait_commands_or_subagents) and includes 'Agent/tool harness note' similar to bugbash/SKILL.md
+  command: grep -q 'Agent/tool harness note' .agents/skills/facts-implement/SKILL.md && grep -q 'background:true' .agents/skills/facts-implement/SKILL.md && grep -q 'get_command_or_subagent_output' .agents/skills/facts-implement/SKILL.md
+  tags: [bugbash-iter6, implemented]
