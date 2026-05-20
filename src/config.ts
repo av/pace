@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import yaml from "js-yaml";
 import type { AdapterConfig } from "./adapters/types";
@@ -230,13 +230,15 @@ function validatePanelIds(node: LayoutNodeConfig): void {
     }
     names.add(p.panel);
   }
-  const ids = new Set<string>();
+  const idToPanels = new Map<string, string[]>();
   for (const p of panels) {
     const id = resolvePanelId(p);
-    if (ids.has(id)) {
-      throw new Error(`config: duplicate panel ID "${id}"`);
+    const list = idToPanels.get(id) || [];
+    list.push(p.panel);
+    idToPanels.set(id, list);
+    if (list.length > 1) {
+      throw new Error(`config: duplicate panel ID "${id}" (panels: "${list.join('", "')}")`);
     }
-    ids.add(id);
   }
 }
 
@@ -549,11 +551,22 @@ export function loadConfig(): AppConfig {
   const examplePath = join(process.cwd(), "config.example.yaml");
 
   let raw: string;
+  let usedConfigPath: string;
   if (existsSync(configPath)) {
+    const st = statSync(configPath);
+    if (!st.isFile()) {
+      throw new Error(`config: ${configPath} is not a regular file`);
+    }
+    usedConfigPath = configPath;
     raw = readFileSync(configPath, "utf-8");
   } else if (explicitConfigPath) {
     throw new Error(`config: file not found: ${configPath}`);
   } else if (existsSync(examplePath)) {
+    const st = statSync(examplePath);
+    if (!st.isFile()) {
+      throw new Error(`config: ${examplePath} is not a regular file`);
+    }
+    usedConfigPath = examplePath;
     raw = readFileSync(examplePath, "utf-8");
   } else {
     return defaultConfig();
@@ -564,7 +577,7 @@ export function loadConfig(): AppConfig {
     parsed = yaml.load(raw) as Record<string, unknown>;
   } catch (err) {
     const reason = err instanceof Error ? err.message.split("\n")[0] : String(err);
-    throw new Error(`config: failed to parse YAML: ${reason}`);
+    throw new Error(`config: failed to parse YAML from ${usedConfigPath}: ${reason}`);
   }
 
   if (parsed === undefined) {

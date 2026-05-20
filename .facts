@@ -153,6 +153,15 @@
 - label: for --config <path>, if the path exists but is not a regular file (e.g. directory), the CLI prints a clean 'config: /tmp/pace-config-dir is not a regular file' (or prefixed) error + exit(1) with no Bun stack trace (prevents EISDIR raw error from loadConfig readFileSync)
   command: cd /home/everlier/code/pace && bun run src/cli.ts --config /tmp/pace-config-dir 2>&1 | grep -q 'is not a regular file'
   tags: [bugbash-iter2, implemented]
+- label: loadConfig in src/config.ts throws a clean 'config: <path> is not a regular file' error (instead of raw EISDIR or other fs errors) when the explicit PACE_CONFIG or resolved config path exists but is not a regular file (e.g. directory)
+  command: cd /tmp && mkdir -p /tmp/pace-d && PACE_CONFIG=/tmp/pace-d bun run /tmp/harness-config-load.ts 2>&1 | grep -q 'is not a regular file'
+  tags: [spec, bugbash-iter7]
+- label: loadConfig prefixes YAML parse errors with the specific config file path: 'config: failed to parse YAML from <path>: <reason>' for clearer diagnostics on bad --config / PACE_CONFIG
+  command: cd /tmp && PACE_CONFIG=/tmp/pace-bad-syntax.yaml bun run /tmp/harness-config-load.ts 2>&1 | grep -q 'failed to parse YAML from /tmp/pace-bad-syntax.yaml'
+  tags: [spec, bugbash-iter7]
+- label: validatePanelIds in src/config.ts reports duplicate panel IDs with context (the panel names that collided and whether explicit id or hash-derived) e.g. 'config: duplicate panel ID "xxx" (panels: "p1", "p2")' instead of just the ID
+  command: cd /tmp && PACE_CONFIG=/tmp/pace-bad-dup-id.yaml bun run /tmp/harness-config-load.ts 2>&1 | grep -q 'duplicate panel ID "samehash" (panels:'
+  tags: [spec, bugbash-iter7]
 
 # project setup
 
