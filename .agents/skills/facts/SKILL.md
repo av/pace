@@ -51,8 +51,8 @@ That's the entire format. Plain strings for simple facts, mappings when you need
 - `ll` = `list --light` — the most common "skim" view (markdown headings + dim IDs)
 - `ls` = `list`
 - `rm` = `remove`
-- `at <id> <tag>` = `edit <id> --add-tag <tag>` (supports multiple IDs and `--label` / `--new-id` etc. after the tag)
-- `rt <id> <tag>` = `edit <id> --remove-tag <tag>`
+- `at <id> --add-tag <tag>` = `edit <id> --add-tag <tag>` (args forwarded directly to edit; bare positional `at <id> <tag>` does not work as <tag> is parsed as an extra ID)
+- `rt <id> --remove-tag <tag>` = `edit <id> --remove-tag <tag>`
 
 These are the highest-ROI shortcuts for daily and agent use.
 
@@ -103,7 +103,7 @@ Run `facts <command> --help` for the full flag reference.
 
 ## How facts work
 
-**Files:** `.facts` is the default. Additional sheets use semantic names (`cli.facts`, `api.facts`). All `*.facts` files in the project root are discovered automatically.
+**Files:** `.facts` is the default. Additional sheets use semantic names (`cli.facts`, `api.facts`). All `*.facts` files in the project root are discovered automatically. Note: check/edit/get/remove subcommands do not support --file (list/lint/add do); ID-based commands (get/edit/remove/check by ID or --search/--tags) operate across all auto-discovered sheets. The CLI always requires a .git directory in any parent of the *current working directory* (fails with "Error: no .git directory found in any parent of ..." otherwise), even when using --file on sheets outside the tree. Always run from your project git root.
 
 **Sections:** Markdown headings (`#`, `##`, etc.) create hierarchical sections addressable by path (e.g. `cli/subcommands`). Sections are created when you add to them and removed when their last fact is deleted.
 

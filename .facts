@@ -178,3 +178,14 @@
 - label: docker/build-push-action builds from the project Dockerfile and pushes only on non-PR events, using GHA cache for layers
   command: test -f .github/workflows/docker.yml && grep -q "docker/build-push-action@v6" .github/workflows/docker.yml && grep -q "setup-buildx-action@v3" .github/workflows/docker.yml && grep -q "cache-from: type=gha" .github/workflows/docker.yml
   tags: [spec, implemented]
+
+# facts
+- label: the facts skill SKILL.md documents that the facts CLI requires a .git directory in the cwd ancestor for operations and fails with 'no .git directory found' error outside git trees
+  command: grep -Fq 'no .git directory found in any parent' .agents/skills/facts/SKILL.md
+  tags: [bugbash-iter1, implemented]
+- label: the facts skill SKILL.md accurately documents short alias usage requiring the --add-tag/--remove-tag flag (e.g. facts at <id> --add-tag <tag>) since args forward directly to edit
+  command: grep -q 'at <id> --add-tag' .agents/skills/facts/SKILL.md
+  tags: [bugbash-iter1, implemented]
+- label: the facts skill SKILL.md documents that check/edit/get/remove subcommands do not support --file while list/lint/add do, and that check auto-discovers and validates facts across all *.facts files in the project root
+  command: grep -q 'do not support --file' .agents/skills/facts/SKILL.md && grep -q 'auto-discovered' .agents/skills/facts/SKILL.md
+  tags: [bugbash-iter1, implemented]
