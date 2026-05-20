@@ -210,3 +210,14 @@
 - label: the facts skill SKILL.md documents that check/edit/get/remove subcommands do not support --file while list/lint/add do, and that check auto-discovers and validates facts across all *.facts files in the project root
   command: grep -q 'do not support --file' .agents/skills/facts/SKILL.md && grep -q 'auto-discovered' .agents/skills/facts/SKILL.md
   tags: [bugbash-iter1, implemented]
+
+# bugbash
+- label: the bugbash skill SKILL.md requires and documents that every invocation must create and use a unique fresh output directory (e.g. /tmp/bugbash-<target>-<YYYYMMDD-HHMMSS>/ following observed timestamped convention) rather than the static default /tmp/dogfood-output/ example, to prevent report.md and evidence collisions on concurrent runs or re-invocations
+  command: grep -q 'unique fresh output directory' .agents/skills/bugbash/SKILL.md && grep -q 'timestamped' .agents/skills/bugbash/SKILL.md
+  tags: [bugbash-iter4, implemented]
+- label: the bugbash skill SKILL.md documents the agent/tool execution model for background and long-running processes (run_terminal_command with background:true param, kill_command_or_subagent by task_id, get_command_or_subagent_output) alongside or in place of raw shell '&' examples, and warns that literal '&' in command strings is rejected by the harness used in this project
+  command: grep -q 'background:true' .agents/skills/bugbash/SKILL.md && grep -q 'kill_command_or_subagent' .agents/skills/bugbash/SKILL.md
+  tags: [bugbash-iter4, implemented]
+- label: the bugbash skill SKILL.md cross-references AGENTS.md and requires full facts loop (list, add facts with --command verifier, check --tags "bugbash-iter4" never bare, edit --add-tag implemented) before any search_replace on SKILL.md or other files when fixing issues found by bugbash; also notes facts skills show bugbash does not apply as it is not a facts-* skill
+  command: grep -q "AGENTS.md" .agents/skills/bugbash/SKILL.md && grep -q "facts check --tags" .agents/skills/bugbash/SKILL.md
+  tags: [bugbash-iter4, implemented]
