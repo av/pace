@@ -17,6 +17,21 @@ const VALID_PERIODS = new Set<TimePeriod>([
   "all",
 ]);
 
+/**
+ * Resolve a user-supplied string value against a set of valid options (case-insensitive).
+ * Returns the canonical form if valid, else the fallback.
+ * Single source of truth for the duplicated sort/timePeriod resolution logic.
+ */
+function resolveValidOption<T extends string>(
+  value: string | undefined,
+  valid: Set<T>,
+  fallback: T,
+): T {
+  if (!value) return fallback;
+  const lower = value.toLowerCase();
+  return valid.has(lower as T) ? (lower as T) : fallback;
+}
+
 interface RedditPostData {
   id: string;
   title: string;
@@ -104,19 +119,8 @@ const adapter: Adapter = {
     const minScore = (config.params?.min_score as number) ?? 0;
     const timePeriod = (config.params?.time as string) ?? "day";
 
-    // Resolve sort type
-    const sortLower = sort.toLowerCase();
-    const effectiveSort: SortType = VALID_SORTS.has(sortLower as SortType)
-      ? (sortLower as SortType)
-      : "hot";
-
-    // Resolve time period
-    const periodLower = timePeriod.toLowerCase();
-    const effectivePeriod: TimePeriod = VALID_PERIODS.has(
-      periodLower as TimePeriod,
-    )
-      ? (periodLower as TimePeriod)
-      : "day";
+    const effectiveSort = resolveValidOption(sort, VALID_SORTS, "hot" as const);
+    const effectivePeriod = resolveValidOption(timePeriod, VALID_PERIODS, "day" as const);
 
     if (subreddits.length === 0) {
       console.warn("reddit: no subreddits configured");
