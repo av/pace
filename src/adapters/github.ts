@@ -51,21 +51,48 @@ function stripHtml(html: string): string {
     .trim();
 }
 
+/**
+ * Shared fetch helper for GitHub resources (Atom releases feeds and trending HTML pages).
+ * Centralizes User-Agent, timeout, optional Accept header, !ok handling and error logging
+ * so the two call sites no longer duplicate the boilerplate.
+ * `context` is interpolated into the exact original warn strings for full behavior match.
+ */
+async function fetchGithubResource(
+  url: string,
+  context: string,
+  opts: { timeoutMs?: number; accept?: string } = {},
+): Promise<string | null> {
+  const timeoutMs = opts.timeoutMs ?? 15000;
+  const headers: Record<string, string> = { "User-Agent": "pace/1.0" };
+  if (opts.accept) {
+    headers.Accept = opts.accept;
+  }
+
+  try {
+    const res = await fetch(url, {
+      headers,
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+
+    if (!res.ok) {
+      console.warn(`github: failed to fetch ${context}: ${res.status}`);
+      return null;
+    }
+
+    return await res.text();
+  } catch (err) {
+    console.warn(`github: error fetching ${context}:`, err);
+    return null;
+  }
+}
+
 async function fetchReleasesFeed(repo: string, limit: number): Promise<ContentItem[]> {
   const url = `https://github.com/${repo}/releases.atom`;
 
   try {
-    const res = await fetch(url, {
-      headers: { "User-Agent": "pace/1.0" },
-      signal: AbortSignal.timeout(15000),
-    });
+    const xml = await fetchGithubResource(url, `releases for ${repo}`, { timeoutMs: 15000 });
+    if (!xml) return [];
 
-    if (!res.ok) {
-      console.warn(`github: failed to fetch releases for ${repo}: ${res.status}`);
-      return [];
-    }
-
-    const xml = await res.text();
     const parsed = parser.parse(xml);
 
     const entries: AtomEntry[] = (() => {
@@ -181,20 +208,12 @@ async function fetchTrending(
   const url = `https://github.com/trending${langPath}?since=${since}`;
 
   try {
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": "pace/1.0",
-        Accept: "text/html",
-      },
-      signal: AbortSignal.timeout(20000),
+    const html = await fetchGithubResource(url, `trending`, {
+      timeoutMs: 20000,
+      accept: "text/html",
     });
+    if (!html) return [];
 
-    if (!res.ok) {
-      console.warn(`github: failed to fetch trending: ${res.status}`);
-      return [];
-    }
-
-    const html = await res.text();
     const repos = parseTrendingHtml(html);
 
     const periodLabel: Record<TrendingPeriod, string> = {
