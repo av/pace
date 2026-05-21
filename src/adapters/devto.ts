@@ -39,47 +39,14 @@ function buildBody(article: DevToArticle): string {
   return parts.join(" | ");
 }
 
-async function fetchArticlesByTag(
-  tag: string,
-  top: number,
-  limit: number,
+async function fetchDevToArticles(
+  query: Record<string, string | number>,
+  context: string,
 ): Promise<DevToArticle[]> {
-  const params = new URLSearchParams({
-    tag,
-    top: String(top),
-    per_page: String(limit),
-  });
-
-  const url = `${DEVTO_API}?${params.toString()}`;
-
-  try {
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": "pace:feed-aggregator/1.0",
-        Accept: "application/json",
-      },
-      signal: AbortSignal.timeout(15000),
-    });
-
-    if (!res.ok) {
-      throw new Error(`devto: failed to fetch tag "${tag}": ${res.status}`);
-    }
-
-    return await res.json();
-  } catch (err) {
-    throw new Error(`devto: error fetching tag "${tag}": ${errorMessage(err)}`);
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(query)) {
+    params.set(k, String(v));
   }
-}
-
-async function fetchArticlesByUsername(
-  username: string,
-  limit: number,
-): Promise<DevToArticle[]> {
-  const params = new URLSearchParams({
-    username,
-    per_page: String(limit),
-  });
-
   const url = `${DEVTO_API}?${params.toString()}`;
 
   try {
@@ -92,12 +59,12 @@ async function fetchArticlesByUsername(
     });
 
     if (!res.ok) {
-      throw new Error(`devto: failed to fetch user "${username}": ${res.status}`);
+      throw new Error(`devto: failed to fetch ${context}: ${res.status}`);
     }
 
     return await res.json();
   } catch (err) {
-    throw new Error(`devto: error fetching user "${username}": ${errorMessage(err)}`);
+    throw new Error(`devto: error fetching ${context}: ${errorMessage(err)}`);
   }
 }
 
@@ -141,13 +108,19 @@ const adapter: Adapter = {
 
     // Fetch by username if specified
     if (username) {
-      const articles = await fetchArticlesByUsername(username, limit);
+      const articles = await fetchDevToArticles(
+        { username, per_page: limit },
+        `user "${username}"`,
+      );
       allArticles.push(...articles);
     }
 
     // Fetch each tag separately and merge
     for (const tag of tags) {
-      const articles = await fetchArticlesByTag(tag, top, limit);
+      const articles = await fetchDevToArticles(
+        { tag, top: String(top), per_page: limit },
+        `tag "${tag}"`,
+      );
       allArticles.push(...articles);
     }
 

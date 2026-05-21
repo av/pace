@@ -97,6 +97,7 @@
 - label: github-releases (and similar token-using adapters) throw on HTTP 401/403 auth failures with "github-releases: ..." instead of silently returning [] (harness with bad token + 401 injection)
   command: cd /home/everlier/code/pace && bun run /tmp/bugbash-adapters-20260521-021019/evidence/harness-error-prop.ts 2>&1 | grep -q "ghr-auth.*PASS"
   tags: [bugbash-iter11, implemented]
+- devto adapter (src/adapters/devto.ts) has near-duplicate fetch logic in fetchArticlesByTag and fetchArticlesByUsername (~17 lines each differing only in query params and error strings); extracted to single shared fetchDevToArticles helper (with common headers/timeout/!ok/catch/errorMessage wrapping); src/devto.test.ts guards with dedicated tests for resolvePeriod, buildBody, and adapter.fetch (username + tags paths, minReactions, dedup, limits, using global fetch mocks) preserving 100% identical behavior and error messages @timeboxed-iter6 @implemented
 
 # llm
 
