@@ -120,6 +120,13 @@ export function levenshteinSimilarity(a: string, b: string): number {
   return 1 - distance / maxLen;
 }
 
+/** Regex patterns (in priority order) for extracting numeric scores from common item metadata formats */
+const SCORE_PATTERNS: RegExp[] = [
+  /(\d+)\s*points?/i, // HN, Lobsters style: "42 points"
+  /score:\s*(\d+)/i, // "score: 77"
+  /(\d+)\s*upvotes?/i, // "15 upvotes"
+];
+
 /**
  * Extract a numeric score from the body text metadata.
  * Looks for patterns like "42 points", "Score: 42", or structured metadata
@@ -127,14 +134,9 @@ export function levenshteinSimilarity(a: string, b: string): number {
  */
 export function extractScore(body: string | null): number {
   if (!body) return 0;
-  // Match "N points" pattern (HN, Lobsters style)
-  const pointsMatch = body.match(/(\d+)\s*points?/i);
-  if (pointsMatch) return parseInt(pointsMatch[1], 10);
-  // Match "score: N" pattern
-  const scoreMatch = body.match(/score:\s*(\d+)/i);
-  if (scoreMatch) return parseInt(scoreMatch[1], 10);
-  // Match "N upvotes" pattern
-  const upvotesMatch = body.match(/(\d+)\s*upvotes?/i);
-  if (upvotesMatch) return parseInt(upvotesMatch[1], 10);
+  for (const re of SCORE_PATTERNS) {
+    const match = body.match(re);
+    if (match) return parseInt(match[1], 10);
+  }
   return 0;
 }

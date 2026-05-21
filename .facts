@@ -272,6 +272,7 @@
 - label: the timeboxed-iterating skill SKILL.md includes a concrete search_replace example (with old_string=unique last line, new=last+new entry) for the required subagent progress append contract and warns on quoting/expansion for run_terminal bg cmds in harness tests (verified post by grep -q 'search_replace targeting a unique' /home/everlier/.agents/skills/timeboxed-iterating/SKILL.md && grep -q 'double-quotes.*expansion' ...)
   command: grep -q 'search_replace' /home/everlier/.agents/skills/timeboxed-iterating/SKILL.md && grep -q 'unique string at the current end' /home/everlier/.agents/skills/timeboxed-iterating/SKILL.md
   tags: [bugbash-iter5, implemented]
+- dedupe.ts utilities (normalizeUrl, levenshteinDistance, levenshteinSimilarity, extractScore) are guarded by dedicated unit tests in src/dedupe.test.ts (exercising normal cases, edges, unicode, regex variants for score extraction); extractScore DRYed from 3 repeated match/parse blocks to single source of truth while preserving exact behavior @timeboxed-iter2 @implemented
 
 # facts-implement
 - label: the facts-implement skill SKILL.md Process, Verify and Example sections document and require filtered facts commands (e.g. facts check --tags "bugbash-iter6", facts list --tags "spec" or --section) and explicitly warn against bare facts check/list per AGENTS.md "Never run bare `facts check` unless asked"
