@@ -94,6 +94,25 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Add ArXiv entries as ContentItems to the result list, skipping duplicates by stable id.
+ * Used by both category and free-text query paths (DRY).
+ */
+function addUniqueArxivEntries(
+  entries: ArxivEntry[],
+  sourceLabel: string,
+  seenIds: Set<string>,
+  allItems: ContentItem[],
+): void {
+  for (const entry of entries) {
+    const item = entryToItem(entry, sourceLabel);
+    if (!seenIds.has(item.id)) {
+      seenIds.add(item.id);
+      allItems.push(item);
+    }
+  }
+}
+
 async function fetchArxivQuery(
   queryStr: string,
   limit: number,
@@ -186,13 +205,7 @@ const adapter: Adapter = {
       const entries = await fetchArxivQuery(queryStr, limit);
       const sourceLabel = `arxiv:${cat}`;
 
-      for (const entry of entries) {
-        const item = entryToItem(entry, sourceLabel);
-        if (!seenIds.has(item.id)) {
-          seenIds.add(item.id);
-          allItems.push(item);
-        }
-      }
+      addUniqueArxivEntries(entries, sourceLabel, seenIds, allItems);
     }
 
     // Fetch by keyword query
@@ -204,13 +217,7 @@ const adapter: Adapter = {
       const queryStr = `all:${query}`;
       const entries = await fetchArxivQuery(queryStr, limit);
 
-      for (const entry of entries) {
-        const item = entryToItem(entry, "arxiv:search");
-        if (!seenIds.has(item.id)) {
-          seenIds.add(item.id);
-          allItems.push(item);
-        }
-      }
+      addUniqueArxivEntries(entries, "arxiv:search", seenIds, allItems);
     }
 
     // Sort by timestamp descending and limit
