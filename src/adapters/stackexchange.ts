@@ -62,6 +62,16 @@ function buildBody(question: SEQuestion): string {
   return parts.join(" | ");
 }
 
+/**
+ * Warn with any args (supports console.warn(msg) or console.warn(msg, err))
+ * and return empty list. Centralizes the repeated warn + return [] pattern
+ * used for recoverable fetch errors in fetchQuestions (!ok and catch paths).
+ */
+function warnAndReturnEmpty(...args: any[]): SEQuestion[] {
+  console.warn(...args);
+  return [];
+}
+
 async function fetchQuestions(
   site: string,
   sort: SortType,
@@ -93,10 +103,9 @@ async function fetchQuestions(
     });
 
     if (!res.ok) {
-      console.warn(
+      return warnAndReturnEmpty(
         `stackexchange: failed to fetch from ${site}: ${res.status} ${res.statusText}`,
       );
-      return [];
     }
 
     const json: SEResponse = await res.json();
@@ -109,8 +118,7 @@ async function fetchQuestions(
 
     return json.items ?? [];
   } catch (err) {
-    console.warn(`stackexchange: error fetching from ${site}:`, err);
-    return [];
+    return warnAndReturnEmpty(`stackexchange: error fetching from ${site}:`, err);
   }
 }
 
