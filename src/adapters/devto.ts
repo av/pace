@@ -1,4 +1,5 @@
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
+import { errorMessage } from "./types";
 
 const DEVTO_API = "https://dev.to/api/articles";
 
@@ -61,14 +62,12 @@ async function fetchArticlesByTag(
     });
 
     if (!res.ok) {
-      console.warn(`devto: failed to fetch tag "${tag}": ${res.status}`);
-      return [];
+      throw new Error(`devto: failed to fetch tag "${tag}": ${res.status}`);
     }
 
     return await res.json();
   } catch (err) {
-    console.warn(`devto: error fetching tag "${tag}":`, err);
-    return [];
+    throw new Error(`devto: error fetching tag "${tag}": ${errorMessage(err)}`);
   }
 }
 
@@ -93,16 +92,12 @@ async function fetchArticlesByUsername(
     });
 
     if (!res.ok) {
-      console.warn(
-        `devto: failed to fetch user "${username}": ${res.status}`,
-      );
-      return [];
+      throw new Error(`devto: failed to fetch user "${username}": ${res.status}`);
     }
 
     return await res.json();
   } catch (err) {
-    console.warn(`devto: error fetching user "${username}":`, err);
-    return [];
+    throw new Error(`devto: error fetching user "${username}": ${errorMessage(err)}`);
   }
 }
 

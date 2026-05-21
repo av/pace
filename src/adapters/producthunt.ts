@@ -1,5 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
+import { errorMessage } from "./types";
 
 const PH_FEED_URL = "https://www.producthunt.com/feed";
 const ENRICH_BATCH_SIZE = 5;
@@ -234,8 +235,7 @@ const adapter: Adapter = {
       });
 
       if (!res.ok) {
-        console.warn(`producthunt: failed to fetch feed: ${res.status}`);
-        return [];
+        throw new Error(`producthunt: failed to fetch feed: ${res.status}`);
       }
 
       const xml = await res.text();
@@ -325,8 +325,7 @@ const adapter: Adapter = {
         };
       });
     } catch (err) {
-      console.warn("producthunt: error fetching feed:", err);
-      return [];
+      throw new Error(`producthunt: error fetching feed: ${errorMessage(err)}`);
     }
   },
 };

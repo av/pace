@@ -1,4 +1,5 @@
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
+import { errorMessage } from "./types";
 
 interface GitHubRelease {
   id: number;
@@ -25,8 +26,7 @@ async function fetchRepoReleases(
   try {
     const res = await fetch(url, { headers, signal: AbortSignal.timeout(15000) });
     if (!res.ok) {
-      console.warn(`github-releases: failed to fetch ${repo}: ${res.status}`);
-      return [];
+      throw new Error(`github-releases: failed to fetch ${repo}: ${res.status}`);
     }
     const releases: GitHubRelease[] = await res.json();
     return releases.map((r) => ({
@@ -38,8 +38,7 @@ async function fetchRepoReleases(
       body: r.body ?? undefined,
     }));
   } catch (err) {
-    console.warn(`github-releases: error fetching ${repo}:`, err);
-    return [];
+    throw new Error(`github-releases: error fetching ${repo}: ${errorMessage(err)}`);
   }
 }
 

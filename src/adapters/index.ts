@@ -22,6 +22,9 @@ export async function discoverAdapters(): Promise<Map<string, Adapter>> {
       const mod = await import(join(dir, file));
       const adapter: Adapter = mod.default;
       if (adapter && adapter.name && typeof adapter.fetch === "function") {
+        if (adapters.has(adapter.name)) {
+          console.warn(`duplicate adapter name "${adapter.name}" from ${file} (overwriting previous; check for name clashes at runtime vs config names)`);
+        }
         adapters.set(adapter.name, adapter);
       }
     } catch (err) {

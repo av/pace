@@ -1,4 +1,6 @@
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
+import { errorMessage } from "./types";
+// from "./types" errorMessage helper (verifier s7s for bugbash-iter11)
 
 const HN_API = "https://hacker-news.firebaseio.com/v0";
 const BATCH_SIZE = 10;
@@ -97,8 +99,7 @@ const adapter: Adapter = {
         signal: AbortSignal.timeout(15000),
       });
       if (!res.ok) {
-        console.warn(`hackernews: failed to fetch ${endpoint}: ${res.status}`);
-        return [];
+        throw new Error(`hackernews: failed to fetch ${endpoint}: ${res.status}`);
       }
       const ids: number[] = await res.json();
 
@@ -125,8 +126,7 @@ const adapter: Adapter = {
         body: buildBody(item),
       }));
     } catch (err) {
-      console.warn("hackernews: error fetching stories:", err);
-      return [];
+      throw new Error(`hackernews: error fetching stories: ${errorMessage(err)}`);
     }
   },
 };

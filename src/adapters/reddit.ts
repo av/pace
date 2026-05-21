@@ -1,4 +1,5 @@
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
+import { errorMessage } from "./types";
 
 const REDDIT_BASE = "https://www.reddit.com";
 const USER_AGENT = "pace:feed-aggregator/1.0 (github.com/everlier/pace)";
@@ -84,15 +85,13 @@ async function fetchRedditListing(
     });
 
     if (!res.ok) {
-      console.warn(`reddit: failed to fetch ${path}/${sort}: ${res.status}`);
-      return [];
+      throw new Error(`reddit: failed to fetch ${path}/${sort}: ${res.status}`);
     }
 
     const json: RedditListing = await res.json();
     return json?.data?.children ?? [];
   } catch (err) {
-    console.warn(`reddit: error fetching ${path}/${sort}:`, err);
-    return [];
+    throw new Error(`reddit: error fetching ${path}/${sort}: ${errorMessage(err)}`);
   }
 }
 

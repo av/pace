@@ -1,5 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
+import { errorMessage } from "./types";
 
 const ARXIV_API = "http://export.arxiv.org/api/query";
 const RATE_LIMIT_DELAY = 3000; // ArXiv requests 3-second delay between requests
@@ -106,8 +107,7 @@ async function fetchArxivQuery(
     });
 
     if (!res.ok) {
-      console.warn(`arxiv: failed to fetch query "${queryStr}": ${res.status}`);
-      return [];
+      throw new Error(`arxiv: failed to fetch query "${queryStr}": ${res.status}`);
     }
 
     const xml = await res.text();
@@ -117,8 +117,7 @@ async function fetchArxivQuery(
     if (!entries) return [];
     return Array.isArray(entries) ? entries : [entries];
   } catch (err) {
-    console.warn(`arxiv: error fetching query "${queryStr}":`, err);
-    return [];
+    throw new Error(`arxiv: error fetching query "${queryStr}": ${errorMessage(err)}`);
   }
 }
 

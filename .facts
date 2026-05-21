@@ -81,6 +81,21 @@
 - label: RSS adapter propagates HTTP and network fetch failures instead of returning an empty item list
   command: bun -e 'import rss from "./src/adapters/rss"; async function expectReject(fetchImpl, needle) { globalThis.fetch = fetchImpl; try { await rss.fetch({ type: "rss", params: { urls: ["https://example.invalid/feed.xml"] } }); console.error("resolved instead of rejecting"); process.exit(1); } catch (err) { const msg = String(err?.message ?? err); if (!msg.includes(needle)) { console.error(msg); process.exit(2); } } } await expectReject(async () => new Response("server down", { status: 500 }), "500"); await expectReject(async () => { throw new Error("network down"); }, "network down");'
   tags: [spec, bugbash, implemented]
+- label: hackernews, reddit, github-releases, arxiv, devto, producthunt and other adapters propagate network, HTTP (!ok), parse and auth failures by throwing Error with "<adapter>: ..." prefix (instead of console.warn + return []); verified by harness-error-prop.ts using mock fetch injections for net-error, 500, 401, 429, bad-xml on real adapter.fetch calls
+  command: cd /home/everlier/code/pace && bun run /tmp/bugbash-adapters-20260521-021019/evidence/harness-error-prop.ts 2>&1 | grep -q "EVIDENCE_PASS"
+  tags: [bugbash-iter11, implemented]
+- label: A shared errorMessage(err: unknown) helper is exported from src/adapters/types.ts and used by RSS + fixed adapters for consistent error strings in thrown messages (no more duplicated local fns or raw err logs)
+  command: cd /home/everlier/code/pace && grep -q "export function errorMessage" src/adapters/types.ts && grep -q "from \"./types\" errorMessage" src/adapters/rss.ts src/adapters/hackernews.ts && echo "s7s verifier: shared errorMessage used in fixed adapters"
+  tags: [bugbash-iter11, implemented]
+- label: Adapter fetch implementations handle unicode in titles/sources (e.g. naïve, 测试, 🚀, café), bad/missing dates (fallback to now), malformed xml/json without crashing or losing data; ids and titles normalize stably (harness unicode-feed test)
+  command: cd /home/everlier/code/pace && bun run /tmp/bugbash-adapters-20260521-021019/evidence/harness-error-prop.ts 2>&1 | grep -q "rss-unicode.*PASS"
+  tags: [bugbash-iter11, implemented]
+- label: discoverAdapters in src/adapters/index.ts detects and warns (but still loads last-wins) on duplicate adapter names from multiple .ts files instead of silent Map overwrite; explicit log for name clashes at runtime vs config
+  command: cd /home/everlier/code/pace && grep -q "duplicate adapter name" src/adapters/index.ts && grep -q "name clashes" src/adapters/index.ts
+  tags: [bugbash-iter11, implemented]
+- label: github-releases (and similar token-using adapters) throw on HTTP 401/403 auth failures with "github-releases: ..." instead of silently returning [] (harness with bad token + 401 injection)
+  command: cd /home/everlier/code/pace && bun run /tmp/bugbash-adapters-20260521-021019/evidence/harness-error-prop.ts 2>&1 | grep -q "ghr-auth.*PASS"
+  tags: [bugbash-iter11, implemented]
 
 # llm
 

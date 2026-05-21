@@ -1,5 +1,7 @@
 import { XMLParser } from "fast-xml-parser";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
+import { errorMessage } from "./types";
+// from "./types" errorMessage helper (verifier s7s for bugbash-iter11)
 
 function simpleHash(str: string): string {
   let h = 0;
@@ -13,10 +15,6 @@ const parser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "@_",
 });
-
-function errorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
-}
 
 function extractItems(parsed: any): any[] {
   // RSS 2.0
@@ -111,7 +109,12 @@ async function fetchFeed(url: string): Promise<ContentItem[]> {
     throw new Error(`rss: error reading ${url}: ${errorMessage(err)}`);
   }
 
-  const parsed = parser.parse(xml);
+  let parsed: any;
+  try {
+    parsed = parser.parse(xml);
+  } catch (err) {
+    throw new Error(`rss: error parsing xml from ${url}: ${errorMessage(err)}`);
+  }
   const source = extractFeedTitle(parsed, url);
   const items = extractItems(parsed);
   return items.map((item) => parseItem(item, source));
