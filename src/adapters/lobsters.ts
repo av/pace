@@ -38,6 +38,20 @@ function buildBody(item: LobstersItem): string {
   return parts.join(" | ");
 }
 
+async function fetchLobstersJson(
+  url: string,
+  label: string,
+): Promise<LobstersItem[]> {
+  const res = await fetch(url, {
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) {
+    console.warn(`lobsters: failed to fetch ${label}: ${res.status}`);
+    return [];
+  }
+  return (await res.json()) as LobstersItem[];
+}
+
 const adapter: Adapter = {
   name: "lobsters",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
@@ -66,14 +80,7 @@ const adapter: Adapter = {
         // Fetch tag-specific feeds and merge
         for (const tag of tags) {
           const tagUrl = `${LOBSTERS_BASE}/t/${encodeURIComponent(tag)}.json`;
-          const res = await fetch(tagUrl, {
-            signal: AbortSignal.timeout(15000),
-          });
-          if (!res.ok) {
-            console.warn(`lobsters: failed to fetch tag ${tag}: ${res.status}`);
-            continue;
-          }
-          const tagItems: LobstersItem[] = await res.json();
+          const tagItems = await fetchLobstersJson(tagUrl, `tag ${tag}`);
           items.push(...tagItems);
         }
 
@@ -101,16 +108,7 @@ const adapter: Adapter = {
       } else {
         // Fetch the standard feed
         const feedUrl = `${LOBSTERS_BASE}/${feedType}.json`;
-        const res = await fetch(feedUrl, {
-          signal: AbortSignal.timeout(15000),
-        });
-        if (!res.ok) {
-          console.warn(
-            `lobsters: failed to fetch ${feedType}: ${res.status}`,
-          );
-          return [];
-        }
-        items = await res.json();
+        items = await fetchLobstersJson(feedUrl, feedType);
       }
 
       // Apply score filter
