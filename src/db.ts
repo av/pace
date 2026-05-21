@@ -1,52 +1,64 @@
 import { Database } from "bun:sqlite";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
+import * as fs from "node:fs";
 import type { ContentItem } from "./adapters/types";
 
-let db: Database;
+let db: Database | null = null;
+let currentDbPath: string | null = null;
 
 export function getDb(): Database {
-  if (!db) {
-    const dbPath = join(process.cwd(), "data", "pace.db");
-    db = new Database(dbPath, { create: true });
+  const desiredPath = process.env.PACE_DB_PATH || join(process.cwd(), "data", "pace.db");
+  if (!db || currentDbPath !== desiredPath) {
+    if (db) {
+      try { db.close(); } catch {}
+      db = null;
+    }
+    fs.mkdirSync(dirname(desiredPath), { recursive: true });
+    db = new Database(desiredPath, { create: true });
+    currentDbPath = desiredPath;
     db.exec("PRAGMA journal_mode=WAL");
     db.exec("PRAGMA foreign_keys=ON");
     db.exec("PRAGMA busy_timeout=5000");
   }
-  return db;
+  return db!;
 }
 
 export function initDb(): void {
   const db = getDb();
 
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS content_items (
-      id TEXT NOT NULL PRIMARY KEY,
-      panel_id TEXT NOT NULL,
-      title TEXT NOT NULL,
-      url TEXT NOT NULL,
-      source TEXT NOT NULL,
-      body TEXT,
-      timestamp TEXT NOT NULL,
-      fetched_at TEXT NOT NULL DEFAULT (datetime('now')),
-      summary TEXT
-    )
-  `);
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS content_items (
+        id TEXT NOT NULL PRIMARY KEY,
+        panel_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        url TEXT NOT NULL,
+        source TEXT NOT NULL,
+        body TEXT,
+        timestamp TEXT NOT NULL,
+        fetched_at TEXT NOT NULL DEFAULT (datetime('now')),
+        summary TEXT
+      )
+    `);
 
-  const cols = db.prepare("PRAGMA table_info(content_items)").all() as { name: string }[];
-  if (cols.some((c) => c.name === "adapter_name")) {
-    db.exec("ALTER TABLE content_items RENAME COLUMN adapter_name TO panel_id");
-    db.exec("DROP INDEX IF EXISTS idx_content_items_adapter");
+    const cols = db.prepare("PRAGMA table_info(content_items)").all() as { name: string }[];
+    if (cols.some((c) => c.name === "adapter_name")) {
+      db.exec("ALTER TABLE content_items RENAME COLUMN adapter_name TO panel_id");
+      db.exec("DROP INDEX IF EXISTS idx_content_items_adapter");
+    }
+
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_content_items_panel
+      ON content_items(panel_id)
+    `);
+
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_content_items_timestamp
+      ON content_items(timestamp DESC)
+    `);
+  } catch (e: any) {
+    throw new Error(`db: init failed for ${currentDbPath || 'default'}: ${e.message || e}`);
   }
-
-  db.exec(`
-    CREATE INDEX IF NOT EXISTS idx_content_items_panel
-    ON content_items(panel_id)
-  `);
-
-  db.exec(`
-    CREATE INDEX IF NOT EXISTS idx_content_items_timestamp
-    ON content_items(timestamp DESC)
-  `);
 }
 
 export function saveItems(panelId: string, items: ContentItem[]): void {
@@ -65,19 +77,28 @@ export function saveItems(panelId: string, items: ContentItem[]): void {
 
   const tx = db.transaction(() => {
     for (const item of items) {
-      stmt.run(
-        item.id,
-        panelId,
-        item.title,
-        item.url,
-        item.source,
-        item.body ?? null,
-        item.timestamp.toISOString()
-      );
+      try {
+        stmt.run(
+          item.id,
+          panelId,
+          item.title,
+          item.url,
+          item.source,
+          item.body ?? null,
+          item.timestamp.toISOString()
+        );
+      } catch (e: any) {
+        throw new Error(`db: failed to save item id=${item.id} for panel=${panelId}: ${e.message || e}`);
+      }
     }
   });
 
-  tx();
+  try {
+    tx();
+  } catch (e: any) {
+    if (e.message && e.message.startsWith('db:')) throw e;
+    throw new Error(`db: failed to save ${items.length} items for panel ${panelId}: ${e.message || e}`);
+  }
 }
 
 export function getRecentItems(limit: number = 50): ContentItemRow[] {
@@ -86,8 +107,8 @@ export function getRecentItems(limit: number = 50): ContentItemRow[] {
     SELECT * FROM content_items
     WHERE id IN (
       SELECT id FROM content_items
-      GROUP BY CASE WHEN url = '' THEN id ELSE url END
-      HAVING id = MIN(id)
+      GROUP BY CASE WHEN url = '' THEN id ELSE lower(rtrim(url, '/')) END
+      HAVING timestamp = MAX(timestamp)
     )
     ORDER BY timestamp DESC
     LIMIT ?
@@ -102,8 +123,8 @@ export function getItemsByPanel(panelId: string, limit: number = 50): ContentIte
       AND id IN (
         SELECT id FROM content_items
         WHERE panel_id = ?
-        GROUP BY CASE WHEN url = '' THEN id ELSE url END
-        HAVING id = MIN(id)
+        GROUP BY CASE WHEN url = '' THEN id ELSE lower(rtrim(url, '/')) END
+        HAVING timestamp = MAX(timestamp)
       )
     ORDER BY timestamp DESC
     LIMIT ?
@@ -128,9 +149,17 @@ export function getLastFetchedAtAll(): string | null {
 
 export function getAllItemsByPanel(panelId: string): ContentItemRow[] {
   const db = getDb();
-  return db.prepare(
-    "SELECT * FROM content_items WHERE panel_id = ? ORDER BY timestamp DESC"
-  ).all(panelId) as ContentItemRow[];
+  return db.prepare(`
+    SELECT * FROM content_items
+    WHERE panel_id = ?
+      AND id IN (
+        SELECT id FROM content_items
+        WHERE panel_id = ?
+        GROUP BY CASE WHEN url = '' THEN id ELSE lower(rtrim(url, '/')) END
+        HAVING timestamp = MAX(timestamp)
+      )
+    ORDER BY timestamp DESC
+  `).all(panelId, panelId) as ContentItemRow[];
 }
 
 export function replacePanelItems(panelId: string, items: ContentItemRow[]): void {
@@ -166,6 +195,14 @@ export function replacePanelItems(panelId: string, items: ContentItemRow[]): voi
 
 export function closeDb(): void {
   try { if (db) db.close(); } catch {}
+  db = null;
+  currentDbPath = null;
+}
+
+export function pruneOldItems(days: number = 30): number {
+  const db = getDb();
+  const res = db.prepare(`DELETE FROM content_items WHERE fetched_at < datetime('now', ?)`).run(`-${days} days`);
+  return (res.changes as number) ?? 0;
 }
 
 export interface ContentItemRow {

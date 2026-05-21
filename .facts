@@ -30,6 +30,21 @@
 - label: panel ID uniqueness is validated at config load time — both explicit and hash-derived IDs must be unique across all panels
   command: grep -q 'duplicate panel ID' src/config.ts
   tags: [spec, implemented]
+- label: getDb in src/db.ts supports PACE_DB_PATH env var override (default remains cwd/data/pace.db); enables hermetic /tmp DBs for tests without cwd pollution (verifier-path.ts PASS)
+  command: PACE_DB_PATH=/tmp/pace-fact-db-custom/data/pace.db bun --cwd /tmp/pace-fact-cwd /tmp/bugbash-db-20260521-020315/evidence/verifier-path.ts 2>&1 | grep -q 'PATH_VERIFIER_PASS'
+  tags: [bugbash-iter10, implemented]
+- label: closeDb in src/db.ts resets the module singleton (db=null) so subsequent getDb/save/get reuse succeeds without 'Cannot use a closed database' error (verifier-close.ts PASS)
+  command: bun --cwd /tmp/pace-fact-close /tmp/bugbash-db-20260521-020315/evidence/verifier-close.ts 2>&1 | grep -q 'CLOSE_VERIFIER_PASS'
+  tags: [bugbash-iter10, implemented]
+- label: dedup logic (getRecentItems/getItemsByPanel/getAllItemsByPanel) in src/db.ts uses normalized url key (lower + rtrim trailing /) and max(timestamp) selection for consistency; getAll now dedups like others (verifier-dedup.ts with case/uni PASS)
+  command: bun --cwd /tmp/pace-fact-dedup /tmp/bugbash-db-20260521-020315/evidence/verifier-dedup.ts 2>&1 | grep -q 'DEDUP_VERIFIER_PASS'
+  tags: [bugbash-iter10, implemented]
+- label: saveItems (and init) wrap sqlite/JS errors with 'db:' prefix + context for clear surfacing (e.g. 'db: failed to save...'); bad inputs no longer leak raw 'toISOString is not' or bare SQLiteError (verifier-error.ts PASS)
+  command: bun --cwd /tmp/pace-fact-err /tmp/bugbash-db-20260521-020315/evidence/verifier-error.ts 2>&1 | grep -q 'ERROR_VERIFIER_PASS'
+  tags: [bugbash-iter10, implemented]
+- label: pruneOldItems(days?: number) is exported from src/db.ts, deletes rows with fetched_at older than N days, returns change count (verifier-prune.ts PASS)
+  command: bun --cwd /tmp/pace-fact-prune /tmp/bugbash-db-20260521-020315/evidence/verifier-prune.ts 2>&1 | grep -q 'PRUNE_VERIFIER_PASS'
+  tags: [bugbash-iter10, implemented]
 
 # visual style
 
