@@ -146,6 +146,23 @@ function extractEngagementScore(body: string | null): number {
   return total;
 }
 
+/**
+ * Shared helper to test whether an item matches any of the (lowercased) keywords
+ * in any of the specified fields. Eliminates duplication between filter/exclude.
+ */
+function matchesAnyKeyword(
+  item: ContentItemRow,
+  lowerKeywords: string[],
+  checkFields: readonly string[]
+): boolean {
+  return lowerKeywords.some((kw) =>
+    checkFields.some((f) => {
+      const val = (item as any)[f];
+      return val ? String(val).toLowerCase().includes(kw) : false;
+    })
+  );
+}
+
 type TransformFn = (
   items: ContentItemRow[],
   config: TransformConfig,
@@ -166,14 +183,7 @@ const transforms: Record<string, TransformFn> = {
     };
     const checkFields = fields ?? ["title", "body"];
     const lowerKeywords = keywords.map((k) => k.toLowerCase());
-    return items.filter((item) =>
-      lowerKeywords.some((kw) =>
-        checkFields.some((f) => {
-          const val = item[f];
-          return val ? val.toLowerCase().includes(kw) : false;
-        })
-      )
-    );
+    return items.filter((item) => matchesAnyKeyword(item, lowerKeywords, checkFields));
   },
 
   exclude: async (items, config) => {
@@ -184,15 +194,7 @@ const transforms: Record<string, TransformFn> = {
     };
     const checkFields = fields ?? ["title", "body"];
     const lowerKeywords = keywords.map((k) => k.toLowerCase());
-    return items.filter(
-      (item) =>
-        !lowerKeywords.some((kw) =>
-          checkFields.some((f) => {
-            const val = item[f];
-            return val ? val.toLowerCase().includes(kw) : false;
-          })
-        )
-    );
+    return items.filter((item) => !matchesAnyKeyword(item, lowerKeywords, checkFields));
   },
 
   sort: async (items, config) => {
