@@ -1,4 +1,4 @@
-import type { Adapter } from "./adapters/types";
+import { type Adapter, errorMessage } from "./adapters/types";
 import type { Model, Api } from "@mariozechner/pi-ai";
 import { saveItems, getAllItemsByPanel, replacePanelItems, getDb } from "./db";
 import type { AppConfig, IngestAdapterConfig, PipelineConfig } from "./config";
@@ -37,10 +37,6 @@ export interface RefreshResult {
   name: string;
   status: "ok" | "skipped" | "failed";
   error?: string;
-}
-
-function errorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
 }
 
 export interface SourcePanelMap {

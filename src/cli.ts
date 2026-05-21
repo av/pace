@@ -2,6 +2,7 @@
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
+import { errorMessage } from "./adapters/types";
 
 const pkg = JSON.parse(readFileSync(join(import.meta.dir, "../package.json"), "utf-8"));
 
@@ -91,7 +92,7 @@ if (values.port) {
 try {
   await import("./index");
 } catch (err) {
-  const message = String((err as Error | undefined)?.message ?? err);
+  const message = errorMessage(err);
   if (message.startsWith("config:") || message.startsWith("scheduler:")) {
     console.error(message);
     process.exit(1);

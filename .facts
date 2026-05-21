@@ -208,6 +208,7 @@
 - label: runAdapter/runPipelineJob log only short error strings (via errorMessage(err)) to console.warn and store lastError on their Entry; never dump full Error objects/stacks from periodic or refresh job failures (verified by error-path test capturing clean "error: Simulated..." without "Error: " prefix in logs/evidence)
   command: cd /home/everlier/code/pace && bun run /tmp/sched-error-test.ts >/dev/null 2>&1 && cat /tmp/sched-error-evidence.json | grep -q 'error: Simulated adapter network failure: ECONNRESET' && ! cat /tmp/sched-error-evidence.json | grep -q 'Error: Simulated'
   tags: [bugbash-iter3, implemented]
+- scheduler.ts and cli.ts use the shared errorMessage(err: unknown) helper from adapters/types.ts (no local duplicate function definition in scheduler or inline String coercion in cli catch blocks); src/errorMessage.test.ts guards the helper with dedicated unit tests for Error, string/number/boolean, null/undefined, and plain objects (exact same behavior as before, now single source of truth across runtime and CLI layers) @timeboxed-iter3 @implemented
 
 ## refresh
 - label: manual panel refresh surfaces adapter fetch failures with HTTP 502 instead of redirecting as success
