@@ -11,6 +11,21 @@ function simpleHash(str: string): string {
   return (h >>> 0).toString(36);
 }
 
+/**
+ * Extracts plain string content from an RSS/Atom parsed field.
+ * Fields may be a raw string or an object like { "#text": "value", ...attrs }.
+ * Used to DRY the repeated typeof + ["#text"] access patterns.
+ */
+function extractText(raw: any): string | undefined {
+  if (raw == null) return undefined;
+  if (typeof raw === "string") return raw;
+  if (typeof raw === "object" && "#text" in raw) {
+    const val = raw["#text"];
+    return typeof val === "string" ? val : undefined;
+  }
+  return undefined;
+}
+
 const parser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "@_",
@@ -34,7 +49,7 @@ function extractFeedTitle(parsed: any, url: string): string {
   if (parsed?.rss?.channel?.title) return parsed.rss.channel.title;
   if (parsed?.feed?.title) {
     const t = parsed.feed.title;
-    return typeof t === "string" ? t : t["#text"] ?? url;
+    return extractText(t) ?? url;
   }
   try {
     return new URL(url).hostname;
@@ -45,7 +60,7 @@ function extractFeedTitle(parsed: any, url: string): string {
 
 function parseItem(raw: any, source: string): ContentItem {
   // title
-  const title = raw.title?.["#text"] ?? raw.title ?? "(untitled)";
+  const title = extractText(raw.title) ?? "(untitled)";
 
   // link — RSS uses <link>, Atom uses <link href="...">
   let link = "";
@@ -67,10 +82,10 @@ function parseItem(raw: any, source: string): ContentItem {
   const rawContent = raw.content;
   const rawEncoded = raw["content:encoded"];
   const body =
-    (typeof rawDesc === "string" ? rawDesc : rawDesc?.["#text"]) ??
-    (typeof rawSummary === "string" ? rawSummary : rawSummary?.["#text"]) ??
-    (typeof rawContent === "string" ? rawContent : rawContent?.["#text"]) ??
-    (typeof rawEncoded === "string" ? rawEncoded : rawEncoded?.["#text"]) ??
+    extractText(rawDesc) ??
+    extractText(rawSummary) ??
+    extractText(rawContent) ??
+    extractText(rawEncoded) ??
     undefined;
 
   const resolvedUrl = link || undefined;
