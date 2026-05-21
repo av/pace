@@ -121,6 +121,18 @@ async function lookupAccount(
   }
 }
 
+async function fetchMastodonStatuses(
+  url: string,
+  context: string,
+): Promise<MastodonStatus[]> {
+  const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+  if (!res.ok) {
+    console.warn(`mastodon: failed to fetch ${context}: ${res.status}`);
+    return [];
+  }
+  return await res.json();
+}
+
 async function fetchPublicTimeline(
   instance: string,
   limit: number,
@@ -128,13 +140,7 @@ async function fetchPublicTimeline(
 ): Promise<MastodonStatus[]> {
   let url = `https://${instance}/api/v1/timelines/public?limit=${limit}`;
   if (onlyMedia) url += "&only_media=true";
-
-  const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
-  if (!res.ok) {
-    console.warn(`mastodon: failed to fetch public timeline from ${instance}: ${res.status}`);
-    return [];
-  }
-  return await res.json();
+  return fetchMastodonStatuses(url, `public timeline from ${instance}`);
 }
 
 async function fetchHashtagTimeline(
@@ -146,13 +152,7 @@ async function fetchHashtagTimeline(
   const tag = hashtag.replace(/^#/, ""); // strip leading # if present
   let url = `https://${instance}/api/v1/timelines/tag/${encodeURIComponent(tag)}?limit=${limit}`;
   if (onlyMedia) url += "&only_media=true";
-
-  const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
-  if (!res.ok) {
-    console.warn(`mastodon: failed to fetch hashtag #${tag} from ${instance}: ${res.status}`);
-    return [];
-  }
-  return await res.json();
+  return fetchMastodonStatuses(url, `hashtag #${tag} from ${instance}`);
 }
 
 async function fetchAccountStatuses(
@@ -163,13 +163,7 @@ async function fetchAccountStatuses(
 ): Promise<MastodonStatus[]> {
   let url = `https://${instance}/api/v1/accounts/${accountId}/statuses?limit=${limit}&exclude_replies=true&exclude_reblogs=true`;
   if (onlyMedia) url += "&only_media=true";
-
-  const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
-  if (!res.ok) {
-    console.warn(`mastodon: failed to fetch account ${accountId} statuses from ${instance}: ${res.status}`);
-    return [];
-  }
-  return await res.json();
+  return fetchMastodonStatuses(url, `account ${accountId} statuses from ${instance}`);
 }
 
 function parseAccountHandle(handle: string): { username: string; instance: string } | null {
