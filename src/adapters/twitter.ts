@@ -1,5 +1,10 @@
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
+function logAndReturnEmpty(msg: string): ContentItem[] {
+  console.log(msg);
+  return [];
+}
+
 const adapter: Adapter = {
   name: "twitter",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
@@ -8,17 +13,15 @@ const adapter: Adapter = {
 
     const terms = lists ?? searches ?? [];
     if (terms.length > 0) {
-      console.log(
+      return logAndReturnEmpty(
         `twitter: adapter configured with ${terms.length} source(s), but Twitter API requires API credentials. ` +
           "Set params.bearer_token to enable. Returning empty results.",
       );
     } else {
-      console.log(
+      return logAndReturnEmpty(
         "twitter: no lists or searches configured, and Twitter API requires credentials. Returning empty results.",
       );
     }
-
-    return [];
   },
 };
 
