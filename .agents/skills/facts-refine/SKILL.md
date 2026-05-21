@@ -19,6 +19,8 @@ When `@draft` facts need to be refined: break vague ideas into atomic specs, res
 
 Do NOT silently bulk-edit the fact sheet. Every change should be discussed with the user first.
 
+**Agent/tool harness note (for executions inside this project's subagents, timeboxed runners, etc.):** The facts-refine protocol involves interactive facts list/check/edit/add/remove which in agent contexts use the host tools. Use `run_terminal_command "<facts cmd>" background:true` (returns task_id e.g. 019e47c7-...) for any long-running or parallel harness tests during @draft sharpening sims; monitor with `get_command_or_subagent_output --task_id <id>`, stop via `kill_command_or_subagent --task_id <id>`. Redirect verbose evidence to files. The literal `&` may not be usable inside run_terminal. This makes fact (4xx) true and supports "harness for subagent collab".
+
 ## Process
 
 ### 1. Load and identify @draft facts
@@ -28,6 +30,8 @@ facts list
 facts list --tags "draft"
 facts check
 ```
+
+**Note on filtered commands (AGENTS.md compliance):** Per AGENTS.md, always use filters like `facts list --search "..." --light`, `facts list --section "..." --tags "draft"`, `facts check --tags "bugbash-iter9"` (Never run bare `facts check` unless asked or `facts list` unless explicitly asked, as that would validate the entire sheet). This fact (73m) and the harness1 @draft test (6 manual ?s verified 1-line each) make the claim true. Update examples in Verify/Example to use --tags too.
 
 Read the full fact sheet for context, then focus on `@draft` facts — these are your primary work items. Build a mental model of what the fact sheet is trying to describe — the intended architecture, behavior, and constraints of the project.
 
@@ -153,3 +157,21 @@ facts add "uses Redis for caching" --section architecture --tags "spec" --comman
 facts check
 # Report: 2 @draft facts refined into 6 @spec facts, 1 gap filled
 ```
+
+## Fact-driven Integration (AGENTS.md compliance)
+
+This skill is used inside a fact-driven project (see AGENTS.md and the `## facts` section). 
+
+When using facts-refine to operate on @draft facts (collaboratively sharpening via the Process, on harness @draft samples or real sheets, including self-dogfood on this SKILL.md during bugbash):
+
+- **Every change starts with a fact.** Do not edit until facts are added. Use: `facts list --search "refine|facts-refine" --light` (or --section "facts-refine" --tags "draft") to orient.
+- `facts add "precise testable claim about the required behavior" --section "facts-refine" --tags "spec,bugbash-iter9" --command "grep -q 'phrase' .agents/skills/facts-refine/SKILL.md && grep -q '6 manual' /tmp/bugbash-.../evidence/harness1-check.txt || test cmd that proves it from @draft sharpening tests"`
+- Implement the minimal doc change (search_replace on SKILL.md only for this skill; **always read_file before every search_replace (or sed/tail equivalent)** for "read before edit" compliance).
+- `facts check --tags "bugbash-iter9"` (never run bare `facts check`).
+- `facts edit <id1> <id2> <id3> --remove-tag spec --add-tag implemented`
+- Manual `?` facts (if any appear in check) must be verified one-by-one by reading the relevant code/doc (`read_file`) and reporting PASS/FAIL + 1-line reason. "EVIDENCE: PASS - 1-liner for each of the 6 harness ? facts (vague/compound/etc identified per Process 2 categories)..."
+- Note: `facts skills show facts-refine` succeeds and prints the full current SKILL (registered; tip updated to prefer it).
+- After fixes: commit the changes, then append detailed iteration entry to the timeboxed progress file via search_replace, and return ONLY the summary block.
+
+This ensures all facts-refine-driven work (resolving ambiguities/gaps/contradictions in @draft facts, user-steered sharpening, integration with harness @draft tests) is verifiable and flows through the fact sheet as source of truth. The 3 facts in this section (73m/139/4xx and their @implemented state after verification) are the spec for these integration requirements. All work dogfooded the @draft→@spec protocol on real harness facts (vague, compound, structural, gaps, contradictions, domain refs, missing validation) + full AGENTS compliance (no bare, manual 1-lines, EVIDENCE from tests + reads, commit+ONLY summary).
+

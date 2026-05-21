@@ -263,3 +263,14 @@
 - label: the facts-discover skill SKILL.md documents the agent/tool harness for 'use subagents to scan in parallel' and 'Spawn subagents' (run_terminal_command with background:true returning task_id e.g. 019e..., polled via get_command_or_subagent_output / kill_command_or_subagent / wait_commands_or_subagents) and includes 'Agent/tool harness note' similar to bugbash/SKILL.md
   command: grep -q 'Agent/tool harness note' .agents/skills/facts-discover/SKILL.md && grep -q 'background:true' .agents/skills/facts-discover/SKILL.md && grep -q 'get_command_or_subagent_output' .agents/skills/facts-discover/SKILL.md
   tags: [bugbash-iter8, implemented]
+
+# facts-refine
+- label: the facts-refine skill SKILL.md Process, Verify and Example sections document and require filtered facts commands (e.g. facts check --tags "bugbash-iter9"...) and explicitly warn against bare facts check/list per AGENTS.md "Never run bare `facts check` unless asked" (EVIDENCE from harness1 tests showing 6 manual + post-edit greps)
+  command: grep -q 'facts check --tags' .agents/skills/facts-refine/SKILL.md && grep -q 'Never run bare' .agents/skills/facts-refine/SKILL.md && grep -q '6 manual' /tmp/bugbash-facts-refine-20260521-015838/evidence/harness1-check.txt
+  tags: [draft, bugbash-iter9, implemented]
+- label: the facts-refine skill SKILL.md includes a Fact-driven Integration section (modeled on facts-implement/facts-discover) mandating the full AGENTS facts loop (list --search "refine", facts add, implement via search_replace after read_file, facts check --tags "bugbash-iter9" with EVIDENCE: PASS 1-liner from harness + manual ? verify, facts edit --add-tag implemented, commit, self-append progress, return ONLY summary); no bare commands
+  command: grep -q 'Fact-driven Integration' .agents/skills/facts-refine/SKILL.md && grep -q 'read_file before every search_replace' .agents/skills/facts-refine/SKILL.md && grep -q 'EVIDENCE: PASS' .agents/skills/facts-refine/SKILL.md && grep -q 'bugbash-iter9' /tmp/bugbash-facts-refine-20260521-015838/report.md
+  tags: [draft, bugbash-iter9, implemented]
+- label: the facts-refine skill SKILL.md documents the agent/tool harness model (run_terminal_command with background:true returning task_id e.g. 019e47c7-..., get_command_or_subagent_output, kill_command_or_subagent) for collaborative refine sessions inside timeboxed subagents and includes 'Agent/tool harness note' (EVIDENCE from facts skills show + harness1 sharpening sim in bugbash report)
+  command: grep -q 'Agent/tool harness note' .agents/skills/facts-refine/SKILL.md && grep -q 'background:true' .agents/skills/facts-refine/SKILL.md && grep -q 'get_command_or_subagent_output' .agents/skills/facts-refine/SKILL.md && test -f /tmp/bugbash-facts-refine-20260521-015838/evidence/harness1-check.txt
+  tags: [draft, bugbash-iter9, implemented]
