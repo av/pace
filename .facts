@@ -117,6 +117,7 @@
 - label: llm-merge uses structured output — LLM groups items by ID, merged items replace originals
   command: grep -q 'mergeItems' src/transforms.ts
   tags: [spec, implemented]
+- llm.ts repeated JSON fence-stripping logic (the .replace(/```json?\s*/g, "").replace(/```/g, "").trim() pattern duplicated across mergeItems/filterItemsByLlm/lensItems) is centralized in exported stripJsonCodeFences helper; src/llm.test.ts guards the helper (fence cases, edges, whitespace) + 4 wrapper fns (empty inputs + error fallbacks) with 14+ dedicated tests; callers now use the helper (single source of truth) with identical behavior @timeboxed-iter4 @implemented
 
 # customization
 

@@ -59,6 +59,15 @@ function extractText(content: { type: string; text?: string }[]): string {
 }
 
 /**
+ * Strip markdown code fences (```json ... ``` or ``` ... ```) from LLM text responses
+ * prior to JSON.parse. Handles optional language tag and surrounding whitespace.
+ * This centralizes the repeated fence-stripping logic used by merge/filter/lens wrappers.
+ */
+export function stripJsonCodeFences(text: string): string {
+  return text.replace(/```json?\s*/g, "").replace(/```/g, "").trim();
+}
+
+/**
  * Summarize a single content item. Returns a 2-3 sentence summary, or null on error.
  */
 export async function summarizeItem(
@@ -121,7 +130,7 @@ Every item ID must appear exactly once. Return ONLY the JSON array.`;
 
     const response = await complete(model, context);
     const text = extractText(response.content);
-    const jsonStr = text.replace(/```json?\s*/g, "").replace(/```/g, "").trim();
+    const jsonStr = stripJsonCodeFences(text);
     const groups: { merged_ids: string[]; title: string; summary: string | null }[] = JSON.parse(jsonStr);
 
     const itemMap = new Map<string, ContentItem>();
@@ -178,7 +187,7 @@ export async function filterItemsByLlm(
 
     const response = await complete(model, context);
     const text = extractText(response.content);
-    const jsonStr = text.replace(/```json?\s*/g, "").replace(/```/g, "").trim();
+    const jsonStr = stripJsonCodeFences(text);
     const keepIds: string[] = JSON.parse(jsonStr);
 
     const keepSet = new Set(keepIds);
@@ -219,7 +228,7 @@ export async function lensItems(
     const text = extractText(response.content);
 
     // Parse JSON from the response — handle markdown code fences
-    const jsonStr = text.replace(/```json?\s*/g, "").replace(/```/g, "").trim();
+    const jsonStr = stripJsonCodeFences(text);
     const scores: { id: string; score: number }[] = JSON.parse(jsonStr);
 
     // Build a score map
