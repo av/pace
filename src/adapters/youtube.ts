@@ -66,18 +66,21 @@ function parseEntry(entry: YTEntry, channelTitle: string): ContentItem {
   };
 }
 
-async function fetchChannelFeed(
-  channelId: string,
+async function fetchYoutubeFeed(
+  kind: "channel" | "playlist",
+  id: string,
   limit: number,
 ): Promise<ContentItem[]> {
-  const url = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
+  const param = kind === "channel" ? "channel_id" : "playlist_id";
+  const label = kind;
+  const url = `https://www.youtube.com/feeds/videos.xml?${param}=${id}`;
   try {
     const res = await fetch(url, {
       headers: { "User-Agent": "pace/1.0" },
       signal: AbortSignal.timeout(15000),
     });
     if (!res.ok) {
-      console.warn(`youtube: failed to fetch channel ${channelId}: ${res.status}`);
+      console.warn(`youtube: failed to fetch ${label} ${id}: ${res.status}`);
       return [];
     }
     const xml = await res.text();
@@ -86,32 +89,7 @@ async function fetchChannelFeed(
     const entries = extractEntries(parsed);
     return entries.slice(0, limit).map((entry) => parseEntry(entry, channelTitle));
   } catch (err) {
-    console.warn(`youtube: error fetching channel ${channelId}:`, err);
-    return [];
-  }
-}
-
-async function fetchPlaylistFeed(
-  playlistId: string,
-  limit: number,
-): Promise<ContentItem[]> {
-  const url = `https://www.youtube.com/feeds/videos.xml?playlist_id=${playlistId}`;
-  try {
-    const res = await fetch(url, {
-      headers: { "User-Agent": "pace/1.0" },
-      signal: AbortSignal.timeout(15000),
-    });
-    if (!res.ok) {
-      console.warn(`youtube: failed to fetch playlist ${playlistId}: ${res.status}`);
-      return [];
-    }
-    const xml = await res.text();
-    const parsed = parser.parse(xml);
-    const channelTitle = extractChannelTitle(parsed);
-    const entries = extractEntries(parsed);
-    return entries.slice(0, limit).map((entry) => parseEntry(entry, channelTitle));
-  } catch (err) {
-    console.warn(`youtube: error fetching playlist ${playlistId}:`, err);
+    console.warn(`youtube: error fetching ${label} ${id}:`, err);
     return [];
   }
 }
@@ -126,8 +104,8 @@ const adapter: Adapter = {
     if (channels.length === 0 && playlists.length === 0) return [];
 
     const results = await Promise.all([
-      ...channels.map((ch) => fetchChannelFeed(ch, limit)),
-      ...playlists.map((pl) => fetchPlaylistFeed(pl, limit)),
+      ...channels.map((ch) => fetchYoutubeFeed("channel", ch, limit)),
+      ...playlists.map((pl) => fetchYoutubeFeed("playlist", pl, limit)),
     ]);
     return results.flat();
   },
