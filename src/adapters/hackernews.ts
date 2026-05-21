@@ -27,13 +27,24 @@ const FEED_ENDPOINTS: Record<FeedType, string> = {
   job: "jobstories",
 };
 
+/**
+ * Shared low-level HN JSON fetcher. Throws on !ok (with context for list feeds)
+ * so callers can decide error handling (list throws, items swallow to null).
+ */
+async function fetchHN<T>(subpath: string, timeout: number, errorContext?: string): Promise<T> {
+  const res = await fetch(`${HN_API}/${subpath}`, {
+    signal: AbortSignal.timeout(timeout),
+  });
+  if (!res.ok) {
+    const ctx = errorContext ?? subpath;
+    throw new Error(`hackernews: failed to fetch ${ctx}: ${res.status}`);
+  }
+  return (await res.json()) as T;
+}
+
 async function fetchItem(id: number): Promise<HNItem | null> {
   try {
-    const res = await fetch(`${HN_API}/item/${id}.json`, {
-      signal: AbortSignal.timeout(10000),
-    });
-    if (!res.ok) return null;
-    return await res.json();
+    return await fetchHN<HNItem>(`item/${id}.json`, 10000);
   } catch {
     return null;
   }
@@ -95,13 +106,7 @@ const adapter: Adapter = {
     const endpoint = FEED_ENDPOINTS[feedType];
 
     try {
-      const res = await fetch(`${HN_API}/${endpoint}.json`, {
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!res.ok) {
-        throw new Error(`hackernews: failed to fetch ${endpoint}: ${res.status}`);
-      }
-      const ids: number[] = await res.json();
+      const ids: number[] = await fetchHN<number[]>(`${endpoint}.json`, 15000, endpoint);
 
       // Fetch more items than needed if we're filtering by score,
       // since some may be below threshold
