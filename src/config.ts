@@ -178,9 +178,7 @@ function validateSource(source: unknown, path: string): void {
     throw new Error(`config: ${path} must be a source name or source object`);
   }
 
-  if (typeof source.adapter !== "string" || source.adapter.trim().length === 0) {
-    throw new Error(`config: ${path}.adapter must be a non-empty string`);
-  }
+  validateNonEmptyString(source.adapter, `${path}.adapter`);
 }
 
 function validateLayoutNode(node: unknown, path = "layout"): asserts node is LayoutNodeConfig {
@@ -196,9 +194,7 @@ function validateLayoutNode(node: unknown, path = "layout"): asserts node is Lay
   }
 
   if (hasPanel) {
-    if (typeof node.panel !== "string" || node.panel.trim().length === 0) {
-      throw new Error(`config: ${path}.panel must be a non-empty string`);
-    }
+    validateNonEmptyString(node.panel, `${path}.panel`);
     if (!("source" in node)) {
       throw new Error(`config: ${path}.source is required`);
     }
@@ -275,6 +271,12 @@ function validateOptionalNonEmptyString(value: unknown, path: string): void {
   }
 }
 
+function validateNonEmptyString(value: unknown, path: string): void {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error(`config: ${path} must be a non-empty string`);
+  }
+}
+
 function validateStringList(value: unknown, path: string): void {
   if (!Array.isArray(value)) {
     throw new Error(`config: ${path} must be a list`);
@@ -283,9 +285,7 @@ function validateStringList(value: unknown, path: string): void {
     throw new Error(`config: ${path} must not be empty`);
   }
   value.forEach((entry, index) => {
-    if (typeof entry !== "string" || entry.trim().length === 0) {
-      throw new Error(`config: ${path}[${index}] must be a non-empty string`);
-    }
+    validateNonEmptyString(entry, `${path}[${index}]`);
   });
 }
 
@@ -336,9 +336,7 @@ function validateKeywordScoreEntries(value: unknown, path: string): void {
     if (!isRecord(entry)) {
       throw new Error(`config: ${entryPath} must be an object`);
     }
-    if (typeof entry.term !== "string" || entry.term.trim().length === 0) {
-      throw new Error(`config: ${entryPath}.term must be a non-empty string`);
-    }
+    validateNonEmptyString(entry.term, `${entryPath}.term`);
     validateFiniteNumber(entry.weight, `${entryPath}.weight`);
     validateOptionalBoolean(entry.regex, `${entryPath}.regex`);
   });
@@ -435,9 +433,7 @@ function validateTransforms(transforms: unknown, path: string): asserts transfor
     if (!isRecord(transform)) {
       throw new Error(`config: ${path}[${index}] must be an object`);
     }
-    if (typeof transform.type !== "string" || transform.type.trim().length === 0) {
-      throw new Error(`config: ${path}[${index}].type must be a non-empty string`);
-    }
+    validateNonEmptyString(transform.type, `${path}[${index}].type`);
     validateTransform(transform, `${path}[${index}]`);
   });
 }
@@ -489,9 +485,7 @@ function validateAdapterConfig(adapter: unknown, index: number): asserts adapter
   if (!isRecord(adapter)) {
     throw new Error(`config: ${path} must be an object`);
   }
-  if (typeof adapter.type !== "string" || adapter.type.trim().length === 0) {
-    throw new Error(`config: ${path}.type must be a non-empty string`);
-  }
+  validateNonEmptyString(adapter.type, `${path}.type`);
   if (
     adapter.name !== undefined &&
     (typeof adapter.name !== "string" || adapter.name.trim().length === 0)
@@ -516,9 +510,7 @@ function validatePipelineConfig(
   if (!isRecord(pipeline)) {
     throw new Error(`config: ${path} must be an object`);
   }
-  if (typeof pipeline.name !== "string" || pipeline.name.trim().length === 0) {
-    throw new Error(`config: ${path}.name must be a non-empty string`);
-  }
+  validateNonEmptyString(pipeline.name, `${path}.name`);
   if (!Array.isArray(pipeline.sources)) {
     throw new Error(`config: ${path}.sources must be a list`);
   }
@@ -529,9 +521,7 @@ function validatePipelineConfig(
   const seenSources = new Set<string>();
   pipeline.sources.forEach((source, sourceIndex) => {
     const sourcePath = `${path}.sources[${sourceIndex}]`;
-    if (typeof source !== "string" || source.trim().length === 0) {
-      throw new Error(`config: ${sourcePath} must be a non-empty string`);
-    }
+    validateNonEmptyString(source, sourcePath);
     if (seenSources.has(source)) {
       throw new Error(`config: ${sourcePath} duplicates source "${source}"`);
     }
