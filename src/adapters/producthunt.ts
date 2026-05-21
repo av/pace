@@ -218,6 +218,64 @@ function buildBody(
   return parts.join(" | ");
 }
 
+async function fetchProductHuntFeed(): Promise<
+  Array<{
+    id: string;
+    title: string;
+    tagline: string;
+    url: string;
+    productLink: string;
+    author: string;
+    timestamp: Date;
+  }>
+> {
+  try {
+    const res = await fetch(PH_FEED_URL, {
+      headers: {
+        "User-Agent": "pace:feed-aggregator/1.0",
+        Accept: "application/atom+xml, application/xml, text/xml",
+      },
+      signal: AbortSignal.timeout(15000),
+    });
+
+    if (!res.ok) {
+      throw new Error(`producthunt: failed to fetch feed: ${res.status}`);
+    }
+
+    const xml = await res.text();
+    const parsed = parser.parse(xml);
+    const entries = extractEntries(parsed);
+
+    if (entries.length === 0) {
+      console.warn("producthunt: no entries found in feed");
+      return [];
+    }
+
+    // Parse basic data from feed
+    return entries.map((entry) => {
+      const title = extractTitle(entry);
+      const url = extractLink(entry);
+      const { tagline, productLink } = extractContent(entry);
+      const author = entry.author?.name ?? "";
+      const dateStr = entry.published ?? entry.updated ?? "";
+      const date = dateStr ? new Date(dateStr) : new Date();
+      const timestamp = isNaN(date.getTime()) ? new Date() : date;
+
+      return {
+        id: extractId(entry),
+        title,
+        tagline,
+        url,
+        productLink,
+        author,
+        timestamp,
+      };
+    });
+  } catch (err) {
+    throw new Error(`producthunt: error fetching feed: ${errorMessage(err)}`);
+  }
+}
+
 const adapter: Adapter = {
   name: "producthunt",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
@@ -225,108 +283,57 @@ const adapter: Adapter = {
     const minUpvotes = (config.params?.min_upvotes as number) ?? 0;
     const enrich = (config.params?.enrich as boolean) ?? false;
 
-    try {
-      const res = await fetch(PH_FEED_URL, {
-        headers: {
-          "User-Agent": "pace:feed-aggregator/1.0",
-          Accept: "application/atom+xml, application/xml, text/xml",
-        },
-        signal: AbortSignal.timeout(15000),
-      });
+    let items = await fetchProductHuntFeed();
+    if (items.length === 0) return [];
 
-      if (!res.ok) {
-        throw new Error(`producthunt: failed to fetch feed: ${res.status}`);
-      }
+    // Apply limit before enriching (enrichment is expensive)
+    items = items.slice(0, limit);
 
-      const xml = await res.text();
-      const parsed = parser.parse(xml);
-      const entries = extractEntries(parsed);
-
-      if (entries.length === 0) {
-        console.warn("producthunt: no entries found in feed");
-        return [];
-      }
-
-      // Parse basic data from feed
-      let items: Array<{
-        id: string;
-        title: string;
-        tagline: string;
-        url: string;
-        productLink: string;
-        author: string;
-        timestamp: Date;
-      }> = entries.map((entry) => {
-        const title = extractTitle(entry);
-        const url = extractLink(entry);
-        const { tagline, productLink } = extractContent(entry);
-        const author = entry.author?.name ?? "";
-        const dateStr = entry.published ?? entry.updated ?? "";
-        const date = dateStr ? new Date(dateStr) : new Date();
-        const timestamp = isNaN(date.getTime()) ? new Date() : date;
-
-        return {
-          id: extractId(entry),
-          title,
-          tagline,
-          url,
-          productLink,
-          author,
-          timestamp,
-        };
-      });
-
-      // Apply limit before enriching (enrichment is expensive)
-      items = items.slice(0, enrich ? limit : limit);
-
-      // Optionally enrich with page scraping for upvotes/topics
-      let enrichedMap = new Map<string, EnrichedData | null>();
-      if (enrich) {
-        console.log(
-          `producthunt: enriching ${items.length} items (this may take a moment)...`,
+    // Optionally enrich with page scraping for upvotes/topics
+    let enrichedMap = new Map<string, EnrichedData | null>();
+    if (enrich) {
+      console.log(
+        `producthunt: enriching ${items.length} items (this may take a moment)...`,
+      );
+      for (let i = 0; i < items.length; i += ENRICH_BATCH_SIZE) {
+        const batch = items.slice(i, i + ENRICH_BATCH_SIZE);
+        const results = await Promise.all(
+          batch.map((item) => enrichProduct(item.url)),
         );
-        for (let i = 0; i < items.length; i += ENRICH_BATCH_SIZE) {
-          const batch = items.slice(i, i + ENRICH_BATCH_SIZE);
-          const results = await Promise.all(
-            batch.map((item) => enrichProduct(item.url)),
-          );
-          for (let j = 0; j < batch.length; j++) {
-            enrichedMap.set(batch[j].id, results[j]);
-          }
-          // Rate-limit between batches
-          if (i + ENRICH_BATCH_SIZE < items.length) {
-            await sleep(ENRICH_DELAY_MS);
-          }
+        for (let j = 0; j < batch.length; j++) {
+          enrichedMap.set(batch[j].id, results[j]);
+        }
+        // Rate-limit between batches
+        if (i + ENRICH_BATCH_SIZE < items.length) {
+          await sleep(ENRICH_DELAY_MS);
         }
       }
-
-      // Filter by minimum upvotes if enrichment was enabled and threshold set
-      let filtered = items;
-      if (enrich && minUpvotes > 0) {
-        filtered = items.filter((item) => {
-          const data = enrichedMap.get(item.id);
-          return data?.upvotes !== undefined && data.upvotes >= minUpvotes;
-        });
-      }
-
-      // Limit after filtering
-      const limited = filtered.slice(0, limit);
-
-      return limited.map((item) => {
-        const enriched = enrichedMap.get(item.id) ?? null;
-
-        return {
-          id: `ph:${item.id}`,
-          title: item.title,
-          url: item.url,
-          source: "producthunt",
-          timestamp: item.timestamp,
-          body: buildBody(item.tagline, item.author, item.productLink, enriched),
-        };
-      });
-    } catch (err) {
-      throw new Error(`producthunt: error fetching feed: ${errorMessage(err)}`);
     }
+
+    // Filter by minimum upvotes if enrichment was enabled and threshold set
+    let filtered = items;
+    if (enrich && minUpvotes > 0) {
+      filtered = items.filter((item) => {
+        const data = enrichedMap.get(item.id);
+        return data?.upvotes !== undefined && data.upvotes >= minUpvotes;
+      });
+    }
+
+    // Limit after filtering
+    const limited = filtered.slice(0, limit);
+
+    return limited.map((item) => {
+      const enriched = enrichedMap.get(item.id) ?? null;
+
+      return {
+        id: `ph:${item.id}`,
+        title: item.title,
+        url: item.url,
+        source: "producthunt",
+        timestamp: item.timestamp,
+        body: buildBody(item.tagline, item.author, item.productLink, enriched),
+      };
+    });
   },
 };
 
