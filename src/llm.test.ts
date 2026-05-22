@@ -6,6 +6,7 @@ import {
   mergeItems,
   filterItemsByLlm,
   lensItems,
+  formatContentItemForLlm,
 } from "./llm";
 import type { ContentItem } from "./adapters/types";
 import type { Model, Api } from "@mariozechner/pi-ai";
@@ -125,6 +126,36 @@ describe("llm utils (DRY quality + test coverage)", () => {
       } as any;
       const res = await safeComplete(fakeThrowingModel, ctx);
       expect(res).toBe(null);
+    });
+  });
+
+  describe("formatContentItemForLlm (extracted shared formatting helper)", () => {
+    test("formats minimal item without body (default)", () => {
+      const item = makeItem({ id: "i1", title: "Hello", source: "testsrc" });
+      expect(formatContentItemForLlm(item)).toBe('- id: "i1" | title: "Hello" | source: testsrc');
+    });
+
+    test("includes truncated body when maxBodyLen > 0", () => {
+      const item = makeItem({ id: "i2", title: "T", source: "s", body: "long body content here" });
+      expect(formatContentItemForLlm(item, 10)).toBe('- id: "i2" | title: "T" | source: s | body: long body ');
+    });
+
+    test("omits body part when maxBodyLen <= 0 or omitted", () => {
+      const item = makeItem({ id: "i3", title: "X", source: "y", body: "zzz" });
+      expect(formatContentItemForLlm(item, 0)).toBe('- id: "i3" | title: "X" | source: y');
+      expect(formatContentItemForLlm(item)).toBe('- id: "i3" | title: "X" | source: y');
+    });
+
+    test("handles empty body and special chars in fields", () => {
+      const item = makeItem({ id: 'id"q', title: "ti|tle", source: "src", body: "" });
+      expect(formatContentItemForLlm(item, 5)).toBe('- id: "id"q" | title: "ti|tle" | source: src');
+    });
+
+    test("used by merge/filter/lens wrappers (integration via makeItem)", async () => {
+      // quick smoke that wrappers still invoke formatting path without crash
+      const items = [makeItem({ id: "m1", title: "m", body: "bb" })];
+      // merge/filter/lens call format internally now; just ensure no throw on valid
+      expect(await mergeItems(fakeThrowingModel, items)).toEqual(items); // errors to passthrough
     });
   });
 });

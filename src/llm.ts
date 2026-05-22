@@ -87,6 +87,17 @@ export async function safeComplete(
 }
 
 /**
+ * Formats a ContentItem as a compact single-line string for inclusion in LLM prompts.
+ * Includes id, title, source; optionally a truncated body snippet when maxBodyLen > 0.
+ * Used by mergeItems/filterItemsByLlm (with body) and lensItems (no body) to eliminate
+ * near-duplicate .map formatting + join logic.
+ */
+export function formatContentItemForLlm(item: ContentItem, maxBodyLen = 0): string {
+  const snippet = maxBodyLen > 0 && item.body ? item.body.slice(0, maxBodyLen) : "";
+  return `- id: "${item.id}" | title: "${item.title}" | source: ${item.source}${snippet ? ` | body: ${snippet}` : ""}`;
+}
+
+/**
  * Summarize a single content item. Returns a 2-3 sentence summary, or null on error.
  */
 export async function summarizeItem(
@@ -129,12 +140,7 @@ Given the content items below, decide which ones to merge together. Return a JSO
 
 Every item ID must appear exactly once. Return ONLY the JSON array.`;
 
-  const itemList = items
-    .map((item) => {
-      const snippet = item.body ? item.body.slice(0, 300) : "";
-      return `- id: "${item.id}" | title: "${item.title}" | source: ${item.source}${snippet ? ` | body: ${snippet}` : ""}`;
-    })
-    .join("\n");
+  const itemList = items.map((item) => formatContentItemForLlm(item, 300)).join("\n");
 
   const context: Context = {
     systemPrompt,
@@ -182,12 +188,7 @@ export async function filterItemsByLlm(
 
   const systemPrompt = `Given the criteria: "${criteria}", decide which items to keep. Return a JSON array of item IDs that match. Return ONLY the JSON array of strings.`;
 
-  const itemList = items
-    .map((item) => {
-      const snippet = item.body ? item.body.slice(0, 200) : "";
-      return `- id: "${item.id}" | title: "${item.title}" | source: ${item.source}${snippet ? ` | body: ${snippet}` : ""}`;
-    })
-    .join("\n");
+  const itemList = items.map((item) => formatContentItemForLlm(item, 200)).join("\n");
 
   const context: Context = {
     systemPrompt,
@@ -218,9 +219,7 @@ export async function lensItems(
   const interestList = interests.join(", ");
   const systemPrompt = `Score each item's relevance to these interests: ${interestList}. Return a JSON array of {id, score} objects where score is 0-10. Return ONLY the JSON array, no other text.`;
 
-  const itemList = items
-    .map((item) => `- id: "${item.id}" | title: "${item.title}" | source: ${item.source}`)
-    .join("\n");
+  const itemList = items.map((item) => formatContentItemForLlm(item)).join("\n");
 
   const context: Context = {
     systemPrompt,
