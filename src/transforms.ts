@@ -851,6 +851,26 @@ const transforms: Record<string, TransformFn> = {
       }
     }
 
+    /**
+     * Selects and formats the top 2-3 keywords (those meeting the 40% min count threshold)
+     * for use as a cluster label when no dominant domain. Single source of truth eliminating
+     * the previous inline [...entries().filter().sort().slice(0,3).map() + capitalize/join]
+     * selection+formatting logic inside generateLabel (complements getMajorityLabel for domain/source
+     * and uses the existing tallyKeywords counts).
+     */
+    function getTopKeywordsLabel(counts: Map<string, number>, total: number): string | undefined {
+      const minCount = Math.ceil(total * 0.4);
+      const top = [...counts.entries()]
+        .filter(([, count]) => count >= minCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([kw]) => kw);
+      if (top.length === 0) return undefined;
+      return top
+        .map((kw) => kw.charAt(0).toUpperCase() + kw.slice(1))
+        .join("/");
+    }
+
     // --- Label generation ---
     function generateLabel(indices: number[]): string {
       // Find the most common domain in the cluster
@@ -879,21 +899,9 @@ const transforms: Record<string, TransformFn> = {
       });
       if (domainLabel) return domainLabel;
 
-      // Otherwise, use top 2-3 shared keywords
-      // Only consider keywords that appear in more than half the cluster
-      const minKeywordCount = Math.ceil(indices.length * 0.4);
-      const topKeywords = [...keywordCounts.entries()]
-        .filter(([, count]) => count >= minKeywordCount)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 3)
-        .map(([kw]) => kw);
-
-      if (topKeywords.length > 0) {
-        // Capitalize and join
-        return topKeywords
-          .map((kw) => kw.charAt(0).toUpperCase() + kw.slice(1))
-          .join("/");
-      }
+      // Otherwise, use top 2-3 shared keywords (now via single helper)
+      const kwLabel = getTopKeywordsLabel(keywordCounts, indices.length);
+      if (kwLabel) return kwLabel;
 
       // Fallback: use source if consistent
       const sourceCounts = new Map<string, number>();
