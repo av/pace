@@ -9,6 +9,11 @@ import { createModel } from "./llm";
 import { startScheduler, stopScheduler, refreshSources, type SourcePanelMap } from "./scheduler";
 import { parsePort, getAdapterName } from "./adapters/types";
 
+/** Single source of truth for the special "all" adapter sentinel (used in source mapping, dashboard "recent" fallback, and refresh expansion). */
+function isAllAdapter(adapter: string): boolean {
+  return adapter === "all";
+}
+
 const app = new Hono();
 
 app.use("*", async (c, next) => {
@@ -38,7 +43,7 @@ const sourceToReadKey = new Map<string, string>();
 
 for (const { pid, sources } of enrichedPanels) {
   for (const source of sources) {
-    if (source.adapter === "all") continue;
+    if (isAllAdapter(source.adapter)) continue;
     const list = sourceToPanels.get(source.adapter) ?? [];
     list.push(pid);
     sourceToPanels.set(source.adapter, list);
@@ -74,7 +79,7 @@ app.get("/", async (c) => {
     const limit = panel.limit ?? 50;
     let items: ContentItemRow[];
 
-    const isAll = sources.some((s) => s.adapter === "all");
+    const isAll = sources.some((s) => isAllAdapter(s.adapter));
     if (isAll) {
       items = getRecentItems(limit);
     } else {
@@ -104,7 +109,7 @@ app.post("/refresh/:panel", async (c) => {
   if (!sources) return c.text(`Unknown panel: ${param}`, 404);
 
   const sourceNames = Array.from(new Set(sources.flatMap((s) =>
-    s.adapter === "all" ? config.adapters.map(getAdapterName) : [s.adapter]
+    isAllAdapter(s.adapter) ? config.adapters.map(getAdapterName) : [s.adapter]
   )));
 
   if (sourceNames.length > 0) {
