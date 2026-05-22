@@ -44,6 +44,32 @@ export interface SourcePanelMap {
   sourceToReadKey: Map<string, string>;
 }
 
+/**
+ * Shared internal helper to eliminate the duplicated running-guard, try/work, error handling (errorMessage + console.warn + lastError + failed result), finally reset, and ok return pattern
+ * between runAdapter and runPipelineJob. Work is provided as a thunk that may throw (to trigger the shared catch path).
+ * Preserves exact logs, results, and side effects for adapter and pipeline execution paths.
+ */
+async function executeWithRunningGuard(
+  entry: { running: boolean; lastError?: string },
+  name: string,
+  kind: "adapter" | "pipeline",
+  work: () => Promise<void>,
+): Promise<RefreshResult> {
+  if (entry.running) return { kind, name, status: "skipped" };
+  entry.running = true;
+  try {
+    await work();
+    return { kind, name, status: "ok" };
+  } catch (err) {
+    const msg = errorMessage(err);
+    console.warn(`scheduler: ${name} — error: ${msg}`);
+    entry.lastError = msg;
+    return { kind, name, status: "failed", error: msg };
+  } finally {
+    entry.running = false;
+  }
+}
+
 export function startScheduler(
   config: AppConfig,
   adapters: Map<string, Adapter>,
@@ -133,11 +159,8 @@ export function startScheduler(
 }
 
 async function runAdapter(entry: AdapterEntry): Promise<RefreshResult> {
-  if (entry.running) return { kind: "adapter", name: entry.name, status: "skipped" };
-  entry.running = true;
-
   const { name, panelIds, adapter, adapterConfig } = entry;
-  try {
+  return executeWithRunningGuard(entry, name, "adapter", async () => {
     const items = await adapter.fetch(adapterConfig);
     if (items.length > 0) {
       for (const pid of panelIds) saveItems(pid, items);
@@ -154,24 +177,13 @@ async function runAdapter(entry: AdapterEntry): Promise<RefreshResult> {
         }
       }
     }
-  } catch (err) {
-    const msg = errorMessage(err);
-    console.warn(`scheduler: ${name} — error: ${msg}`);
-    entry.lastError = msg;
-    return { kind: "adapter", name, status: "failed", error: msg };
-  } finally {
-    entry.running = false;
-  }
-
-  return { kind: "adapter", name, status: "ok" };
+  });
 }
 
 async function runPipelineJob(entry: PipelineEntry): Promise<RefreshResult> {
-  if (entry.running) return { kind: "pipeline", name: entry.config.name, status: "skipped" };
-  entry.running = true;
-
   const { config, panelIds, readKeys } = entry;
-  try {
+  const name = config.name;
+  return executeWithRunningGuard(entry, name, "pipeline", async () => {
     let items: ContentItemRow[] = [];
     for (const source of config.sources) {
       const readKey = readKeys.get(source) ?? source;
@@ -186,16 +198,7 @@ async function runPipelineJob(entry: PipelineEntry): Promise<RefreshResult> {
     }));
     for (const pid of panelIds) replacePanelItems(pid, namespaced);
     console.log(`scheduler: pipeline "${config.name}" — ${items.length} → ${transformed.length} items`);
-  } catch (err) {
-    const msg = errorMessage(err);
-    console.warn(`scheduler: pipeline "${config.name}" — error: ${msg}`);
-    entry.lastError = msg;
-    return { kind: "pipeline", name: config.name, status: "failed", error: msg };
-  } finally {
-    entry.running = false;
-  }
-
-  return { kind: "pipeline", name: config.name, status: "ok" };
+  });
 }
 
 function pruneOldItems(): void {
