@@ -40,6 +40,10 @@ export function contentItemToRow(item: ContentItem, base?: ContentItemRow): Cont
   };
 }
 
+function toContentItems(items: ContentItemRow[]): ContentItem[] {
+  return items.map(rowToContentItem);
+}
+
 function pickEarliest(group: ContentItemRow[]): ContentItemRow {
   return group.reduce((a, b) => (a.timestamp <= b.timestamp ? a : b));
 }
@@ -986,7 +990,7 @@ const transforms: Record<string, TransformFn> = {
   "llm-filter": (items, config, ctx) =>
     withLlmModel(ctx, items, async (model) => {
       const { criteria } = config as { type: "llm-filter"; criteria: string };
-      const contentItems = items.map(rowToContentItem);
+      const contentItems = toContentItems(items);
       const filtered = await filterItemsByLlm(model, contentItems, criteria);
       const keepIds = new Set(filtered.map((i) => i.id));
       return items.filter((row) => keepIds.has(row.id));
@@ -997,7 +1001,7 @@ const transforms: Record<string, TransformFn> = {
       const { interests } = config as { type: "llm-rank"; interests?: string[] };
       const effectiveInterests = interests ?? ctx.llmConfig?.interests ?? [];
       if (effectiveInterests.length === 0) return items;
-      const contentItems = items.map(rowToContentItem);
+      const contentItems = toContentItems(items);
       const ranked = await lensItems(model, contentItems, effectiveInterests);
       const orderMap = new Map<string, number>();
       ranked.forEach((item, i) => orderMap.set(item.id, i));
@@ -1009,7 +1013,7 @@ const transforms: Record<string, TransformFn> = {
   "llm-merge": (items, config, ctx) =>
     withLlmModel(ctx, items, async (model) => {
       const { prompt } = config as { type: "llm-merge"; prompt?: string };
-      const contentItems = items.map(rowToContentItem);
+      const contentItems = toContentItems(items);
       const merged = await mergeItems(model, contentItems, prompt);
       const rowMap = new Map<string, ContentItemRow>();
       for (const row of items) rowMap.set(row.id, row);
