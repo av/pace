@@ -213,6 +213,7 @@
 - label: validatePanelIds in src/config.ts reports duplicate panel IDs with context (the panel names that collided and whether explicit id or hash-derived) e.g. 'config: duplicate panel ID "xxx" (panels: "p1", "p2")' instead of just the ID
   command: cd /tmp && PACE_CONFIG=/tmp/pace-bad-dup-id.yaml bun run /tmp/harness-config-load.ts 2>&1 | grep -q 'duplicate panel ID "samehash" (panels:'
   tags: [bugbash-iter7, implemented]
+- src/cli.ts CLI behaviors (help/version print+exit(0), unknown command prints error+HELP+exit(1), unknown options rejected with "Unknown option(s): ..." +HELP+exit(1), invalid --port prints "Invalid --port value: ..." +exit(1), --config non-regular-file prints "config: ... is not a regular file" +exit(1), bad config load errors surfaced cleanly via catch in cli) are guarded by dedicated unit tests in src/cli.test.ts (exercising via spawnSync child exec of "bun src/cli.ts" with --help/--version/unknown-cmd/unknown-opt/invalid-port/--config-badfile, asserting exact exit codes, stdout/stderr substrings, no server startup); behavior 100% preserved and early exits prevent side effects @timeboxed-iter41 @implemented
 
 # project setup
 
