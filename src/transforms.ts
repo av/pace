@@ -801,6 +801,24 @@ const transforms: Record<string, TransformFn> = {
       counts.set(key, (counts.get(key) ?? 0) + 1);
     }
 
+    /**
+     * Returns the formatted majority label if the top entry meets the 60% threshold of total,
+     * otherwise undefined. Single source of truth for the duplicated `top && count >= total*0.6`
+     * majority checks (with optional formatter) used for domain and source in generateLabel.
+     */
+    function getMajorityLabel<T extends string>(
+      counts: Map<T, number>,
+      total: number,
+      format?: (key: T) => string
+    ): string | undefined {
+      const top = getTopByCount(counts);
+      if (top && top[1] >= total * 0.6) {
+        const key = top[0];
+        return format ? format(key) : key;
+      }
+      return undefined;
+    }
+
     // --- Label generation ---
     function generateLabel(indices: number[]): string {
       // Find the most common domain in the cluster
@@ -818,10 +836,7 @@ const transforms: Record<string, TransformFn> = {
       }
 
       // If majority share a domain, use that
-      const topDomainEntry = getTopByCount(domainCounts);
-      if (topDomainEntry && topDomainEntry[1] >= indices.length * 0.6) {
-        // Pretty-print known domains
-        const domain = topDomainEntry[0];
+      const domainLabel = getMajorityLabel(domainCounts, indices.length, (domain) => {
         const domainLabels: Record<string, string> = {
           "github.com": "GitHub",
           "reddit.com": "Reddit",
@@ -836,7 +851,8 @@ const transforms: Record<string, TransformFn> = {
           "x.com": "Twitter/X",
         };
         return domainLabels[domain] ?? domain.split(".")[0].charAt(0).toUpperCase() + domain.split(".")[0].slice(1);
-      }
+      });
+      if (domainLabel) return domainLabel;
 
       // Otherwise, use top 2-3 shared keywords
       // Only consider keywords that appear in more than half the cluster
@@ -860,10 +876,8 @@ const transforms: Record<string, TransformFn> = {
         const src = signals[idx].source;
         if (src) increment(sourceCounts, src);
       }
-      const topSourceEntry = getTopByCount(sourceCounts);
-      if (topSourceEntry && topSourceEntry[1] >= indices.length * 0.6) {
-        return topSourceEntry[0];
-      }
+      const sourceLabel = getMajorityLabel(sourceCounts, indices.length);
+      if (sourceLabel) return sourceLabel;
 
       return `Cluster ${clusters.length + 1}`;
     }
