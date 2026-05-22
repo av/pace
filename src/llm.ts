@@ -98,6 +98,22 @@ export function formatContentItemForLlm(item: ContentItem, maxBodyLen = 0): stri
 }
 
 /**
+ * Safely parses a JSON response from an LLM after stripping any markdown code fences.
+ * Returns the parsed value (cast to T) or null on null input, strip failure, or JSON.parse error.
+ * Centralizes the repeated await-safeComplete + null-guard + strip + parse pattern
+ * previously duplicated in mergeItems, filterItemsByLlm, and lensItems.
+ */
+function parseLlmJsonResponse<T>(text: string | null): T | null {
+  if (text == null) return null;
+  try {
+    const jsonStr = stripJsonCodeFences(text);
+    return JSON.parse(jsonStr) as T;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Summarize a single content item. Returns a 2-3 sentence summary, or null on error.
  */
 export async function summarizeItem(
@@ -148,9 +164,8 @@ Every item ID must appear exactly once. Return ONLY the JSON array.`;
   };
 
   const text = await safeComplete(model, context);
-  if (text == null) return items;
-  const jsonStr = stripJsonCodeFences(text);
-  const groups: { merged_ids: string[]; title: string; summary: string | null }[] = JSON.parse(jsonStr);
+  const groups = parseLlmJsonResponse<{ merged_ids: string[]; title: string; summary: string | null }[]>(text);
+  if (groups == null) return items;
 
   const itemMap = new Map<string, ContentItem>();
   for (const item of items) itemMap.set(item.id, item);
@@ -196,9 +211,8 @@ export async function filterItemsByLlm(
   };
 
   const text = await safeComplete(model, context);
-  if (text == null) return items;
-  const jsonStr = stripJsonCodeFences(text);
-  const keepIds: string[] = JSON.parse(jsonStr);
+  const keepIds = parseLlmJsonResponse<string[]>(text);
+  if (keepIds == null) return items;
 
   const keepSet = new Set(keepIds);
   return items.filter((item) => keepSet.has(item.id));
@@ -234,9 +248,11 @@ export async function lensItems(
     return items;
   }
 
-  // Parse JSON from the response — handle markdown code fences
-  const jsonStr = stripJsonCodeFences(text);
-  const scores: { id: string; score: number }[] = JSON.parse(jsonStr);
+  const scores = parseLlmJsonResponse<{ id: string; score: number }[]>(text);
+  if (scores == null) {
+    // Graceful degradation — return items unchanged (parse failure)
+    return items;
+  }
 
   // Build a score map
   const scoreMap = new Map<string, number>();
