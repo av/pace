@@ -203,6 +203,21 @@ function makeKeywordPredicate(
   return (item) => matchesAnyKeyword(item, lowerKeywords, checkFields);
 }
 
+/**
+ * Shared passthrough guard for the 4 LLM-powered transforms.
+ * If no llmModel present in context, immediately returns the input items (no-op path used
+ * when LLM features are disabled). Otherwise delegates to the provided work fn with the
+ * guaranteed non-null model. Single source of truth eliminating the verbatim 4x guard.
+ */
+function withLlmModel<T extends ContentItemRow>(
+  ctx: TransformContext,
+  items: T[],
+  work: (model: NonNullable<TransformContext["llmModel"]>) => Promise<T[]>
+): Promise<T[]> {
+  if (!ctx.llmModel) return Promise.resolve(items);
+  return work(ctx.llmModel);
+}
+
 type TransformFn = (
   items: ContentItemRow[],
   config: TransformConfig,
@@ -886,55 +901,55 @@ const transforms: Record<string, TransformFn> = {
     return result;
   },
 
-  "llm-summarize": async (items, _config, ctx) => {
-    if (!ctx.llmModel) return items;
-    const results: ContentItemRow[] = [];
-    for (const item of items) {
-      if (item.summary) {
-        results.push(item);
-        continue;
+  "llm-summarize": (items, _config, ctx) =>
+    withLlmModel(ctx, items, async (model) => {
+      const results: ContentItemRow[] = [];
+      for (const item of items) {
+        if (item.summary) {
+          results.push(item);
+          continue;
+        }
+        const summary = await summarizeItem(model, rowToContentItem(item));
+        results.push({ ...item, summary: summary ?? item.summary });
       }
-      const summary = await summarizeItem(ctx.llmModel, rowToContentItem(item));
-      results.push({ ...item, summary: summary ?? item.summary });
-    }
-    return results;
-  },
+      return results;
+    }),
 
-  "llm-filter": async (items, config, ctx) => {
-    if (!ctx.llmModel) return items;
-    const { criteria } = config as { type: "llm-filter"; criteria: string };
-    const contentItems = items.map(rowToContentItem);
-    const filtered = await filterItemsByLlm(ctx.llmModel, contentItems, criteria);
-    const keepIds = new Set(filtered.map((i) => i.id));
-    return items.filter((row) => keepIds.has(row.id));
-  },
+  "llm-filter": (items, config, ctx) =>
+    withLlmModel(ctx, items, async (model) => {
+      const { criteria } = config as { type: "llm-filter"; criteria: string };
+      const contentItems = items.map(rowToContentItem);
+      const filtered = await filterItemsByLlm(model, contentItems, criteria);
+      const keepIds = new Set(filtered.map((i) => i.id));
+      return items.filter((row) => keepIds.has(row.id));
+    }),
 
-  "llm-rank": async (items, config, ctx) => {
-    if (!ctx.llmModel) return items;
-    const { interests } = config as { type: "llm-rank"; interests?: string[] };
-    const effectiveInterests = interests ?? ctx.llmConfig?.interests ?? [];
-    if (effectiveInterests.length === 0) return items;
-    const contentItems = items.map(rowToContentItem);
-    const ranked = await lensItems(ctx.llmModel, contentItems, effectiveInterests);
-    const orderMap = new Map<string, number>();
-    ranked.forEach((item, i) => orderMap.set(item.id, i));
-    return [...items].sort(
-      (a, b) => (orderMap.get(a.id) ?? items.length) - (orderMap.get(b.id) ?? items.length)
-    );
-  },
+  "llm-rank": (items, config, ctx) =>
+    withLlmModel(ctx, items, async (model) => {
+      const { interests } = config as { type: "llm-rank"; interests?: string[] };
+      const effectiveInterests = interests ?? ctx.llmConfig?.interests ?? [];
+      if (effectiveInterests.length === 0) return items;
+      const contentItems = items.map(rowToContentItem);
+      const ranked = await lensItems(model, contentItems, effectiveInterests);
+      const orderMap = new Map<string, number>();
+      ranked.forEach((item, i) => orderMap.set(item.id, i));
+      return [...items].sort(
+        (a, b) => (orderMap.get(a.id) ?? items.length) - (orderMap.get(b.id) ?? items.length)
+      );
+    }),
 
-  "llm-merge": async (items, config, ctx) => {
-    if (!ctx.llmModel) return items;
-    const { prompt } = config as { type: "llm-merge"; prompt?: string };
-    const contentItems = items.map(rowToContentItem);
-    const merged = await mergeItems(ctx.llmModel, contentItems, prompt);
-    const rowMap = new Map<string, ContentItemRow>();
-    for (const row of items) rowMap.set(row.id, row);
-    return merged.map((item) => {
-      const baseRow = rowMap.get(item.id) ?? rowMap.get(item.id.split("+")[0]);
-      return contentItemToRow(item, baseRow);
-    });
-  },
+  "llm-merge": (items, config, ctx) =>
+    withLlmModel(ctx, items, async (model) => {
+      const { prompt } = config as { type: "llm-merge"; prompt?: string };
+      const contentItems = items.map(rowToContentItem);
+      const merged = await mergeItems(model, contentItems, prompt);
+      const rowMap = new Map<string, ContentItemRow>();
+      for (const row of items) rowMap.set(row.id, row);
+      return merged.map((item) => {
+        const baseRow = rowMap.get(item.id) ?? rowMap.get(item.id.split("+")[0]);
+        return contentItemToRow(item, baseRow);
+      });
+    }),
 };
 
 export async function runPipeline(
