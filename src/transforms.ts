@@ -838,6 +838,19 @@ const transforms: Record<string, TransformFn> = {
       }
     }
 
+    /**
+     * Tally keyword occurrences (multi-value per signal) across the given indices into the counts map
+     * using the shared increment helper. Single source of truth for the inline for-of + nested keywords loop
+     * in generateLabel (complements tallyFromSignals used for single-value domain/source).
+     */
+    function tallyKeywords(counts: Map<string, number>, indices: number[]): void {
+      for (const idx of indices) {
+        for (const kw of signals[idx].keywords) {
+          increment(counts, kw);
+        }
+      }
+    }
+
     // --- Label generation ---
     function generateLabel(indices: number[]): string {
       // Find the most common domain in the cluster
@@ -845,11 +858,7 @@ const transforms: Record<string, TransformFn> = {
       const keywordCounts = new Map<string, number>();
 
       tallyFromSignals(domainCounts, indices, (sig) => sig.domain);
-      for (const idx of indices) {
-        for (const kw of signals[idx].keywords) {
-          increment(keywordCounts, kw);
-        }
-      }
+      tallyKeywords(keywordCounts, indices);
 
       // If majority share a domain, use that
       const domainLabel = getMajorityLabel(domainCounts, indices.length, (domain) => {
