@@ -369,4 +369,41 @@ layout:
     setConfig(yaml);
     expect(() => loadConfig()).toThrow(/config: adapters\[0\].transforms\[0\].max_clusters must be a positive integer/);
   });
+
+  test("rejects keyword-score with non-number min_score (validateOptionalFiniteNumber)", () => {
+    const yaml = `
+adapters:
+  - type: rss
+    transforms:
+      - type: keyword-score
+        keywords:
+          - term: foo
+            weight: 1
+        min_score: "notnum"
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(/config: adapters\[0\].transforms\[0\].min_score must be a number/);
+  });
+
+  test("rejects time-decay with non-finite recency_weight (validateOptionalFiniteNumber)", () => {
+    const yaml = `
+adapters:
+  - type: rss
+    transforms:
+      - type: time-decay
+        recency_weight: Infinity
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(/config: adapters\[0\].transforms\[0\].recency_weight must be a number/);
+  });
 });

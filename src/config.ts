@@ -266,6 +266,12 @@ function validateFiniteNumber(value: unknown, path: string): void {
   }
 }
 
+function validateOptionalFiniteNumber(value: unknown, path: string): void {
+  if (value !== undefined) {
+    validateFiniteNumber(value, path);
+  }
+}
+
 function validateOptionalBoolean(value: unknown, path: string): void {
   if (value !== undefined && typeof value !== "boolean") {
     throw new Error(`config: ${path} must be a boolean`);
@@ -379,24 +385,16 @@ function validateTransform(transform: Record<string, unknown>, path: string): vo
       break;
     case "keyword-score":
       validateKeywordScoreEntries(transform.keywords, `${path}.keywords`);
-      if (transform.min_score !== undefined) {
-        validateFiniteNumber(transform.min_score, `${path}.min_score`);
-      }
+      validateOptionalFiniteNumber(transform.min_score, `${path}.min_score`);
       validateOptionalBoolean(transform.annotate, `${path}.annotate`);
       break;
     case "time-decay":
       validateOptionalNonEmptyString(transform.half_life, `${path}.half_life`);
-      if (transform.engagement_weight !== undefined) {
-        validateFiniteNumber(transform.engagement_weight, `${path}.engagement_weight`);
-      }
-      if (transform.recency_weight !== undefined) {
-        validateFiniteNumber(transform.recency_weight, `${path}.recency_weight`);
-      }
+      validateOptionalFiniteNumber(transform.engagement_weight, `${path}.engagement_weight`);
+      validateOptionalFiniteNumber(transform.recency_weight, `${path}.recency_weight`);
       validateOptionalEnum(transform.decay, ["exponential", "linear"], `${path}.decay`);
       validateOptionalBoolean(transform.annotate, `${path}.annotate`);
-      if (transform.min_score !== undefined) {
-        validateFiniteNumber(transform.min_score, `${path}.min_score`);
-      }
+      validateOptionalFiniteNumber(transform.min_score, `${path}.min_score`);
       break;
     case "cluster":
       validateOptionalEnum(transform.strategy, ["domain", "keywords", "source", "auto"], `${path}.strategy`);
