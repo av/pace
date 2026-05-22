@@ -254,22 +254,29 @@ function validatePositiveInteger(value: unknown, path: string): void {
   }
 }
 
-function validateOptionalPositiveInteger(value: unknown, path: string): void {
-  if (value !== undefined) {
-    validatePositiveInteger(value, path);
-  }
-}
-
 function validateFiniteNumber(value: unknown, path: string): void {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     throw new Error(`config: ${path} must be a number`);
   }
 }
 
-function validateOptionalFiniteNumber(value: unknown, path: string): void {
+/**
+ * Higher-order helper to DRY the common `if (value !== undefined) { validator(value, path); }`
+ * pattern for optional numeric (and potentially other) fields. Single source of truth for
+ * the duplicated boilerplate previously in validateOptionalPositiveInteger and validateOptionalFiniteNumber.
+ */
+function validateOptional(value: unknown, path: string, validator: (v: unknown, p: string) => void): void {
   if (value !== undefined) {
-    validateFiniteNumber(value, path);
+    validator(value, path);
   }
+}
+
+function validateOptionalPositiveInteger(value: unknown, path: string): void {
+  validateOptional(value, path, validatePositiveInteger);
+}
+
+function validateOptionalFiniteNumber(value: unknown, path: string): void {
+  validateOptional(value, path, validateFiniteNumber);
 }
 
 function validateOptionalBoolean(value: unknown, path: string): void {
