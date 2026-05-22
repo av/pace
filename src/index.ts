@@ -61,6 +61,13 @@ for (const adapterCfg of config.adapters) {
   }
 }
 
+const panelIdToSources = new Map<string, ReturnType<typeof normalizeSource>>();
+const panelNameToId = new Map<string, string>();
+for (const { panel, pid, sources } of enrichedPanels) {
+  panelIdToSources.set(pid, sources);
+  panelNameToId.set(panel.panel, pid);
+}
+
 const panelMap: SourcePanelMap = { sourceToPanels, sourceToReadKey };
 startScheduler(config, adapters, panelMap, llmModel);
 
@@ -94,13 +101,6 @@ app.get("/", async (c) => {
   const content = renderDashboard({ layout: config.layout, panelData, updatedAt: now });
   return c.html(content);
 });
-
-const panelIdToSources = new Map<string, ReturnType<typeof normalizeSource>>();
-const panelNameToId = new Map<string, string>();
-for (const { panel, pid, sources } of enrichedPanels) {
-  panelIdToSources.set(pid, sources);
-  panelNameToId.set(panel.panel, pid);
-}
 
 app.post("/refresh/:panel", async (c) => {
   const param = c.req.param("panel");
