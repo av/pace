@@ -107,46 +107,36 @@ function parseHalfLife(str: string): number {
 }
 
 /**
+ * Patterns for numeric engagement signals parsed from item bodies.
+ * Used by extractEngagementScore (DRY) and referenced in time-decay scoring + dedupe clustering.
+ */
+const ENGAGEMENT_PATTERNS: Array<{ re: RegExp; weight: number }> = [
+  { re: /(\d+)\s*points?/i, weight: 1 }, // HN, Lobsters
+  { re: /score:\s*(\d+)/i, weight: 1 },
+  { re: /(\d+)\s*upvotes?/i, weight: 1 },
+  { re: /(\d+)\s*boosts?/i, weight: 1 }, // Mastodon/Fediverse
+  { re: /(\d+)\s*favou?rites?/i, weight: 1 }, // favorites/favourites spelling
+  { re: /(\d+)\s*stars?/i, weight: 1 }, // GitHub
+  { re: /(\d+)\s*likes?/i, weight: 1 },
+  { re: /(\d+)\s*comments?/i, weight: 0.5 }, // secondary, half value
+];
+
+/**
  * Extract a numeric engagement score from body metadata.
  * Parses patterns like "N points", "N boosts", "N stars", "N favorites", "N upvotes", etc.
  * Similar to extractScore from dedupe.ts but broader in scope.
+ * Now DRY via ENGAGEMENT_PATTERNS + loop (single source of truth).
  */
-function extractEngagementScore(body: string | null): number {
+export function extractEngagementScore(body: string | null): number {
   if (!body) return 0;
   let total = 0;
-
-  // Match "N points" (HN, Lobsters)
-  const pointsMatch = body.match(/(\d+)\s*points?/i);
-  if (pointsMatch) total += parseInt(pointsMatch[1], 10);
-
-  // Match "score: N"
-  const scoreMatch = body.match(/score:\s*(\d+)/i);
-  if (scoreMatch) total += parseInt(scoreMatch[1], 10);
-
-  // Match "N upvotes"
-  const upvotesMatch = body.match(/(\d+)\s*upvotes?/i);
-  if (upvotesMatch) total += parseInt(upvotesMatch[1], 10);
-
-  // Match "N boosts" (Mastodon/Fediverse)
-  const boostsMatch = body.match(/(\d+)\s*boosts?/i);
-  if (boostsMatch) total += parseInt(boostsMatch[1], 10);
-
-  // Match "N favorites" / "N favourites" (Mastodon/Fediverse)
-  const favMatch = body.match(/(\d+)\s*favou?rites?/i);
-  if (favMatch) total += parseInt(favMatch[1], 10);
-
-  // Match "N stars" (GitHub)
-  const starsMatch = body.match(/(\d+)\s*stars?/i);
-  if (starsMatch) total += parseInt(starsMatch[1], 10);
-
-  // Match "N likes"
-  const likesMatch = body.match(/(\d+)\s*likes?/i);
-  if (likesMatch) total += parseInt(likesMatch[1], 10);
-
-  // Match "N comments" as a secondary signal (weighted lower — add half)
-  const commentsMatch = body.match(/(\d+)\s*comments?/i);
-  if (commentsMatch) total += Math.floor(parseInt(commentsMatch[1], 10) / 2);
-
+  for (const { re, weight } of ENGAGEMENT_PATTERNS) {
+    const m = body.match(re);
+    if (m) {
+      const n = parseInt(m[1], 10);
+      total += Math.floor(n * weight);
+    }
+  }
   return total;
 }
 
