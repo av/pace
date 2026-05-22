@@ -198,10 +198,6 @@ a:hover {
   color: var(--text-primary);
 }
 
-.item-title a:hover {
-  color: var(--hover);
-}
-
 .item-meta {
   display: flex;
   align-items: center;
