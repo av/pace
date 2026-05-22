@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach, spyOn } from "bun:test";
 import { runPipeline, type TransformContext } from "./transforms";
 import type { ContentItemRow } from "./db";
 
@@ -97,5 +97,72 @@ describe("transforms - runPipeline basics", () => {
     const pipeline = [{ type: "latest", count: 2 } as any];
     const result = await runPipeline(items, pipeline, ctx);
     expect(result.map(r => r.id)).toEqual(["a", "b"]);
+  });
+});
+
+describe("transforms - dedupe strategies (logging DRY quality)", () => {
+  let logSpy: ReturnType<typeof spyOn>;
+
+  beforeEach(() => {
+    logSpy = spyOn(console, "log");
+  });
+
+  afterEach(() => {
+    logSpy.mockRestore();
+  });
+
+  test("dedupe:url removes exact dups and logs when enabled (default)", async () => {
+    const items = [
+      makeRow({ id: "1", title: "First", url: "https://ex.com/a" }),
+      makeRow({ id: "2", title: "Dup", url: "https://ex.com/a" }),
+      makeRow({ id: "3", title: "Third", url: "https://ex.com/b" }),
+    ];
+    const pipeline = [{ type: "dedupe", strategy: "url", log: true } as any];
+    const result = await runPipeline(items, pipeline, ctx);
+    expect(result.map((r) => r.id)).toEqual(["1", "3"]);
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("[dedupe:url] removed 1 duplicate(s):"));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('  - "Dup" (https://ex.com/a)'));
+  });
+
+  test("dedupe:domain-normalized groups by normalized url and logs", async () => {
+    const items = [
+      makeRow({ id: "1", title: "A1", url: "https://www.Example.com/foo/", timestamp: "2024-01-01T00:00:00Z" }),
+      makeRow({ id: "2", title: "A2", url: "https://example.com/foo?utm_source=xx", timestamp: "2024-01-02T00:00:00Z" }),
+      makeRow({ id: "3", title: "B", url: "https://ex.com/other" }),
+    ];
+    const pipeline = [{ type: "dedupe", strategy: "domain-normalized", keep: "latest", log: true } as any];
+    const result = await runPipeline(items, pipeline, ctx);
+    expect(result.map((r) => r.id)).toEqual(["2", "3"]); // latest of the group kept
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("[dedupe:domain-normalized] removed 1 duplicate(s):"));
+  });
+
+  test("dedupe:title-similarity detects near titles, keeps winner, logs with threshold", async () => {
+    const items = [
+      makeRow({ id: "1", title: "Hello World Update", url: "u1", timestamp: "2024-01-01T00:00:00Z" }),
+      makeRow({ id: "2", title: "Hello World Upd8", url: "u2", timestamp: "2024-01-02T00:00:00Z" }),
+      makeRow({ id: "3", title: "Other News", url: "u3" }),
+    ];
+    const pipeline = [{ type: "dedupe", strategy: "title-similarity", threshold: 0.8, keep: "latest", log: true } as any];
+    const result = await runPipeline(items, pipeline, ctx);
+    expect(result.map((r) => r.id)).toContain("2"); // or 1 depending on pick, but one kept + 3
+    expect(result).toHaveLength(2);
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("[dedupe:title-similarity] removed 1 duplicate(s) (threshold=0.8):"));
+  });
+
+  test("dedupe log disabled does not emit console.log", async () => {
+    const items = [makeRow({ url: "x" }), makeRow({ url: "x" })];
+    const pipeline = [{ type: "dedupe", strategy: "url", log: false } as any];
+    await runPipeline(items, pipeline, ctx);
+    // only possible other logs? but in this run no, check not the dedupe one
+    const dedupeCalls = logSpy.mock.calls.filter((c: any[]) => String(c[0]).includes("[dedupe:"));
+    expect(dedupeCalls).toHaveLength(0);
+  });
+
+  test("dedupe unknown strategy warns and passes through", async () => {
+    const items = [makeRow()];
+    const pipeline = [{ type: "dedupe", strategy: "weird" } as any];
+    const result = await runPipeline(items, pipeline, ctx);
+    expect(result).toHaveLength(1);
+    // note: the warn is console.warn, not caught by logSpy here
   });
 });

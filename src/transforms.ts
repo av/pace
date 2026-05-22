@@ -224,6 +224,12 @@ const transforms: Record<string, TransformFn> = {
     const keep = cfg.keep ?? "highest-score";
     const shouldLog = cfg.log !== false; // log by default
 
+    const logRemovedDups = (label: string, removed: string[], extra: string = "") => {
+      console.log(`[dedupe:${label}] removed ${removed.length} duplicate(s)${extra}:`);
+      for (const r of removed.slice(0, 10)) console.log(`  - ${r}`);
+      if (removed.length > 10) console.log(`  ... and ${removed.length - 10} more`);
+    };
+
     if (strategy === "url") {
       // Simple exact URL dedup
       const seen = new Set<string>();
@@ -237,9 +243,7 @@ const transforms: Record<string, TransformFn> = {
         return true;
       });
       if (shouldLog && removed.length > 0) {
-        console.log(`[dedupe:url] removed ${removed.length} duplicate(s):`);
-        for (const r of removed.slice(0, 10)) console.log(`  - ${r}`);
-        if (removed.length > 10) console.log(`  ... and ${removed.length - 10} more`);
+        logRemovedDups("url", removed);
       }
       return result;
     }
@@ -265,9 +269,7 @@ const transforms: Record<string, TransformFn> = {
         }
       }
       if (shouldLog && removed.length > 0) {
-        console.log(`[dedupe:domain-normalized] removed ${removed.length} duplicate(s):`);
-        for (const r of removed.slice(0, 10)) console.log(`  - ${r}`);
-        if (removed.length > 10) console.log(`  ... and ${removed.length - 10} more`);
+        logRemovedDups("domain-normalized", removed);
       }
       // Preserve original ordering based on first occurrence
       const orderMap = new Map<string, number>();
@@ -310,9 +312,7 @@ const transforms: Record<string, TransformFn> = {
         }
       }
       if (shouldLog && removed.length > 0) {
-        console.log(`[dedupe:title-similarity] removed ${removed.length} duplicate(s) (threshold=${threshold}):`);
-        for (const r of removed.slice(0, 10)) console.log(`  - ${r}`);
-        if (removed.length > 10) console.log(`  ... and ${removed.length - 10} more`);
+        logRemovedDups("title-similarity", removed, ` (threshold=${threshold})`);
       }
       return kept;
     }
