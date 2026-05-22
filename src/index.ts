@@ -89,10 +89,13 @@ app.get("/", async (c) => {
   return c.html(content);
 });
 
-const panelIdToSources = new Map(
-  allPanelConfigs.map((p) => [resolvePanelId(p), normalizeSource(p.source)])
-);
-const panelNameToId = new Map(allPanelConfigs.map((p) => [p.panel, resolvePanelId(p)]));
+const panelIdToSources = new Map<string, ReturnType<typeof normalizeSource>>();
+const panelNameToId = new Map<string, string>();
+for (const p of allPanelConfigs) {
+  const pid = resolvePanelId(p);
+  panelIdToSources.set(pid, normalizeSource(p.source));
+  panelNameToId.set(p.panel, pid);
+}
 const configuredAdapterNames = config.adapters.map((adapter) => adapter.name ?? adapter.type);
 
 app.post("/refresh/:panel", async (c) => {
