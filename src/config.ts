@@ -533,6 +533,23 @@ function validatePipelineConfig(
   validateRefreshInterval(pipeline.refresh_interval, `${path}.refresh_interval`);
 }
 
+/**
+ * Single source of truth for reading a config file path: returns the UTF-8 content if the path
+ * exists and is a regular file; returns null if the path does not exist (caller decides fallback);
+ * throws the exact "config: <path> is not a regular file" error (preserving prior messages) for
+ * directories or other non-files. Eliminates the prior duplicated exists+stat+isFile+read blocks.
+ */
+function tryReadRegularFile(path: string): string | null {
+  if (!existsSync(path)) {
+    return null;
+  }
+  const st = statSync(path);
+  if (!st.isFile()) {
+    throw new Error(`config: ${path} is not a regular file`);
+  }
+  return readFileSync(path, "utf-8");
+}
+
 export function loadConfig(): AppConfig {
   const explicitConfigPath = process.env.PACE_CONFIG !== undefined;
   const configPath = process.env.PACE_CONFIG ?? join(process.cwd(), "config.yaml");
@@ -540,24 +557,20 @@ export function loadConfig(): AppConfig {
 
   let raw: string;
   let usedConfigPath: string;
-  if (existsSync(configPath)) {
-    const st = statSync(configPath);
-    if (!st.isFile()) {
-      throw new Error(`config: ${configPath} is not a regular file`);
-    }
+  const configContent = tryReadRegularFile(configPath);
+  if (configContent !== null) {
     usedConfigPath = configPath;
-    raw = readFileSync(configPath, "utf-8");
+    raw = configContent;
   } else if (explicitConfigPath) {
     throw new Error(`config: file not found: ${configPath}`);
-  } else if (existsSync(examplePath)) {
-    const st = statSync(examplePath);
-    if (!st.isFile()) {
-      throw new Error(`config: ${examplePath} is not a regular file`);
-    }
-    usedConfigPath = examplePath;
-    raw = readFileSync(examplePath, "utf-8");
   } else {
-    return defaultConfig();
+    const exampleContent = tryReadRegularFile(examplePath);
+    if (exampleContent !== null) {
+      usedConfigPath = examplePath;
+      raw = exampleContent;
+    } else {
+      return defaultConfig();
+    }
   }
 
   let parsed: Record<string, unknown>;
