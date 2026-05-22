@@ -1,13 +1,21 @@
 import { Hono } from "hono";
 import { readFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { loadConfig, collectPanels, normalizeSource, resolvePanelId, isPanel, type PanelConfig, type LayoutNodeConfig } from "./config";
+import { loadConfig, collectPanels, normalizeSource, resolvePanelId } from "./config";
 import { initDb, closeDb, getRecentItems, getItemsByPanel, getLastFetchedAt, getLastFetchedAtAll, type ContentItemRow } from "./db";
 import { discoverAdapters } from "./adapters/index";
 import { renderDashboard, type PanelData } from "./layout";
 import { createModel } from "./llm";
 import { startScheduler, stopScheduler, refreshSources, type SourcePanelMap } from "./scheduler";
 import { parsePort } from "./adapters/types";
+
+/**
+ * Returns the effective name for an adapter config entry, preferring the explicit `name` (for display/alias) over the `type`.
+ * Single source of truth for the `name ?? type` fallback used in bootstrap (panelMap fallback) and refresh paths.
+ */
+function getAdapterName(cfg: { name?: string; type: string }): string {
+  return cfg.name ?? cfg.type;
+}
 
 const app = new Hono();
 
@@ -45,7 +53,7 @@ for (const panel of allPanelConfigs) {
 }
 
 for (const adapterCfg of config.adapters) {
-  const name = adapterCfg.name ?? adapterCfg.type;
+  const name = getAdapterName(adapterCfg);
   if (!sourceToPanels.has(name)) {
     sourceToPanels.set(name, [name]);
     sourceToReadKey.set(name, name);
@@ -96,7 +104,7 @@ for (const p of allPanelConfigs) {
   panelIdToSources.set(pid, normalizeSource(p.source));
   panelNameToId.set(p.panel, pid);
 }
-const configuredAdapterNames = config.adapters.map((adapter) => adapter.name ?? adapter.type);
+const configuredAdapterNames = config.adapters.map(getAdapterName);
 
 app.post("/refresh/:panel", async (c) => {
   const param = c.req.param("panel");
