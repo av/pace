@@ -254,6 +254,12 @@ function validatePositiveInteger(value: unknown, path: string): void {
   }
 }
 
+function validateOptionalPositiveInteger(value: unknown, path: string): void {
+  if (value !== undefined) {
+    validatePositiveInteger(value, path);
+  }
+}
+
 function validateFiniteNumber(value: unknown, path: string): void {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     throw new Error(`config: ${path} must be a number`);
@@ -394,12 +400,8 @@ function validateTransform(transform: Record<string, unknown>, path: string): vo
       break;
     case "cluster":
       validateOptionalEnum(transform.strategy, ["domain", "keywords", "source", "auto"], `${path}.strategy`);
-      if (transform.min_cluster_size !== undefined) {
-        validatePositiveInteger(transform.min_cluster_size, `${path}.min_cluster_size`);
-      }
-      if (transform.max_clusters !== undefined) {
-        validatePositiveInteger(transform.max_clusters, `${path}.max_clusters`);
-      }
+      validateOptionalPositiveInteger(transform.min_cluster_size, `${path}.min_cluster_size`);
+      validateOptionalPositiveInteger(transform.max_clusters, `${path}.max_clusters`);
       validateOptionalUnitNumber(transform.similarity_threshold, `${path}.similarity_threshold`);
       validateOptionalBoolean(transform.annotate, `${path}.annotate`);
       break;

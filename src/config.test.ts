@@ -335,4 +335,38 @@ layout:
     setConfig(yaml);
     expect(() => loadConfig()).toThrow(/config: adapters\[0\].transforms\[0\].fields must not be empty/);
   });
+
+  test("rejects cluster with non-positive min_cluster_size (validateOptionalPositiveInteger)", () => {
+    const yaml = `
+adapters:
+  - type: rss
+    transforms:
+      - type: cluster
+        min_cluster_size: 0
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(/config: adapters\[0\].transforms\[0\].min_cluster_size must be a positive integer/);
+  });
+
+  test("rejects cluster with non-positive max_clusters and non-integer (validateOptionalPositiveInteger)", () => {
+    const yaml = `
+adapters:
+  - type: rss
+    transforms:
+      - type: cluster
+        max_clusters: -1
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(/config: adapters\[0\].transforms\[0\].max_clusters must be a positive integer/);
+  });
 });
