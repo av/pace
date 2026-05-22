@@ -101,34 +101,42 @@ export function saveItems(panelId: string, items: ContentItem[]): void {
   }
 }
 
+const DEDUP_GROUP_EXPR = `CASE WHEN url = '' THEN id ELSE lower(rtrim(url, '/')) END`;
+
+function getDedupInClause(panelId?: string): { clause: string; params: any[] } {
+  if (panelId != null) {
+    return {
+      clause: `id IN (SELECT id FROM content_items WHERE panel_id = ? GROUP BY ${DEDUP_GROUP_EXPR} HAVING timestamp = MAX(timestamp))`,
+      params: [panelId],
+    };
+  }
+  return {
+    clause: `id IN (SELECT id FROM content_items GROUP BY ${DEDUP_GROUP_EXPR} HAVING timestamp = MAX(timestamp))`,
+    params: [],
+  };
+}
+
 export function getRecentItems(limit: number = 50): ContentItemRow[] {
   const db = getDb();
+  const dedup = getDedupInClause();
   return db.prepare(`
     SELECT * FROM content_items
-    WHERE id IN (
-      SELECT id FROM content_items
-      GROUP BY CASE WHEN url = '' THEN id ELSE lower(rtrim(url, '/')) END
-      HAVING timestamp = MAX(timestamp)
-    )
+    WHERE ${dedup.clause}
     ORDER BY timestamp DESC
     LIMIT ?
-  `).all(limit) as ContentItemRow[];
+  `).all(...dedup.params, limit) as ContentItemRow[];
 }
 
 export function getItemsByPanel(panelId: string, limit: number = 50): ContentItemRow[] {
   const db = getDb();
+  const dedup = getDedupInClause(panelId);
   return db.prepare(`
     SELECT * FROM content_items
     WHERE panel_id = ?
-      AND id IN (
-        SELECT id FROM content_items
-        WHERE panel_id = ?
-        GROUP BY CASE WHEN url = '' THEN id ELSE lower(rtrim(url, '/')) END
-        HAVING timestamp = MAX(timestamp)
-      )
+      AND ${dedup.clause}
     ORDER BY timestamp DESC
     LIMIT ?
-  `).all(panelId, panelId, limit) as ContentItemRow[];
+  `).all(panelId, ...dedup.params, limit) as ContentItemRow[];
 }
 
 export function getLastFetchedAt(panelId: string): string | null {
@@ -149,17 +157,13 @@ export function getLastFetchedAtAll(): string | null {
 
 export function getAllItemsByPanel(panelId: string): ContentItemRow[] {
   const db = getDb();
+  const dedup = getDedupInClause(panelId);
   return db.prepare(`
     SELECT * FROM content_items
     WHERE panel_id = ?
-      AND id IN (
-        SELECT id FROM content_items
-        WHERE panel_id = ?
-        GROUP BY CASE WHEN url = '' THEN id ELSE lower(rtrim(url, '/')) END
-        HAVING timestamp = MAX(timestamp)
-      )
+      AND ${dedup.clause}
     ORDER BY timestamp DESC
-  `).all(panelId, panelId) as ContentItemRow[];
+  `).all(panelId, ...dedup.params) as ContentItemRow[];
 }
 
 export function replacePanelItems(panelId: string, items: ContentItemRow[]): void {
