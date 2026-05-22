@@ -10,11 +10,15 @@ interface GitHubRelease {
   published_at: string;
 }
 
+const ADAPTER_NAME = "github-releases";
+const RELEASES_PER_PAGE = 5;
+const FETCH_TIMEOUT_MS = 15000;
+
 async function fetchRepoReleases(
   repo: string,
   token?: string,
 ): Promise<ContentItem[]> {
-  const url = `https://api.github.com/repos/${repo}/releases?per_page=5`;
+  const url = `https://api.github.com/repos/${repo}/releases?per_page=${RELEASES_PER_PAGE}`;
   const headers: Record<string, string> = {
     Accept: "application/vnd.github+json",
     "User-Agent": "pace/1.0",
@@ -24,9 +28,9 @@ async function fetchRepoReleases(
   }
 
   try {
-    const res = await fetch(url, { headers, signal: AbortSignal.timeout(15000) });
+    const res = await fetch(url, { headers, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
     if (!res.ok) {
-      throw new Error(`github-releases: failed to fetch ${repo}: ${res.status}`);
+      throw new Error(`${ADAPTER_NAME}: failed to fetch ${repo}: ${res.status}`);
     }
     const releases: GitHubRelease[] = await res.json();
     return releases.map((r) => ({
@@ -38,12 +42,12 @@ async function fetchRepoReleases(
       body: r.body ?? undefined,
     }));
   } catch (err) {
-    throw new Error(`github-releases: error fetching ${repo}: ${errorMessage(err)}`);
+    throw new Error(`${ADAPTER_NAME}: error fetching ${repo}: ${errorMessage(err)}`);
   }
 }
 
 const adapter: Adapter = {
-  name: "github-releases",
+  name: ADAPTER_NAME,
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
     const repos = (config.params?.repos as string[]) ?? [];
     const token = config.params?.token as string | undefined;
