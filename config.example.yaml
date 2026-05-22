@@ -3,177 +3,190 @@
 adapters:
   - type: hackernews
     params:
-      feed: top            # top, new, best, ask, show, job (aliases: front, newest, askhn, showhn, jobs)
-      limit: 30            # max items to return (up to 200)
-      min_score: 0         # filter: only include items with this many points or more
-    refresh_interval: 15
+      feed: top
+      limit: 40
+      min_score: 10
+    refresh_interval: 10
     transforms:
+      - type: exclude
+        keywords: [hiring, "is hiring", "who is hiring"]
+        fields: [title]
       - type: latest
         count: 30
 
-  - type: rss
+  - type: lobsters
     params:
-      urls:
-        - https://feeds.arstechnica.com/arstechnica/index
-    refresh_interval: 30
+      feed: hottest
+      limit: 25
+      min_score: 3
+    refresh_interval: 15
     transforms:
       - type: latest
         count: 20
 
+  - type: rss
+    params:
+      urls:
+        - https://simonwillison.net/atom/everything/
+        - https://blog.pragmaticengineer.com/rss/
+        - https://martinfowler.com/feed.atom
+        - https://jvns.ca/atom.xml
+    refresh_interval: 30
+    transforms:
+      - type: latest
+        count: 15
+
+  - name: gh-trending
+    type: github
+    params:
+      mode: trending
+      since: weekly
+      limit: 15
+    refresh_interval: 60
+
+  - name: gh-releases
+    type: github
+    params:
+      mode: releases
+      repos:
+        - oven-sh/bun
+        - denoland/deno
+        - golang/go
+        - rust-lang/rust
+      limit: 10
+    refresh_interval: 60
+
+  - type: devto
+    params:
+      tags: [webdev, devops, programming]
+      top: 7
+      limit: 15
+    refresh_interval: 30
+    transforms:
+      - type: latest
+        count: 15
+
+  # --- More adapters (uncomment to enable) ---
+
   # - type: reddit
   #   params:
-  #     subreddits: [programming, selfhosted]
+  #     subreddits: [programming, selfhosted, ExperiencedDevs]
   #     sort: hot
   #     limit: 25
-  #     min_score: 0
-  #   refresh_interval: 15
-  #   transforms:
-  #     - type: latest
-  #       count: 25
-
-  # - name: gh-releases           # name disambiguates multiple adapters of same type
-  #   type: github
-  #   params:
-  #     mode: releases
-  #     repos: [facebook/react, denoland/deno, oven-sh/bun]
-  #     limit: 5
-  #   refresh_interval: 60
-  #   transforms:
-  #     - type: latest
-  #       count: 15
-
-  # - name: gh-trending
-  #   type: github
-  #   params:
-  #     mode: trending
-  #     language: typescript
-  #     since: weekly
-  #     limit: 15
-  #   refresh_interval: 60
-
-  # - type: lobsters
-  #   params:
-  #     feed: hottest
-  #     limit: 25
-  #     min_score: 0
-  #   refresh_interval: 15
-
-  # - type: mastodon
-  #   params:
-  #     instance: fosstodon.org
-  #     limit: 20
-  #     hashtags: [rust, opensource]
+  #     min_score: 50
   #   refresh_interval: 15
 
   # - type: youtube
   #   params:
   #     channels:
-  #       - UCXuqSBlHAE6Xw-yeJA0Tunw  # Linus Tech Tips
   #       - UCsBjURrPoezykLs9EqgamOA  # Fireship
-  #     limit: 15
+  #       - UCWN3xxRkmTPphYr4x2RBDog  # ThePrimeTime
+  #     limit: 10
   #   refresh_interval: 30
 
   # - type: arxiv
   #   params:
-  #     categories: [cs.AI, cs.LG]
-  #     limit: 20
+  #     categories: [cs.AI, cs.SE]
+  #     limit: 15
   #   refresh_interval: 60
-  #   transforms:
-  #     - type: dedupe
-  #       strategy: title-similarity
-  #     - type: latest
-  #       count: 20
 
   # - type: stackexchange
   #   params:
   #     site: stackoverflow
-  #     tags: ["typescript", "react"]
+  #     tags: [typescript, go, rust]
   #     sort: hot
-  #     min_score: 5
-  #     limit: 20
-  #   refresh_interval: 30
-
-  # - type: devto
-  #   params:
-  #     tags: ["typescript", "webdev"]
-  #     top: 7
+  #     min_score: 10
   #     limit: 15
   #   refresh_interval: 30
 
+  # - type: mastodon
+  #   params:
+  #     instance: fosstodon.org
+  #     hashtags: [opensource, rust]
+  #     limit: 15
+  #   refresh_interval: 15
+
   # - type: producthunt
   #   params:
-  #     limit: 20
-  #     enrich: false
+  #     limit: 15
+  #     min_upvotes: 50
   #   refresh_interval: 60
 
   # - type: podcast
   #   params:
   #     feeds:
-  #       - https://feeds.simplecast.com/54nAGcIl
-  #       - https://lexfridman.com/feed/podcast/
+  #       - https://feeds.simplecast.com/54nAGcIl    # The Changelog
+  #       - https://feed.syntax.fm/rss               # Syntax.fm
   #     limit: 10
   #   refresh_interval: 60
 
-# Pipelines: cross-adapter transforms (run after source adapters fetch)
-#
-# pipelines:
-#   - name: combined
-#     sources: [hackernews, reddit]
-#     transforms:
-#       - type: dedupe
-#         strategy: url
-#       - type: latest
-#         count: 40
+# Pipelines: merge items from multiple adapters, then transform
+pipelines:
+  - name: tech-feed
+    sources: [hackernews, lobsters]
+    transforms:
+      - type: dedupe
+        strategy: url
+      - type: latest
+        count: 40
 
 # Layout: recursive flexbox tree
 # Each node is either a container (direction + children) or a panel (panel + source)
 layout:
   direction: row
   children:
-    - panel: hackernews
+    - panel: tech-feed
+      source: tech-feed
       flex: 2
-      source: hackernews
-      limit: 30
+      limit: 40
 
-    - panel: rss
+    - direction: column
       flex: 1
-      source: rss
-      limit: 20
+      children:
+        - panel: blogs
+          source: rss
+          limit: 15
+
+        - panel: releases
+          source: gh-releases
+          limit: 10
+
+    - direction: column
+      flex: 1
+      children:
+        - panel: trending
+          source: gh-trending
+          limit: 15
+
+        - panel: devto
+          source: devto
+          limit: 15
 
 # --- Layout examples ---
 #
-# Three columns, middle split into two rows:
+# Single column (mobile-friendly):
+#
+# layout:
+#   direction: column
+#   children:
+#     - panel: all
+#       source: all
+#       limit: 50
+#
+# Three equal columns:
 #
 # layout:
 #   direction: row
 #   children:
 #     - panel: hackernews
-#       flex: 1
 #       source: hackernews
-#       limit: 25
-#
-#     - direction: column
-#       flex: 1
-#       children:
-#         - panel: reddit
-#           source: reddit
-#         - panel: releases
-#           source: gh-releases
-#
+#     - panel: lobsters
+#       source: lobsters
 #     - panel: rss
-#       flex: 1
 #       source: rss
-#
-# Multi-source panel (reads from a pipeline):
-#
-#     - panel: combined
-#       source: combined       # references pipeline name
-#       limit: 40
 
 # --- Transform reference ---
 # Transforms run at ingest time (on adapter or pipeline), not at render time.
-# Adapters: transforms apply after each fetch cycle
-# Pipelines: transforms apply to merged items from all source adapters
 #
 # - type: latest          # keep N most recent items
 #   count: 50
@@ -226,6 +239,6 @@ layout:
 #   model: gpt-4o-mini
 #   api_key: ${OPENAI_API_KEY}
 #   interests:
-#     - artificial intelligence
-#     - typescript
+#     - systems programming
+#     - web development
 #     - open source

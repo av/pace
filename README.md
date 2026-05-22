@@ -1,75 +1,113 @@
 # pace
 
-Self-hostable personal dashboard that aggregates online content, produces LLM-powered summaries, and supports personalization through interest-based lensing.
-
-## Features
-
-- **Pluggable adapters** — RSS/Atom, Hacker News, GitHub Releases, Reddit (Twitter stub included)
-- **LLM integration** — summarization, daily digest, interest-based lensing via any OpenAI-compatible provider
-- **Dark monochrome UI** — server-rendered with Hono JSX, responsive CSS grid
-- **SQLite storage** — WAL mode, deduplication, automatic pruning
-- **Single config file** — YAML with environment variable support
+Self-hostable personal dashboard that aggregates content from across the web. Pluggable adapters, ingest-time transforms, optional LLM-powered summaries and ranking.
 
 ## Quick start
 
 ```bash
-bun install
-cp config.example.yaml config.yaml
+docker run -d -p 3000:3000 -v pace-data:/app/data ghcr.io/av/pace:latest
+```
+
+Open http://localhost:3000 — the default config ships with Hacker News, Lobsters, GitHub trending/releases, engineering blogs, and DEV.to.
+
+### Custom config
+
+```bash
+# grab the example and edit it
+curl -O https://raw.githubusercontent.com/av/pace/main/config.example.yaml
+mv config.example.yaml config.yaml
 # edit config.yaml with your feeds
+
+docker run -d -p 3000:3000 \
+  -v ./config.yaml:/app/config.yaml:ro \
+  -v pace-data:/app/data \
+  ghcr.io/av/pace:latest
+```
+
+### From source
+
+```bash
+git clone https://github.com/av/pace.git && cd pace
+bun install
 bun run dev
 ```
 
-Open http://localhost:3000
+## Adapters
 
-## Docker
+| Type | What it fetches | Key params |
+|------|----------------|------------|
+| `hackernews` | HN stories | `feed` (top/new/best/ask/show/job), `limit`, `min_score` |
+| `lobsters` | Lobste.rs stories | `feed` (hottest/newest), `limit`, `min_score`, `tags` |
+| `rss` | Any RSS/Atom feed | `urls` |
+| `reddit` | Subreddit posts | `subreddits`, `sort`, `limit`, `min_score` |
+| `github` | Trending repos or releases | `mode` (trending/releases), `repos`, `language`, `since` |
+| `github-releases` | Release tracker | `repos`, `token` |
+| `devto` | DEV.to articles | `tags`, `top`, `limit`, `min_reactions` |
+| `youtube` | Channel/playlist feeds | `channels`, `playlists`, `limit` |
+| `arxiv` | Academic papers | `categories`, `query`, `limit` |
+| `stackexchange` | SE questions | `site`, `tags`, `sort`, `min_score` |
+| `mastodon` | Mastodon posts | `instance`, `hashtags`, `accounts`, `limit` |
+| `producthunt` | Product launches | `limit`, `min_upvotes`, `enrich` |
+| `podcast` | Podcast episodes | `feeds`, `limit` |
+| `twitter` | Lists and searches | `lists`, `searches` |
 
-```bash
-cp config.example.yaml config.yaml
-docker build -t pace .
-docker run -d -p 3000:3000 -v ./config.yaml:/app/config.yaml -v pace-data:/app/data pace
+Each adapter has a `refresh_interval` in minutes (default: 15).
+
+## Transforms
+
+Applied at ingest time on adapters or pipelines:
+
+`latest` `filter` `exclude` `sort` `dedupe` `time-decay` `keyword-score` `cluster` `llm-summarize` `llm-filter` `llm-rank` `llm-merge`
+
+See `config.example.yaml` for full options.
+
+## Layout
+
+Recursive flexbox tree in YAML. Panels reference adapter or pipeline names as sources.
+
+```yaml
+layout:
+  direction: row
+  children:
+    - panel: news
+      source: hackernews
+      flex: 2
+    - direction: column
+      flex: 1
+      children:
+        - panel: blogs
+          source: rss
+        - panel: releases
+          source: gh-releases
 ```
 
-## Configuration
+Collapses to single column below 768px.
 
-See `config.example.yaml` for all options.
+## LLM (optional)
 
-### Adapters
-
-| Type | Params |
-|------|--------|
-| `rss` | `urls: string[]` |
-| `hackernews` | `stories: top\|new\|best`, `limit: number` |
-| `github-releases` | `repos: string[]` (owner/repo format) |
-| `reddit` | `subreddits: string[]`, `sort: hot\|new\|top`, `limit: number` |
-
-Each adapter has a `refresh_interval` in minutes (default: 15, minimum: 1).
-
-### LLM
-
-Supports any provider via [@mariozechner/pi-ai](https://github.com/badlogic/pi-mono) — OpenAI, Anthropic, Google, Groq, Mistral, xAI, DeepSeek, or any OpenAI-compatible endpoint via `base_url`.
+Supports any provider via [pi-ai](https://github.com/badlogic/pi-mono). LLM transforms gracefully degrade when unconfigured.
 
 ```yaml
 llm:
   provider: openai
   model: gpt-4o-mini
   api_key: ${OPENAI_API_KEY}
-  digest:
-    max_length: 500
-    style: brief
-    focus_areas: [ai, programming]
-  interests: [artificial intelligence, typescript]
+  interests: [systems programming, web development]
 ```
 
-### Layout
+## Themed configs
 
-```yaml
-layout:
-  panels:
-    - all        # combined feed from all adapters
-    - rss        # per-adapter panel
-    - hackernews
-    - digest     # LLM-generated digest
-```
+Pre-built configs for common use cases:
+
+| File | Focus |
+|------|-------|
+| `config.example.yaml` | General SWE (HN, Lobsters, GitHub, blogs, DEV.to) |
+| `config.tech-news.yaml` | Tech news aggregation |
+| `config.ml-ai.yaml` | AI/ML research |
+| `config.product-launches.yaml` | Product launches |
+| `config.release-tracker.yaml` | Software releases |
+| `config.academic-papers.yaml` | Academic papers |
+| `config.video-podcast.yaml` | Video and podcast content |
 
 ## Tech stack
 

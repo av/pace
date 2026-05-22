@@ -1,6 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import {
   stripJsonCodeFences,
+  safeComplete,
   summarizeItem,
   mergeItems,
   filterItemsByLlm,
@@ -104,6 +105,26 @@ describe("llm utils (DRY quality + test coverage)", () => {
       const items = [makeItem({ id: "1", title: "one" }), makeItem({ id: "2", title: "two" })];
       const res = await lensItems(fakeThrowingModel, items, ["tech"]);
       expect(res).toEqual(items);
+    });
+  });
+
+  describe("safeComplete (extracted shared error/ctx wrapper)", () => {
+    test("returns null on LLM/complete error (via fakeThrowingModel)", async () => {
+      const ctx = {
+        systemPrompt: "test",
+        messages: [{ role: "user", content: "hi", timestamp: Date.now() }],
+      } as any;
+      const res = await safeComplete(fakeThrowingModel, ctx);
+      expect(res).toBe(null);
+    });
+
+    test("returns null for context with empty-ish prompt (still exercises path)", async () => {
+      const ctx = {
+        systemPrompt: "",
+        messages: [{ role: "user", content: "", timestamp: Date.now() }],
+      } as any;
+      const res = await safeComplete(fakeThrowingModel, ctx);
+      expect(res).toBe(null);
     });
   });
 });

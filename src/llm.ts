@@ -68,30 +68,44 @@ export function stripJsonCodeFences(text: string): string {
 }
 
 /**
- * Summarize a single content item. Returns a 2-3 sentence summary, or null on error.
+ * Safe LLM complete + text extraction with centralized error handling.
+ * Returns extracted text or null on any failure (complete reject, bad response, etc).
+ * This eliminates the duplicated try/await complete/extractText/catch-return-null
+ * (and catch-return-fallback after) pattern across the four wrapper fns.
  */
-export async function summarizeItem(
+export async function safeComplete(
   model: Model<Api>,
-  item: ContentItem
+  context: Context
 ): Promise<string | null> {
   try {
-    const bodySnippet = item.body ? item.body.slice(0, 2000) : "";
-    const userContent = bodySnippet
-      ? `Title: ${item.title}\n\n${bodySnippet}`
-      : `Title: ${item.title}`;
-
-    const context: Context = {
-      systemPrompt:
-        "You are a concise summarizer. Provide a 2-3 sentence summary of the given content item. Focus on the key points and why it matters.",
-      messages: [{ role: "user", content: userContent, timestamp: Date.now() }],
-    };
-
     const response = await complete(model, context);
     const text = extractText(response.content);
     return text || null;
   } catch {
     return null;
   }
+}
+
+/**
+ * Summarize a single content item. Returns a 2-3 sentence summary, or null on error.
+ */
+export async function summarizeItem(
+  model: Model<Api>,
+  item: ContentItem
+): Promise<string | null> {
+  const bodySnippet = item.body ? item.body.slice(0, 2000) : "";
+  const userContent = bodySnippet
+    ? `Title: ${item.title}\n\n${bodySnippet}`
+    : `Title: ${item.title}`;
+
+  const context: Context = {
+    systemPrompt:
+      "You are a concise summarizer. Provide a 2-3 sentence summary of the given content item. Focus on the key points and why it matters.",
+    messages: [{ role: "user", content: userContent, timestamp: Date.now() }],
+  };
+
+  const text = await safeComplete(model, context);
+  return text;
 }
 
 /**
@@ -106,9 +120,8 @@ export async function mergeItems(
 ): Promise<ContentItem[]> {
   if (items.length === 0) return items;
 
-  try {
-    const mergePrompt = prompt ?? "Group related items about the same topic into merged summaries";
-    const systemPrompt = `${mergePrompt}
+  const mergePrompt = prompt ?? "Group related items about the same topic into merged summaries";
+  const systemPrompt = `${mergePrompt}
 
 Given the content items below, decide which ones to merge together. Return a JSON array where each element is either:
 - A merged group: {"merged_ids": ["id1", "id2"], "title": "merged title", "summary": "combined summary"}
@@ -116,48 +129,45 @@ Given the content items below, decide which ones to merge together. Return a JSO
 
 Every item ID must appear exactly once. Return ONLY the JSON array.`;
 
-    const itemList = items
-      .map((item) => {
-        const snippet = item.body ? item.body.slice(0, 300) : "";
-        return `- id: "${item.id}" | title: "${item.title}" | source: ${item.source}${snippet ? ` | body: ${snippet}` : ""}`;
-      })
-      .join("\n");
+  const itemList = items
+    .map((item) => {
+      const snippet = item.body ? item.body.slice(0, 300) : "";
+      return `- id: "${item.id}" | title: "${item.title}" | source: ${item.source}${snippet ? ` | body: ${snippet}` : ""}`;
+    })
+    .join("\n");
 
-    const context: Context = {
-      systemPrompt,
-      messages: [{ role: "user", content: itemList, timestamp: Date.now() }],
-    };
+  const context: Context = {
+    systemPrompt,
+    messages: [{ role: "user", content: itemList, timestamp: Date.now() }],
+  };
 
-    const response = await complete(model, context);
-    const text = extractText(response.content);
-    const jsonStr = stripJsonCodeFences(text);
-    const groups: { merged_ids: string[]; title: string; summary: string | null }[] = JSON.parse(jsonStr);
+  const text = await safeComplete(model, context);
+  if (text == null) return items;
+  const jsonStr = stripJsonCodeFences(text);
+  const groups: { merged_ids: string[]; title: string; summary: string | null }[] = JSON.parse(jsonStr);
 
-    const itemMap = new Map<string, ContentItem>();
-    for (const item of items) itemMap.set(item.id, item);
+  const itemMap = new Map<string, ContentItem>();
+  for (const item of items) itemMap.set(item.id, item);
 
-    const result: ContentItem[] = [];
-    for (const group of groups) {
-      if (group.merged_ids.length === 1 && !group.summary) {
-        const original = itemMap.get(group.merged_ids[0]);
-        if (original) result.push(original);
-      } else {
-        const firstItem = itemMap.get(group.merged_ids[0]);
-        result.push({
-          id: group.merged_ids.join("+"),
-          title: group.title,
-          url: firstItem?.url ?? "",
-          source: firstItem?.source ?? "merged",
-          timestamp: firstItem?.timestamp ?? new Date(),
-          body: group.summary ?? undefined,
-        });
-      }
+  const result: ContentItem[] = [];
+  for (const group of groups) {
+    if (group.merged_ids.length === 1 && !group.summary) {
+      const original = itemMap.get(group.merged_ids[0]);
+      if (original) result.push(original);
+    } else {
+      const firstItem = itemMap.get(group.merged_ids[0]);
+      result.push({
+        id: group.merged_ids.join("+"),
+        title: group.title,
+        url: firstItem?.url ?? "",
+        source: firstItem?.source ?? "merged",
+        timestamp: firstItem?.timestamp ?? new Date(),
+        body: group.summary ?? undefined,
+      });
     }
-
-    return result;
-  } catch {
-    return items;
   }
+
+  return result;
 }
 
 /**
@@ -170,31 +180,27 @@ export async function filterItemsByLlm(
 ): Promise<ContentItem[]> {
   if (items.length === 0) return items;
 
-  try {
-    const systemPrompt = `Given the criteria: "${criteria}", decide which items to keep. Return a JSON array of item IDs that match. Return ONLY the JSON array of strings.`;
+  const systemPrompt = `Given the criteria: "${criteria}", decide which items to keep. Return a JSON array of item IDs that match. Return ONLY the JSON array of strings.`;
 
-    const itemList = items
-      .map((item) => {
-        const snippet = item.body ? item.body.slice(0, 200) : "";
-        return `- id: "${item.id}" | title: "${item.title}" | source: ${item.source}${snippet ? ` | body: ${snippet}` : ""}`;
-      })
-      .join("\n");
+  const itemList = items
+    .map((item) => {
+      const snippet = item.body ? item.body.slice(0, 200) : "";
+      return `- id: "${item.id}" | title: "${item.title}" | source: ${item.source}${snippet ? ` | body: ${snippet}` : ""}`;
+    })
+    .join("\n");
 
-    const context: Context = {
-      systemPrompt,
-      messages: [{ role: "user", content: itemList, timestamp: Date.now() }],
-    };
+  const context: Context = {
+    systemPrompt,
+    messages: [{ role: "user", content: itemList, timestamp: Date.now() }],
+  };
 
-    const response = await complete(model, context);
-    const text = extractText(response.content);
-    const jsonStr = stripJsonCodeFences(text);
-    const keepIds: string[] = JSON.parse(jsonStr);
+  const text = await safeComplete(model, context);
+  if (text == null) return items;
+  const jsonStr = stripJsonCodeFences(text);
+  const keepIds: string[] = JSON.parse(jsonStr);
 
-    const keepSet = new Set(keepIds);
-    return items.filter((item) => keepSet.has(item.id));
-  } catch {
-    return items;
-  }
+  const keepSet = new Set(keepIds);
+  return items.filter((item) => keepSet.has(item.id));
 }
 
 /**
@@ -209,42 +215,40 @@ export async function lensItems(
 ): Promise<ContentItem[]> {
   if (items.length === 0 || interests.length === 0) return items;
 
-  try {
-    const interestList = interests.join(", ");
-    const systemPrompt = `Score each item's relevance to these interests: ${interestList}. Return a JSON array of {id, score} objects where score is 0-10. Return ONLY the JSON array, no other text.`;
+  const interestList = interests.join(", ");
+  const systemPrompt = `Score each item's relevance to these interests: ${interestList}. Return a JSON array of {id, score} objects where score is 0-10. Return ONLY the JSON array, no other text.`;
 
-    const itemList = items
-      .map((item) => `- id: "${item.id}" | title: "${item.title}" | source: ${item.source}`)
-      .join("\n");
+  const itemList = items
+    .map((item) => `- id: "${item.id}" | title: "${item.title}" | source: ${item.source}`)
+    .join("\n");
 
-    const context: Context = {
-      systemPrompt,
-      messages: [
-        { role: "user", content: itemList, timestamp: Date.now() },
-      ],
-    };
+  const context: Context = {
+    systemPrompt,
+    messages: [
+      { role: "user", content: itemList, timestamp: Date.now() },
+    ],
+  };
 
-    const response = await complete(model, context);
-    const text = extractText(response.content);
-
-    // Parse JSON from the response — handle markdown code fences
-    const jsonStr = stripJsonCodeFences(text);
-    const scores: { id: string; score: number }[] = JSON.parse(jsonStr);
-
-    // Build a score map
-    const scoreMap = new Map<string, number>();
-    for (const { id, score } of scores) {
-      scoreMap.set(id, score);
-    }
-
-    // Sort items by score descending, unscored items go to the end
-    return [...items].sort((a, b) => {
-      const sa = scoreMap.get(a.id) ?? -1;
-      const sb = scoreMap.get(b.id) ?? -1;
-      return sb - sa;
-    });
-  } catch {
+  const text = await safeComplete(model, context);
+  if (text == null) {
     // Graceful degradation — return items unchanged
     return items;
   }
+
+  // Parse JSON from the response — handle markdown code fences
+  const jsonStr = stripJsonCodeFences(text);
+  const scores: { id: string; score: number }[] = JSON.parse(jsonStr);
+
+  // Build a score map
+  const scoreMap = new Map<string, number>();
+  for (const { id, score } of scores) {
+    scoreMap.set(id, score);
+  }
+
+  // Sort items by score descending, unscored items go to the end
+  return [...items].sort((a, b) => {
+    const sa = scoreMap.get(a.id) ?? -1;
+    const sb = scoreMap.get(b.id) ?? -1;
+    return sb - sa;
+  });
 }
