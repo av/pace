@@ -173,6 +173,15 @@ function annotateRow<T extends { body?: string }>(row: T, annotation: string | u
 }
 
 /**
+ * Sorts an array of scored items in-place by descending score using the provided getter.
+ * Single source of truth eliminating the duplicated inline sort expressions
+ * (differing only in the score field name) in the keyword-score and time-decay handlers.
+ */
+function sortByScoreDesc<T>(arr: T[], getScore: (x: T) => number): void {
+  arr.sort((a, b) => getScore(b) - getScore(a));
+}
+
+/**
  * Shared helper to test whether an item matches any of the (lowercased) keywords
  * in any of the specified fields. Eliminates duplication between filter/exclude.
  */
@@ -452,7 +461,7 @@ const transforms: Record<string, TransformFn> = {
     let filtered = filterByMinScore(scored, minScore, (s) => s.score, "keyword-score");
 
     // Sort by score descending (stable: items with same score keep original order)
-    filtered.sort((a, b) => b.score - a.score);
+    sortByScoreDesc(filtered, (s) => s.score);
 
     // Annotate items with matched keywords if requested
     const result = filtered.map((s) => {
@@ -540,7 +549,7 @@ const transforms: Record<string, TransformFn> = {
     let filtered = filterByMinScore(scored, minScore, (s) => s.finalScore, "time-decay");
 
     // Sort by final score descending (stable sort preserves order for ties)
-    filtered.sort((a, b) => b.finalScore - a.finalScore);
+    sortByScoreDesc(filtered, (s) => s.finalScore);
 
     // Annotate items with computed scores if requested
     const result = filtered.map((s) => {
