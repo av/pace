@@ -70,6 +70,15 @@ async function executeWithRunningGuard(
   }
 }
 
+/** Shared helper to compute refresh interval (default 15m, min 1m) in ms for both adapter and pipeline entries.
+ * Eliminates the exact duplicated 2-line calc in startScheduler loops.
+ */
+function computeRefreshInterval(refreshInterval?: number): { intervalMin: number; intervalMs: number } {
+  const intervalMin = Math.max(refreshInterval ?? 15, 1);
+  const intervalMs = intervalMin * 60 * 1000;
+  return { intervalMin, intervalMs };
+}
+
 export function startScheduler(
   config: AppConfig,
   adapters: Map<string, Adapter>,
@@ -103,8 +112,7 @@ export function startScheduler(
 
     const name = getAdapterName(adapterCfg);
     const panelIds = panelMap.sourceToPanels.get(name) ?? [name];
-    const intervalMin = Math.max(adapterCfg.refresh_interval ?? 15, 1);
-    const intervalMs = intervalMin * 60 * 1000;
+    const { intervalMin, intervalMs } = computeRefreshInterval(adapterCfg.refresh_interval);
 
     const entry: AdapterEntry = {
       name,
@@ -131,8 +139,7 @@ export function startScheduler(
         const key = panelMap.sourceToReadKey.get(source);
         if (key) readKeys.set(source, key);
       }
-      const intervalMin = Math.max(pipelineCfg.refresh_interval ?? 15, 1);
-      const intervalMs = intervalMin * 60 * 1000;
+      const { intervalMin, intervalMs } = computeRefreshInterval(pipelineCfg.refresh_interval);
 
       const entry: PipelineEntry = {
         config: pipelineCfg,
