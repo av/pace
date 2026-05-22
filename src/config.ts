@@ -277,13 +277,17 @@ function validateNonEmptyString(value: unknown, path: string): void {
   }
 }
 
-function validateStringList(value: unknown, path: string): void {
+function validateNonEmptyArray(value: unknown, path: string): asserts value is unknown[] {
   if (!Array.isArray(value)) {
     throw new Error(`config: ${path} must be a list`);
   }
   if (value.length === 0) {
     throw new Error(`config: ${path} must not be empty`);
   }
+}
+
+function validateStringList(value: unknown, path: string): void {
+  validateNonEmptyArray(value, path);
   value.forEach((entry, index) => {
     validateNonEmptyString(entry, `${path}[${index}]`);
   });
@@ -324,12 +328,7 @@ function validateOptionalUnitNumber(value: unknown, path: string): void {
 }
 
 function validateKeywordScoreEntries(value: unknown, path: string): void {
-  if (!Array.isArray(value)) {
-    throw new Error(`config: ${path} must be a list`);
-  }
-  if (value.length === 0) {
-    throw new Error(`config: ${path} must not be empty`);
-  }
+  validateNonEmptyArray(value, path);
 
   value.forEach((entry, index) => {
     const entryPath = `${path}[${index}]`;
@@ -351,9 +350,7 @@ function validateTransform(transform: Record<string, unknown>, path: string): vo
     case "exclude":
       validateStringList(transform.keywords, `${path}.keywords`);
       if (transform.fields !== undefined) {
-        if (!Array.isArray(transform.fields) || transform.fields.length === 0) {
-          throw new Error(`config: ${path}.fields must be a non-empty list`);
-        }
+        validateNonEmptyArray(transform.fields, `${path}.fields`);
         transform.fields.forEach((field, fieldIndex) =>
           validateEnum(field, ["title", "body", "source"], `${path}.fields[${fieldIndex}]`)
         );

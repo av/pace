@@ -283,4 +283,56 @@ layout:
     setConfig(yaml);
     expect(() => loadConfig()).toThrow(/config: unknown top-level key "foo"/);
   });
+
+  test("rejects filter with empty keywords list (validateStringList)", () => {
+    const yaml = `
+adapters:
+  - type: rss
+    transforms:
+      - type: filter
+        keywords: []
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(/config: adapters\[0\].transforms\[0\].keywords must not be empty/);
+  });
+
+  test("rejects keyword-score with empty keywords list (validateKeywordScoreEntries)", () => {
+    const yaml = `
+adapters:
+  - type: rss
+    transforms:
+      - type: keyword-score
+        keywords: []
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(/config: adapters\[0\].transforms\[0\].keywords must not be empty/);
+  });
+
+  test("rejects filter with empty fields list (validateNonEmptyArray via fields)", () => {
+    const yaml = `
+adapters:
+  - type: rss
+    transforms:
+      - type: filter
+        keywords: ["foo"]
+        fields: []
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(/config: adapters\[0\].transforms\[0\].fields must not be empty/);
+  });
 });
