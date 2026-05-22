@@ -782,6 +782,16 @@ const transforms: Record<string, TransformFn> = {
       clusters.splice(maxClusters);
     }
 
+    /**
+     * Returns the [key, count] entry with the highest count from a Map, or undefined if empty.
+     * Single source of truth eliminating the duplicated [...entries().sort((a,b)=>b[1]-a[1])[0] pattern
+     * used for domain and source majority voting inside generateLabel.
+     */
+    function getTopByCount<T>(counts: Map<T, number>): [T, number] | undefined {
+      if (counts.size === 0) return undefined;
+      return [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
+    }
+
     // --- Label generation ---
     function generateLabel(indices: number[]): string {
       // Find the most common domain in the cluster
@@ -799,10 +809,10 @@ const transforms: Record<string, TransformFn> = {
       }
 
       // If majority share a domain, use that
-      const topDomain = [...domainCounts.entries()].sort((a, b) => b[1] - a[1])[0];
-      if (topDomain && topDomain[1] >= indices.length * 0.6) {
+      const topDomainEntry = getTopByCount(domainCounts);
+      if (topDomainEntry && topDomainEntry[1] >= indices.length * 0.6) {
         // Pretty-print known domains
-        const domain = topDomain[0];
+        const domain = topDomainEntry[0];
         const domainLabels: Record<string, string> = {
           "github.com": "GitHub",
           "reddit.com": "Reddit",
@@ -841,9 +851,9 @@ const transforms: Record<string, TransformFn> = {
         const src = signals[idx].source;
         if (src) sourceCounts.set(src, (sourceCounts.get(src) ?? 0) + 1);
       }
-      const topSource = [...sourceCounts.entries()].sort((a, b) => b[1] - a[1])[0];
-      if (topSource && topSource[1] >= indices.length * 0.6) {
-        return topSource[0];
+      const topSourceEntry = getTopByCount(sourceCounts);
+      if (topSourceEntry && topSourceEntry[1] >= indices.length * 0.6) {
+        return topSourceEntry[0];
       }
 
       return `Cluster ${clusters.length + 1}`;

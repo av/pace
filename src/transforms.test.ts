@@ -317,3 +317,71 @@ describe("keyword-score and time-decay transforms (TDD guard tests iter28)", () 
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("[time-decay] filtered out"));
   });
 });
+
+describe("transforms - cluster (coverage + future DRY)", () => {
+  let logSpy: ReturnType<typeof spyOn>;
+
+  beforeEach(() => {
+    logSpy = spyOn(console, "log");
+  });
+
+  afterEach(() => {
+    logSpy.mockRestore();
+  });
+
+  test("cluster groups items sharing github domain and annotates with [GitHub] label", async () => {
+    const items = [
+      makeRow({ id: "g1", url: "https://github.com/foo/repo", title: "Release v1", source: "github-releases" }),
+      makeRow({ id: "g2", url: "https://github.com/bar/other", title: "Release v2", source: "github-releases" }),
+    ];
+    const pipeline = [{ type: "cluster", min_cluster_size: 2, max_clusters: 5, annotate: true } as any];
+    const result = await runPipeline(items, pipeline, ctx);
+    expect(result.length).toBe(2);
+    // clustered githubs , annotated with GitHub from domain majority (exercises topDomain + 0.6 threshold + domainLabels)
+    expect(result[0].body).toMatch(/^\[GitHub\] /);
+    expect(result[1].body).toMatch(/^\[GitHub\] /);
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('[cluster] strategy=auto, 1 cluster(s): "GitHub" (2 items), 0 unclustered'));
+  });
+
+  test("cluster uses shared keywords for label when no dominant domain", async () => {
+    const items = [
+      makeRow({ id: "k1", url: "https://github.com/a", title: "React Server Components deep dive", source: "blog" }),
+      makeRow({ id: "k2", url: "https://medium.com/b", title: "React performance tips and tricks", source: "blog" }),
+    ];
+    const pipeline = [{ type: "cluster", strategy: "keywords", min_cluster_size: 2, annotate: true } as any];
+    const result = await runPipeline(items, pipeline, ctx);
+    expect(result.length).toBe(2);
+    // diff domains (no 0.6 majority), keywords "react" wins -> label starts with [React...
+    expect(result[0].body).toMatch(/^\[React/);
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('[cluster] strategy=keywords'));
+  });
+
+  test("cluster forms groups on keyword overlap even with mixed domains and same source", async () => {
+    const items = [
+      makeRow({ id: "s1", url: "https://x.com/1", title: "News update first", source: "twitter" }),
+      makeRow({ id: "s2", url: "https://news.ycombinator.com/2", title: "News update second", source: "twitter" }),
+    ];
+    const pipeline = [{ type: "cluster", min_cluster_size: 2, annotate: false } as any];
+    const result = await runPipeline(items, pipeline, ctx);
+    expect(result.length).toBe(2);
+    // shared "news"/"update" -> high sim -> cluster forms (diff domains), label via keywords (source top calc still executed inside generateLabel)
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('(2 items)'));
+  });
+
+  test("cluster respects min_cluster_size and leaves small groups unclustered", async () => {
+    const items = [
+      makeRow({ id: "a1", url: "https://a.com/1", title: "Alpha only here", source: "a" }),
+      makeRow({ id: "a2", url: "https://a.com/2", title: "Alpha second", source: "a" }),
+      makeRow({ id: "b1", url: "https://b.com/1", title: "Beta singleton different", source: "b" }), // singleton < min=2 , no shared
+    ];
+    const pipeline = [{ type: "cluster", min_cluster_size: 2, max_clusters: 10, annotate: true } as any];
+    const result = await runPipeline(items, pipeline, ctx);
+    expect(result.length).toBe(3);
+    // one cluster a (size2 annotated), one unclustered b (exercises unclustered path + source/domain counts)
+    const clustered = result.filter(r => (r.body ?? "").startsWith("["));
+    expect(clustered.length).toBe(2);
+    const unclustered = result.find(r => r.id === "b1");
+    expect(unclustered).toBeTruthy();
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('1 cluster(s)'));
+  });
+});
