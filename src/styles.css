@@ -22,6 +22,14 @@
   --font-mono: ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
 }
 
+/* shared typography (DRY repeated mono font declarations across header/panel/item) */
+.header .updated,
+.panel-refreshed,
+.item-source,
+.item-time {
+  font-family: var(--font-mono);
+}
+
 html {
   font-family: var(--font-body);
   background: var(--bg-base);
@@ -66,7 +74,6 @@ a:hover {
 }
 
 .header .updated {
-  font-family: var(--font-mono);
   font-size: 0.75rem;
   color: var(--text-muted);
 }
@@ -140,7 +147,6 @@ a:hover {
 }
 
 .panel-refreshed {
-  font-family: var(--font-mono);
   font-size: 0.65rem;
   color: var(--text-muted);
 }
@@ -205,7 +211,6 @@ a:hover {
 }
 
 .item-source {
-  font-family: var(--font-mono);
   font-size: 0.7rem;
   background: var(--bg-card);
   padding: 0.1rem 0.4rem;
@@ -215,7 +220,6 @@ a:hover {
 }
 
 .item-time {
-  font-family: var(--font-mono);
   font-size: 0.7rem;
   color: var(--text-muted);
 }
