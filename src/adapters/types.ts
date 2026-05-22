@@ -39,6 +39,14 @@ export function isValidPort(n: number): boolean {
   return !isNaN(n) && n >= 1 && n <= 65535;
 }
 
+/**
+ * Returns the effective name for an adapter config entry, preferring the explicit `name` (for display/alias) over the `type`.
+ * Single source of truth for the `name ?? type` fallback, eliminating duplication across config validation, scheduler setup, and index bootstrap/refresh.
+ */
+export function getAdapterName(cfg: { name?: string; type: string }): string {
+  return cfg.name ?? cfg.type;
+}
+
 export interface Adapter {
   name: string;
   /**

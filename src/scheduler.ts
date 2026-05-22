@@ -1,4 +1,4 @@
-import { type Adapter, errorMessage } from "./adapters/types";
+import { type Adapter, errorMessage, getAdapterName } from "./adapters/types";
 import type { Model, Api } from "@mariozechner/pi-ai";
 import { saveItems, getAllItemsByPanel, replacePanelItems, getDb } from "./db";
 import type { AppConfig, IngestAdapterConfig, PipelineConfig } from "./config";
@@ -75,7 +75,7 @@ export function startScheduler(
     const adapter = adapters.get(adapterCfg.type);
     if (!adapter) continue;
 
-    const name = adapterCfg.name ?? adapterCfg.type;
+    const name = getAdapterName(adapterCfg);
     const panelIds = panelMap.sourceToPanels.get(name) ?? [name];
     const intervalMin = Math.max(adapterCfg.refresh_interval ?? 15, 1);
     const intervalMs = intervalMin * 60 * 1000;

@@ -7,15 +7,7 @@ import { discoverAdapters } from "./adapters/index";
 import { renderDashboard, type PanelData } from "./layout";
 import { createModel } from "./llm";
 import { startScheduler, stopScheduler, refreshSources, type SourcePanelMap } from "./scheduler";
-import { parsePort } from "./adapters/types";
-
-/**
- * Returns the effective name for an adapter config entry, preferring the explicit `name` (for display/alias) over the `type`.
- * Single source of truth for the `name ?? type` fallback used in bootstrap (panelMap fallback) and refresh paths.
- */
-function getAdapterName(cfg: { name?: string; type: string }): string {
-  return cfg.name ?? cfg.type;
-}
+import { parsePort, getAdapterName } from "./adapters/types";
 
 const app = new Hono();
 

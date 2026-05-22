@@ -1,5 +1,5 @@
 import { test, expect, describe } from "bun:test";
-import { errorMessage, parsePort, isValidPort } from "./adapters/types";
+import { errorMessage, parsePort, isValidPort, getAdapterName } from "./adapters/types";
 
 describe("errorMessage (shared DRY helper for runtime/CLI)", () => {
   test("returns .message for Error and Error subclasses", () => {
@@ -76,5 +76,22 @@ describe("parsePort / isValidPort (shared port helpers DRYed across cli+index)",
   test("parsePort handles string from env/CLI and number-like edge cases", () => {
     expect(parsePort("1")).toBe(1);
     expect(parsePort("65535", 3000)).toBe(65535);
+  });
+});
+
+describe("getAdapterName (shared adapter config name fallback DRYed from index/scheduler/config)", () => {
+  test("returns explicit name when present (prefers alias over type)", () => {
+    expect(getAdapterName({ name: "myhn", type: "hackernews" })).toBe("myhn");
+    expect(getAdapterName({ name: "devto-favs", type: "devto" })).toBe("devto-favs");
+  });
+
+  test("falls back to type when name omitted or undefined (?? semantics)", () => {
+    expect(getAdapterName({ type: "rss" })).toBe("rss");
+    expect(getAdapterName({ name: undefined, type: "podcast" })).toBe("podcast");
+  });
+
+  test("matches the inline `name ?? type` patterns previously duplicated in config/scheduler/index", () => {
+    expect(getAdapterName({ name: "alias", type: "type" })).toBe("alias");
+    expect(getAdapterName({ type: "type" })).toBe("type");
   });
 });

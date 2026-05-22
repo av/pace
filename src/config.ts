@@ -2,6 +2,7 @@ import { readFileSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import yaml from "js-yaml";
 import type { AdapterConfig } from "./adapters/types";
+import { getAdapterName } from "./adapters/types";
 
 // --- Layout Tree ---
 
@@ -595,7 +596,7 @@ export function loadConfig(): AppConfig {
 
   const names = new Set<string>();
   for (const a of adapters) {
-    const n = a.name ?? a.type;
+    const n = getAdapterName(a);
     if (names.has(n)) throw new Error(`config: duplicate adapter name "${n}"`);
     names.add(n);
   }
