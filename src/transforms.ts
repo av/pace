@@ -792,6 +792,15 @@ const transforms: Record<string, TransformFn> = {
       return [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
     }
 
+    /**
+     * Increment the count for a key in the given map (initializes to 1 if absent).
+     * Single source of truth eliminating the repeated `(map.get(key) ?? 0) + 1` boilerplate
+     * when tallying domain, keyword and source signals inside generateLabel.
+     */
+    function increment(counts: Map<string, number>, key: string): void {
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+
     // --- Label generation ---
     function generateLabel(indices: number[]): string {
       // Find the most common domain in the cluster
@@ -801,10 +810,10 @@ const transforms: Record<string, TransformFn> = {
       for (const idx of indices) {
         const sig = signals[idx];
         if (sig.domain) {
-          domainCounts.set(sig.domain, (domainCounts.get(sig.domain) ?? 0) + 1);
+          increment(domainCounts, sig.domain);
         }
         for (const kw of sig.keywords) {
-          keywordCounts.set(kw, (keywordCounts.get(kw) ?? 0) + 1);
+          increment(keywordCounts, kw);
         }
       }
 
@@ -849,7 +858,7 @@ const transforms: Record<string, TransformFn> = {
       const sourceCounts = new Map<string, number>();
       for (const idx of indices) {
         const src = signals[idx].source;
-        if (src) sourceCounts.set(src, (sourceCounts.get(src) ?? 0) + 1);
+        if (src) increment(sourceCounts, src);
       }
       const topSourceEntry = getTopByCount(sourceCounts);
       if (topSourceEntry && topSourceEntry[1] >= indices.length * 0.6) {
