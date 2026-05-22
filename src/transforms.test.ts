@@ -234,3 +234,86 @@ describe("extractEngagementScore (pure helper, exported + DRYed for iter26)", ()
     expect(extractEngagementScore("2 boosts")).toBe(2);
   });
 });
+
+describe("keyword-score and time-decay transforms (TDD guard tests iter28)", () => {
+  let logSpy: ReturnType<typeof spyOn>;
+  let warnSpy: ReturnType<typeof spyOn>;
+
+  beforeEach(() => {
+    logSpy = spyOn(console, "log");
+    warnSpy = spyOn(console, "warn");
+  });
+
+  afterEach(() => {
+    logSpy.mockRestore();
+    warnSpy.mockRestore();
+  });
+
+  test("keyword-score matches literal terms with counts and weights, applies min_score filter, annotates body", async () => {
+    const items = [
+      makeRow({ id: "a", title: "Alpha release", body: "details" }),
+      makeRow({ id: "b", title: "Beta", body: "beta beta update" }),
+      makeRow({ id: "c", title: "Gamma", body: "" }),
+    ];
+    const pipeline = [{
+      type: "keyword-score",
+      keywords: [{ term: "alpha", weight: 2 }, { term: "beta", weight: 1 }],
+      min_score: 2,
+      annotate: true,
+    } as any];
+    const result = await runPipeline(items, pipeline, ctx);
+    expect(result.map(r => r.id)).toEqual(["b", "a"]); // sorted score desc: b=3, a=2
+    expect(result[0].body).toContain("[keyword-score: 3] beta(x3+1)");
+    expect(result[1].body).toContain("[keyword-score: 2] alpha(+2)");
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("[keyword-score] scored 3 items, 2 passed"));
+  });
+
+  test("keyword-score supports regex entries (global count) and falls back on bad regex", async () => {
+    const items = [ makeRow({ id: "r", title: "v1.2.3 and v1.2.3", body: "" }) ];
+    const pipeline = [{ type: "keyword-score", keywords: [{ term: "v\\d+\\.\\d+", regex: true, weight: 1 }], annotate: true } as any];
+    const result = await runPipeline(items, pipeline, ctx);
+    expect(result.length).toBe(1);
+    expect(result[0].body).toContain("[keyword-score: 2]"); // annotate adds it; term has regex pattern, 2 matches from title
+  });
+
+  test("keyword-score with no keywords returns all items (no scoring)", async () => {
+    const items = [makeRow({ id: "x" }), makeRow({ id: "y" })];
+    const pipeline = [{ type: "keyword-score", keywords: [] } as any];
+    const result = await runPipeline(items, pipeline, ctx);
+    expect(result.length).toBe(2);
+  });
+
+  test("time-decay combines engagement (via extract) + recency, newer wins on recency, supports exponential/linear", async () => {
+    const now = Date.now();
+    const items = [
+      makeRow({ id: "old-low", body: "5 points", timestamp: new Date(now - 50 * 3600 * 1000).toISOString() }),
+      makeRow({ id: "new-high-rec", body: "1 point", timestamp: new Date(now - 1 * 3600 * 1000).toISOString() }),
+    ];
+    const pipeline = [{ type: "time-decay", half_life: "12h", engagement_weight: 0.5, recency_weight: 0.5, decay: "exponential" } as any];
+    const result = await runPipeline(items, pipeline, ctx);
+    expect(result.map(r => r.id)).toEqual(["new-high-rec", "old-low"]);
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("[time-decay] ranked 2 items"));
+  });
+
+  test("time-decay handles invalid half_life (warns, defaults), linear decay, min_score filter and annotate", async () => {
+    const now = Date.now();
+    const items = [
+      makeRow({ id: "recent", body: "10 points", timestamp: new Date(now - 1 * 3600 * 1000).toISOString() }),
+      makeRow({ id: "old", body: "1 point", timestamp: new Date(now - 100 * 3600 * 1000).toISOString() }),
+    ];
+    const pipeline = [{
+      type: "time-decay",
+      half_life: "bad-unit",
+      engagement_weight: 0.7,
+      recency_weight: 0.3,
+      decay: "linear",
+      min_score: 0.5,
+      annotate: true,
+    } as any];
+    const result = await runPipeline(items, pipeline, ctx);
+    expect(result.length).toBe(1); // old filtered by min_score (low recency + low eng -> final <0.5)
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("[time-decay] invalid half_life"));
+    expect(result[0].body).toContain("[hot-score:");
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("[time-decay] filtered out"));
+  });
+});
