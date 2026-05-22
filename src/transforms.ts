@@ -912,13 +912,9 @@ const transforms: Record<string, TransformFn> = {
       return `Cluster ${clusters.length + 1}`;
     }
 
-    // Generate labels for each cluster
+    // Generate labels + sort within clusters by engagement score (combined loop; single source of truth eliminating adjacent for-of dups over clusters post-collection)
     for (const cluster of clusters) {
       cluster.label = generateLabel(cluster.indices);
-    }
-
-    // --- Sort within clusters by engagement score ---
-    for (const cluster of clusters) {
       cluster.indices.sort((a, b) => {
         const scoreA = extractEngagementScore(items[a].body);
         const scoreB = extractEngagementScore(items[b].body);
