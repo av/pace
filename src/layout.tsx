@@ -35,6 +35,12 @@ function defaultFlex(f?: number): number {
   return f ?? 1;
 }
 
+/** Shared helper to avoid repeating the `flex:${defaultFlex(f)};` pattern (with optional extra declarations) in panel/container styles. */
+function flexStyle(f?: number, extra = ""): string {
+  const base = `flex:${defaultFlex(f)};`;
+  return extra ? `${base} ${extra}` : base;
+}
+
 const ContentItemCard: FC<{ item: ContentItemRow }> = ({ item }) => {
   const href = safeUrl(item.url);
   return (
@@ -84,7 +90,7 @@ const LayoutNode: FC<{ node: LayoutNodeConfig; panelData: Map<string, PanelData>
     const data = panelData.get(node.panel);
     const pid = resolvePanelId(node);
     return (
-      <div class="flex-panel" style={`flex:${defaultFlex(node.flex)}; min-width:0; min-height:0;`}>
+      <div class="flex-panel" style={flexStyle(node.flex, "min-width:0; min-height:0;")}>
         <Panel title={node.panel} panelId={pid} items={data?.items ?? []} lastRefreshedAt={data?.lastRefreshedAt} />
       </div>
     );
@@ -94,7 +100,7 @@ const LayoutNode: FC<{ node: LayoutNodeConfig; panelData: Map<string, PanelData>
   return (
     <div
       class="flex-container"
-      style={`display:flex; flex-direction:${container.direction}; gap:${container.gap ?? "1rem"}; flex:${defaultFlex(container.flex)};`}
+      style={`display:flex; flex-direction:${container.direction}; gap:${container.gap ?? "1rem"}; ${flexStyle(container.flex)}`}
     >
       {container.children.map((child) => (
         <LayoutNode node={child} panelData={panelData} />
