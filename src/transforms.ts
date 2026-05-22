@@ -157,6 +157,20 @@ function matchesAnyKeyword(
   );
 }
 
+/**
+ * Shared helper to prepare the lowered keywords + default fields and return
+ * a predicate for use in filter/exclude. Eliminates the duplicated prep logic
+ * (destructure was type-specific so kept at call sites; prep+map now single source).
+ */
+function makeKeywordPredicate(
+  keywords: string[],
+  fields?: readonly ("title" | "body" | "source")[]
+): (item: ContentItemRow) => boolean {
+  const checkFields = fields ?? ["title", "body"];
+  const lowerKeywords = keywords.map((k) => k.toLowerCase());
+  return (item) => matchesAnyKeyword(item, lowerKeywords, checkFields);
+}
+
 type TransformFn = (
   items: ContentItemRow[],
   config: TransformConfig,
@@ -175,9 +189,8 @@ const transforms: Record<string, TransformFn> = {
       keywords: string[];
       fields?: ("title" | "body" | "source")[];
     };
-    const checkFields = fields ?? ["title", "body"];
-    const lowerKeywords = keywords.map((k) => k.toLowerCase());
-    return items.filter((item) => matchesAnyKeyword(item, lowerKeywords, checkFields));
+    const predicate = makeKeywordPredicate(keywords, fields);
+    return items.filter(predicate);
   },
 
   exclude: async (items, config) => {
@@ -186,9 +199,8 @@ const transforms: Record<string, TransformFn> = {
       keywords: string[];
       fields?: ("title" | "body" | "source")[];
     };
-    const checkFields = fields ?? ["title", "body"];
-    const lowerKeywords = keywords.map((k) => k.toLowerCase());
-    return items.filter((item) => !matchesAnyKeyword(item, lowerKeywords, checkFields));
+    const predicate = makeKeywordPredicate(keywords, fields);
+    return items.filter((item) => !predicate(item));
   },
 
   sort: async (items, config) => {
