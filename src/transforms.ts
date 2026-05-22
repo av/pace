@@ -819,18 +819,34 @@ const transforms: Record<string, TransformFn> = {
       return undefined;
     }
 
+    /**
+     * Tally occurrences of a signal key (domain or source) across the given indices into the counts map
+     * using the shared increment helper. Single source of truth eliminating the duplicated
+     * "for (const idx of indices) { const val = getter(signals[idx]); if (val) increment(counts, val); }"
+     * boilerplate used for domain and source in generateLabel (keywords tally stays specialized for multi-value).
+     */
+    function tallyFromSignals(
+      counts: Map<string, number>,
+      indices: number[],
+      getKey: (sig: ItemSignals) => string | undefined
+    ): void {
+      for (const idx of indices) {
+        const key = getKey(signals[idx]);
+        if (key) {
+          increment(counts, key);
+        }
+      }
+    }
+
     // --- Label generation ---
     function generateLabel(indices: number[]): string {
       // Find the most common domain in the cluster
       const domainCounts = new Map<string, number>();
       const keywordCounts = new Map<string, number>();
 
+      tallyFromSignals(domainCounts, indices, (sig) => sig.domain);
       for (const idx of indices) {
-        const sig = signals[idx];
-        if (sig.domain) {
-          increment(domainCounts, sig.domain);
-        }
-        for (const kw of sig.keywords) {
+        for (const kw of signals[idx].keywords) {
           increment(keywordCounts, kw);
         }
       }
@@ -872,10 +888,7 @@ const transforms: Record<string, TransformFn> = {
 
       // Fallback: use source if consistent
       const sourceCounts = new Map<string, number>();
-      for (const idx of indices) {
-        const src = signals[idx].source;
-        if (src) increment(sourceCounts, src);
-      }
+      tallyFromSignals(sourceCounts, indices, (sig) => sig.source);
       const sourceLabel = getMajorityLabel(sourceCounts, indices.length);
       if (sourceLabel) return sourceLabel;
 
