@@ -114,6 +114,28 @@ function parseLlmJsonResponse<T>(text: string | null): T | null {
 }
 
 /**
+ * Single source of truth for the repeated "format item list + build Context with user message + safeComplete + parseLlmJsonResponse"
+ * boilerplate duplicated in mergeItems / filterItemsByLlm / lensItems (the 3 batch LLM JSON item processors).
+ * Centralizes the query pattern (summarizeItem uses a different per-item prompt, not included).
+ */
+async function queryLlmForJson<T>(
+  model: Model<Api>,
+  systemPrompt: string,
+  items: ContentItem[],
+  maxBodyLen = 0
+): Promise<T | null> {
+  const itemList = items.map((item) => formatContentItemForLlm(item, maxBodyLen)).join("\n");
+
+  const context: Context = {
+    systemPrompt,
+    messages: [{ role: "user", content: itemList, timestamp: Date.now() }],
+  };
+
+  const text = await safeComplete(model, context);
+  return parseLlmJsonResponse<T>(text);
+}
+
+/**
  * Summarize a single content item. Returns a 2-3 sentence summary, or null on error.
  */
 export async function summarizeItem(
@@ -156,15 +178,12 @@ Given the content items below, decide which ones to merge together. Return a JSO
 
 Every item ID must appear exactly once. Return ONLY the JSON array.`;
 
-  const itemList = items.map((item) => formatContentItemForLlm(item, 300)).join("\n");
-
-  const context: Context = {
+  const groups = await queryLlmForJson<{ merged_ids: string[]; title: string; summary: string | null }[]>(
+    model,
     systemPrompt,
-    messages: [{ role: "user", content: itemList, timestamp: Date.now() }],
-  };
-
-  const text = await safeComplete(model, context);
-  const groups = parseLlmJsonResponse<{ merged_ids: string[]; title: string; summary: string | null }[]>(text);
+    items,
+    300
+  );
   if (groups == null) return items;
 
   const itemMap = new Map<string, ContentItem>();
@@ -203,15 +222,7 @@ export async function filterItemsByLlm(
 
   const systemPrompt = `Given the criteria: "${criteria}", decide which items to keep. Return a JSON array of item IDs that match. Return ONLY the JSON array of strings.`;
 
-  const itemList = items.map((item) => formatContentItemForLlm(item, 200)).join("\n");
-
-  const context: Context = {
-    systemPrompt,
-    messages: [{ role: "user", content: itemList, timestamp: Date.now() }],
-  };
-
-  const text = await safeComplete(model, context);
-  const keepIds = parseLlmJsonResponse<string[]>(text);
+  const keepIds = await queryLlmForJson<string[]>(model, systemPrompt, items, 200);
   if (keepIds == null) return items;
 
   const keepSet = new Set(keepIds);
@@ -233,24 +244,8 @@ export async function lensItems(
   const interestList = interests.join(", ");
   const systemPrompt = `Score each item's relevance to these interests: ${interestList}. Return a JSON array of {id, score} objects where score is 0-10. Return ONLY the JSON array, no other text.`;
 
-  const itemList = items.map((item) => formatContentItemForLlm(item)).join("\n");
-
-  const context: Context = {
-    systemPrompt,
-    messages: [
-      { role: "user", content: itemList, timestamp: Date.now() },
-    ],
-  };
-
-  const text = await safeComplete(model, context);
-  if (text == null) {
-    // Graceful degradation — return items unchanged
-    return items;
-  }
-
-  const scores = parseLlmJsonResponse<{ id: string; score: number }[]>(text);
+  const scores = await queryLlmForJson<{ id: string; score: number }[]>(model, systemPrompt, items);
   if (scores == null) {
-    // Graceful degradation — return items unchanged (parse failure)
     return items;
   }
 
