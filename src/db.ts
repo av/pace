@@ -116,27 +116,36 @@ function getDedupInClause(panelId?: string): { clause: string; params: any[] } {
   };
 }
 
-export function getRecentItems(limit: number = 50): ContentItemRow[] {
+/**
+ * Single source of truth for dedup-aware item selection used by getRecentItems/getItemsByPanel/getAllItemsByPanel.
+ * Centralizes the repeated SELECT * + optional panel_id outer filter + dedup subquery clause + ORDER + optional LIMIT construction.
+ * Delegates to getDedupInClause; preserves exact SQL, parameter order (outer panel before dedup's subselect param), semantics and outputs.
+ */
+function getDedupedItems(panelId?: string, limit?: number): ContentItemRow[] {
   const db = getDb();
-  const dedup = getDedupInClause();
-  return db.prepare(`
-    SELECT * FROM content_items
-    WHERE ${dedup.clause}
-    ORDER BY timestamp DESC
-    LIMIT ?
-  `).all(...dedup.params, limit) as ContentItemRow[];
+  const dedup = getDedupInClause(panelId);
+  const whereParts: string[] = [];
+  const params: any[] = [];
+  if (panelId != null) {
+    whereParts.push("panel_id = ?");
+    params.push(panelId);
+  }
+  whereParts.push(dedup.clause);
+  params.push(...dedup.params);
+  let sql = `SELECT * FROM content_items WHERE ${whereParts.join(" AND ")} ORDER BY timestamp DESC`;
+  if (limit != null) {
+    sql += ` LIMIT ?`;
+    params.push(limit);
+  }
+  return db.prepare(sql).all(...params) as ContentItemRow[];
+}
+
+export function getRecentItems(limit: number = 50): ContentItemRow[] {
+  return getDedupedItems(undefined, limit);
 }
 
 export function getItemsByPanel(panelId: string, limit: number = 50): ContentItemRow[] {
-  const db = getDb();
-  const dedup = getDedupInClause(panelId);
-  return db.prepare(`
-    SELECT * FROM content_items
-    WHERE panel_id = ?
-      AND ${dedup.clause}
-    ORDER BY timestamp DESC
-    LIMIT ?
-  `).all(panelId, ...dedup.params, limit) as ContentItemRow[];
+  return getDedupedItems(panelId, limit);
 }
 
 /** Internal helper centralizing the duplicated MAX(fetched_at) query (with optional panel filter). */
@@ -159,14 +168,7 @@ export function getLastFetchedAtAll(): string | null {
 }
 
 export function getAllItemsByPanel(panelId: string): ContentItemRow[] {
-  const db = getDb();
-  const dedup = getDedupInClause(panelId);
-  return db.prepare(`
-    SELECT * FROM content_items
-    WHERE panel_id = ?
-      AND ${dedup.clause}
-    ORDER BY timestamp DESC
-  `).all(panelId, ...dedup.params) as ContentItemRow[];
+  return getDedupedItems(panelId);
 }
 
 export function replacePanelItems(panelId: string, items: ContentItemRow[]): void {
