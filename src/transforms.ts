@@ -141,6 +141,28 @@ export function extractEngagementScore(body: string | null): number {
 }
 
 /**
+ * Shared post-processing helper for min_score filtering + logging used by
+ * the keyword-score and time-decay scoring transforms (DRYed from duplicated
+ * blocks that differed only in score field and log prefix).
+ */
+function filterByMinScore<T extends { score?: number; finalScore?: number }>(
+  scored: T[],
+  minScore: number | undefined,
+  getScore: (s: T) => number,
+  label: string
+): T[] {
+  if (minScore === undefined) return scored;
+  const before = scored.length;
+  const filtered = scored.filter((s) => getScore(s) >= minScore);
+  if (filtered.length < before) {
+    console.log(
+      `[${label}] filtered out ${before - filtered.length} item(s) below min_score=${minScore}`
+    );
+  }
+  return filtered;
+}
+
+/**
  * Shared helper to test whether an item matches any of the (lowercased) keywords
  * in any of the specified fields. Eliminates duplication between filter/exclude.
  */
@@ -402,16 +424,7 @@ const transforms: Record<string, TransformFn> = {
     });
 
     // Filter by minimum score if specified
-    let filtered = scored;
-    if (minScore !== undefined) {
-      const before = filtered.length;
-      filtered = filtered.filter((s) => s.score >= minScore);
-      if (filtered.length < before) {
-        console.log(
-          `[keyword-score] filtered out ${before - filtered.length} item(s) below min_score=${minScore}`
-        );
-      }
-    }
+    let filtered = filterByMinScore(scored, minScore, (s) => s.score, "keyword-score");
 
     // Sort by score descending (stable: items with same score keep original order)
     filtered.sort((a, b) => b.score - a.score);
@@ -499,16 +512,7 @@ const transforms: Record<string, TransformFn> = {
     });
 
     // Filter by minimum score if specified
-    let filtered = scored;
-    if (minScore !== undefined) {
-      const before = filtered.length;
-      filtered = filtered.filter((s) => s.finalScore >= minScore);
-      if (filtered.length < before) {
-        console.log(
-          `[time-decay] filtered out ${before - filtered.length} item(s) below min_score=${minScore}`
-        );
-      }
-    }
+    let filtered = filterByMinScore(scored, minScore, (s) => s.finalScore, "time-decay");
 
     // Sort by final score descending (stable sort preserves order for ties)
     filtered.sort((a, b) => b.finalScore - a.finalScore);
