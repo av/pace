@@ -40,13 +40,17 @@ export function contentItemToRow(item: ContentItem, base?: ContentItemRow): Cont
   };
 }
 
+function pickEarliest(group: ContentItemRow[]): ContentItemRow {
+  return group.reduce((a, b) => (a.timestamp <= b.timestamp ? a : b));
+}
+
 function pickWinner(
   group: ContentItemRow[],
   keep: "highest-score" | "earliest" | "latest"
 ): ContentItemRow {
   if (group.length === 1) return group[0];
   if (keep === "earliest") {
-    return group.reduce((a, b) => (a.timestamp <= b.timestamp ? a : b));
+    return pickEarliest(group);
   }
   if (keep === "latest") {
     return group.reduce((a, b) => (a.timestamp >= b.timestamp ? a : b));
@@ -63,7 +67,7 @@ function pickWinner(
   }
   // If all scores are 0 (no score info), fall back to earliest
   if (bestScore === 0) {
-    return group.reduce((a, b) => (a.timestamp <= b.timestamp ? a : b));
+    return pickEarliest(group);
   }
   return best;
 }

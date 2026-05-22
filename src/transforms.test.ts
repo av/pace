@@ -165,4 +165,26 @@ describe("transforms - dedupe strategies (logging DRY quality)", () => {
     expect(result).toHaveLength(1);
     // note: the warn is console.warn, not caught by logSpy here
   });
+
+  test("dedupe:domain-normalized with keep:earliest picks the earliest timestamp winner (exercises pickWinner)", async () => {
+    const items = [
+      makeRow({ id: "early", url: "https://ex.com/a", timestamp: "2024-01-01T00:00:00Z" }),
+      makeRow({ id: "late", url: "https://ex.com/a", timestamp: "2024-01-02T00:00:00Z" }),
+      makeRow({ id: "b", url: "https://ex.com/b", timestamp: "2024-01-03T00:00:00Z" }),
+    ];
+    const pipeline = [{ type: "dedupe", strategy: "domain-normalized", keep: "earliest" } as any];
+    const result = await runPipeline(items, pipeline, ctx);
+    expect(result.map((r) => r.id)).toEqual(["early", "b"]);
+  });
+
+  test("dedupe:domain-normalized with keep:highest-score picks the item with highest extractScore (exercises pickWinner)", async () => {
+    const items = [
+      makeRow({ id: "low", url: "https://ex.com/a", body: "no score here", timestamp: "2024-01-01T00:00:00Z" }),
+      makeRow({ id: "high", url: "https://ex.com/a", body: "upvotes: 42 score: 100", timestamp: "2024-01-02T00:00:00Z" }),
+      makeRow({ id: "b", url: "https://ex.com/b" }),
+    ];
+    const pipeline = [{ type: "dedupe", strategy: "domain-normalized", keep: "highest-score" } as any];
+    const result = await runPipeline(items, pipeline, ctx);
+    expect(result.map((r) => r.id)).toEqual(["high", "b"]);
+  });
 });
