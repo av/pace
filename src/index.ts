@@ -41,8 +41,12 @@ async function start() {
   }));
   const sourceToPanels = new Map<string, string[]>();
   const sourceToReadKey = new Map<string, string>();
+  const panelIdToSources = new Map<string, ReturnType<typeof normalizeSource>>();
+  const panelNameToId = new Map<string, string>();
 
-  for (const { pid, sources } of enrichedPanels) {
+  for (const { panel, pid, sources } of enrichedPanels) {
+    panelIdToSources.set(pid, sources);
+    panelNameToId.set(panel.panel, pid);
     for (const source of sources) {
       if (isAllAdapter(source.adapter)) continue;
       const list = sourceToPanels.get(source.adapter) ?? [];
@@ -60,13 +64,6 @@ async function start() {
       sourceToPanels.set(name, [name]);
       sourceToReadKey.set(name, name);
     }
-  }
-
-  const panelIdToSources = new Map<string, ReturnType<typeof normalizeSource>>();
-  const panelNameToId = new Map<string, string>();
-  for (const { panel, pid, sources } of enrichedPanels) {
-    panelIdToSources.set(pid, sources);
-    panelNameToId.set(panel.panel, pid);
   }
 
   const panelMap: SourcePanelMap = { sourceToPanels, sourceToReadKey };
