@@ -34,21 +34,26 @@ async function start() {
   const llmModel = config.llm ? createModel(config.llm) : null;
 
   const allPanelConfigs = collectPanels(config.layout);
-  const enrichedPanels = allPanelConfigs.map((panel) => ({
-    panel,
-    pid: resolvePanelId(panel),
-    sources: normalizeSource(panel.source),
-  }));
+  const enrichedPanels = allPanelConfigs.map((panel) => {
+    const sources = normalizeSource(panel.source);
+    const isAll = sources.some((s) => isAllAdapter(s.adapter));
+    return {
+      panel,
+      pid: resolvePanelId(panel),
+      sources,
+      isAll,
+    };
+  });
   const sourceToPanels = new Map<string, string[]>();
   const sourceToReadKey = new Map<string, string>();
   const panelIdToSources = new Map<string, ReturnType<typeof normalizeSource>>();
   const panelNameToId = new Map<string, string>();
 
-  for (const { panel, pid, sources } of enrichedPanels) {
+  for (const { panel, pid, sources, isAll } of enrichedPanels) {
     panelIdToSources.set(pid, sources);
     panelNameToId.set(panel.panel, pid);
+    if (isAll) continue;
     for (const source of sources) {
-      if (isAllAdapter(source.adapter)) continue;
       const list = sourceToPanels.get(source.adapter) ?? [];
       list.push(pid);
       sourceToPanels.set(source.adapter, list);
@@ -80,11 +85,10 @@ async function start() {
     const now = new Date().toISOString().replace("T", " ").slice(0, 19);
     const panelData = new Map<string, PanelData>();
 
-    for (const { panel, pid, sources } of enrichedPanels) {
+    for (const { panel, pid, sources, isAll } of enrichedPanels) {
       const limit = panel.limit ?? 50;
       let items: ContentItemRow[];
 
-      const isAll = sources.some((s) => isAllAdapter(s.adapter));
       if (isAll) {
         items = getRecentItems(limit);
       } else {
