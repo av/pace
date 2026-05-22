@@ -928,11 +928,7 @@ const transforms: Record<string, TransformFn> = {
     // Generate labels + sort within clusters by engagement score (combined loop; single source of truth eliminating adjacent for-of dups over clusters post-collection)
     for (const cluster of clusters) {
       cluster.label = generateLabel(cluster.indices);
-      cluster.indices.sort((a, b) => {
-        const scoreA = extractEngagementScore(items[a].body);
-        const scoreB = extractEngagementScore(items[b].body);
-        return scoreB - scoreA; // highest first
-      });
+      sortByScoreDesc(cluster.indices, (idx) => extractEngagementScore(items[idx].body));
     }
 
     // --- Flatten: clusters first (in order of size), then unclustered ---
