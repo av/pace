@@ -26,6 +26,7 @@ app.use("*", async (c, next) => {
 
 async function start() {
   const config = loadConfig();
+  const configuredAdapterNames = config.adapters.map(getAdapterName);
 
   mkdirSync(join(process.cwd(), "data"), { recursive: true });
   initDb();
@@ -63,8 +64,7 @@ async function start() {
     }
   }
 
-  for (const adapterCfg of config.adapters) {
-    const name = getAdapterName(adapterCfg);
+  for (const name of configuredAdapterNames) {
     if (!sourceToPanels.has(name)) {
       sourceToPanels.set(name, [name]);
       sourceToReadKey.set(name, name);
@@ -111,7 +111,7 @@ async function start() {
     if (!sources) return c.text(`Unknown panel: ${param}`, 404);
 
     const sourceNames = Array.from(new Set(sources.flatMap((s) =>
-      isAllAdapter(s.adapter) ? config.adapters.map(getAdapterName) : [s.adapter]
+      isAllAdapter(s.adapter) ? configuredAdapterNames : [s.adapter]
     )));
 
     if (sourceNames.length > 0) {
