@@ -95,7 +95,6 @@ for (const p of allPanelConfigs) {
   panelIdToSources.set(pid, normalizeSource(p.source));
   panelNameToId.set(p.panel, pid);
 }
-const configuredAdapterNames = config.adapters.map(getAdapterName);
 
 app.post("/refresh/:panel", async (c) => {
   const param = c.req.param("panel");
@@ -104,7 +103,7 @@ app.post("/refresh/:panel", async (c) => {
   if (!sources) return c.text(`Unknown panel: ${param}`, 404);
 
   const sourceNames = Array.from(new Set(sources.flatMap((s) =>
-    s.adapter === "all" ? configuredAdapterNames : [s.adapter]
+    s.adapter === "all" ? config.adapters.map(getAdapterName) : [s.adapter]
   )));
 
   if (sourceNames.length > 0) {
