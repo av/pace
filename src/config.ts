@@ -449,10 +449,10 @@ function validateLlmConfig(llm: unknown): asserts llm is LlmConfig | undefined {
     throw new Error("config: llm must be an object");
   }
 
-  validateOptionalNonEmptyString(llm.provider, "llm.provider");
-  validateOptionalNonEmptyString(llm.model, "llm.model");
-  validateOptionalNonEmptyString(llm.api_key, "llm.api_key");
-  validateOptionalNonEmptyString(llm.base_url, "llm.base_url");
+  const LLM_CONFIG_FIELDS = ["provider", "model", "api_key", "base_url"] as const;
+  LLM_CONFIG_FIELDS.forEach((key) => {
+    validateOptionalNonEmptyString(llm[key], `llm.${key}`);
+  });
   validateOptionalStringList(llm.interests, "llm.interests");
 
   const configuredFields = ["provider", "model", "api_key"].filter((key) => llm[key] !== undefined);
