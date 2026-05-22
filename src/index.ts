@@ -131,8 +131,7 @@ async function start() {
     closeDb();
     process.exit(0);
   };
-  process.on("SIGTERM", shutdown);
-  process.on("SIGINT", shutdown);
+  ["SIGTERM", "SIGINT"].forEach((sig) => process.on(sig, shutdown));
 
   Bun.serve({ port, fetch: app.fetch });
   console.log(`pace listening on http://localhost:${port}`);
