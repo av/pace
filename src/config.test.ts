@@ -436,4 +436,30 @@ layout:
     setConfig(yaml);
     expect(() => loadConfig()).toThrow(/config: pipelines\[0\].sources must not be empty/);
   });
+
+  test("rejects top-level adapters that is not a list", () => {
+    const yaml = `
+adapters: "not-a-list"
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(/config: adapters must be a list/);
+  });
+
+  test("rejects top-level pipelines that is not a list", () => {
+    const yaml = `
+pipelines: 123
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(/config: pipelines must be a list/);
+  });
 });

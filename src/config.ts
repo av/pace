@@ -299,6 +299,13 @@ function validateNonEmptyArray(value: unknown, path: string): asserts value is u
   }
 }
 
+/** Single source of truth for the optional top-level "adapters" / "pipelines" list checks in loadConfig (eliminates the duplicated !==undefined + !Array.isArray + throw). */
+function validateOptionalList(value: unknown, name: string): void {
+  if (value !== undefined && !Array.isArray(value)) {
+    throw new Error(`config: ${name} must be a list`);
+  }
+}
+
 function validateStringList(value: unknown, path: string): void {
   validateNonEmptyArray(value, path);
   value.forEach((entry, index) => {
@@ -585,12 +592,8 @@ export function loadConfig(): AppConfig {
 
   const resolved = resolveEnvInObject(parsed) as Record<string, unknown>;
   validateTopLevelKeys(resolved);
-  if (resolved.adapters !== undefined && !Array.isArray(resolved.adapters)) {
-    throw new Error("config: adapters must be a list");
-  }
-  if (resolved.pipelines !== undefined && !Array.isArray(resolved.pipelines)) {
-    throw new Error("config: pipelines must be a list");
-  }
+  validateOptionalList(resolved.adapters, "adapters");
+  validateOptionalList(resolved.pipelines, "pipelines");
 
   const rawAdapters = (resolved.adapters ?? []) as unknown[];
   const rawPipelines = (resolved.pipelines ?? []) as unknown[];
