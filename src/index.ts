@@ -121,8 +121,13 @@ app.post("/refresh/:panel", async (c) => {
 const parsedPort = parseInt(process.env.PORT ?? "3000", 10);
 const port = isNaN(parsedPort) || parsedPort < 1 || parsedPort > 65535 ? 3000 : parsedPort;
 
-process.on("SIGTERM", () => { stopScheduler(); closeDb(); process.exit(0); });
-process.on("SIGINT", () => { stopScheduler(); closeDb(); process.exit(0); });
+const shutdown = () => {
+  stopScheduler();
+  closeDb();
+  process.exit(0);
+};
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);
 
 Bun.serve({ port, fetch: app.fetch });
 console.log(`pace listening on http://localhost:${port}`);
