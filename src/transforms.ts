@@ -296,6 +296,17 @@ const transforms: Record<string, TransformFn> = {
       if (removed.length > 10) console.log(`  ... and ${removed.length - 10} more`);
     };
 
+    /**
+     * Single source of truth for the repeated conditional logging of removed duplicates
+     * across url/domain-normalized/title-similarity strategies (eliminates 3x inline
+     * `if (shouldLog && removed.length > 0) { logRemovedDups(...) }`).
+     */
+    const maybeLogRemoved = (label: string, removed: string[], extra: string = "") => {
+      if (shouldLog && removed.length > 0) {
+        logRemovedDups(label, removed, extra);
+      }
+    };
+
     if (strategy === "url") {
       // Simple exact URL dedup
       const seen = new Set<string>();
@@ -308,9 +319,7 @@ const transforms: Record<string, TransformFn> = {
         seen.add(item.url);
         return true;
       });
-      if (shouldLog && removed.length > 0) {
-        logRemovedDups("url", removed);
-      }
+      maybeLogRemoved("url", removed);
       return result;
     }
 
@@ -334,9 +343,7 @@ const transforms: Record<string, TransformFn> = {
           }
         }
       }
-      if (shouldLog && removed.length > 0) {
-        logRemovedDups("domain-normalized", removed);
-      }
+      maybeLogRemoved("domain-normalized", removed);
       // Preserve original ordering based on first occurrence
       const orderMap = new Map<string, number>();
       items.forEach((item, i) => { if (!orderMap.has(item.id)) orderMap.set(item.id, i); });
@@ -377,9 +384,7 @@ const transforms: Record<string, TransformFn> = {
           kept.push(item);
         }
       }
-      if (shouldLog && removed.length > 0) {
-        logRemovedDups("title-similarity", removed, ` (threshold=${threshold})`);
-      }
+      maybeLogRemoved("title-similarity", removed, ` (threshold=${threshold})`);
       return kept;
     }
 

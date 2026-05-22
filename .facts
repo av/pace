@@ -383,3 +383,6 @@
 - label: the facts-refine skill SKILL.md documents the agent/tool harness model (run_terminal_command with background:true returning task_id e.g. 019e47c7-..., get_command_or_subagent_output, kill_command_or_subagent) for collaborative refine sessions inside timeboxed subagents and includes 'Agent/tool harness note' (EVIDENCE from facts skills show + harness1 sharpening sim in bugbash report)
   command: grep -q 'Agent/tool harness note' .agents/skills/facts-refine/SKILL.md && grep -q 'background:true' .agents/skills/facts-refine/SKILL.md && grep -q 'get_command_or_subagent_output' .agents/skills/facts-refine/SKILL.md && test -f /tmp/bugbash-facts-refine-20260521-015838/evidence/harness1-check.txt
   tags: [draft, bugbash-iter9, implemented]
+
+# transforms
+- transforms.ts dedupe handler has repeated `const removed: string[] = []; ... populate ... if (shouldLog && removed.length > 0) { logRemovedDups(label, removed, extra?) }` conditional logging pattern across the 3 strategies (url, domain-normalized, title-similarity); extracted to single shared maybeLogRemoved helper (or logRemovedIfNeeded) as single source of truth inside dedupe; existing transforms.test.ts + full suite (255 pass) guard all dedupe strategies (url/domain/title, keep, log, outputs, ordering) with no behavior change @timeboxed-iter80 @implemented
