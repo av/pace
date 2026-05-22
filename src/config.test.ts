@@ -406,4 +406,34 @@ layout:
     setConfig(yaml);
     expect(() => loadConfig()).toThrow(/config: adapters\[0\].transforms\[0\].recency_weight must be a number/);
   });
+
+  test("rejects pipeline with non-list sources (uses validateNonEmptyArray)", () => {
+    const yaml = `
+pipelines:
+  - name: pl
+    sources: "not-a-list"
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(/config: pipelines\[0\].sources must be a list/);
+  });
+
+  test("rejects pipeline with empty sources list (uses validateNonEmptyArray)", () => {
+    const yaml = `
+pipelines:
+  - name: pl
+    sources: []
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(/config: pipelines\[0\].sources must not be empty/);
+  });
 });

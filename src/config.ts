@@ -509,12 +509,7 @@ function validatePipelineConfig(
     throw new Error(`config: ${path} must be an object`);
   }
   validateNonEmptyString(pipeline.name, `${path}.name`);
-  if (!Array.isArray(pipeline.sources)) {
-    throw new Error(`config: ${path}.sources must be a list`);
-  }
-  if (pipeline.sources.length === 0) {
-    throw new Error(`config: ${path}.sources must not be empty`);
-  }
+  validateNonEmptyArray(pipeline.sources, `${path}.sources`);
 
   const seenSources = new Set<string>();
   pipeline.sources.forEach((source, sourceIndex) => {
