@@ -1,6 +1,6 @@
 import { type Adapter, errorMessage, getAdapterName } from "./adapters/types";
 import type { Model, Api } from "@mariozechner/pi-ai";
-import { saveItems, getAllItemsByPanel, replacePanelItems, getDb } from "./db";
+import { saveItems, getAllItemsByPanel, replacePanelItems, getDb, pruneOldItems as dbPruneOldItems } from "./db";
 import type { AppConfig, IngestAdapterConfig, PipelineConfig } from "./config";
 import { runPipeline, type TransformContext } from "./transforms";
 import type { ContentItemRow } from "./db";
@@ -203,12 +203,9 @@ async function runPipelineJob(entry: PipelineEntry): Promise<RefreshResult> {
 
 function pruneOldItems(): void {
   try {
-    const db = getDb();
-    const result = db.prepare(
-      "DELETE FROM content_items WHERE fetched_at < datetime('now', '-30 days')"
-    ).run();
-    if (result.changes > 0) {
-      console.log(`scheduler: pruned ${result.changes} items older than 30 days`);
+    const changes = dbPruneOldItems(30);
+    if (changes > 0) {
+      console.log(`scheduler: pruned ${changes} items older than 30 days`);
     }
   } catch (err) {
     console.warn("scheduler: prune error:", err);
