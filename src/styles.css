@@ -94,36 +94,44 @@ a:hover {
   color: var(--text-muted);
 }
 
-/* flex layout */
+/* flex layout (DRY: common min-height:0 / display:flex / flex-dir:column / overflow:hidden grouped as single source of truth across .flex-* rules; specific props kept in original selectors) */
+.flex-root,
+.flex-panel > .panel {
+  display: flex;
+}
+
+.flex-root,
+.flex-container,
+.flex-panel > .panel,
+.flex-panel > .panel > .panel-body {
+  min-height: 0;
+}
+
+.flex-container,
+.flex-panel {
+  overflow: hidden;
+}
+
 .flex-root {
   flex: 1;
-  display: flex;
-  min-height: 0;
 }
 
 .flex-container {
   min-width: 0;
-  min-height: 0;
-  overflow: hidden;
 }
 
 .flex-panel {
-  display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
 
 .flex-panel > .panel {
   flex: 1;
-  display: flex;
   flex-direction: column;
-  min-height: 0;
 }
 
 .flex-panel > .panel > .panel-body {
   flex: 1;
   overflow-y: auto;
-  min-height: 0;
 }
 
 @media (max-width: 768px) {
