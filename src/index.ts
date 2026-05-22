@@ -7,6 +7,7 @@ import { discoverAdapters } from "./adapters/index";
 import { renderDashboard, type PanelData } from "./layout";
 import { createModel } from "./llm";
 import { startScheduler, stopScheduler, refreshSources, type SourcePanelMap } from "./scheduler";
+import { parsePort } from "./adapters/types";
 
 const app = new Hono();
 
@@ -118,8 +119,7 @@ app.post("/refresh/:panel", async (c) => {
   return c.redirect("/", 303);
 });
 
-const parsedPort = parseInt(process.env.PORT ?? "3000", 10);
-const port = isNaN(parsedPort) || parsedPort < 1 || parsedPort > 65535 ? 3000 : parsedPort;
+const port = parsePort(process.env.PORT, 3000);
 
 const shutdown = () => {
   stopScheduler();

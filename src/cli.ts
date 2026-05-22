@@ -2,7 +2,7 @@
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import { errorMessage } from "./adapters/types";
+import { errorMessage, isValidPort } from "./adapters/types";
 
 const pkg = JSON.parse(readFileSync(join(import.meta.dir, "../package.json"), "utf-8"));
 
@@ -82,7 +82,7 @@ if (values.config) {
 if (values.port) {
   const p = values.port;
   const n = parseInt(p, 10);
-  if (isNaN(n) || n < 1 || n > 65535) {
+  if (!isValidPort(n)) {
     console.error(`Invalid --port value: ${p}. Must be an integer between 1 and 65535.`);
     process.exit(1);
   }
