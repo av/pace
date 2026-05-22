@@ -63,11 +63,10 @@ app.get("/styles.css", (c) => {
 app.get("/health", (c) => c.json({ status: "ok" }));
 
 app.get("/", async (c) => {
-  const panels = allPanelConfigs;
   const now = new Date().toISOString().replace("T", " ").slice(0, 19);
   const panelData = new Map<string, PanelData>();
 
-  for (const panel of panels) {
+  for (const panel of allPanelConfigs) {
     const pid = resolvePanelId(panel);
     const sources = normalizeSource(panel.source);
     const limit = panel.limit ?? 50;
