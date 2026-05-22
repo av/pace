@@ -30,6 +30,23 @@
   font-family: var(--font-mono);
 }
 
+/* shared small font sizes (DRY repeated font-size declarations; 0.85rem x3, 0.75rem x2, 0.7rem x2 consolidated to grouped selectors as single source of truth) */
+.panel-header h2,
+.refresh-btn,
+.empty-state {
+  font-size: 0.85rem;
+}
+
+.header .updated,
+.item-meta {
+  font-size: 0.75rem;
+}
+
+.item-source,
+.item-time {
+  font-size: 0.7rem;
+}
+
 html {
   font-family: var(--font-body);
   background: var(--bg-base);
@@ -74,7 +91,6 @@ a:hover {
 }
 
 .header .updated {
-  font-size: 0.75rem;
   color: var(--text-muted);
 }
 
@@ -133,7 +149,6 @@ a:hover {
 }
 
 .panel-header h2 {
-  font-size: 0.85rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -156,7 +171,6 @@ a:hover {
   border: 1px solid var(--border);
   border-radius: 4px;
   color: var(--text-muted);
-  font-size: 0.85rem;
   padding: 0.15rem 0.4rem;
   cursor: pointer;
   line-height: 1;
@@ -202,12 +216,10 @@ a:hover {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.75rem;
   color: var(--text-muted);
 }
 
 .item-source {
-  font-size: 0.7rem;
   background: var(--bg-card);
   padding: 0.1rem 0.4rem;
   border-radius: 3px;
@@ -216,7 +228,6 @@ a:hover {
 }
 
 .item-time {
-  font-size: 0.7rem;
   color: var(--text-muted);
 }
 
@@ -232,5 +243,4 @@ a:hover {
   padding: 3rem 1rem;
   text-align: center;
   color: var(--text-muted);
-  font-size: 0.85rem;
 }
