@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
-import { readFileSync, existsSync, statSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { errorMessage, isValidPort } from "./adapters/types";
+import { tryReadRegularFile } from "./config";
 
 const pkg = JSON.parse(readFileSync(join(import.meta.dir, "../package.json"), "utf-8"));
 
@@ -69,12 +70,11 @@ if (unexpected.length > 0) {
 
 if (values.config) {
   const configPath = values.config;
-  if (existsSync(configPath)) {
-    const stats = statSync(configPath);
-    if (!stats.isFile()) {
-      console.error(`config: ${configPath} is not a regular file`);
-      process.exit(1);
-    }
+  try {
+    tryReadRegularFile(configPath);
+  } catch (err) {
+    console.error(errorMessage(err));
+    process.exit(1);
   }
   process.env.PACE_CONFIG = configPath;
 }

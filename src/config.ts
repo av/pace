@@ -541,7 +541,7 @@ function validatePipelineConfig(
  * throws the exact "config: <path> is not a regular file" error (preserving prior messages) for
  * directories or other non-files. Eliminates the prior duplicated exists+stat+isFile+read blocks.
  */
-function tryReadRegularFile(path: string): string | null {
+export function tryReadRegularFile(path: string): string | null {
   if (!existsSync(path)) {
     return null;
   }
