@@ -163,6 +163,16 @@ function filterByMinScore<T extends { score?: number; finalScore?: number }>(
 }
 
 /**
+ * Shared helper for conditional body annotation used by scoring transforms
+ * (keyword-score + time-decay). Eliminates the duplicated `{ ...row, body: (row.body ?? "") + ann }` + if(annotate) map logic
+ * (differing only in generated annotation text).
+ */
+function annotateRow<T extends { body?: string }>(row: T, annotation: string | undefined): T {
+  if (!annotation) return row;
+  return { ...row, body: (row.body ?? "") + annotation } as T;
+}
+
+/**
  * Shared helper to test whether an item matches any of the (lowercased) keywords
  * in any of the specified fields. Eliminates duplication between filter/exclude.
  */
@@ -433,7 +443,7 @@ const transforms: Record<string, TransformFn> = {
     const result = filtered.map((s) => {
       if (annotate && s.matchedTerms.length > 0) {
         const annotation = `\n---\n[keyword-score: ${s.score}] ${s.matchedTerms.join(", ")}`;
-        return { ...s.row, body: (s.row.body ?? "") + annotation };
+        return annotateRow(s.row, annotation);
       }
       return s.row;
     });
@@ -521,7 +531,7 @@ const transforms: Record<string, TransformFn> = {
     const result = filtered.map((s) => {
       if (annotate) {
         const annotation = `\n---\n[hot-score: ${s.finalScore.toFixed(3)}] engagement=${s.engagementNorm.toFixed(3)} recency=${s.recencyNorm.toFixed(3)} (${decayType}, half_life=${halfLifeStr})`;
-        return { ...s.row, body: (s.row.body ?? "") + annotation };
+        return annotateRow(s.row, annotation);
       }
       return s.row;
     });
