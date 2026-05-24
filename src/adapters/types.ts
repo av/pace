@@ -23,10 +23,10 @@ export function errorMessage(err: unknown): string {
 
 /**
  * Parses a port number from string input (e.g. process.env.PORT or CLI --port arg).
- * Returns the number if valid integer in [1,65535], otherwise the fallback (default 3000).
+ * Returns the number if valid integer in [1,65535], otherwise the fallback (default 7453).
  * Single source of truth eliminating duplicated parseInt+range checks in cli.ts and index.ts.
  */
-export function parsePort(input: string | undefined, fallback = 3000): number {
+export function parsePort(input: string | undefined, fallback = 7453): number {
   const n = parseInt(input ?? String(fallback), 10);
   if (isNaN(n) || n < 1 || n > 65535) {
     return fallback;

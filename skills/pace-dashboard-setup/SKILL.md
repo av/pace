@@ -33,7 +33,7 @@ cp config.example.yaml config.yaml
 bun run dev
 ```
 
-The server starts at http://localhost:3000 by default.
+The server starts at http://localhost:7453 by default.
 
 ### CLI flags
 
@@ -41,7 +41,7 @@ The server starts at http://localhost:3000 by default.
 pace [serve] [options]
 
   -c, --config <path>   Config file path (default: ./config.yaml)
-  -p, --port <number>   Server port (default: 3000)
+  -p, --port <number>   Server port (default: 7453)
   -h, --help            Show help
   -v, --version         Show version
 ```
@@ -53,7 +53,7 @@ pace [serve] [options]
 | Variable | Purpose | Default |
 |---|---|---|
 | `PACE_CONFIG` | Path to config file | `./config.yaml` |
-| `PORT` | Server port | `3000` |
+| `PORT` | Server port | `7453` |
 
 CLI flags take precedence over environment variables.
 
@@ -87,7 +87,7 @@ docker compose up -d
 ```bash
 docker build -t pace .
 docker run -d \
-  -p 3000:3000 \
+  -p 7453:7453 \
   -v ./config.yaml:/app/config.yaml:ro \
   -v pace-data:/app/data \
   pace
@@ -97,7 +97,7 @@ docker run -d \
 
 ```bash
 docker run -d \
-  -p 3000:3000 \
+  -p 7453:7453 \
   -v ./config.yaml:/app/config.yaml:ro \
   -v pace-data:/app/data \
   ghcr.io/av/pace:latest
@@ -107,12 +107,12 @@ The `/app/data` volume persists the SQLite database across container restarts.
 
 ## Verifying it works
 
-1. Open http://localhost:3000 — the dashboard should render with panel headers.
+1. Open http://localhost:7453 — the dashboard should render with panel headers.
 2. Content appears after the first adapter refresh cycle (within `refresh_interval` minutes, default 15).
 3. To trigger an immediate refresh for a panel, POST to `/refresh/<panel-id>`.
 
 ```bash
-curl -X POST http://localhost:3000/refresh/hackernews
+curl -X POST http://localhost:7453/refresh/hackernews
 ```
 
 ## Themed example configs
@@ -144,4 +144,4 @@ bun run dev
 | `config: ...` prefixed error | Invalid YAML or schema error in config | Check the error message — it points to the specific field |
 | `scheduler: adapter type "X" is configured but no matching adapter module was discovered` | Typo in adapter type name | Check available types in `src/adapters/` |
 | Panels show but no content | Adapters haven't refreshed yet | Wait for refresh_interval or POST to `/refresh/<panel-id>` |
-| Port already in use | Another process on port 3000 | Use `--port 3001` or `PORT=3001` |
+| Port already in use | Another process on port 7453 | Use `--port 7454` or `PORT=7454` |

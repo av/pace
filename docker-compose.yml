@@ -2,7 +2,7 @@ services:
   pace:
     build: .
     ports:
-      - "3000:3000"
+      - "7453:7453"
     volumes:
       - pace-data:/app/data
     restart: unless-stopped

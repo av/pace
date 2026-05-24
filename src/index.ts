@@ -128,7 +128,7 @@ async function start() {
     return c.redirect("/", 303);
   });
 
-  const port = parsePort(process.env.PORT, 3000);
+  const port = parsePort(process.env.PORT, 7453);
 
   const shutdown = () => {
     stopScheduler();

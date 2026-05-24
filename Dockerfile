@@ -14,6 +14,6 @@ RUN mkdir -p /app/data && \
 
 USER pace
 
-EXPOSE 3000
+EXPOSE 7453
 
 CMD ["bun", "run", "src/index.ts"]

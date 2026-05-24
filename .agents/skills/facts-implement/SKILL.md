@@ -32,8 +32,6 @@ Run `facts check` to see which command-facts pass and which fail. This also vali
 
 Run `facts list --tags "spec"` to see facts ready to implement. This is your implementation target.
 
-**Note on filtered commands (AGENTS.md compliance):** Always scope with filters: `facts check --tags "bugbash-iter6"` (or your iter tag), `facts list --section "..." --tags "spec"`, `facts list --search "..." --light`. Never run bare `facts check` or bare `facts list` (as some examples below show) — per AGENTS.md: "Never run bare `facts check` unless asked." "use filters to focus". In Verify step and Example, replace bare `facts check` with scoped version. This fact (xc2) and the integration below make the SUT compliant.
-
 Cross-reference: a `@spec` fact may already pass its validation command. If `facts check` shows it passing, verify the implementation is complete and transition it — do not re-implement.
 
 ### 3. Plan
@@ -61,8 +59,6 @@ Use subagents to implement independent facts in parallel. Each subagent should:
 - Have enough context about the overall spec and codebase to make good decisions
 - Run validation commands and tag facts as implemented
 - Report back what it completed and any issues encountered
-
-**Agent/tool harness note (for executions inside this project's subagents, timeboxed runners, bugbash, etc.):** The literal "spawn subagent" is not a tool; use `run_terminal_command "<cmd>" background:true` (returns task_id e.g. 019e47c7-a4c9-... as exercised in harness with bg facts list + get/kill on sleep sim). Monitor with `get_command_or_subagent_output --task_id <id>`, stop via `kill_command_or_subagent --task_id <id>`, wait with `wait_commands_or_subagents`. Redirect long output to files under logs/evidence/. This enables the "use subagents to parallelize" in Goal/Process 4. See also bugbash/SKILL.md and timeboxed-iterating/SKILL.md for patterns. This makes fact (7g9) true.
 
 ### 5. Verify
 
@@ -138,26 +134,6 @@ facts edit x1z --remove-tag "spec" --add-tag "implemented"
 # Subagent 2: "e4f" (auth middleware) + "g5h" (session handling)
 
 # After subagents complete, verify everything
-facts check --tags "bugbash-iter6"
+facts check
 facts list --tags "spec"  # should be empty or explained
 ```
-
-## Fact-driven Integration (AGENTS.md compliance)
-
-This skill is used inside a fact-driven project (see AGENTS.md and the `## facts` section in AGENTS.md).
-
-When implementing @spec facts (or during self-dogfood on this SKILL.md):
-
-- **Every change starts with a fact.** Use: `facts list --search "implement|facts-implement" --light` (or --section "facts-implement") to orient. Never edit until facts added.
-- `facts add "precise testable claim..." --section "facts-implement" --tags "spec,bugbash-iter6" --command "grep -q 'phrase' .agents/skills/facts-implement/SKILL.md && ..."`
-- Implement the doc/code change with **search_replace only** (after read_file before every search_replace on the file or section for "read before edit" — the tool requires it; SUT "Write the code" means via this).
-- `facts check --tags "bugbash-iter6"` (never bare `facts check`; capture full output for EVIDENCE).
-- For each fact or manual `?` (if check shows any): verify individually by `read_file` on claim/code, report "PASS - <1-line reason from run + inspect>" or FAIL. Do not batch "N manual".
-- `facts edit <id1> <id2> ... --remove-tag spec --add-tag implemented`
-- **EVIDENCE lines:** In checks and reports, include "EVIDENCE: PASS - ✓ id ... (command output) from facts check --tags + read_file of SKILL.md confirming inserts"
-- Self-append to progress file (e.g. /tmp/timeboxed-...md) using `search_replace` targeting unique EOF string (read first) after the commit.
-- Commit after coherent batch: `git status; git diff --stat; git add -A; git commit -m "bugbash+fix(iter-6): facts-implement skill (self-test, fact-driven)" ; git rev-parse HEAD`
-- Return **ONLY** the `### Iteration 6 Summary` block at end (no other output).
-- Harness tests on temp .facts in /tmp (as done): use rel --file for add/list, cwd git for check/edit, bg via run_terminal background:true + get/kill for subagent sims, date for timestamps, cleanup.
-
-This ensures the "make facts true" engine is itself verifiable and follows the same rules as all prior iters. The 3 facts (xc2/2hp/7g9) in this section (and their @implemented state) are the spec for these requirements. Also update Guidelines "Commit..." and Verify/Example to use scoped checks.

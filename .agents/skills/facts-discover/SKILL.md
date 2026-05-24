@@ -40,8 +40,6 @@ Run `facts list` to see all current facts. Note which sections exist and what th
 
 Run `facts check` to see which command-facts pass and which fail. Failing facts are candidates for removal or correction.
 
-**Note on filtered commands (AGENTS.md compliance):** All `facts list`/`facts check` invocations in this skill must use filters (`--section`, `--tags "bugbash-iter8"`, `--search`, `--light`, `--manual`) per AGENTS.md "Never run bare `facts check` unless asked." Bare commands would dump the entire (potentially large, multi-iter) fact sheet. This fact (c7w) makes the requirement explicit and verifiable.
-
 For each manual fact (`?` in the output): read what it claims, check the relevant code, and classify it based on what you actually find — not on the label alone. Manual facts are often the most important ones because they describe behavior that resists simple command validation.
 
 ### 2. Scan the codebase
@@ -55,8 +53,6 @@ Use subagents to scan different areas in parallel for large codebases. Assign ea
 - **What are the edge cases?** — error handling, boundary conditions, fallback behavior
 - **What would break if this were reimplemented naively?** — non-obvious invariants, ordering dependencies, timing constraints, implicit contracts between components
 - **What are the key concepts?** — named types, domain abstractions, data structures. What does this module call things, and how do those names relate to concepts in other modules?
-
-**Agent/tool harness note (for executions inside this project's subagents, timeboxed runners, etc.):** The literal "spawn subagents" is descriptive; in the actual agent runtime (run_terminal_command tool etc.) there is no `spawn_subagent` primitive. Use `run_terminal_command "<cmd>" background:true` (returns task_id e.g. 019e47c7-...) to dispatch parallel "subagent scans", monitor with `get_command_or_subagent_output --task_id <id>`, and stop via `kill_command_or_subagent --task_id <id>` in Wrap up. Always redirect long-running output to files under logs/ or evidence/. This makes fact (ylc) true and aligns with harness used for all prior bugbash iters.
 
 Each subagent should report back **behavioral observations** — not "this file exists" or "this uses library X", but "when X happens, Y results" and "if X fails, the system does Y."
 
@@ -313,21 +309,3 @@ facts check
 
 # Report: 6 domain facts added, 5 classified (@implemented: 3, @spec: 1, @draft: 1), 1 added, 1 removed
 ```
-
-## Fact-driven Integration (AGENTS.md compliance)
-
-This skill is used inside a fact-driven project (see AGENTS.md and the `## facts` section). 
-
-When using facts-discover to scan, classify, sync or audit (including self-dogfood on this SKILL.md):
-
-- **Every change starts with a fact.** Do not edit until facts are added.
-- Use: `facts list --search "..." --light` (or --section "facts-discover") to orient.
-- `facts add "precise testable claim about the required behavior" --section "facts-discover" --tags "spec,bugbash-iter8" --command "grep -q 'phrase' .agents/skills/facts-discover/SKILL.md || test cmd that proves it"`
-- Implement the minimal doc change (search_replace on SKILL.md only for this skill; always read_file before every search_replace for "read before edit" compliance).
-- `facts check --tags "bugbash-iter8"` (never run bare `facts check`).
-- `facts edit <id1> <id2> <id3> --remove-tag spec --add-tag implemented`
-- Manual `?` facts (if any appear in check) must be verified one-by-one by reading the relevant code/doc (`read_file`) and reporting PASS/FAIL + 1-line reason. "EVIDENCE: PASS - ..."
-- Note: `facts skills show facts-discover` succeeds and prints the full current SKILL (unlike non-facts-* skills).
-- After fixes: commit the changes, then append detailed iteration entry to the timeboxed progress file via search_replace, and return ONLY the summary block.
-
-This ensures all discover-driven work (audit of post-iter .facts changes, domain sync, classification fixes) is verifiable and flows through the fact sheet as source of truth. The 3 facts in this section (c7w/g9p/ylc and their @implemented state after verification) are the spec for these integration requirements.

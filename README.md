@@ -5,10 +5,10 @@ Self-hostable personal dashboard that aggregates content from across the web. Pl
 ## Quick start
 
 ```bash
-docker run -d -p 3000:3000 -v pace-data:/app/data ghcr.io/av/pace:latest
+docker run -d -p 7453:7453 -v pace-data:/app/data ghcr.io/av/pace:latest
 ```
 
-Open http://localhost:3000 — the default config ships with Hacker News, Lobsters, GitHub trending/releases, engineering blogs, and DEV.to.
+Open http://localhost:7453 — the default config ships with Hacker News, Lobsters, GitHub trending/releases, engineering blogs, and DEV.to.
 
 ### Custom config
 
@@ -18,7 +18,7 @@ curl -O https://raw.githubusercontent.com/av/pace/main/config.example.yaml
 mv config.example.yaml config.yaml
 # edit config.yaml with your feeds
 
-docker run -d -p 3000:3000 \
+docker run -d -p 7453:7453 \
   -v ./config.yaml:/app/config.yaml:ro \
   -v pace-data:/app/data \
   ghcr.io/av/pace:latest

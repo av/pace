@@ -55,13 +55,13 @@ describe("parsePort / isValidPort (shared port helpers DRYed across cli+index)",
     expect(isValidPort(99999)).toBe(false);
   });
 
-  test("parsePort falls back to default 3000 (or provided) for undefined, non-numeric, out-of-range", () => {
-    expect(parsePort(undefined)).toBe(3000);
-    expect(parsePort("")).toBe(3000);
-    expect(parsePort("abc")).toBe(3000);
-    expect(parsePort("99999")).toBe(3000);
-    expect(parsePort("0")).toBe(3000);
-    expect(parsePort("-10")).toBe(3000);
+  test("parsePort falls back to default 7453 (or provided) for undefined, non-numeric, out-of-range", () => {
+    expect(parsePort(undefined)).toBe(7453);
+    expect(parsePort("")).toBe(7453);
+    expect(parsePort("abc")).toBe(7453);
+    expect(parsePort("99999")).toBe(7453);
+    expect(parsePort("0")).toBe(7453);
+    expect(parsePort("-10")).toBe(7453);
     expect(parsePort("65536", 4000)).toBe(4000);
     expect(parsePort("99999", 9999)).toBe(9999);
   });
@@ -75,7 +75,7 @@ describe("parsePort / isValidPort (shared port helpers DRYed across cli+index)",
 
   test("parsePort handles string from env/CLI and number-like edge cases", () => {
     expect(parsePort("1")).toBe(1);
-    expect(parsePort("65535", 3000)).toBe(65535);
+    expect(parsePort("65535", 7453)).toBe(65535);
   });
 });
 

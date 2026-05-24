@@ -23,7 +23,7 @@ Commands:
 
 Options:
   -c, --config <path>   Path to config file (default: ./config.yaml)
-  -p, --port <number>   Server port (default: 3000, or $PORT)
+  -p, --port <number>   Server port (default: 7453, or $PORT)
   -h, --help            Show this help
   -v, --version         Show version
 `;
