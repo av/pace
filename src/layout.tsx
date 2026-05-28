@@ -124,13 +124,12 @@ const Dashboard: FC<DashboardProps> = ({ layout, panelData, updatedAt }) => (
       <link rel="stylesheet" href="/styles.css" />
     </head>
     <body>
-      <div class="header">
-        <h1>pace</h1>
-        <span class="updated">{updatedAt} UTC</span>
-      </div>
       <div class="flex-root">
         <LayoutNode node={layout} panelData={panelData} />
       </div>
+      <footer class="footer">
+        <a href="https://github.com/av/pace" target="_blank" rel="noopener noreferrer">Pace</a> / {updatedAt} UTC
+      </footer>
     </body>
   </html>
 );

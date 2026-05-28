@@ -69,3 +69,17 @@
 # layout
 - the Dashboard is entirely server-rendered (Hono JSX to full HTML document with inline styles link); no client-side JavaScript is served or required
 - layout containers switch to vertical stacking on screens <=768px via CSS media query regardless of YAML direction; panels use flex + scroll for content
+- the dashboard no longer renders a top-level .header div containing h1 'pace' and a render-timestamp span @spec @implemented
+- the rendered dashboard includes a footer element at the end of the body containing tiny caption text in the format 'Pace / <render datetime> UTC' @spec @implemented
+- the 'Pace' word in the dashboard footer caption is a hyperlink (anchor element) pointing to https://github.com/av/pace (opens in new tab with appropriate rel) @spec @implemented
+- the footer uses compact tiny styling (font-size ~0.65rem, muted text color, minimal vertical margins/padding) so it adds negligible height and makes the overall dashboard layout more compact than the previous header @spec @implemented
+- the HTML document title remains 'pace'; only the visible header branding moves to the compact footer @spec @implemented
+- dashboard body uses 1rem padding (tighter frame around panels) for more compact overall dashboard presentation @spec @implemented
+- panel headers use 0.5rem 0.75rem padding (reduced from 0.75rem 1rem) for compact panel chrome @spec @implemented
+- content items in panels use 0.5rem 0.75rem padding, 0.35rem meta gaps, 0.15rem title margin-bottom and 0.2rem summary margin-top for tighter vertical spacing @spec @implemented
+- item titles in dashboard panels use 0.85rem font-size; summaries use 0.75rem font-size for higher information density in compact panels @spec @implemented
+- panel action gaps reduced to 0.35rem, refresh button padding to 0.1rem 0.3rem, and empty-state padding to 1.5rem 1rem for consistent compact panel styling @spec @implemented
+- dashboard panels use more compact styling overall (reduced paddings, margins, gaps and fonts inside panels and items) resulting in higher content density and less wasted vertical space compared to prior styling @spec @implemented
+- when dashboard panels contain more items than fit their space, they display an internal scrollbar rather than expanding the dashboard page or causing the viewport to scroll @spec @implemented
+- the dashboard root (html, body, .flex-root and top-level layout containers) is strictly constrained to the full viewport height using min-height:100vh + height:100% propagation and overflow:hidden on the document body; this gives .panel-body a definite height so it renders an internal vertical scrollbar for excess items instead of expanding the page @spec @implemented
+- the .panel element (direct parent of .panel-body) receives explicit height:100% (in addition to flex:1) so the flex column inside it constrains .panel-body to a definite height smaller than its content; overflow-y:auto then produces a visible internal scrollbar for excess items @spec @implemented

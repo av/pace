@@ -1,0 +1,167 @@
+import type { Adapter, AdapterConfig, ContentItem } from "./types";
+import { errorMessage } from "./types";
+
+const NPM_REGISTRY = "https://registry.npmjs.org";
+
+interface NpmSearchResult {
+  objects: NpmPackageResult[];
+  total: number;
+}
+
+interface NpmPackageResult {
+  package: {
+    name: string;
+    version: string;
+    description?: string;
+    date: string;
+    links: {
+      npm: string;
+      homepage?: string;
+      repository?: string;
+    };
+    publisher?: {
+      username: string;
+    };
+    keywords?: string[];
+  };
+  score: {
+    final: number;
+    detail: {
+      quality: number;
+      popularity: number;
+      maintenance: number;
+    };
+  };
+}
+
+function formatScore(n: number): string {
+  return `${Math.round(n * 100)}%`;
+}
+
+function buildBody(result: NpmPackageResult): string {
+  const parts: string[] = [];
+  const pkg = result.package;
+  const scores = result.score.detail;
+
+  parts.push(`v${pkg.version}`);
+
+  if (pkg.publisher?.username) {
+    parts.push(`by ${pkg.publisher.username}`);
+  }
+
+  parts.push(`quality: ${formatScore(scores.quality)}`);
+  parts.push(`popularity: ${formatScore(scores.popularity)}`);
+  parts.push(`maintenance: ${formatScore(scores.maintenance)}`);
+
+  if (pkg.keywords && pkg.keywords.length > 0) {
+    parts.push(`tags: ${pkg.keywords.slice(0, 5).join(", ")}`);
+  }
+
+  if (pkg.links.repository) {
+    parts.push(`repo: ${pkg.links.repository}`);
+  }
+
+  return parts.join(" | ");
+}
+
+async function searchNpm(
+  query: Record<string, string>,
+  context: string,
+): Promise<NpmPackageResult[]> {
+  const params = new URLSearchParams(query);
+  const url = `${NPM_REGISTRY}/-/v1/search?${params.toString()}`;
+
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent": "pace:feed-aggregator/1.0 (github.com/everlier/pace)",
+      Accept: "application/json",
+    },
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) {
+    throw new Error(`npm: failed to search ${context}: ${res.status}`);
+  }
+  const json: NpmSearchResult = await res.json();
+  return json.objects ?? [];
+}
+
+type SortBy = "optimal" | "quality" | "popularity" | "maintenance";
+
+const VALID_SORTS = new Set<SortBy>(["optimal", "quality", "popularity", "maintenance"]);
+
+function buildSearchQuery(
+  keywords: string[],
+  scope: string | undefined,
+  limit: number,
+  sortBy: SortBy,
+): Record<string, string> {
+  const textParts: string[] = [];
+
+  if (scope) {
+    textParts.push(`scope:${scope}`);
+  }
+
+  textParts.push(...keywords);
+
+  const query: Record<string, string> = {
+    text: textParts.join(" "),
+    size: String(limit),
+  };
+
+  if (sortBy === "quality") {
+    query["quality"] = "1.0";
+    query["popularity"] = "0.0";
+    query["maintenance"] = "0.0";
+  } else if (sortBy === "popularity") {
+    query["quality"] = "0.0";
+    query["popularity"] = "1.0";
+    query["maintenance"] = "0.0";
+  } else if (sortBy === "maintenance") {
+    query["quality"] = "0.0";
+    query["popularity"] = "0.0";
+    query["maintenance"] = "1.0";
+  }
+
+  return query;
+}
+
+const adapter: Adapter = {
+  name: "npm",
+  async fetch(config: AdapterConfig): Promise<ContentItem[]> {
+    const keywords = (config.params?.keywords as string[]) ?? [];
+    const scope = config.params?.scope as string | undefined;
+    const limit = Math.min((config.params?.limit as number) ?? 20, 50);
+    const sortParam = (config.params?.sort as string) ?? "optimal";
+
+    const sortBy: SortBy = VALID_SORTS.has(sortParam as SortBy)
+      ? (sortParam as SortBy)
+      : "optimal";
+
+    if (keywords.length === 0 && !scope) {
+      console.warn("npm: no keywords or scope configured");
+      return [];
+    }
+
+    const context = scope
+      ? `@${scope} ${keywords.join(" ")}`.trim()
+      : keywords.join(" ");
+
+    try {
+      const query = buildSearchQuery(keywords, scope, limit, sortBy);
+      const results = await searchNpm(query, context);
+
+      return results.map((result) => ({
+        id: `npm:${result.package.name}@${result.package.version}`,
+        title: `${result.package.name} — ${result.package.description ?? ""}`,
+        url: result.package.links.npm,
+        source: scope ? `npm:@${scope}` : `npm:${sortBy}`,
+        timestamp: new Date(result.package.date),
+        body: buildBody(result),
+      }));
+    } catch (err) {
+      throw new Error(`npm: error searching packages: ${errorMessage(err)}`);
+    }
+  },
+};
+
+export default adapter;

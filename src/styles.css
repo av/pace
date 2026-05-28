@@ -22,22 +22,21 @@
   --font-mono: ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
 }
 
-/* shared typography (DRY repeated mono font declarations across header/panel/item) */
-.header .updated,
+/* shared typography (DRY repeated mono font declarations across panel/item/footer) */
+.footer,
 .panel-refreshed,
 .item-source,
 .item-time {
   font-family: var(--font-mono);
 }
 
-/* shared small font sizes (DRY repeated font-size declarations; 0.85rem x3, 0.75rem x2, 0.7rem x2 consolidated to grouped selectors as single source of truth) */
+/* shared small font sizes (DRY repeated font-size declarations; 0.85rem x3, 0.75rem x1, 0.7rem x2, 0.65rem x2 consolidated to grouped selectors as single source of truth) */
 .panel-header h2,
 .refresh-btn,
 .empty-state {
   font-size: 0.85rem;
 }
 
-.header .updated,
 .item-meta {
   font-size: 0.75rem;
 }
@@ -54,15 +53,18 @@ html {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   height: 100%;
+  min-height: 100vh;
 }
 
 body {
   height: 100%;
-  padding: 1.5rem;
+  min-height: 100vh;
+  padding: 1rem;
   max-width: 1400px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 a {
@@ -74,25 +76,6 @@ a:hover {
   color: var(--hover);
 }
 
-/* header */
-.header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border);
-}
-
-.header h1 {
-  font-size: 1.25rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-}
-
-.header .updated {
-  color: var(--text-muted);
-}
 
 /* flex layout (DRY: common min-height:0 / display:flex / flex-dir:column / overflow:hidden grouped as single source of truth across .flex-* rules; specific props kept in original selectors) */
 .flex-root,
@@ -107,6 +90,7 @@ a:hover {
   min-height: 0;
 }
 
+.flex-root,
 .flex-container,
 .flex-panel {
   overflow: hidden;
@@ -114,19 +98,23 @@ a:hover {
 
 .flex-root {
   flex: 1;
+  height: 100%;
 }
 
 .flex-container {
   min-width: 0;
+  height: 100%;
 }
 
 .flex-panel {
   flex-direction: column;
+  height: 100%;
 }
 
 .flex-panel > .panel {
   flex: 1;
   flex-direction: column;
+  height: 100%;
 }
 
 .flex-panel > .panel > .panel-body {
@@ -140,6 +128,20 @@ a:hover {
   }
 }
 
+/* footer (tiny caption; pushed to bottom via flex:1 on .flex-root) */
+.footer {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  padding-top: 0.5rem;
+  margin-top: 0.5rem;
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+}
+
+.footer a {
+  color: inherit;
+}
+
 /* panels */
 .panel {
   background: var(--bg-surface);
@@ -149,7 +151,7 @@ a:hover {
 }
 
 .panel-header {
-  padding: 0.75rem 1rem;
+  padding: 0.5rem 0.75rem;
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
@@ -166,7 +168,7 @@ a:hover {
 .panel-actions {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.35rem;
 }
 
 .panel-refreshed {
@@ -179,7 +181,7 @@ a:hover {
   border: 1px solid var(--border);
   border-radius: 4px;
   color: var(--text-muted);
-  padding: 0.15rem 0.4rem;
+  padding: 0.1rem 0.3rem;
   cursor: pointer;
   line-height: 1;
   transition: color 0.15s, border-color 0.15s;
@@ -196,7 +198,7 @@ a:hover {
 
 /* content items */
 .item {
-  padding: 0.75rem 1rem;
+  padding: 0.5rem 0.75rem;
   border-bottom: 1px solid var(--border);
   transition: background 0.15s ease;
 }
@@ -210,9 +212,9 @@ a:hover {
 }
 
 .item-title {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 500;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.15rem;
   line-height: 1.4;
 }
 
@@ -223,7 +225,7 @@ a:hover {
 .item-meta {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.35rem;
   color: var(--text-muted);
 }
 
@@ -240,15 +242,15 @@ a:hover {
 }
 
 .item-summary {
-  margin-top: 0.35rem;
-  font-size: 0.8rem;
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
   color: var(--text-secondary);
   line-height: 1.45;
 }
 
 /* empty state */
 .empty-state {
-  padding: 3rem 1rem;
+  padding: 1.5rem 1rem;
   text-align: center;
   color: var(--text-muted);
 }

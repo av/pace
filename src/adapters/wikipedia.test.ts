@@ -1,0 +1,239 @@
+import { beforeEach, describe, expect, it, mock } from "bun:test";
+import adapter from "./wikipedia";
+
+describe("wikipedia adapter", () => {
+  let fetchMock: ReturnType<typeof mock>;
+
+  beforeEach(() => {
+    fetchMock = mock();
+    globalThis.fetch = fetchMock as any;
+  });
+
+  function makeMostReadArticle(overrides: Partial<any> = {}) {
+    return {
+      title: "Test_Article",
+      extract: "This is a test article about something interesting.",
+      description: "A test article",
+      content_urls: { desktop: { page: "https://en.wikipedia.org/wiki/Test_Article" } },
+      views: 50000,
+      rank: 1,
+      ...overrides,
+    };
+  }
+
+  function makeFeaturedResponse(overrides: Partial<any> = {}) {
+    return {
+      tfa: {
+        title: "Featured_Article",
+        extract: "Today's featured article is about featured things.",
+        description: "A featured article",
+        content_urls: { desktop: { page: "https://en.wikipedia.org/wiki/Featured_Article" } },
+      },
+      mostread: {
+        articles: [
+          makeMostReadArticle(),
+          makeMostReadArticle({ title: "Second_Article", views: 30000, rank: 2 }),
+        ],
+      },
+      onthisday: [
+        {
+          text: "Something <b>important</b> happened.",
+          year: 1969,
+          pages: [
+            {
+              title: "Moon_Landing",
+              description: "The Apollo 11 mission",
+              content_urls: { desktop: { page: "https://en.wikipedia.org/wiki/Moon_Landing" } },
+            },
+          ],
+        },
+      ],
+      news: [
+        {
+          story: "A <b>major event</b> occurred today.",
+          links: [
+            {
+              title: "Major_Event",
+              description: "Details about the event",
+              content_urls: { desktop: { page: "https://en.wikipedia.org/wiki/Major_Event" } },
+            },
+          ],
+        },
+      ],
+      ...overrides,
+    };
+  }
+
+  it("fetches most_read articles by default", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
+    );
+
+    const items = await adapter.fetch({ type: "wikipedia", params: {} });
+
+    expect(items).toHaveLength(2);
+    expect(items[0]).toMatchObject({
+      id: "wikipedia:mostread:Test_Article",
+      title: "Test Article",
+      url: "https://en.wikipedia.org/wiki/Test_Article",
+      source: "wikipedia:most_read",
+    });
+    expect(items[0].body).toContain("50.0k views");
+    expect(items[0].body).toContain("A test article");
+  });
+
+  it("fetches featured article of the day", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
+    );
+
+    const items = await adapter.fetch({ type: "wikipedia", params: { mode: "featured" } });
+
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      id: "wikipedia:tfa:Featured_Article",
+      title: "Featured: Featured Article",
+      url: "https://en.wikipedia.org/wiki/Featured_Article",
+      source: "wikipedia:featured",
+    });
+    expect(items[0].body).toContain("A featured article");
+  });
+
+  it("fetches on_this_day events with HTML stripped", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
+    );
+
+    const items = await adapter.fetch({ type: "wikipedia", params: { mode: "on_this_day" } });
+
+    expect(items).toHaveLength(1);
+    expect(items[0].title).toBe("1969: Something important happened.");
+    expect(items[0].url).toBe("https://en.wikipedia.org/wiki/Moon_Landing");
+    expect(items[0].source).toBe("wikipedia:on_this_day");
+    expect(items[0].body).toBe("The Apollo 11 mission");
+  });
+
+  it("fetches news items with HTML stripped", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
+    );
+
+    const items = await adapter.fetch({ type: "wikipedia", params: { mode: "news" } });
+
+    expect(items).toHaveLength(1);
+    expect(items[0].title).toBe("A major event occurred today.");
+    expect(items[0].url).toBe("https://en.wikipedia.org/wiki/Major_Event");
+    expect(items[0].source).toBe("wikipedia:news");
+  });
+
+  it("respects limit parameter for most_read", async () => {
+    const articles = Array.from({ length: 10 }, (_, i) =>
+      makeMostReadArticle({ title: `Article_${i}`, views: 1000 * (10 - i), rank: i + 1 }),
+    );
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makeFeaturedResponse({ mostread: { articles } })), { status: 200 }),
+    );
+
+    const items = await adapter.fetch({ type: "wikipedia", params: { limit: 3 } });
+
+    expect(items).toHaveLength(3);
+  });
+
+  it("uses language parameter in API URL", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
+    );
+
+    await adapter.fetch({ type: "wikipedia", params: { language: "de" } });
+
+    const calledUrl = String(fetchMock.mock.calls[0][0]);
+    expect(calledUrl).toContain("de.wikipedia.org");
+  });
+
+  it("rejects malicious language values and falls back to en", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
+    );
+
+    await adapter.fetch({ type: "wikipedia", params: { language: "evil.com/hack#" } });
+
+    const calledUrl = String(fetchMock.mock.calls[0][0]);
+    expect(calledUrl).toContain("en.wikipedia.org");
+    expect(calledUrl).not.toContain("evil");
+  });
+
+  it("defaults to most_read for invalid mode", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
+    );
+
+    const items = await adapter.fetch({ type: "wikipedia", params: { mode: "invalid" } });
+
+    expect(items).toHaveLength(2);
+    expect(items[0].source).toBe("wikipedia:most_read");
+  });
+
+  it("throws on HTTP error with adapter prefix", async () => {
+    fetchMock.mockResolvedValue(new Response("Not Found", { status: 404 }));
+
+    await expect(
+      adapter.fetch({ type: "wikipedia", params: {} }),
+    ).rejects.toThrow("wikipedia:");
+  });
+
+  it("throws on network error with adapter prefix", async () => {
+    fetchMock.mockRejectedValue(new Error("DNS resolution failed"));
+
+    await expect(
+      adapter.fetch({ type: "wikipedia", params: {} }),
+    ).rejects.toThrow("wikipedia:");
+  });
+
+  it("returns empty for featured when tfa is missing", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makeFeaturedResponse({ tfa: undefined })), { status: 200 }),
+    );
+
+    const items = await adapter.fetch({ type: "wikipedia", params: { mode: "featured" } });
+
+    expect(items).toEqual([]);
+  });
+
+  it("returns empty for most_read when mostread section is missing", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makeFeaturedResponse({ mostread: undefined })), { status: 200 }),
+    );
+
+    const items = await adapter.fetch({ type: "wikipedia", params: { mode: "most_read" } });
+
+    expect(items).toEqual([]);
+  });
+
+  it("formats view counts correctly", async () => {
+    const articles = [
+      makeMostReadArticle({ title: "Million", views: 1_500_000 }),
+      makeMostReadArticle({ title: "Thousand", views: 42_500 }),
+      makeMostReadArticle({ title: "Small", views: 500 }),
+    ];
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makeFeaturedResponse({ mostread: { articles } })), { status: 200 }),
+    );
+
+    const items = await adapter.fetch({ type: "wikipedia", params: {} });
+
+    expect(items[0].body).toContain("1.5m views");
+    expect(items[1].body).toContain("42.5k views");
+    expect(items[2].body).toContain("500 views");
+  });
+
+  it("replaces underscores with spaces in titles", async () => {
+    const articles = [makeMostReadArticle({ title: "United_States_of_America" })];
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makeFeaturedResponse({ mostread: { articles } })), { status: 200 }),
+    );
+
+    const items = await adapter.fetch({ type: "wikipedia", params: {} });
+
+    expect(items[0].title).toBe("United States of America");
+  });
+});
