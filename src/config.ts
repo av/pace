@@ -559,9 +559,39 @@ export function tryReadRegularFile(path: string): string | null {
   return readFileSync(path, "utf-8");
 }
 
+const PRESET_NAMES = ["example", "tech-news", "ml-ai", "product-launches", "release-tracker", "academic-papers", "video-podcast"] as const;
+
+export function resolvePreset(name: string): string | null {
+  if (!name || name.includes("/") || name.includes("\\")) return null;
+  if (!(PRESET_NAMES as readonly string[]).includes(name)) return null;
+  // Try image location first, then source tree (for local `pace` after bun link / dev)
+  const candidates = [
+    `/app/presets/config.${name}.yaml`,
+    join(process.cwd(), `config.${name}.yaml`),
+  ];
+  for (const p of candidates) {
+    if (tryReadRegularFile(p)) return p;
+  }
+  return null;
+}
+
+export function listPresets(): string[] {
+  return [...PRESET_NAMES];
+}
+
 export function loadConfig(): AppConfig {
-  const explicitConfigPath = process.env.PACE_CONFIG !== undefined;
-  const configPath = process.env.PACE_CONFIG ?? join(process.cwd(), "config.yaml");
+  let explicitConfigPath = process.env.PACE_CONFIG !== undefined;
+  let configPath = process.env.PACE_CONFIG ?? join(process.cwd(), "config.yaml");
+
+  // Support bare short preset names via PACE_CONFIG (e.g. tech-news)
+  if (process.env.PACE_CONFIG && !process.env.PACE_CONFIG.includes("/") && !process.env.PACE_CONFIG.includes("\\")) {
+    const resolved = resolvePreset(process.env.PACE_CONFIG);
+    if (resolved) {
+      configPath = resolved;
+      explicitConfigPath = true;
+    }
+  }
+
   const examplePath = join(process.cwd(), "config.example.yaml");
 
   let raw: string;

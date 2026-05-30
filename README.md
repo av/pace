@@ -20,6 +20,16 @@ docker run -d -p 7453:7453 -v pace-data:/app/data ghcr.io/av/pace:latest
 
 Open http://localhost:7453 — the default config ships with Hacker News, Lobsters, GitHub trending/releases, engineering blogs, and DEV.to.
 
+### With a preset
+
+```bash
+docker run -d -p 7453:7453 \
+  -v pace-data:/app/data \
+  ghcr.io/av/pace:latest --preset tech-news
+```
+
+Or locally: `pace --preset tech-news` (or `pace -P ml-ai`). See `pace --list-presets`.
+
 ### Custom config
 
 ```bash
@@ -107,11 +117,11 @@ llm:
   interests: [systems programming, web development]
 ```
 
-## Pre-built configs
+## Presets
 
-Ready-to-use configurations for common use cases:
+Presets are bundled in the Docker image and selectable with a single flag (`--preset tech-news` or `-P ml-ai`; see `pace --list-presets`). Ready-to-use configurations for common use cases:
 
-| Config | Focus |
+| Preset | Focus |
 |--------|-------|
 | `config.example.yaml` | General software engineering (HN, Lobsters, GitHub, blogs, DEV.to) |
 | `config.tech-news.yaml` | Tech news from multiple sources |

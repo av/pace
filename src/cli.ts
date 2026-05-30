@@ -24,6 +24,8 @@ Commands:
 Options:
   -c, --config <path>   Path to config file (default: ./config.yaml)
   -p, --port <number>   Server port (default: 7453, or $PORT)
+  -P, --preset <name>   Use a bundled preset (tech-news, ml-ai, etc.)
+      --list-presets    List available bundled presets
   -h, --help            Show this help
   -v, --version         Show version
 `;
@@ -33,12 +35,17 @@ const { values, positionals } = parseArgs({
   options: {
     config: { type: "string", short: "c" },
     port: { type: "string", short: "p" },
+    preset: { type: "string", short: "P" },
+    listPresets: { type: "boolean" },
     help: { type: "boolean", short: "h" },
     version: { type: "boolean", short: "v" },
   },
   allowPositionals: true,
   strict: false,
 });
+
+// parseArgs keeps kebab-case for some flags (e.g. --list-presets -> "list-presets")
+if (values['list-presets'] !== undefined) values.listPresets = values['list-presets'];
 
 if (values.help) {
   console.log(HELP);
@@ -48,6 +55,24 @@ if (values.help) {
 if (values.version) {
   console.log(pkg.version);
   process.exit(0);
+}
+
+if (values.listPresets) {
+  const { listPresets } = await import("./config");
+  console.log(listPresets().join("\n"));
+  process.exit(0);
+}
+
+if (values.preset && !values.config) {
+  const { resolvePreset } = await import("./config");
+  const resolved = resolvePreset(values.preset);
+  if (resolved) {
+    process.env.PACE_CONFIG = resolved;
+  } else {
+    console.error(`Unknown preset: ${values.preset}`);
+    console.error(`Available: ${["example","tech-news","ml-ai","product-launches","release-tracker","academic-papers","video-podcast"].join(", ")}`);
+    process.exit(1);
+  }
 }
 
 const command = positionals[0] ?? "serve";
@@ -60,7 +85,7 @@ if (command !== "serve") {
 
 // Reject unknown options (parseArgs with strict:false still populates undeclared keys into values,
 // e.g. --badflag or typos). This provides clear feedback instead of silently proceeding to serve.
-const knownOptions = ["config", "port", "help", "version"];
+const knownOptions = ["config", "port", "preset", "listPresets", "list-presets", "help", "version"];
 const unexpected = Object.keys(values).filter((k) => !knownOptions.includes(k) && values[k] !== undefined);
 if (unexpected.length > 0) {
   console.error(`Unknown option(s): ${unexpected.map((u) => "--" + u).join(", ")}\n`);

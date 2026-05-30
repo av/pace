@@ -24,10 +24,14 @@
 - ContentItemRows for a Panel are queried deduplicated (latest timestamp per url-norm or id) to render the Dashboard
 
 # cli
-- label: the CLI defaults to 'serve' command and only supports --config, --port, --help, --version; unknown commands or options cause immediate exit with usage
+- label: the CLI supports --config, --port, --preset/-P, --list-presets, --help, --version; unknown commands or options cause immediate exit with usage
   command: bun run src/cli.ts --help 2>&1 | grep -q "Usage:" && bun run src/cli.ts badcmd 2>&1 | grep -q "Unknown command"
+  tags: [implemented]
 - label: the CLI always chdirs to its own project root (package.json dir) before starting to ensure tsconfig, defaults and data/ are found regardless of invocation cwd
   command: grep -q "process.chdir(projectRoot)" src/cli.ts && grep -q "projectRoot = join(import.meta.dir, \"..\")" src/cli.ts
+- label: CLI supports --preset <name> / -P <name> and --list-presets for bundled presets
+  command: bun run src/cli.ts --list-presets 2>&1 | grep -q tech-news && bun run src/cli.ts --help 2>&1 | grep -q 'preset <name>'
+  tags: [spec, implemented]
 
 # config
 - when no config file is present, loadConfig falls back to config.example.yaml then a default layout with a single 'all' panel
@@ -36,6 +40,9 @@
 - the special source value 'all' (and panels using it) bypasses adapter/pipeline name validation and sourceToPanels mapping; it queries global recent items instead of per-panel
 - Panel IDs are stable 8-character hex (first of sha256 of JSON.stringify({panel, source, limit})) or explicit id from config; used for DB keys, refresh URLs, and sourceToPanels mapping
 - environment variables in the form ${VAR} are recursively substituted in all string values of the YAML (including in llm.api_key, adapter params, etc.) before schema validation
+- label: loadConfig resolves bare short preset names (tech-news, ml-ai, etc) to bundled /app/presets/config.*.yaml
+  command: bun run src/cli.ts --preset tech-news --help 2>&1 | grep -q 'pace v'
+  tags: [spec, implemented]
 
 # scheduler
 - scheduler errors for missing adapter types are prefixed 'scheduler: ' and cause startup to fail with exit 1
@@ -83,3 +90,26 @@
 - when dashboard panels contain more items than fit their space, they display an internal scrollbar rather than expanding the dashboard page or causing the viewport to scroll @spec @implemented
 - the dashboard root (html, body, .flex-root and top-level layout containers) is strictly constrained to the full viewport height using min-height:100vh + height:100% propagation and overflow:hidden on the document body; this gives .panel-body a definite height so it renders an internal vertical scrollbar for excess items instead of expanding the page @spec @implemented
 - the .panel element (direct parent of .panel-body) receives explicit height:100% (in addition to flex:1) so the flex column inside it constrains .panel-body to a definite height smaller than its content; overflow-y:auto then produces a visible internal scrollbar for excess items @spec @implemented
+
+# readme
+
+## quick-start
+- label: README Quick Start includes a docker run example that mounts a pre-built preset config
+  command: grep -q "Quick start" README.md && grep -A 30 "## Quick start" README.md | grep -q "preset" && grep -A 30 "## Quick start" README.md | grep -q "config\..*\.yaml"
+  tags: [spec, implemented]
+
+## presets
+- label: README contains a table of presets documenting all pre-built config files and their focus areas
+  command: grep -q "^## Presets" README.md && grep -A 15 "^## Presets" README.md | grep -q "config\..*yaml"
+  tags: [spec, implemented]
+- label: The presets table in README lists exactly the pre-built configs shipped in the repo: example, tech-news, ml-ai, product-launches, release-tracker, academic-papers, video-podcast
+  command: grep -q "config.example.yaml" README.md && grep -q "config.tech-news.yaml" README.md && grep -q "config.ml-ai.yaml" README.md && grep -q "config.academic-papers.yaml" README.md && grep -q "config.video-podcast.yaml" README.md
+  tags: [spec, implemented]
+
+# docker
+- label: Docker image bundles all 7 config.*.yaml files under /app/presets/
+  command: grep -q "COPY config.*.yaml /app/presets" Dockerfile && test -f docker-entrypoint.sh
+  tags: [spec, implemented]
+- label: docker run image --preset tech-news works directly (no volume mount needed for preset)
+  command: grep -q "ENTRYPOINT" Dockerfile && grep -q 'preset' docker-entrypoint.sh
+  tags: [spec, implemented]
