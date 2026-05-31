@@ -18,7 +18,11 @@ export interface AdapterConfig {
  * Used by all adapters for consistent "name: ..." thrown errors.
  */
 export function errorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
+  if (err instanceof Error) return err.message;
+  if (err && typeof err === "object" && "message" in err && typeof (err as any).message === "string") {
+    return (err as any).message;
+  }
+  return String(err);
 }
 
 /**

@@ -40,6 +40,11 @@ describe("errorMessage (shared DRY helper for runtime/CLI)", () => {
     expect(errorMessage(e)).toBe("sim");
     expect(errorMessage("str")).toBe("str");
   });
+
+  test("returns .message for plain objects with .message prop (duck type, aids adapters catching custom error objs from fetch libs in network/parse paths)", () => {
+    expect(errorMessage({ message: "network timeout" })).toBe("network timeout");
+    expect(errorMessage({ message: "parse failed", code: "EBADXML" })).toBe("parse failed");
+  });
 });
 
 describe("parsePort / isValidPort (shared port helpers DRYed across cli+index)", () => {

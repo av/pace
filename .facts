@@ -61,6 +61,9 @@
 - ContentItem ids are prefixed by adapter (e.g. 'hn:', 'rss:', 'github:') or 'pipeline:${name}:' to avoid collisions across sources; used as DB PK for upsert
 - every ContentItem.timestamp is a valid Date (parse failures or missing dates fall back to new Date())
 
+## errorMessage
+- errorMessage helper returns the .message property for plain objects with .message (duck type support after Error check) enabling robust cause strings in adapter fetch error throws/warns of form `: ...${errorMessage(err)}` per mmu contract and types.ts JSDoc (TDD test added for network/parse error obj shapes) @implemented
+
 # db
 - DB persistence uses SQLite with WAL mode and 5s busy_timeout; items are upserted by id (ON CONFLICT DO UPDATE); reads for UI and transforms always deduplicate keeping MAX(timestamp) per url-normalized key (or id if no url)
 - old ContentItemRows are pruned daily (and on startup) if their fetched_at is older than 30 days; prune is independent of item timestamp
