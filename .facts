@@ -23,6 +23,9 @@
 - LLM-powered Transforms and summaries require a valid LLMConfig and model; otherwise they silently degrade to no-op
 - ContentItemRows for a Panel are queried deduplicated (latest timestamp per url-norm or id) to render the Dashboard
 
+## ContentItem
+- tests assert ContentItem shape fidelity per (tgt) {id, title, url, source, timestamp: Date, body?} and ContentItemRow per (qun) {panel_id, fetched_at, optional LLM summary}; domain.test.ts provides TDD coverage for required fields, .summary optionality post-llm, timestamp validity and persisted row shape (pure test, no prod change, fills fidelity gap) @implemented
+
 # cli
 - label: the CLI supports --config, --port, --preset/-P, --list-presets, --help, --version; unknown commands or options cause immediate exit with usage
   command: bun run src/cli.ts --help 2>&1 | grep -q "Usage:" && bun run src/cli.ts badcmd 2>&1 | grep -q "Unknown command"
