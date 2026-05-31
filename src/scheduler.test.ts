@@ -168,4 +168,50 @@ describe("scheduler", () => {
     expect(Array.isArray(results)).toBe(true);
     expect(results.length).toBe(0);
   });
+
+  test("startScheduler schedules pipelines with 5s initial delay (PIPELINE_INITIAL_DELAY_MS) before first runPipelineJob + setInterval, adapters do immediate fetch; default 15m (min 1) when refresh_interval omitted (t3i)", async () => {
+    const adapters = new Map<string, Adapter>([["test", makeMockAdapter([])]]);
+    const config: any = {
+      adapters: [{ type: "test", name: "testsrc" /* omit refresh_interval -> default 15 per t3i */ }],
+      pipelines: [{
+        name: "p1",
+        sources: ["testsrc"],
+        transforms: [],
+        refresh_interval: 1,
+      }],
+      llm: undefined,
+    };
+    const pm: SourcePanelMap = {
+      sourceToPanels: new Map([["testsrc", ["panelP"]]]),
+      sourceToReadKey: new Map([["testsrc", "testsrc"]]),
+    };
+    const setTimeoutSpy = spyOn(globalThis, "setTimeout");
+    const setIntervalSpy = spyOn(globalThis, "setInterval");
+    const logSpy = spyOn(console, "log");
+    try {
+      startScheduler(config, adapters, pm, null);
+      // dynamic import for the assertable hook (will be undefined -> fail until const added to scheduler.ts)
+      const schedulerMod: any = await import("./scheduler");
+      expect(schedulerMod.PIPELINE_INITIAL_DELAY_MS).toBe(5000);
+      // exactly one setTimeout during start: the 5s for pipeline initial (adapters immediate, no timeout for their first)
+      expect(setTimeoutSpy.mock.calls.length).toBe(1);
+      expect(setTimeoutSpy.mock.calls[0][1]).toBe(5000);
+      // setInterval for adapter (15m) + prune daily (24h); pipeline's interval set later inside timeout cb
+      expect(setIntervalSpy.mock.calls.length).toBe(2);
+      // default 15m log for adapter (omitted refresh_interval)
+      const hasDefault15Log = logSpy.mock.calls.some((c) =>
+        String(c[0]).includes("every 15m")
+      );
+      expect(hasDefault15Log).toBe(true);
+      // pipeline setup log immediate (delay is for first *run*, not the schedule log)
+      const hasPipelineEveryLog = logSpy.mock.calls.some((c) =>
+        String(c[0]).includes('pipeline "p1" — every 1m')
+      );
+      expect(hasPipelineEveryLog).toBe(true);
+    } finally {
+      setTimeoutSpy.mockRestore();
+      setIntervalSpy.mockRestore();
+      logSpy.mockRestore();
+    }
+  });
 });

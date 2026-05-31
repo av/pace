@@ -48,6 +48,9 @@
 - scheduler errors for missing adapter types are prefixed 'scheduler: ' and cause startup to fail with exit 1
 - the Scheduler starts an immediate fetch for each configured adapter on startup; pipelines are scheduled with a 5s initial delay; default refresh_interval is 15 minutes (minimum 1)
 
+## startup
+- scheduler.test.ts contains a regression test for t3i: pipelines scheduled with 5s initial delay before first run (using exported PIPELINE_INITIAL_DELAY_MS=5000 const); adapters fetch immediate on start; default refresh 15m (min 1) when omitted; the const provides assertable hook and clarifies magic number in startup logic @implemented
+
 # server
 - label: the server listens on port 7453 by default (or PORT env / --port); supports graceful shutdown on SIGTERM/SIGINT (stops scheduler, closes DB)
   command: grep -q "parsePort(process.env.PORT, 7453)" src/index.ts

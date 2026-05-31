@@ -32,6 +32,12 @@ const pipelineEntries: PipelineEntry[] = [];
 let transformCtx: TransformContext = { llmModel: null };
 let pruneTimer: ReturnType<typeof setInterval> | null = null;
 
+/** 5s initial delay before first pipeline run (while adapters fetch immediately on startup).
+ * Extracted from magic literal per t3i fact ("pipelines are scheduled with a 5s initial delay");
+ * also provides assertable hook for scheduler.test.ts coverage of startup sequence + default interval.
+ */
+export const PIPELINE_INITIAL_DELAY_MS = 5000;
+
 export interface RefreshResult {
   kind: "adapter" | "pipeline";
   name: string;
@@ -154,7 +160,7 @@ export function startScheduler(
       entry.initialTimer = setTimeout(() => {
         runPipelineJob(entry);
         entry.timer = setInterval(() => runPipelineJob(entry), intervalMs);
-      }, 5000);
+      }, PIPELINE_INITIAL_DELAY_MS);
 
       pipelineEntries.push(entry);
       console.log(`scheduler: pipeline "${pipelineCfg.name}" — every ${intervalMin}m`);
