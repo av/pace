@@ -1,4 +1,5 @@
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
+import { errorMessage } from "./types";
 
 const LOBSTERS_BASE = "https://lobste.rs";
 
@@ -128,7 +129,7 @@ const adapter: Adapter = {
         body: buildBody(item),
       }));
     } catch (err) {
-      console.warn("lobsters: error fetching stories:", err);
+      console.warn(`lobsters: error fetching stories: ${errorMessage(err)}`);
       return [];
     }
   },
