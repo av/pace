@@ -30,7 +30,7 @@ async function fetchRepoReleases(
   try {
     const res = await fetch(url, { headers, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
     if (!res.ok) {
-      throw new Error(`${ADAPTER_NAME}: failed to fetch ${repo}: ${res.status}`);
+      throw new Error(`${ADAPTER_NAME}: failed to fetch ${repo}: ${errorMessage({ message: String(res.status) })}`);
     }
     const releases: GitHubRelease[] = await res.json();
     return releases.map((r) => ({
