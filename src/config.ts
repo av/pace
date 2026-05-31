@@ -104,8 +104,13 @@ function defaultConfig(): AppConfig {
   };
 }
 
-function resolveEnvVars(value: string): string {
-  return value.replace(/\$\{(\w+)\}/g, (_, name) => process.env[name] ?? "");
+function resolveEnvVars(value: string, depth = 0): string {
+  // recursive to support chained ${VAR} where env value itself contains ${REF} (per wyp fact);
+  // depth guard prevents infinite loop on cycles (e.g. mutual refs) for safety/0g1 quality
+  if (depth > 10) throw new Error(`config: too many recursive env var expansions (possible cycle) at depth ${depth}`);
+  const replaced = value.replace(/\$\{(\w+)\}/g, (_, name) => process.env[name] ?? "");
+  if (replaced === value || !replaced.includes("${")) return replaced;
+  return resolveEnvVars(replaced, depth + 1);
 }
 
 function resolveEnvInObject(obj: unknown): unknown {

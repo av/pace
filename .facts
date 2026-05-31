@@ -44,6 +44,9 @@
   command: bun run src/cli.ts --preset tech-news --help 2>&1 | grep -q 'pace v'
   tags: [spec, implemented]
 
+## env
+- loadConfig performs recursive ${VAR} substitution (chained env values containing further ${REF} are fully expanded in all YAML string fields e.g. adapter params, llm.api_key before validation; includes depth guard preventing infinite recursion on cycles) + config.test.ts regression test for it (directly makes wyp true + strengthens 0g1 exhaustive quality) @implemented
+
 # scheduler
 - scheduler errors for missing adapter types are prefixed 'scheduler: ' and cause startup to fail with exit 1
 - the Scheduler starts an immediate fetch for each configured adapter on startup; pipelines are scheduled with a 5s initial delay; default refresh_interval is 15 minutes (minimum 1)

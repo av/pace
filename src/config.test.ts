@@ -462,4 +462,32 @@ layout:
     setConfig(yaml);
     expect(() => loadConfig()).toThrow(/config: pipelines must be a list/);
   });
+
+  test("loadConfig recursively expands ${VAR} when env value contains further ${REF} (supports chained substitution per wyp; exercises before validation e.g. in adapter params; depth guard for safety vs cycles)", () => {
+    const outerKey = "TEST_REC_OUTER_" + Date.now().toString(36);
+    const innerKey = "TEST_REC_INNER_" + Date.now().toString(36);
+    const origOuter = process.env[outerKey];
+    const origInner = process.env[innerKey];
+    process.env[outerKey] = `x\${${innerKey}}y`;
+    process.env[innerKey] = "z";
+    try {
+      const yaml = `
+adapters:
+  - type: rss
+    params:
+      chained: "pre\${${outerKey}}post"
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+      setConfig(yaml);
+      const cfg = loadConfig();
+      expect((cfg.adapters[0] as any)?.params?.chained).toBe("prexzypost");
+    } finally {
+      if (origOuter === undefined) { delete process.env[outerKey]; } else { process.env[outerKey] = origOuter; }
+      if (origInner === undefined) { delete process.env[innerKey]; } else { process.env[innerKey] = origInner; }
+    }
+  });
 });
