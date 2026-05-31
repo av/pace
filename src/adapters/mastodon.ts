@@ -1,4 +1,5 @@
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
+import { errorMessage } from "./types";
 
 interface MastodonStatus {
   id: string;
@@ -265,7 +266,7 @@ const adapter: Adapter = {
         body: buildBody(status, instance),
       }));
     } catch (err) {
-      console.warn(`mastodon: error fetching from ${instance}:`, err);
+      console.warn(`mastodon: error fetching from ${instance}: ${errorMessage(err)}`);
       return [];
     }
   },

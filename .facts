@@ -77,6 +77,9 @@
 ## errorMessage
 - errorMessage helper returns the .message property for plain objects with .message (duck type support after Error check) enabling robust cause strings in adapter fetch error throws/warns of form `: ...${errorMessage(err)}` per mmu contract and types.ts JSDoc (TDD test added for network/parse error obj shapes) @implemented
 
+## mastodon
+- mastodon adapter (previously untested) satisfies ngb contract (default .name + .fetch fn) and uses errorMessage(err) in its fetch error console.warn strings (per mmu contract + sh1 quality for robust msgs); covered by new TDD test in mastodon.test.ts (ngb shape + network error spy path) @implemented
+
 # db
 - DB persistence uses SQLite with WAL mode and 5s busy_timeout; items are upserted by id (ON CONFLICT DO UPDATE); reads for UI and transforms always deduplicate keeping MAX(timestamp) per url-normalized key (or id if no url)
 - old ContentItemRows are pruned daily (and on startup) if their fetched_at is older than 30 days; prune is independent of item timestamp
