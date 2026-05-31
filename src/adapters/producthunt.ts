@@ -239,7 +239,7 @@ async function fetchProductHuntFeed(): Promise<
     });
 
     if (!res.ok) {
-      throw new Error(`producthunt: failed to fetch feed: ${res.status}`);
+      throw new Error(`producthunt: failed to fetch feed: ${errorMessage({ message: String(res.status) })}`);
     }
 
     const xml = await res.text();
