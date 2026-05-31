@@ -186,4 +186,23 @@ describe("hackernews adapter", () => {
     ).length;
     expect(itemCalls).toBe(25);
   });
+
+  test("uses errorMessage helper (via sh1 duck) for !ok feed list status errors (mmu contract, closes raw status gap; also ngb shape)", async () => {
+    fetchMock.mockResolvedValue(new Response("[]", { status: 500 }));
+
+    const typesMod = await import("./adapters/types");
+    const emSpy = spyOn(typesMod, "errorMessage");
+
+    await expect(
+      hackernewsAdapter.fetch({ params: { feed: "top" } } as any),
+    ).rejects.toThrow(/hackernews: error fetching stories: hackernews: failed to fetch topstories: 500/);
+
+    const hadDuckForStatus = emSpy.mock.calls.some((c: any[]) => {
+      const arg = c[0];
+      return arg && typeof arg === "object" && !(arg instanceof Error) && (arg as any).message === "500";
+    });
+    expect(hadDuckForStatus).toBe(true); // pre-edit: false (raw status, no duck to helper in inner); post-edit: true
+
+    emSpy.mockRestore();
+  });
 });

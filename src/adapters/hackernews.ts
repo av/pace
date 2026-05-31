@@ -37,7 +37,7 @@ async function fetchHN<T>(subpath: string, timeout: number, errorContext?: strin
   });
   if (!res.ok) {
     const ctx = errorContext ?? subpath;
-    throw new Error(`hackernews: failed to fetch ${ctx}: ${res.status}`);
+    throw new Error(`hackernews: failed to fetch ${ctx}: ${errorMessage({ message: String(res.status) })}`);
   }
   return (await res.json()) as T;
 }
