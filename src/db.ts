@@ -67,6 +67,7 @@ export function saveItems(panelId: string, items: ContentItem[]): void {
     INSERT INTO content_items (id, panel_id, title, url, source, body, timestamp, fetched_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
     ON CONFLICT(id) DO UPDATE SET
+      panel_id = excluded.panel_id,
       title = excluded.title,
       url = excluded.url,
       source = excluded.source,

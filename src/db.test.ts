@@ -171,3 +171,18 @@ test("saveItems handles items with empty url (falls back to id for dedup key)", 
   const ids = res.map(r => r.id).sort();
   expect(ids).toEqual(["nu1", "nu2"]);
 });
+
+test("saveItems upsert by id updates panel_id (and all fields) from last save even cross-panel", () => {
+  initDb();
+  const first = makeItem({ id: "upsert1", url: "https://ex.com/upsert/a", timestamp: new Date("2020-01-01"), title: "first" });
+  saveItems("panelA", [first]);
+  const second = makeItem({ id: "upsert1", url: "https://ex.com/upsert/b", timestamp: new Date("2020-01-02"), title: "second" });
+  saveItems("panelB", [second]);
+  const dbh = getDb();
+  const row = dbh.prepare("SELECT id, panel_id, title, url, fetched_at FROM content_items WHERE id = ?").get("upsert1") as any;
+  expect(row).toBeTruthy();
+  expect(row.panel_id).toBe("panelB"); // fails pre-edit: UPDATE misses panel_id=excluded
+  expect(row.title).toBe("second");
+  expect(row.url).toBe("https://ex.com/upsert/b");
+  expect(row.fetched_at).toBeTruthy();
+});

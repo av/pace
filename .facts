@@ -77,6 +77,9 @@
 - DB persistence uses SQLite with WAL mode and 5s busy_timeout; items are upserted by id (ON CONFLICT DO UPDATE); reads for UI and transforms always deduplicate keeping MAX(timestamp) per url-normalized key (or id if no url)
 - old ContentItemRows are pruned daily (and on startup) if their fetched_at is older than 30 days; prune is independent of item timestamp
 
+## upsert
+- saveItems performs full upsert by id via ON CONFLICT DO UPDATE including panel_id (last save for an id wins its panel assignment + data + refreshed fetched_at); completes the 'items are upserted by id' claim in meb with explicit cross-panel last-writer semantics and TDD coverage in db.test.ts @implemented
+
 # transforms
 - Transforms declared in an adapter or pipeline config are applied in exact declaration order during refresh via runPipeline; unknown transform types warn and are skipped (passthrough)
 - dedupe transform supports strategies 'url' (exact), 'domain-normalized' (group by normalized host+path), 'title-similarity' (greedy Levenshtein); 'keep' (highest-score, earliest, latest) decides winner per group; logs removals
