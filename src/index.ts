@@ -22,6 +22,7 @@ app.use("*", async (c, next) => {
   c.header("X-Frame-Options", "DENY");
   c.header("Referrer-Policy", "strict-origin-when-cross-origin");
   c.header("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'");
+  c.header("Permissions-Policy", "interest-cohort=()");
 });
 
 async function start() {

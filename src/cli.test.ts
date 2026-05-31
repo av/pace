@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { spawnSync, type SpawnSyncReturns } from "node:child_process";
+import { spawnSync, spawn, type SpawnSyncReturns, type ChildProcess } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import os from "node:os";
@@ -81,4 +81,88 @@ describe("cli.ts (argument handling, validation, early exits, error surfacing)",
     expect(res.stderr).toContain("config: failed to parse YAML from");
     expect(res.stderr).toContain(badCfg);
   });
+});
+
+describe("server (integration via bg CLI spawn: /health m15, /styles cache m15, /refresh 502 fail igb + 404, yn0+quality headers on all responses)", () => {
+  test("GET /health returns 200+{status:\"ok\"}; GET /styles.css 200+1h cache; POST /refresh/reddit ->502 w/details (igb, reddit fails in this env); /refresh/unknown->404; EVERY resp (200/404/502) includes yn0 security headers + quality Permissions-Policy (test-first TDD for server facts igb/yn0/m15)", async () => {
+    const port = 18476 + (process.pid % 200);
+    const dbPath = `/tmp/pace-iter6-server-test-${port}.db`;
+    const logPath = `/tmp/pace-iter6-server-test-${port}.log`;
+    const env = { ...process.env, PACE_DB_PATH: dbPath };
+    // cleanup prior
+    try { require("node:fs").unlinkSync(dbPath); } catch {}
+    try { require("node:fs").unlinkSync(logPath); } catch {}
+    const proc: ChildProcess = spawn(process.execPath, ["src/cli.ts", "--port", String(port), "--preset", "tech-news", "serve"], {
+      stdio: ["ignore", "pipe", "pipe"],
+      cwd: process.cwd(),
+      env,
+    });
+    // wait for listening (or timeout)
+    await new Promise<void>((resolve) => {
+      let buf = "";
+      const timer = setTimeout(() => resolve(), 2800);
+      const onData = (d: Buffer) => {
+        buf += d.toString();
+        if (buf.includes("listening on")) {
+          clearTimeout(timer);
+          proc.stdout?.off("data", onData);
+          resolve();
+        }
+      };
+      proc.stdout?.on("data", onData);
+      proc.stderr?.on("data", (d: Buffer) => { buf += d.toString(); });
+    });
+    const base = `http://localhost:${port}`;
+    async function req(url: string, method = "GET") {
+      const r = await fetch(url, { method, signal: (AbortSignal as any).timeout ? (AbortSignal as any).timeout(2500) : undefined });
+      const status = r.status;
+      const hd: Record<string, string> = {};
+      r.headers.forEach((v, k) => { hd[k.toLowerCase()] = v; });
+      const ct = hd["content-type"] || "";
+      let body: unknown = "";
+      try {
+        if (ct.includes("json")) body = await r.json();
+        else body = await r.text();
+      } catch { body = ""; }
+      return { status, hd, body };
+    }
+    const health = await req(`${base}/health`);
+    expect(health.status).toBe(200);
+    expect(health.body).toEqual({ status: "ok" });
+    const styles = await req(`${base}/styles.css`);
+    expect(styles.status).toBe(200);
+    expect(styles.hd["cache-control"] || "").toContain("max-age=3600");
+    // use redirect:manual so fetch does not follow 303; reddit may 502 (fail) or 303 (success) depending on net
+    const r502 = await fetch(`${base}/refresh/reddit`, { method: "POST", redirect: "manual" });
+    const r502Status = r502.status;
+    const r502Body = await r502.text().catch(() => "");
+    expect([502, 303]).toContain(r502Status);
+    if (r502Status === 502) expect(r502Body).toContain("Refresh failed for reddit:");
+    const r404 = await fetch(`${base}/refresh/unknownpanel-iter6`, { method: "POST", redirect: "manual" });
+    expect(r404.status).toBe(404);
+    const r404Body = await r404.text().catch(() => "");
+    expect(r404Body).toContain("Unknown panel:");
+    // verify yn0 + quality header on all responses (the improvement)
+    const secKeys = ["x-content-type-options", "x-frame-options", "referrer-policy", "content-security-policy", "permissions-policy"];
+    const toCheck = [
+      health,
+      styles,
+      { hd: Object.fromEntries(r502.headers.entries()) },
+      { hd: Object.fromEntries(r404.headers.entries()) },
+    ];
+    toCheck.forEach((resp) => {
+      const lowerHd: Record<string, string> = {};
+      Object.entries(resp.hd || {}).forEach(([k, v]) => { lowerHd[k.toLowerCase()] = v as string; });
+      secKeys.forEach((k) => {
+        expect(lowerHd[k]).toBeDefined();
+      });
+      expect(lowerHd["content-security-policy"]).toContain("default-src 'self'");
+      expect(lowerHd["permissions-policy"]).toBe("interest-cohort=()");
+    });
+    // cleanup robust
+    if (proc.pid) { try { process.kill(proc.pid, "SIGKILL"); } catch {} }
+    await new Promise((r) => setTimeout(r, 200));
+    try { require("node:fs").unlinkSync(dbPath); } catch {}
+    try { require("node:fs").unlinkSync(logPath); } catch {}
+  }, 15000);
 });

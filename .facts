@@ -61,6 +61,9 @@
 - every response includes security headers: X-Content-Type-Options nosniff, X-Frame-Options DENY, Referrer-Policy strict-origin-when-cross-origin, CSP default-src self with unsafe-inline for styles
 - GET /health returns JSON {status: "ok"}; GET /styles.css serves the static CSS with 1h cache
 
+## headers
+- server responses include /health 200+JSON {status:"ok"} (m15), /styles.css 200+public max-age=3600 cache (m15), /refresh/:panel 502 w/ "Refresh failed for ..." details when sources fail e.g. reddit (igb) + 404 unknown + 303 success, and ALL responses (200/404/502) include yn0 headers (X-Content-Type-Options nosniff, X-Frame-Options DENY, Referrer-Policy, CSP default-src 'self' + style-src unsafe-inline) PLUS Permissions-Policy: interest-cohort=() (quality security hardening); integration test in cli.test.ts using bg spawn+fetch --preset tech-news (TDD red-green on header addition) @implemented
+
 # adapters
 - every Adapter must export a default object with .name (string) and .fetch(config: AdapterConfig): Promise<ContentItem[]>; discovery scans src/adapters/*.ts at runtime (excludes tests/types/index)
 - Adapter fetch implementations that encounter network/HTTP/parse errors either throw (with `${name}: ` prefix + errorMessage) or console.warn and return []; the contract in types.ts documents the expectation for callers
