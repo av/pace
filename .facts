@@ -104,6 +104,9 @@
 ## reddit
 - reddit adapter satisfies ngb contract (default export .name + .fetch fn) and uses errorMessage(err) in its fetch error strings/throws (per mmu contract + sh1 quality for robust msgs); covered by new TDD test in reddit.test.ts (ngb shape + mmu !ok error spy path exercising helper) @implemented
 
+## twitter
+- twitter adapter satisfies ngb contract (default export .name + .fetch fn) and uses errorMessage(err) in its log strings (per mmu contract + sh1 quality for robust msgs); covered by new TDD test in twitter.test.ts (ngb shape + mmu config/no-sources errorMessage spy path exercising helper) @implemented
+
 # db
 - DB persistence uses SQLite with WAL mode and 5s busy_timeout; items are upserted by id (ON CONFLICT DO UPDATE); reads for UI and transforms always deduplicate keeping MAX(timestamp) per url-normalized key (or id if no url)
 - old ContentItemRows are pruned daily (and on startup) if their fetched_at is older than 30 days; prune is independent of item timestamp

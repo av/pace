@@ -1,7 +1,7 @@
-import type { Adapter, AdapterConfig, ContentItem } from "./types";
+import { type Adapter, type AdapterConfig, type ContentItem, errorMessage } from "./types";
 
 function logAndReturnEmpty(msg: string): ContentItem[] {
-  console.log(msg);
+  console.log(errorMessage({ message: msg }));
   return [];
 }
 
