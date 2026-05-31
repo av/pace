@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, test, expect, spyOn } from "bun:test";
 import {
   stripJsonCodeFences,
   safeComplete,
@@ -10,6 +10,7 @@ import {
 } from "./llm";
 import type { ContentItem } from "./adapters/types";
 import type { Model, Api } from "@mariozechner/pi-ai";
+import * as piAi from "@mariozechner/pi-ai";
 
 // Minimal fake model that will cause complete() to throw (exercises all catch paths)
 const fakeThrowingModel = { id: "fake" } as Model<Api>;
@@ -156,6 +157,44 @@ describe("llm utils (DRY quality + test coverage)", () => {
       const items = [makeItem({ id: "m1", title: "m", body: "bb" })];
       // merge/filter/lens call format internally now; just ensure no throw on valid
       expect(await mergeItems(fakeThrowingModel, items)).toEqual(items); // errors to passthrough
+    });
+  });
+
+  describe("null model guard b89 (silent passthrough for llm-summarize/filter/rank/merge; uses spy mock on complete)", () => {
+    test("summarizeItem returns null and does not call complete when model=null (silent; pre-guard reaches via catch)", async () => {
+      const completeSpy = spyOn(piAi, "complete");
+      const item = makeItem({ title: "Null Model Test" });
+      const res = await summarizeItem(null as any, item);
+      expect(res).toBe(null);
+      expect(completeSpy.mock.calls.length).toBe(0);
+      completeSpy.mockRestore();
+    });
+
+    test("mergeItems returns items unchanged and does not call complete when model=null (silent passthrough b89)", async () => {
+      const completeSpy = spyOn(piAi, "complete");
+      const items = [makeItem({ id: "n1" }), makeItem({ id: "n2" })];
+      const res = await mergeItems(null as any, items);
+      expect(res).toEqual(items);
+      expect(completeSpy.mock.calls.length).toBe(0);
+      completeSpy.mockRestore();
+    });
+
+    test("filterItemsByLlm returns items unchanged and does not call complete when model=null (silent passthrough b89)", async () => {
+      const completeSpy = spyOn(piAi, "complete");
+      const items = [makeItem({ id: "f1" })];
+      const res = await filterItemsByLlm(null as any, items, "keep all");
+      expect(res).toEqual(items);
+      expect(completeSpy.mock.calls.length).toBe(0);
+      completeSpy.mockRestore();
+    });
+
+    test("lensItems returns items unchanged and does not call complete when model=null (silent passthrough b89)", async () => {
+      const completeSpy = spyOn(piAi, "complete");
+      const items = [makeItem({ id: "l1" })];
+      const res = await lensItems(null as any, items, ["interest"]);
+      expect(res).toEqual(items);
+      expect(completeSpy.mock.calls.length).toBe(0);
+      completeSpy.mockRestore();
     });
   });
 });

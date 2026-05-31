@@ -139,9 +139,10 @@ async function queryLlmForJson<T>(
  * Summarize a single content item. Returns a 2-3 sentence summary, or null on error.
  */
 export async function summarizeItem(
-  model: Model<Api>,
+  model: Model<Api> | null,
   item: ContentItem
 ): Promise<string | null> {
+  if (!model) return null;
   const bodySnippet = item.body ? item.body.slice(0, 2000) : "";
   const userContent = bodySnippet
     ? `Title: ${item.title}\n\n${bodySnippet}`
@@ -163,11 +164,11 @@ export async function summarizeItem(
  * Merged items replace originals; unmerged pass through.
  */
 export async function mergeItems(
-  model: Model<Api>,
+  model: Model<Api> | null,
   items: ContentItem[],
   prompt?: string
 ): Promise<ContentItem[]> {
-  if (items.length === 0) return items;
+  if (!model || items.length === 0) return items;
 
   const mergePrompt = prompt ?? "Group related items about the same topic into merged summaries";
   const systemPrompt = `${mergePrompt}
@@ -214,11 +215,11 @@ Every item ID must appear exactly once. Return ONLY the JSON array.`;
  * LLM-based filter: keep only items matching criteria.
  */
 export async function filterItemsByLlm(
-  model: Model<Api>,
+  model: Model<Api> | null,
   items: ContentItem[],
   criteria: string
 ): Promise<ContentItem[]> {
-  if (items.length === 0) return items;
+  if (!model || items.length === 0) return items;
 
   const systemPrompt = `Given the criteria: "${criteria}", decide which items to keep. Return a JSON array of item IDs that match. Return ONLY the JSON array of strings.`;
 
@@ -235,11 +236,11 @@ export async function filterItemsByLlm(
  * On error, returns items unchanged (graceful degradation).
  */
 export async function lensItems(
-  model: Model<Api>,
+  model: Model<Api> | null,
   items: ContentItem[],
   interests: string[]
 ): Promise<ContentItem[]> {
-  if (items.length === 0 || interests.length === 0) return items;
+  if (!model || items.length === 0 || interests.length === 0) return items;
 
   const interestList = interests.join(", ");
   const systemPrompt = `Score each item's relevance to these interests: ${interestList}. Return a JSON array of {id, score} objects where score is 0-10. Return ONLY the JSON array, no other text.`;

@@ -88,6 +88,9 @@
 - llm-summarize, llm-filter, llm-rank, llm-merge transforms require LLMConfig + model in context; withLlmModel guard causes silent passthrough (no change to items or summaries) if no model configured
 - LLM summaries (from llm-summarize or llm-merge) are persisted in ContentItemRow.summary and rendered in dashboard; replacePanelItems preserves prior summaries across transform runs
 
+## guards
+- llm.ts summarizeItem/mergeItems/filterItemsByLlm/lensItems explicitly accept Model<Api>|null and silently passthrough (return items unchanged or null for summarize; 0 calls to complete) when !model, with llm.test.ts spyOn regression coverage; this quality guard clarifies b89 silent passthrough (no LLM hit) at the core llm fn layer (beyond higher withLlmModel); merge summary->body path supports 01t persist semantics @implemented
+
 # layout
 - the Dashboard is entirely server-rendered (Hono JSX to full HTML document with inline styles link); no client-side JavaScript is served or required
 - layout containers switch to vertical stacking on screens <=768px via CSS media query regardless of YAML direction; panels use flex + scroll for content
