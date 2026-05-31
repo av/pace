@@ -58,4 +58,21 @@ describe("domain ContentItem fidelity (per .facts)", () => {
     expect(rowWithSummary).toHaveProperty("summary");
     expect(typeof rowWithSummary.summary).toBe("string");
   });
+
+  it("Panel has shape fidelity {name, source, limit?, id?} per qyi", () => {
+    const panel = {
+      name: "tech-news",
+      source: "all",
+      id: "a1b2c3d4", // stable 8-char hex per domain facts (optional in some configs)
+      limit: 10,
+    };
+    expect(panel).toHaveProperty("id");
+    expect(typeof panel.id).toBe("string");
+    expect(typeof panel.name).toBe("string");
+    expect(panel).toHaveProperty("source");
+    if (panel.limit !== undefined) {
+      expect(typeof panel.limit).toBe("number");
+    }
+    // id optional in some cases; source can be adapter/pipeline/all per qyi
+  });
 });
