@@ -18,7 +18,7 @@ Aggregate Hacker News, Reddit, RSS, GitHub, Mastodon, YouTube, arXiv, and 10 mor
 docker run -d -p 7453:7453 -v pace-data:/app/data ghcr.io/av/pace:latest
 ```
 
-Open http://localhost:7453 — the default config ships with Hacker News, Lobsters, GitHub trending/releases, engineering blogs, and DEV.to.
+Open http://localhost:7453 — the default config ships with Hacker News, Lobsters, GitHub trending/releases, engineering blogs, and DEV.to. Content populates after the initial adapter fetches (usually within seconds of the "listening" message).
 
 ### With a preset
 
@@ -44,6 +44,8 @@ docker run -d -p 7453:7453 \
 ```
 
 ### From source
+
+Requires Bun v1.3+.
 
 ```bash
 git clone https://github.com/av/pace.git && cd pace

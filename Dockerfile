@@ -6,16 +6,12 @@ COPY package.json bun.lock* ./
 RUN bun install --production
 
 COPY src/ src/
-COPY bunfig.toml tsconfig.json config.example.yaml docker-entrypoint.sh ./
+COPY bunfig.toml tsconfig.json config.example.yaml ./
 COPY config.*.yaml /app/presets/
 
-RUN mkdir -p /app/data /app/presets && \
-    useradd --system --no-create-home pace && \
-    chown -R pace:pace /app/data /app/presets
-
-USER pace
+RUN mkdir -p /app/data /app/presets
 
 EXPOSE 7453
 
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
-CMD ["bun", "run", "src/index.ts"]
+ENTRYPOINT ["bun", "run", "src/cli.ts"]
+CMD ["serve"]

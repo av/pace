@@ -97,6 +97,8 @@
 - label: README Quick Start includes a docker run example that mounts a pre-built preset config
   command: grep -q "Quick start" README.md && grep -A 30 "## Quick start" README.md | grep -q "preset" && grep -A 30 "## Quick start" README.md | grep -q "config\..*\.yaml"
   tags: [spec, implemented]
+- README Quick Start From source section states that Bun v1.3+ is required before the clone/install commands @spec @implemented
+- README Quick Start instructs users that content populates after the initial adapter fetches once the server is listening @spec @implemented
 
 ## presets
 - label: README contains a table of presets documenting all pre-built config files and their focus areas
@@ -108,8 +110,15 @@
 
 # docker
 - label: Docker image bundles all 7 config.*.yaml files under /app/presets/
-  command: grep -q "COPY config.*.yaml /app/presets" Dockerfile && test -f docker-entrypoint.sh
+  command: grep -q "COPY config.*.yaml /app/presets" Dockerfile
   tags: [spec, implemented]
 - label: docker run image --preset tech-news works directly (no volume mount needed for preset)
-  command: grep -q "ENTRYPOINT" Dockerfile && grep -q 'preset' docker-entrypoint.sh
+  command: grep -q 'src/cli.ts' Dockerfile
   tags: [spec, implemented]
+- docker run ghcr.io/av/pace:latest --preset tech-news starts the server using the tech-news preset config @spec @implemented
+- docker run -v pace-data:/app/data ghcr.io/av/pace:latest starts successfully on first run and serves the dashboard (data dir is writable) @spec @implemented
+
+# docs
+
+## setup
+- skills/pace-dashboard-setup/SKILL.md CLI flags section documents --preset/-P and --list-presets matching the current CLI help output @spec @implemented

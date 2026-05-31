@@ -41,7 +41,9 @@ The server starts at http://localhost:7453 by default.
 pace [serve] [options]
 
   -c, --config <path>   Config file path (default: ./config.yaml)
-  -p, --port <number>   Server port (default: 7453)
+  -p, --port <number>   Server port (default: 7453, or $PORT)
+  -P, --preset <name>   Use a bundled preset (tech-news, ml-ai, etc.)
+      --list-presets    List available bundled presets
   -h, --help            Show help
   -v, --version         Show version
 ```
