@@ -122,3 +122,8 @@
 
 ## setup
 - skills/pace-dashboard-setup/SKILL.md CLI flags section documents --preset/-P and --list-presets matching the current CLI help output @spec @implemented
+
+# tests
+
+## layout
+- layout.test.ts contains a regression test asserting that renderDashboard produces the compact footer with 'Pace' github hyperlink + updatedAt UTC, document title remains 'pace', and omits deprecated .header or .updated span (directly guarding the compact layout facts gp9,r3s,swp,c00) @implemented

@@ -21,13 +21,13 @@ function makeItem(overrides: Partial<ContentItemRow> = {}): ContentItemRow {
 }
 
 describe("renderDashboard", () => {
-  it("renders full HTML5 doctype + basic shell with title, header updatedAt, and stylesheet link", () => {
+  it("renders full HTML5 doctype + basic shell with title, footer, and stylesheet link", () => {
     const layout: LayoutNodeConfig = { direction: "row", children: [] } as any;
     const panelData = new Map<string, PanelData>();
     const html = renderDashboard({ layout, panelData, updatedAt: "2026-05-21 12:34" });
     expect(html.startsWith("<!DOCTYPE html>")).toBe(true);
     expect(html).toContain("<title>pace</title>");
-    expect(html).toContain('<span class="updated">2026-05-21 12:34 UTC</span>');
+    expect(html).toContain('<footer class="footer"><a href="https://github.com/av/pace" target="_blank" rel="noopener noreferrer">Pace</a> / 2026-05-21 12:34 UTC</footer>');
     expect(html).toContain('<link rel="stylesheet" href="/styles.css"/>');
     expect(html).toContain('<div class="flex-root">');
   });
@@ -158,5 +158,18 @@ describe("renderDashboard", () => {
     // bad time renders empty time span (no digits from relative)
     expect(html).toContain(">BadTime</a>");
     expect(html).toContain('<span class="item-time"></span>');
+  });
+
+  it("renders compact footer with Pace hyperlink to github, updatedAt UTC, document title 'pace', and omits deprecated header/updated span per layout facts (gp9,r3s,swp,c00)", () => {
+    const layout: LayoutNodeConfig = { direction: "row", children: [] } as any;
+    const panelData = new Map<string, PanelData>();
+    const html = renderDashboard({ layout, panelData, updatedAt: "2026-05-31 00:42" });
+    expect(html).toContain("<title>pace</title>");
+    expect(html).toContain('<footer class="footer">');
+    expect(html).toContain('<a href="https://github.com/av/pace" target="_blank" rel="noopener noreferrer">Pace</a> / 2026-05-31 00:42 UTC');
+    expect(html).not.toContain('<span class="updated">');
+    expect(html).not.toContain('class="header"');
+    expect(html).not.toContain("<h1>pace</h1>"); // old header branding removed
+    expect(html).toContain('<link rel="stylesheet" href="/styles.css"/>');
   });
 });
