@@ -1,5 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
+import { errorMessage } from "./types";
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -297,7 +298,7 @@ async function fetchPodcastFeed(
       signal: AbortSignal.timeout(20000),
     });
     if (!res.ok) {
-      return warnAndReturnEmpty(`podcast: failed to fetch ${feedUrl}: ${res.status}`);
+      return warnAndReturnEmpty(`podcast: failed to fetch ${feedUrl}: ${errorMessage({ message: String(res.status) })}`);
     }
     const xml = await res.text();
     const parsed = parser.parse(xml);
@@ -327,7 +328,7 @@ async function fetchPodcastFeed(
 
     return episodes;
   } catch (err) {
-    return warnAndReturnEmpty(`podcast: error fetching ${feedUrl}:`, err);
+    return warnAndReturnEmpty(`podcast: error fetching ${feedUrl}: ${errorMessage(err)}`);
   }
 }
 

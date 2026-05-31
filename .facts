@@ -95,6 +95,9 @@
 ## github-releases
 - github-releases adapter satisfies ngb contract (default export .name + .fetch fn) and uses errorMessage(err) in its fetch error strings/throws (per mmu contract + sh1 quality for robust msgs); covered by new TDD test in github-releases.test.ts (ngb shape + mmu !ok/network error spy paths exercising helper) @implemented
 
+## podcast
+- podcast adapter satisfies ngb contract (default export .name + .fetch fn) and uses errorMessage(err) in its fetch error strings/throws (per mmu contract + sh1 quality for robust msgs); covered by new TDD test in podcast.test.ts (ngb shape + mmu !ok error spy paths exercising helper) @implemented
+
 # db
 - DB persistence uses SQLite with WAL mode and 5s busy_timeout; items are upserted by id (ON CONFLICT DO UPDATE); reads for UI and transforms always deduplicate keeping MAX(timestamp) per url-normalized key (or id if no url)
 - old ContentItemRows are pruned daily (and on startup) if their fetched_at is older than 30 days; prune is independent of item timestamp
