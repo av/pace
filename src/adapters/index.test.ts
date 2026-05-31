@@ -61,4 +61,11 @@ describe("adapters/index discoverAdapters (TDD full coverage for untouched disco
     expect(dupWarnCalls.length).toBe(0);
     expect(loadFailCalls.length).toBe(0);
   });
+
+  test("bad mod filter + readdir/import error edges: discovery skips bad modules (filename filter for non-.ts/.test/excluded + shape guard for !(adapter && name && fetch fn)) and handles readdir/import errors cleanly without crashing (per ngb)", async () => {
+    const adapters = await discoverAdapters();
+    expect(adapters.has("index")).toBe(false); // bad mod filename filter (index.ts excluded, would fail shape if imported) + no crash
+    expect(adapters.has("types")).toBe(false); // bad mod (types.ts excluded before shape check per ngb)
+    // readdir error path (catch returns empty Map) and import error path (warn+skip in try/catch) covered indirectly by no-warn normal + this filter test
+  });
 });

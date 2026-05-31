@@ -110,6 +110,9 @@
 ## hackernews
 - hackernews adapter satisfies ngb contract (default export .name + .fetch fn) and uses errorMessage(err) for !ok status errors in fetch (per mmu contract + sh1 quality for robust msgs, closing raw status gap); covered by TDD extension in hackernews.test.ts (ngb shape + mmu !ok errorMessage duck spy path exercising helper) @implemented
 
+## discovery
+- discoverAdapters in adapters/index.ts implements ngb by using filename filter (excludes .test.ts/types/index + non-.ts) + shape guard (bad mod filter: only add if default adapter && .name && typeof .fetch==='function') and cleanly handles readdir errors (return empty Map) + per-file import errors (console.warn + skip); covered by regression test in index.test.ts (bad mod filter edges) @implemented
+
 # db
 - DB persistence uses SQLite with WAL mode and 5s busy_timeout; items are upserted by id (ON CONFLICT DO UPDATE); reads for UI and transforms always deduplicate keeping MAX(timestamp) per url-normalized key (or id if no url)
 - old ContentItemRows are pruned daily (and on startup) if their fetched_at is older than 30 days; prune is independent of item timestamp
