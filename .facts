@@ -89,6 +89,9 @@
 ## youtube
 - youtube adapter (previously untested) satisfies ngb contract (default .name + .fetch fn) and uses errorMessage(err) in its fetch error console.warn strings (per mmu contract + sh1 quality for robust msgs); covered by new TDD test in youtube.test.ts (ngb shape + network error spy path) @implemented
 
+## devto
+- devto adapter satisfies ngb contract (default export .name + .fetch fn) and uses errorMessage(err) in its fetch error strings/throws (per mmu contract + sh1 quality for robust msgs); covered by new TDD test in devto.test.ts (ngb shape + mmu network/!ok error spy paths exercising helper) @implemented
+
 # db
 - DB persistence uses SQLite with WAL mode and 5s busy_timeout; items are upserted by id (ON CONFLICT DO UPDATE); reads for UI and transforms always deduplicate keeping MAX(timestamp) per url-normalized key (or id if no url)
 - old ContentItemRows are pruned daily (and on startup) if their fetched_at is older than 30 days; prune is independent of item timestamp

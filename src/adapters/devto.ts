@@ -59,7 +59,7 @@ async function fetchDevToArticles(
     });
 
     if (!res.ok) {
-      throw new Error(`devto: failed to fetch ${context}: ${res.status}`);
+      throw new Error(`devto: failed to fetch ${context}: ${errorMessage({ message: String(res.status) })}`);
     }
 
     return await res.json();
