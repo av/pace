@@ -1,5 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
+import { errorMessage } from "./types";
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -89,7 +90,7 @@ async function fetchYoutubeFeed(
     const entries = extractEntries(parsed);
     return entries.slice(0, limit).map((entry) => parseEntry(entry, channelTitle));
   } catch (err) {
-    console.warn(`youtube: error fetching ${label} ${id}:`, err);
+    console.warn(`youtube: error fetching ${label} ${id}: ${errorMessage(err)}`);
     return [];
   }
 }
