@@ -81,6 +81,22 @@ describe("cli.ts (argument handling, validation, early exits, error surfacing)",
     expect(res.stderr).toContain("config: failed to parse YAML from");
     expect(res.stderr).toContain(badCfg);
   });
+
+  test("--chdir/-C <dir> is accepted (not unknown opt); chdirs for subsequent loads (e.g. config validation uses target cwd); errors cleanly for invalid dir (nonexistent or not dir) with 'Failed to chdir' message + exit 1 (TDD red-green for td2 chdir quality + new CLI capability)", () => {
+    // invalid dir + --version (version early but if chdir handling placed early before version if, it will error first with clean msg)
+    const bad = join(tmpDir, "nonexistent-chdir-subdir-xyz");
+    const resBad = runCli(["--chdir", bad, "--version"]);
+    expect(resBad.status).toBe(1);
+    expect(resBad.stderr).toContain("Failed to chdir");
+    expect(resBad.stderr).toContain(bad);
+    expect(resBad.stdout).toBe("");
+    // valid dir + bad --port (port validation is after chdir handling + unknown check; proves --chdir was accepted not rejected as unknown, processing continued to subsequent validation)
+    const resValidThenPort = runCli(["-C", tmpDir, "--port", "99999"]);
+    expect(resValidThenPort.status).toBe(1);
+    expect(resValidThenPort.stderr).toContain("Invalid --port value: 99999");
+    expect(resValidThenPort.stderr).not.toContain("Unknown option");
+    expect(resValidThenPort.stdout).toBe("");
+  });
 });
 
 describe("server (integration via bg CLI spawn: /health m15, /styles cache m15, /refresh 502 fail igb + 404, yn0+quality headers on all responses)", () => {

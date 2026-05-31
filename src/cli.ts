@@ -24,6 +24,7 @@ Commands:
 Options:
   -c, --config <path>   Path to config file (default: ./config.yaml)
   -p, --port <number>   Server port (default: 7453, or $PORT)
+  -C, --chdir <dir>     Change to directory (for config/data loads; after bootstrap)
   -P, --preset <name>   Use a bundled preset (tech-news, ml-ai, etc.)
       --list-presets    List available bundled presets
   -h, --help            Show this help
@@ -35,6 +36,7 @@ const { values, positionals } = parseArgs({
   options: {
     config: { type: "string", short: "c" },
     port: { type: "string", short: "p" },
+    chdir: { type: "string", short: "C" },
     preset: { type: "string", short: "P" },
     listPresets: { type: "boolean" },
     help: { type: "boolean", short: "h" },
@@ -46,6 +48,17 @@ const { values, positionals } = parseArgs({
 
 // parseArgs keeps kebab-case for some flags (e.g. --list-presets -> "list-presets")
 if (values['list-presets'] !== undefined) values.listPresets = values['list-presets'];
+
+// --chdir/-C handling (minimal quality: clean error for invalid; chdir early so affects subsequent --config/--preset/port validation + loads; supports td2 bootstrap + 25k spec; test-driven)
+if (values.chdir || values['chdir']) {
+  const target = (values.chdir || values['chdir']) as string;
+  try {
+    process.chdir(target);
+  } catch (err) {
+    console.error(`Failed to chdir to ${target}: ${errorMessage(err)}`);
+    process.exit(1);
+  }
+}
 
 if (values.help) {
   console.log(HELP);
@@ -85,7 +98,7 @@ if (command !== "serve") {
 
 // Reject unknown options (parseArgs with strict:false still populates undeclared keys into values,
 // e.g. --badflag or typos). This provides clear feedback instead of silently proceeding to serve.
-const knownOptions = ["config", "port", "preset", "listPresets", "list-presets", "help", "version"];
+const knownOptions = ["config", "port", "chdir", "preset", "listPresets", "list-presets", "help", "version"];
 const unexpected = Object.keys(values).filter((k) => !knownOptions.includes(k) && values[k] !== undefined);
 if (unexpected.length > 0) {
   console.error(`Unknown option(s): ${unexpected.map((u) => "--" + u).join(", ")}\n`);

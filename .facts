@@ -29,9 +29,13 @@
   tags: [implemented]
 - label: the CLI always chdirs to its own project root (package.json dir) before starting to ensure tsconfig, defaults and data/ are found regardless of invocation cwd
   command: grep -q "process.chdir(projectRoot)" src/cli.ts && grep -q "projectRoot = join(import.meta.dir, \"..\")" src/cli.ts
+  tags: [implemented]
 - label: CLI supports --preset <name> / -P <name> and --list-presets for bundled presets
   command: bun run src/cli.ts --list-presets 2>&1 | grep -q tech-news && bun run src/cli.ts --help 2>&1 | grep -q 'preset <name>'
   tags: [spec, implemented]
+
+## chdir
+- CLI supports -C/--chdir <dir> (after td2 projectRoot bootstrap chdir); user dir (abs or rel to invocation cwd) is chdir'ed to so subsequent config/preset/port validation + data/ loads + server run use it; invalid/nonexistent dir -> clean error 'Failed to chdir to <target>: <cause>' + exit 1 (no crash/stack); unknown opt no longer for --chdir; covered by new TDD test in cli.test.ts (spawn with valid tmp + bad dir cases exercising early error and continued validation) @implemented
 
 # config
 - when no config file is present, loadConfig falls back to config.example.yaml then a default layout with a single 'all' panel
