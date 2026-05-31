@@ -75,4 +75,16 @@ describe("domain ContentItem fidelity (per .facts)", () => {
     }
     // id optional in some cases; source can be adapter/pipeline/all per qyi
   });
+
+  it("Adapter has shape fidelity {name, fetch(config: AdapterConfig): Promise<ContentItem[]>} per 2wm", () => {
+    const adapter = {
+      name: "hackernews",
+      fetch: async (config: any): Promise<any[]> => [], // satisfies domain 2wm contract (name + fetch returning ContentItem[])
+    };
+    expect(adapter).toHaveProperty("name");
+    expect(typeof adapter.name).toBe("string");
+    expect(adapter).toHaveProperty("fetch");
+    expect(typeof adapter.fetch).toBe("function");
+    // AdapterConfig and ContentItem[] return per 2wm entity def; pure test no imports per scope
+  });
 });

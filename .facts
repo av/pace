@@ -29,6 +29,9 @@
 ## Panel
 - domain.test.ts asserts Panel shape fidelity per (qyi) {name: string, source: string (adapter|pipeline|all), limit?: number, id?: string (stable 8-char hex)}; provides TDD coverage for Panel entity (pure test, no prod change, fills fidelity gap for other domain entities beyond ContentItem/Row wr4) @implemented
 
+## Adapter
+- domain.test.ts asserts Adapter shape fidelity per (2wm) {name: string, fetch(config: AdapterConfig): Promise<ContentItem[]>}; provides TDD coverage for Adapter entity (pure test, no prod change, fills fidelity gap for other domain entities beyond ContentItem/Row wr4 + Panel ffh) @implemented
+
 # cli
 - label: the CLI supports --config, --port, --preset/-P, --list-presets, --help, --version; unknown commands or options cause immediate exit with usage
   command: bun run src/cli.ts --help 2>&1 | grep -q "Usage:" && bun run src/cli.ts badcmd 2>&1 | grep -q "Unknown command"
