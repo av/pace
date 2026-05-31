@@ -357,6 +357,9 @@ const transforms: Record<string, TransformFn> = {
       for (const item of items) {
         let isDuplicate = false;
         for (const existing of kept) {
+          if (!item.title || !existing.title || item.title.trim() === "" || existing.title.trim() === "") {
+            continue; // title-sim only applies to non-blank titles (prevents sim=1 collapse of distinct blank-title items)
+          }
           const similarity = levenshteinSimilarity(
             item.title.toLowerCase(),
             existing.title.toLowerCase()

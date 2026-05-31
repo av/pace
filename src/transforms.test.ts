@@ -187,6 +187,20 @@ describe("transforms - dedupe strategies (logging DRY quality)", () => {
     const result = await runPipeline(items, pipeline, ctx);
     expect(result.map((r) => r.id)).toEqual(["high", "b"]);
   });
+
+  test("dedupe:title-similarity does not collapse items with blank/empty titles (Levenshtein would give sim=1 for \"\"; guard ensures distinct blank-title items kept separate; exercises title-similarity greedy + pickWinner keep per fact 8eh)", async () => {
+    const items = [
+      makeRow({ id: "blank1", title: "", url: "https://ex.com/blank1", timestamp: "2024-01-01T00:00:00Z" }),
+      makeRow({ id: "blank2", title: "", url: "https://ex.com/blank2", timestamp: "2024-01-02T00:00:00Z" }),
+      makeRow({ id: "normal", title: "Real News Item", url: "https://ex.com/real" }),
+    ];
+    const pipeline = [{ type: "dedupe", strategy: "title-similarity", threshold: 0.5, keep: "earliest", log: false } as any];
+    const result = await runPipeline(items, pipeline, ctx);
+    expect(result).toHaveLength(3);
+    const blankIds = result.filter((r) => r.title === "").map((r) => r.id);
+    expect(blankIds).toHaveLength(2);
+    expect(result.some((r) => r.id === "normal")).toBe(true);
+  });
 });
 
 describe("extractEngagementScore (pure helper, exported + DRYed for iter26)", () => {

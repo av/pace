@@ -69,6 +69,9 @@
 - Transforms declared in an adapter or pipeline config are applied in exact declaration order during refresh via runPipeline; unknown transform types warn and are skipped (passthrough)
 - dedupe transform supports strategies 'url' (exact), 'domain-normalized' (group by normalized host+path), 'title-similarity' (greedy Levenshtein); 'keep' (highest-score, earliest, latest) decides winner per group; logs removals
 
+## dedupe
+- dedupe title-similarity strategy guards against treating blank or empty titles as Levenshtein-similar duplicates (items with blank/empty titles (after trim) are never marked as dups of each other by title sim even if sim calc would yield 1; prevents unintended collapse of distinct items lacking titles; real similar non-blank titles still use greedy Levenshtein + pickWinner(keep) + logging per 8eh @implemented
+
 # llm
 - llm-summarize, llm-filter, llm-rank, llm-merge transforms require LLMConfig + model in context; withLlmModel guard causes silent passthrough (no change to items or summaries) if no model configured
 - LLM summaries (from llm-summarize or llm-merge) are persisted in ContentItemRow.summary and rendered in dashboard; replacePanelItems preserves prior summaries across transform runs
