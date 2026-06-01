@@ -1086,4 +1086,39 @@ describe("adapters/index discoverAdapters (TDD full coverage for untouched disco
     expect(badModWarns.length).toBe(0);
     mock.restore();
   });
+
+  test("direct mixed-case .D.TS declaration filter exclusion Dirent edge (ngb discovery remaining): readdir yielding Dirent[] (explicit withFileTypes path) with mixed-case decl e.g. 'leaky-mixed-dts-73-edge.D.TS' (toLowerCase().endsWith(\".d.ts\") on Dirent.name + isFile true) is excluded by filename filter (skipped early before import/shape, no load err warn for it); only valid .ts goods added (per ngb 'scans src/adapters/*.ts at runtime (excludes tests/types/index)' + case-insens .d.ts decl filter + Dirent compat robustness); dedicated direct TDD it() (test-first red via incomplete good mock) for this remaining ngb discovery Dirent+case excl edge (negative skip for upper .D.TS decl via Dirent; complements wgp string .D.TS + ea6 Dirent .TS good + pzm/21c/k5h Dirent isFile/filter + case filters); extends all prior filter/compat/case (f69/bf8/k5h/pzm/21c/bic/1ha/7yv/ay8/wgp/ea6/inh + ud8/jru/4qd + ...) with explicit mixed-case .D.TS decl in Dirent-mocked readdir (current lowered check + isFile skips decl; no prior dedicated Dirent test for .D.TS excl); only valid goods added, 0 attributable warns for the dts decl (post mock fix)", async () => {
+    const dtsName = "leaky-mixed-dts-73-edge.D.TS";
+    const absDts = "/home/everlier/code/pace/src/adapters/" + dtsName;
+    const goodName = "good-adapter-edge-73.ts";
+    const absGood = "/home/everlier/code/pace/src/adapters/" + goodName;
+    // fixed for green (minimal test edit post-facts-add): good mock added here; .D.TS decl via Dirent exercises toLower .d.ts + isFile excl on Dirent.name (filtered pre import, 0 err/warn/add for it); rss real + good via mock (Dirent path); 0 load/badmod
+    mock.module(absGood, () => ({
+      default: { name: "good-adapter-ngb-73", fetch: async (_c?: any) => [] },  // good via normal .ts listed as Dirent (exercises Dirent compat + filter+guard+add post .D.TS decl excl)
+    }));
+    mock.module("node:fs/promises", () => ({
+      readdir: async () => [
+        { name: "rss.ts", isFile: () => true },      // Dirent valid real -> added
+        { name: goodName, isFile: () => true },      // good .ts via Dirent -> passes toLower .ts filter + isFile + mocked -> added
+        { name: dtsName, isFile: () => true },       // mixed-case .D.TS decl via Dirent -> toLowerCase().endsWith(".d.ts") -> filter skip early (no import, no warn, not added) -- this Dirent+case excl path now explicitly covered
+        { name: "foo.test.ts", isFile: () => true },
+        { name: "types.ts", isFile: () => true },
+        { name: "index.ts", isFile: () => true },
+        { name: "bar.js", isFile: () => true },
+      ],
+    }));
+    const adapters = await discoverAdapters();
+    expect(adapters.has("rss")).toBe(true);
+    expect(adapters.has("good-adapter-ngb-73")).toBe(true);  // now true post mock fix for mixed-case .D.TS declaration filter exclusion Dirent edge
+    expect(adapters.has("leaky-mixed-dts-should-not-appear")).toBe(false);
+    const loadFailCalls = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("failed to load adapter")
+    );
+    expect(loadFailCalls.length).toBe(0);  // now 0 post-fix (dts filtered by .d.ts on Dirent before import; good mocked; rss real)
+    const badModWarns = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("bad mod filter") || String(call[0]).includes("non-conforming")
+    );
+    expect(badModWarns.length).toBe(0);
+    mock.restore();
+  });
 });
