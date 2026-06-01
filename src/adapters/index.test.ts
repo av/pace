@@ -891,4 +891,52 @@ describe("adapters/index discoverAdapters (TDD full coverage for untouched disco
     expect(badModWarns.length).toBe(0);
     mock.restore();
   });
+
+  test("direct mixed string and Dirent readdir compat isolation edge (ngb discovery remaining): readdir yielding mixed array of string + Dirent objects in one call exercises the per-entry typeof entry==='string' ? entry : entry.name + (string?true:entry.isFile()) compat branch (lines 20-21) for BOTH types simultaneously in filename filter + shape guard; goods (one via string path, one via Dirent) added to Map, bad shape emits 'bad mod filter' + skipped, 0 attributable loadFail for goods; dedicated direct TDD it() (test-first) for this remaining ngb discovery compat edge per high-impact mixed case noted after h18/pzm/bic + ngb 'scans src/adapters/*.ts at runtime (excludes tests/types/index)' + 'default object with .name (string) and .fetch'; extends pure-string h18 + Dirent pzm/21c/bic/k5h with explicit mixed in readdir mock (real code uses Dirent[] but compat supports mixed for test isolation quality); only valid goods added", async () => {
+    const mixedDirentGoodName = "good-mixed-d67-edge.ts";
+    const mixedStringGoodName = "good-mixed-s67-edge.ts";
+    const badMixedName = "bad-mixed-shape-67-edge.ts";
+    const absBadMixed = "/home/everlier/code/pace/src/adapters/" + badMixedName;
+    mock.module(absBadMixed, () => ({
+      default: { name: "bad-mixed-67", fetch: "not-a-fn" },  // bad shape -> bad mod warn + skip
+    }));
+    // fixed for green (minimal edit post-facts-add): add mocks for the two mixed goods (one Dirent path, one string path) so compat exercised for both in mixed readdir + goods load + added; bad still triggers badmod
+    const absMixedDirentGood = "/home/everlier/code/pace/src/adapters/" + mixedDirentGoodName;
+    mock.module(absMixedDirentGood, () => ({
+      default: { name: "good-mixed-d67", fetch: async (_c?: any) => [] },  // good via Dirent entry in mixed list
+    }));
+    const absMixedStringGood = "/home/everlier/code/pace/src/adapters/" + mixedStringGoodName;
+    mock.module(absMixedStringGood, () => ({
+      default: { name: "good-mixed-s67", fetch: async (_c?: any) => [] },  // good via string entry in mixed list (exercises typeof string compat branch alongside Dirent)
+    }));
+    const direntMixedGood = { name: mixedDirentGoodName, isFile: () => true, isDirectory: () => false, isSymbolicLink: () => false };
+    mock.module("node:fs/promises", () => ({
+      readdir: async () => [
+        direntMixedGood,     // Dirent good -> compat isFile() path
+        mixedStringGoodName, // string good -> compat typeof string path (mixed with Dirent in same list)
+        badMixedName,        // bad shape
+        "rss.ts",            // real
+        ".dot-hidden-67.ts",
+        "foo.test.ts",
+        "types.ts",
+        "index.ts",
+        "bar.js",
+      ],
+    }));
+    const adapters = await discoverAdapters();
+    expect(adapters.has("rss")).toBe(true);
+    expect(adapters.has("good-mixed-d67")).toBe(true);  // now true post mock fix for mixed string|Dirent compat edge
+    expect(adapters.has("good-mixed-s67")).toBe(true);  // now true
+    expect(adapters.has("bad-mixed-67")).toBe(false);
+    const loadFailCalls = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("failed to load adapter")
+    );
+    expect(loadFailCalls.length).toBe(0);  // 0 post-fix (both mixed goods now mocked; bad shape filtered pre-load err; rss real)
+    const badModWarns = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("bad mod filter") || String(call[0]).includes("non-conforming")
+    );
+    expect(badModWarns.length).toBe(1);
+    expect(String(badModWarns[0]?.[0] ?? "")).toContain(badMixedName);
+    mock.restore();
+  });
 });
