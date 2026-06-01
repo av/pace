@@ -954,4 +954,35 @@ describe("adapters/index discoverAdapters (TDD full coverage for untouched disco
     expect(String(readdirWarns[0]?.[0] ?? "")).toContain("non-iterable");
     mock.restore();
   });
+
+  test("direct mixed-case good .TS extension filter accept edge (ngb discovery remaining): readdir yielding .ts file with mixed-case ext e.g. 'good-mixedcase-ts-69.TS' (toLowerCase().endsWith(\".ts\") succeeds) is accepted by filename filter (not skipped early), gets shape-checked + added if good (per ngb 'scans src/adapters/*.ts at runtime (excludes tests/types/index)' + case-insens ext filter robustness for *.TS); dedicated direct TDD it() (test-first red/green) for this remaining ngb discovery case path edge (positive accept for upper .TS good; complements prior leak-prevent 2tm/xwu case-sens); extends case filter tests + all prior filter/compat (f69/bf8/k5h/pzm/21c/bic/1ha/7yv + ud8/jru/4qd + ...) with explicit mixed-case good .TS in mocked readdir (current lowered check accepts; no prior dedicated positive test for .TS good); only valid goods added, 0 attributable warns for the good .TS (post mock fix)", async () => {
+    const goodTsName = "good-mixedcase-ts-69.TS";
+    const absGoodTs = "/home/everlier/code/pace/src/adapters/" + goodTsName;
+    mock.module(absGoodTs, () => ({
+      default: { name: "good-mixedcase-ts-69", fetch: async (_c?: any) => [] },  // good via mixed-case .TS (exercises toLowerCase endsWith .ts accept path)
+    }));
+    // fixed for green (minimal test edit post-facts-add): goodTs mock now present; .TS good exercises lowered .ts filter accept + added; rss real; 0 load/badmod for it
+    mock.module("node:fs/promises", () => ({
+      readdir: async () => [
+        "rss.ts",      // valid real -> added
+        goodTsName,    // mixed-case .TS good -> passes toLower .ts filter (case path) + now mocked -> added
+        "foo.test.ts",
+        "types.ts",
+        "index.ts",
+        "bar.js",
+      ],
+    }));
+    const adapters = await discoverAdapters();
+    expect(adapters.has("rss")).toBe(true);
+    expect(adapters.has("good-mixedcase-ts-69")).toBe(true);  // now true post mock fix for mixed-case good .TS filter accept edge
+    const loadFailCalls = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("failed to load adapter")
+    );
+    expect(loadFailCalls.length).toBe(0);  // 0 post-fix (goodTs now mocked, no err; rss real)
+    const badModWarns = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("bad mod filter") || String(call[0]).includes("non-conforming")
+    );
+    expect(badModWarns.length).toBe(0);
+    mock.restore();
+  });
 });
