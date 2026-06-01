@@ -1051,4 +1051,39 @@ describe("adapters/index discoverAdapters (TDD full coverage for untouched disco
     expect(badModWarns.length).toBe(0);
     mock.restore();
   });
+
+  test("direct mixed-case .TEST.TS test file filter exclusion edge (ngb discovery remaining): readdir yielding test file with mixed-case .test.ts ext e.g. 'leaky-mixed-test-ts-72-edge.TEST.TS' (toLowerCase().endsWith(\".test.ts\") succeeds) is excluded by filename filter (skipped early before import/shape, no load err warn for it); only valid .ts goods added (per ngb 'scans src/adapters/*.ts at runtime (excludes tests/types/index)' + case-insens .test.ts filter robustness); dedicated direct TDD it() (test-first red via incomplete mock) for this remaining ngb discovery case exclusion path edge (negative skip for upper .TEST.TS test file; complements wgp .D.TS + ay8 .TS + prior leak-prevent); extends case filter + all prior filter/compat (f69/bf8/k5h/pzm/21c/bic/1ha/7yv/ay8/wgp/ea6 + ...) with explicit mixed-case .TEST.TS in mocked readdir (current lowered .test.ts check skips test; no prior dedicated test for .TEST.TS exclusion); only valid goods added, 0 attributable warns for the test file (post mock fix)", async () => {
+    const testTsName = "leaky-mixed-test-ts-72-edge.TEST.TS";
+    const absTestTs = "/home/everlier/code/pace/src/adapters/" + testTsName;
+    const goodName = "good-adapter-edge-72.ts";
+    const absGood = "/home/everlier/code/pace/src/adapters/" + goodName;
+    // fixed for green (minimal test edit post-facts-add): good mock added here; .TEST.TS exercises toLower endsWith .test.ts exclusion (filtered pre any import, 0 err/warn/add for it); rss real + good via mock; 0 load/badmod
+    mock.module(absGood, () => ({
+      default: { name: "good-adapter-ngb-72", fetch: async (_c?: any) => [] },  // good via normal .ts (exercises filter+guard+add post exclusion of .TEST.TS test file)
+    }));
+    mock.module("node:fs/promises", () => ({
+      readdir: async () => [
+        "rss.ts",      // valid real -> added
+        goodName,      // good .ts -> passes filter + (post fix) mocked -> added
+        testTsName,    // mixed-case .TEST.TS test file -> toLower .test.ts -> filter skip early (no import, no warn, not added) -- this path now explicitly covered
+        "foo.test.ts",
+        "types.ts",
+        "index.ts",
+        "bar.js",
+      ],
+    }));
+    const adapters = await discoverAdapters();
+    expect(adapters.has("rss")).toBe(true);
+    expect(adapters.has("good-adapter-ngb-72")).toBe(true);  // now true post mock fix for mixed-case .TEST.TS test file filter exclusion edge
+    expect(adapters.has("leaky-mixed-test-ts-should-not-appear")).toBe(false);
+    const loadFailCalls = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("failed to load adapter")
+    );
+    expect(loadFailCalls.length).toBe(0);  // now 0 post-fix (good mocked; .TEST.TS filtered pre-import, no err for it or good; rss real)
+    const badModWarns = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("bad mod filter") || String(call[0]).includes("non-conforming")
+    );
+    expect(badModWarns.length).toBe(0);
+    mock.restore();
+  });
 });
