@@ -1,276 +1,90 @@
-# project
-
-- label: project is implemented in TypeScript and executes via the Bun runtime (oven/bun Docker base, bun.lock present)
-  command: test -f bun.lock && grep -q "FROM oven/bun" Dockerfile
-
-- label: Docker image builds successfully from Dockerfile (Bun-based)
-  command: docker build --check -t facts-check . >/dev/null 2>&1
-
-# domain
-- an Adapter is a pluggable module exporting name and fetch(AdapterConfig): Promise<ContentItem[]>
-- a ContentItem is the normalized content {id, title, url, source, timestamp: Date, body?}
-- an AppConfig is the parsed YAML declaring adapters, pipelines, layout, and optional llm
-- a Panel is a named dashboard section sourcing items from an adapter, pipeline or the 'all' sentinel via layout
-- a Layout is a recursive tree of Panels and flex containers defining the server-rendered dashboard structure
-- a Pipeline is a named processing step that reads prior sources, applies ordered transforms, and feeds panels
-- a Transform is an ordered ingest-time operation such as filter, dedupe, keyword-score, llm-summarize or llm-merge
-- a Scheduler manages periodic and manual refreshes of adapters and pipelines, persisting results to DB
-- a ContentItemRow is a persisted ContentItem with panel_id, fetched_at, and optional LLM summary
-- an LLMConfig is the optional block enabling pi-ai providers for summaries, filtering, ranking and merging
-- an AppConfig declares Adapters, Pipelines and a Layout which together drive the Scheduler
-- a Layout references Adapters or Pipelines (or 'all') as Panel sources; 'all' bypasses normal mapping for global recent view
-- the Scheduler invokes Adapter fetch or Pipeline processing then applies ordered Transforms before persisting as ContentItemRows
-- LLM-powered Transforms and summaries require a valid LLMConfig and model; otherwise they silently degrade to no-op
-- ContentItemRows for a Panel are queried deduplicated (latest timestamp per url-norm or id) to render the Dashboard
-- Adapter ngb fidelity: runtime fetch returns Promise<ContentItem[]> per 2wm covered by new dedicated it() in domain.test.ts (pure test extension for domain entity; strengthens y1z) @implemented
-- ContentItemRow wk0 fidelity: queried deduplicated (latest timestamp per url-norm or id) per wk0 covered by new dedicated it() in domain.test.ts (pure test extension for domain entity; strengthens wr4/qun) @implemented
-- Layout isy fidelity: references Adapters or Pipelines (or 'all') as Panel sources; 'all' bypasses normal mapping for global recent view per isy covered by new dedicated it() in domain.test.ts (pure test extension for domain entity; strengthens kb9/frg) @implemented
-- AppConfig 99y fidelity: declares Adapters, Pipelines and a Layout which together drive the Scheduler per 99y covered by new dedicated it() in domain.test.ts (pure test extension for domain entity; strengthens 0b6/rhq) @implemented
-- Scheduler 6de fidelity: invokes Adapter fetch or Pipeline processing then applies ordered Transforms before persisting as ContentItemRows per 6de covered by new dedicated it() in domain.test.ts (pure test extension for domain entity; strengthens rhq + 99y/fc3) @implemented
-
-## ContentItem
-- tests assert ContentItem shape fidelity per (tgt) {id, title, url, source, timestamp: Date, body?} and ContentItemRow per (qun) {panel_id, fetched_at, optional LLM summary}; domain.test.ts provides TDD coverage for required fields, .summary optionality post-llm, timestamp validity and persisted row shape (pure test, no prod change, fills fidelity gap) @implemented
-
-## Panel
-- domain.test.ts asserts Panel shape fidelity per (qyi) {name: string, source: string (adapter|pipeline|all), limit?: number, id?: string (stable 8-char hex)}; provides TDD coverage for Panel entity (pure test, no prod change, fills fidelity gap for other domain entities beyond ContentItem/Row wr4) @implemented
-
-## Adapter
-- domain.test.ts asserts Adapter shape fidelity per (2wm) {name: string, fetch(config: AdapterConfig): Promise<ContentItem[]>}; provides TDD coverage for Adapter entity (pure test, no prod change, fills fidelity gap for other domain entities beyond ContentItem/Row wr4 + Panel ffh) @implemented
-
-## Layout
-- domain.test.ts asserts Layout shape fidelity per (frg) { recursive tree: FlexContainerConfig {direction: 'row'|'column', children: LayoutNodeConfig[], flex?, gap?} | PanelConfig {panel: string, source: SourceValue (str|arr|obj|SourceConfig), id?, flex?, limit?} }; provides TDD coverage for Layout entity (pure test, no prod change, fills fidelity gap for other domain entities beyond ContentItem/Row wr4 + Panel ffh + Adapter y1z) @implemented
-
-## Transform
-- domain.test.ts asserts Transform shape fidelity per (bv5) {type: 'dedupe'|'filter'|...|'llm-*' per TransformConfig union; dedupe supports strategy ('url'|'domain-normalized'|'title-similarity' per 8eh), keep, threshold, log?}; also PipelineConfig {name, sources, transforms: TransformConfig[], refresh_interval?}; provides TDD coverage for Transform/Pipeline entities (pure test, no prod change, fills fidelity gap for other domain entities beyond ContentItem/Row wr4 + Panel ffh + Adapter y1z + Layout kb9) @implemented
-
-## Pipeline
-- domain.test.ts asserts Pipeline shape fidelity per (niu) {name: string, sources: string[], transforms: TransformConfig[], refresh_interval?}; provides TDD coverage for Pipeline entity (pure test, no prod change, fills fidelity gap for remaining domain entity beyond ContentItem/Row wr4 + Panel ffh + Adapter y1z + Layout kb9 + Transform jwa) @implemented
-
-## AppConfig
-- AppConfig > domain.test.ts asserts AppConfig shape fidelity per (kde) {adapters: IngestAdapterConfig[], pipelines?: PipelineConfig[], layout: LayoutNodeConfig, llm?: LlmConfig }; provides TDD coverage for AppConfig entity (pure test, no prod change, fills fidelity gap for remaining domain entities beyond ContentItem/Row wr4 + Panel ffh + Adapter y1z + Layout kb9 + Transform jwa + Pipeline 6wk) @implemented
-
-## Scheduler
-- Scheduler > domain.test.ts asserts Scheduler shape fidelity per l16 {manages periodic and manual refreshes of adapters and pipelines, persisting results to DB} (covers 99y/6de relations); provides TDD coverage for Scheduler entity (pure test, no prod change, fills fidelity gap for remaining domain entity beyond ContentItem/Row wr4 + Panel ffh + Adapter y1z + Layout kb9 + Transform jwa + Pipeline 6wk + AppConfig 0b6) @implemented
-
-## LLMConfig
-- LLMConfig > domain.test.ts asserts LLMConfig shape fidelity per dhu {provider?, model?, api_key?, base_url?, interests?: string[]} (covers fc3); provides TDD coverage for LLMConfig entity (pure test, no prod change, fills fidelity gap for remaining domain entity beyond ContentItem/Row wr4 + Panel ffh + Adapter y1z + Layout kb9 + Transform jwa + Pipeline 6wk + AppConfig 0b6 + Scheduler rhq) @implemented
-
-## fc3
-- LLMConfig fc3 shape fidelity: LLM-powered Transforms and summaries require a valid LLMConfig and model; otherwise they silently degrade to no-op per fc3 covered by new dedicated it() in domain.test.ts (pure test extension for domain entity; strengthens wiw + dhu) @implemented
-
-# cli
-- label: the CLI supports --config, --port, --preset/-P, --list-presets, --help, --version; unknown commands or options cause immediate exit with usage
-  command: bun run src/cli.ts --help 2>&1 | grep -q "Usage:" && bun run src/cli.ts badcmd 2>&1 | grep -q "Unknown command"
-  tags: [implemented]
-- label: the CLI always chdirs to its own project root (package.json dir) before starting to ensure tsconfig, defaults and data/ are found regardless of invocation cwd
-  command: grep -q "process.chdir(projectRoot)" src/cli.ts && grep -q "projectRoot = join(import.meta.dir, \"..\")" src/cli.ts
-  tags: [implemented]
-- label: CLI supports --preset <name> / -P <name> and --list-presets for bundled presets
-  command: bun run src/cli.ts --list-presets 2>&1 | grep -q tech-news && bun run src/cli.ts --help 2>&1 | grep -q 'preset <name>'
-  tags: [spec, implemented]
-
-## chdir
-- CLI supports -C/--chdir <dir> (after td2 projectRoot bootstrap chdir); user dir (abs or rel to invocation cwd) is chdir'ed to so subsequent config/preset/port validation + data/ loads + server run use it; invalid/nonexistent dir -> clean error 'Failed to chdir to <target>: <cause>' + exit 1 (no crash/stack); unknown opt no longer for --chdir; covered by new TDD test in cli.test.ts (spawn with valid tmp + bad dir cases exercising early error and continued validation) @implemented
 
 # config
-- when no config file is present, loadConfig falls back to config.example.yaml then a default layout with a single 'all' panel
-- config errors are always prefixed with 'config: ' and cause the process to exit 1 before the server starts
-- AppConfig validation is exhaustive and path-specific: unknown top-level keys, missing required fields, invalid numbers/enums, duplicate names/IDs, bad pipeline source refs, and partial LLM creds all produce precise 'config: ...' errors at load time
-- the special source value 'all' (and panels using it) bypasses adapter/pipeline name validation and sourceToPanels mapping; it queries global recent items instead of per-panel
-- Panel IDs are stable 8-character hex (first of sha256 of JSON.stringify({panel, source, limit})) or explicit id from config; used for DB keys, refresh URLs, and sourceToPanels mapping
-- environment variables in the form ${VAR} are recursively substituted in all string values of the YAML (including in llm.api_key, adapter params, etc.) before schema validation
-- label: loadConfig resolves bare short preset names (tech-news, ml-ai, etc) to bundled /app/presets/config.*.yaml
-  command: bun run src/cli.ts --preset tech-news --help 2>&1 | grep -q 'pace v'
-  tags: [spec, implemented]
 
-## env
-- loadConfig performs recursive ${VAR} substitution (chained env values containing further ${REF} are fully expanded in all YAML string fields e.g. adapter params, llm.api_key before validation; includes depth guard preventing infinite recursion on cycles) + config.test.ts regression test for it (directly makes wyp true + strengthens 0g1 exhaustive quality) @implemented
-
-# scheduler
-- scheduler errors for missing adapter types are prefixed 'scheduler: ' and cause startup to fail with exit 1
-- the Scheduler starts an immediate fetch for each configured adapter on startup; pipelines are scheduled with a 5s initial delay; default refresh_interval is 15 minutes (minimum 1)
-
-## startup
-- scheduler.test.ts contains a regression test for t3i: pipelines scheduled with 5s initial delay before first run (using exported PIPELINE_INITIAL_DELAY_MS=5000 const); adapters fetch immediate on start; default refresh 15m (min 1) when omitted; the const provides assertable hook and clarifies magic number in startup logic @implemented
-
-# server
-- label: the server listens on port 7453 by default (or PORT env / --port); supports graceful shutdown on SIGTERM/SIGINT (stops scheduler, closes DB)
-  command: grep -q "parsePort(process.env.PORT, 7453)" src/index.ts
-- manual refresh via POST /refresh/:panel returns 502 with details if any source in the batch fails; success redirects to / with 303
-- every response includes security headers: X-Content-Type-Options nosniff, X-Frame-Options DENY, Referrer-Policy strict-origin-when-cross-origin, CSP default-src self with unsafe-inline for styles
-- GET /health returns JSON {status: "ok"}; GET /styles.css serves the static CSS with 1h cache
-
-## headers
-- server responses include /health 200+JSON {status:"ok"} (m15), /styles.css 200+public max-age=3600 cache (m15), /refresh/:panel 502 w/ "Refresh failed for ..." details when sources fail e.g. reddit (igb) + 404 unknown + 303 success, and ALL responses (200/404/502) include yn0 headers (X-Content-Type-Options nosniff, X-Frame-Options DENY, Referrer-Policy, CSP default-src 'self' + style-src unsafe-inline) PLUS Permissions-Policy: interest-cohort=() (quality security hardening); integration test in cli.test.ts using bg spawn+fetch --preset tech-news (TDD red-green on header addition) @implemented
-
-# adapters
-- every Adapter must export a default object with .name (string) and .fetch(config: AdapterConfig): Promise<ContentItem[]>; discovery scans src/adapters/*.ts at runtime (excludes tests/types/index)
-- Adapter fetch implementations that encounter network/HTTP/parse errors either throw (with `${name}: ` prefix + errorMessage) or console.warn and return []; the contract in types.ts documents the expectation for callers
-- ContentItem ids are prefixed by adapter (e.g. 'hn:', 'rss:', 'github:') or 'pipeline:${name}:' to avoid collisions across sources; used as DB PK for upsert
-- every ContentItem.timestamp is a valid Date (parse failures or missing dates fall back to new Date())
-
-## errorMessage
-- errorMessage helper returns the .message property for plain objects with .message (duck type support after Error check) enabling robust cause strings in adapter fetch error throws/warns of form `: ...${errorMessage(err)}` per mmu contract and types.ts JSDoc (TDD test added for network/parse error obj shapes) @implemented
-
-## mastodon
-- mastodon adapter (previously untested) satisfies ngb contract (default .name + .fetch fn) and uses errorMessage(err) in its fetch error console.warn strings (per mmu contract + sh1 quality for robust msgs); covered by new TDD test in mastodon.test.ts (ngb shape + network error spy path) @implemented
-
-## lobsters
-- lobsters adapter satisfies ngb contract (default .name + .fetch fn) and uses errorMessage(err) in its fetch error console.warn strings (per mmu contract + sh1 quality for robust msgs); covered by new TDD test in lobsters.test.ts (ngb shape + network error spy path) @implemented
-
-## youtube
-- youtube adapter (previously untested) satisfies ngb contract (default .name + .fetch fn) and uses errorMessage(err) in its fetch error console.warn strings (per mmu contract + sh1 quality for robust msgs); covered by new TDD test in youtube.test.ts (ngb shape + network error spy path) @implemented
-
-## devto
-- devto adapter satisfies ngb contract (default export .name + .fetch fn) and uses errorMessage(err) in its fetch error strings/throws (per mmu contract + sh1 quality for robust msgs); covered by new TDD test in devto.test.ts (ngb shape + mmu network/!ok error spy paths exercising helper) @implemented
-
-## github-releases
-- github-releases adapter satisfies ngb contract (default export .name + .fetch fn) and uses errorMessage(err) in its fetch error strings/throws (per mmu contract + sh1 quality for robust msgs); covered by new TDD test in github-releases.test.ts (ngb shape + mmu !ok/network error spy paths exercising helper) @implemented
-
-## podcast
-- podcast adapter satisfies ngb contract (default export .name + .fetch fn) and uses errorMessage(err) in its fetch error strings/throws (per mmu contract + sh1 quality for robust msgs); covered by new TDD test in podcast.test.ts (ngb shape + mmu !ok error spy paths exercising helper) @implemented
-
-## producthunt
-- producthunt adapter satisfies ngb contract (default export .name + .fetch fn) and uses errorMessage(err) in its fetch error strings/throws (per mmu contract + sh1 quality for robust msgs); covered by new TDD test in producthunt.test.ts (ngb shape + mmu !ok error spy path exercising helper) @implemented
-
-## reddit
-- reddit adapter satisfies ngb contract (default export .name + .fetch fn) and uses errorMessage(err) in its fetch error strings/throws (per mmu contract + sh1 quality for robust msgs); covered by new TDD test in reddit.test.ts (ngb shape + mmu !ok error spy path exercising helper) @implemented
-
-## twitter
-- twitter adapter satisfies ngb contract (default export .name + .fetch fn) and uses errorMessage(err) in its log strings (per mmu contract + sh1 quality for robust msgs); covered by new TDD test in twitter.test.ts (ngb shape + mmu config/no-sources errorMessage spy path exercising helper) @implemented
-
-## hackernews
-- hackernews adapter satisfies ngb contract (default export .name + .fetch fn) and uses errorMessage(err) for !ok status errors in fetch (per mmu contract + sh1 quality for robust msgs, closing raw status gap); covered by TDD extension in hackernews.test.ts (ngb shape + mmu !ok errorMessage duck spy path exercising helper) @implemented
-
-## discovery
-- discoverAdapters in adapters/index.ts implements ngb by using filename filter (excludes .test.ts/types/index + non-.ts) + shape guard (bad mod filter: only add if default adapter && .name && typeof .fetch==='function') and cleanly handles readdir errors (return empty Map) + per-file import errors (console.warn + skip); covered by regression test in index.test.ts (bad mod filter edges) @implemented
-- adapters/discovery > direct TDD tests in index.test.ts for readdir error (returns empty Map + emits warn for observability), import error (warn+skip on bad/nonexistent .ts), .ts filter (excludes .test.ts/excluded/non-.ts) + only valid shape adapters added; strengthens ud8/ngb with direct (mock readdir) edge coverage beyond indirect (TDD test-first + quality warn in catch) @implemented
-- discoverAdapters bad mod filter (shape guard: after successful import, only add if default && .name && typeof fetch==='function') skips non-conforming modules + emits 'bad mod filter' warn for observability/quality (previously silent); covered by direct TDD test in index.test.ts exercising mocked bad shape (per ngb/ud8 shape guard + jru direct coverage) @implemented
-- discoverAdapters catches dynamic import errors for bad/missing .ts modules listed by readdir (e.g. nonexistent), emits console.warn with 'failed to load adapter' + 'import error' prefix for clarity/quality + filename + err details, filters/skips the bad one (not added to returned Map), does not crash (other valid adapters still discovered); dedicated direct TDD test in index.test.ts for pure import error path (distinct from readdir/shape cases) per ngb discovery contract (strengthens jru/ud8/4qd direct coverage) @implemented
-- duplicate name handling in ngb discovery: when readdir lists multiple .ts modules exporting adapters claiming the same .name, discoverAdapters emits console.warn 'duplicate adapter name "..." from <file> (overwriting previous; check for name clashes at runtime vs config names)' and the Map entry is overwritten by the last one (size remains 1 for name); covered by dedicated direct TDD test in adapters/index.test.ts exercising mocked dup modules + readdir @implemented
-- adapters/discovery > direct TDD test in index.test.ts for no-default-export (default===undefined after successful import) bad mod filter edge: emits 'bad mod filter' warn + skips (extends shape guard observability/quality for this silent-skip path per ngb/ud8/4qd; previously no warn emitted unlike default-present bad shapes); covered by dedicated it() exercising mocked no-default module + readdir @implemented
-- adapters/discovery > direct TDD test in index.test.ts for non-string .name (e.g. number) bad mod filter edge in shape guard: rejects (emits 'bad mod filter' warn + skips, not added) per ngb root '.name (string)' contract in types (current truthy-only .name check in ud8/4qd/qea would wrongly accept such modules); covered by dedicated it() exercising mocked non-string-name module + readdir list @implemented
-- adapters/discovery > direct TDD test in index.test.ts for whitespace-only .name (e.g. ' ') bad mod filter edge in shape guard: rejects (emits 'bad mod filter' warn + skips, not added) per ngb root '.name (string)' contract intent (current truthy-only .name check in ud8/4qd/qea/8cf would wrongly accept ws-only names); covered by dedicated it() exercising mocked ws-name module + readdir list @implemented
-- adapters/discovery > discoverAdapters shape guard rejects padded (leading/trailing ws) .name (e.g. ' padded-50 ', trim truthy but name !== trimmed) emitting 'bad mod filter' warn + skipping (not added to Map, prevents dirty keys); extends 4qd/8cf/q5f per ngb root '.name (string)' contract intent (current guard accepts -> bug); covered by dedicated direct TDD it() in adapters/index.test.ts (test-first for this remaining ngb discovery edge) @implemented
-- adapters/discovery > discoverAdapters shape guard requires plain object default export (rejects function/class-ctor defaults even if .name string clean + .fetch fn props attached); emits 'bad mod filter' warn + skips (not added to Map) per ngb root 'default object with .name (string) and .fetch' contract intent (current 'adapter &&' accepts fn -> bug/pollution); covered by dedicated direct TDD it() in adapters/index.test.ts (test-first for this remaining ngb discovery edge) @implemented
-- adapters/discovery > discoverAdapters filename filter skips dotfile .ts (files starting with '.') early (before import/shape) + no warn/no add to Map even for conforming shapes; extends jru/ud8/ngb (current endsWith .ts only allows dots like .dot.ts to be treated as adapters); covered by dedicated direct TDD it() in adapters/index.test.ts (test-first for this remaining ngb discovery edge) @implemented
-- adapters/discovery > discoverAdapters shape guard requires plain object default export (rejects class *instances* even if .name string clean + .fetch fn attached to instance); emits 'bad mod filter' warn + skips (not added to Map) per ngb root 'default object' + 0od 'plain object' contract intent (current object check accepts inst -> bug); covered by dedicated direct TDD it() in adapters/index.test.ts (test-first for this remaining ngb discovery edge) @implemented
-- adapters/discovery > discoverAdapters filename filter case-sens .ts/.test.ts edge (mixed-case *.TEST.ts leaks past endsWith check, treated as adapter; per ngb 'scans src/adapters/*.ts' excludes tests/types/index): covered by dedicated direct TDD it() in index.test.ts (test-first for this remaining ngb discovery edge after ydz/f69/0od) @implemented
-- adapters/discovery > discoverAdapters filename filter EXCLUDED case-sens edge (mixed-case 'TYPES.TS'/'INDEX.TS' leaks past EXCLUDED.has(file) exact, imported+added if valid shape; per ngb 'scans src/adapters/*.ts at runtime (excludes tests/types/index)'): covered by dedicated direct TDD it() in index.test.ts (test-first for this remaining ngb discovery edge after 2tm case-sens .ts) @implemented
-- adapters/discovery > discoverAdapters filename filter excludes *.d.ts declaration files (in addition to .test.ts/types/index/non-.ts/dot) early before any dynamic import (prevents load err warns + never adds even for conforming shape mocks; per ngb 'scans src/adapters/*.ts at runtime (excludes tests/types/index)'); covered by new dedicated direct TDD it() in adapters/index.test.ts (test-first .d.ts leak red before edit) @implemented
-- adapters/discovery > discoverAdapters filename filter skips directory entries (non-.ts names from readdir e.g. subdirs simulating mixed readdir output) early before any dynamic import (no load err/warn/add for them; only valid .ts file goods added); covered by new dedicated direct TDD it() in adapters/index.test.ts (test-first for this remaining ngb discovery subdir readdir edge + explicit dir name in mocked readdir list) @implemented
-- adapters/discovery > discoverAdapters uses readdir({withFileTypes:true}) + explicit entry.isFile() (with string compat for test mocks) in filename filter to skip non-files/dirs early before any dynamic import or shape guard (only valid .ts file goods added; strengthens 'scans src/adapters/*.ts at runtime (excludes tests/types/index)' per ngb); covered by new dedicated direct TDD it() in adapters/index.test.ts (test-first red on Dirent objects before index edit for this remaining ngb discovery withFileTypes/isFile edge) @implemented
-- adapters > discovery > adapters/discovery > discoverAdapters filename+isFile guard skips symlink Dirent entries (isFile:false even for .ts-named symlinks from readdir {withFileTypes:true}) early before dynamic import or shape guard + emits 0 warns attributable + does not add to Map (prevents symlink pollution of discovered adapters); covered by dedicated direct TDD it() in index.test.ts (test-first for this remaining ngb discovery edge); extends pzm/k5h/f69/0od/jru/ud8 + prior per ngb "scans src/adapters/*.ts at runtime (excludes tests/types/index)" + high-impact symlink handling noted post-58 @implemented
-- adapters/discovery > discoverAdapters shape guard rejects (emits 'bad mod filter' warn + skips) modules where import succeeds, .name is clean string (trimmed non-empty) but .fetch is not a function (exercises final guard term after name checks pass); covered by new dedicated direct TDD it() in adapters/index.test.ts (test-first for this remaining ngb discovery shape edge per high-impact further guard coverage after 21c/pzm/k5h/bf8 + ngb root contract '.name (string) and .fetch' + prior name-variant splits but no dedicated for fetch-not-fn subcase with name-ok) @implemented
-- adapters/discovery > direct TDD test in index.test.ts for null-default-export (default===null after successful import) bad mod filter edge: emits 'bad mod filter' warn + skips (extends shape guard observability/quality for this silent-skip path per ngb/ud8/4qd/qea; explicit null distinct from undef missing key case); covered by dedicated it() exercising mocked null-default module + readdir list @implemented
-- direct TDD test in index.test.ts for string-only readdir compat isolation edge in ngb discovery: when readdir yields pure string[] (exercises the typeof entry==='string' ? entry : name + isFile=true hardcode compat branch exclusively for filename filter + shape guard in discoverAdapters), valid .name+fetch adapters are added to Map, bad shape modules emit 'bad mod filter' warn + skipped (no load err for them), import errors for missing (string path) warned+skipped; dedicated direct it() exercising pure-string[] readdir mock + filters + guard + good added (extends pzm/k5h/bf8/2tm/xwu/f69/jru/ud8/4qd/.../t8g/psy per ngb 'scans src/adapters/*.ts at runtime (excludes tests/types/index)' + 'default object with .name (string) and .fetch') @implemented
-- adapters/discovery > direct TDD test in index.test.ts for internal-ws .name (name containing internal whitespace e.g. 'internal ws name 63' with no outer ws so ===trim() && trim() truthy passes shape guard name checks + fetch fn; added to Map; bad shapes still filtered + badmod warn; per ngb '.name (string)' + 'default object with .name (string) and .fetch'; extends q5f/s28/8cf (ws-only/padded/nonstr) + t8g/psy/h18 guard+compat edges with dedicated it for internal-ws positive path (current guard accepts, no prior dedicated test) @implemented
-- adapters/discovery > direct TDD test in index.test.ts for internal-space-in-.name (embedded ws char e.g. 'good adapter with space 64', no outer ws so ===trim() && trim() truthy) shape guard positive edge: passes name checks + clean .fetch fn, added to Map as key with space; bad shapes filtered + badmod warn; per ngb '.name (string)' + 'default object with .name (string) and .fetch' + 'scans src/adapters/*.ts at runtime (excludes tests/types/index)'; extends or8 (gap: or8 used hyphen not actual space) + h18/t8g/psy/4qd/8cf/q5f/s28/ud8/jru + prior name/shape guard edges with dedicated it for embedded space positive path (current guard accepts) @implemented
-- adapters/discovery > direct TDD test in index.test.ts for null-proto-object default (Object.create(null) after successful import) bad mod filter edge in shape guard (proto check): emits 'bad mod filter' warn + skips (extends plain object guard observability/quality for this case per ngb/ud8/4qd/qea/psy/0od/ydz; explicit null-proto distinct from null/undef/fn/class-inst); covered by dedicated it() exercising mocked null-proto module + readdir list + good @implemented
-- adapters/discovery > direct TDD test in index.test.ts for dotfile Dirent filter edge (readdir yielding Dirent[] with dotfile entry name startsWith . + good .ts exercises startsWith('.') on entry.name (Dirent path distinct from f69 string); dot filtered early no import/warn/add; per ngb 'scans src/adapters/*.ts at runtime (excludes tests/types/index)' + extends f69/pzm/21c; dedicated it() (test-first red/green) @implemented
-- adapters/discovery > direct TDD test in index.test.ts for mixed string and Dirent readdir compat isolation edge in ngb discovery: when readdir yields mixed (string[] + Dirent[]) in one call, the per-entry typeof/entry.name + isFile compat (lines 20-21) correctly handles both, valid .name+fetch (string and Dirent) added to Map, bad shapes emit 'bad mod filter' warn + skipped, import errs for bads warned+skipped, 0 loadFail for goods; dedicated direct it() (test-first red/green); extends h18 (pure string) + pzm/bic (Dirent) per ngb 'scans src/adapters/*.ts at runtime (excludes tests/types/index)' + 'default object with .name (string) and .fetch' @implemented
-- discoverAdapters in adapters/index.ts gracefully handles readdir resolving to non-iterable value (e.g. null) by returning empty Map + emitting warn (no crash/throw from for-of on files); extends prior readdir error (throw) + 1ha mixed compat + all ngb discovery filter/guard cases with dedicated direct TDD test in index.test.ts @implemented
-- adapters/discovery > direct TDD test for mixed-case good .TS extension filter accept edge (toLowerCase().endsWith(".ts") accepts upper .TS good adapter + dedicated direct TDD test (test-first red/green)) @implemented
-- adapters/discovery > direct TDD test for mixed-case .D.TS declaration filter exclusion edge (toLowerCase().endsWith(".d.ts") skips upper .D.TS decl + dedicated direct TDD test (test-first red/green)) @implemented
-- adapters/discovery > direct TDD test for mixed-case good .TS extension filter accept Dirent edge (toLowerCase().endsWith(".ts") on Dirent.name + isFile accepts upper .TS good adapter via explicit Dirent readdir entry + dedicated direct TDD test (test-first red/green)) @implemented
-- adapters/discovery > direct TDD test for mixed-case .TEST.TS test file filter exclusion edge (toLowerCase().endsWith(".test.ts") on name skips upper .TEST.TS test file in filter before import/shape + dedicated direct TDD test (test-first red/green via incomplete good mock)) @implemented
-- adapters/discovery > direct TDD test for mixed-case .D.TS declaration filter exclusion Dirent edge (toLowerCase().endsWith(".d.ts") on Dirent.name + isFile skips upper .D.TS decl via explicit Dirent readdir entry + dedicated direct TDD test (test-first red/green)) @implemented
-- adapters/discovery > direct TDD test for bad readdir entry types (non-string/non-Dirent corrupt entries in array) error handling edge (graceful skip without crash on name/isFile access + 'bad readdir entry' warn emitted + only valid goods added; dedicated direct TDD test (test-first red/green)) @implemented
-- direct non-ts filename filter isolation edge in ngb discovery: readdir yielding mix of only non-.ts files (js, noext, dot, test, excluded upper) + one good .ts exercises early !endsWith/.ts + startsWith + EXCLUDED + .test/.d.ts filter skips before any import/shape (no load/badmod/badreaddir/dup warns attributable to non-ts) + the good .ts added cleanly (0 attributable warns); covered by dedicated direct TDD it() in adapters/index.test.ts (test-first red via incomplete good mock; post minimal test edit green) per ngb 'scans src/adapters/*.ts at runtime (excludes tests/types/index)' + 'default object with .name (string) and .fetch' + extends jru/ud8/bf8/k5h/2tm/xwu/f69 + all prior filter/compat edges @implemented
-
-## arxiv
-- arxiv adapter fetch error paths (HTTP !ok and network/parse) use errorMessage helper for the cause string in thrown errors prefixed 'arxiv: ' (inner !ok status now via helper for quality + outer catch wrapper always uses it; dedicated TDD it() in arxiv.test.ts for !ok mmu errorMessage path per contract in types.ts JSDoc and mmu) @implemented
-
-## rss
-- rss adapter fetch error paths (HTTP !ok and network/parse) use errorMessage helper for the cause string in thrown errors prefixed 'rss: ' (inner !ok status now via helper for quality + outer catch wrapper always uses it; dedicated TDD it() in rss.test.ts for !ok mmu errorMessage path per contract in types.ts JSDoc and mmu) @implemented
-
-## stackexchange
-- stackexchange adapter fetch error paths (HTTP !ok and network) use errorMessage helper for the cause string in its warn messages (per mmu contract + sh1 quality for robust msgs); covered by dedicated TDD it() in stackexchange.test.ts exercising helper in warn+[] error paths @implemented
-
-## lemmy
-- lemmy adapter fetch error paths (HTTP !ok and network) use errorMessage helper for the cause string in its error throws prefixed 'lemmy: ' (inner !ok status now via helper for quality + outer catch wrapper always uses it; dedicated TDD it() in lemmy.test.ts for mmu errorMessage path per contract in types.ts JSDoc and mmu) @implemented
-
-## npm
-- npm > npm adapter fetch error paths (HTTP !ok and network/parse) use errorMessage helper for the cause string in thrown errors prefixed 'npm: ' (inner !ok status now via helper for quality + outer catch wrapper always uses it; dedicated TDD it() in npm.test.ts for mmu errorMessage path per contract in types.ts JSDoc and mmu) @implemented
-
-## wikipedia
-- wikipedia > wikipedia adapter fetch error paths (HTTP !ok and network/parse) use errorMessage helper for the cause string in thrown errors prefixed 'wikipedia: ' (inner !ok status now via helper for quality + outer catch wrapper always uses it; dedicated TDD it() in wikipedia.test.ts for mmu errorMessage path per contract in types.ts JSDoc and mmu) @implemented
-
-## github
-- github > github adapter fetch error paths (HTTP !ok and network) use errorMessage helper for the cause string in its warn messages (per mmu contract + sh1 quality for robust msgs); covered by dedicated TDD it() in github.test.ts exercising helper in warn+[] error paths @implemented
-
-# db
-- DB persistence uses SQLite with WAL mode and 5s busy_timeout; items are upserted by id (ON CONFLICT DO UPDATE); reads for UI and transforms always deduplicate keeping MAX(timestamp) per url-normalized key (or id if no url)
-- old ContentItemRows are pruned daily (and on startup) if their fetched_at is older than 30 days; prune is independent of item timestamp
-
-## upsert
-- saveItems performs full upsert by id via ON CONFLICT DO UPDATE including panel_id (last save for an id wins its panel assignment + data + refreshed fetched_at); completes the 'items are upserted by id' claim in meb with explicit cross-panel last-writer semantics and TDD coverage in db.test.ts @implemented
-
-# transforms
-- Transforms declared in an adapter or pipeline config are applied in exact declaration order during refresh via runPipeline; unknown transform types warn and are skipped (passthrough)
-- dedupe transform supports strategies 'url' (exact), 'domain-normalized' (group by normalized host+path), 'title-similarity' (greedy Levenshtein); 'keep' (highest-score, earliest, latest) decides winner per group; logs removals
-
-## dedupe
-- dedupe title-similarity strategy guards against treating blank or empty titles as Levenshtein-similar duplicates (items with blank/empty titles (after trim) are never marked as dups of each other by title sim even if sim calc would yield 1; prevents unintended collapse of distinct items lacking titles; real similar non-blank titles still use greedy Levenshtein + pickWinner(keep) + logging per 8eh @implemented
-
-# llm
-- llm-summarize, llm-filter, llm-rank, llm-merge transforms require LLMConfig + model in context; withLlmModel guard causes silent passthrough (no change to items or summaries) if no model configured
-- LLM summaries (from llm-summarize or llm-merge) are persisted in ContentItemRow.summary and rendered in dashboard; replacePanelItems preserves prior summaries across transform runs
-
-## guards
-- llm.ts summarizeItem/mergeItems/filterItemsByLlm/lensItems explicitly accept Model<Api>|null and silently passthrough (return items unchanged or null for summarize; 0 calls to complete) when !model, with llm.test.ts spyOn regression coverage; this quality guard clarifies b89 silent passthrough (no LLM hit) at the core llm fn layer (beyond higher withLlmModel); merge summary->body path supports 01t persist semantics @implemented
-
-# layout
-- the Dashboard is entirely server-rendered (Hono JSX to full HTML document with inline styles link); no client-side JavaScript is served or required
-- layout containers switch to vertical stacking on screens <=768px via CSS media query regardless of YAML direction; panels use flex + scroll for content
-- the dashboard no longer renders a top-level .header div containing h1 'pace' and a render-timestamp span @spec @implemented
-- the rendered dashboard includes a footer element at the end of the body containing tiny caption text in the format 'Pace / <render datetime> UTC' @spec @implemented
-- the 'Pace' word in the dashboard footer caption is a hyperlink (anchor element) pointing to https://github.com/av/pace (opens in new tab with appropriate rel) @spec @implemented
-- the footer uses compact tiny styling (font-size ~0.65rem, muted text color, minimal vertical margins/padding) so it adds negligible height and makes the overall dashboard layout more compact than the previous header @spec @implemented
-- the HTML document title remains 'pace'; only the visible header branding moves to the compact footer @spec @implemented
-- dashboard body uses 1rem padding (tighter frame around panels) for more compact overall dashboard presentation @spec @implemented
-- panel headers use 0.5rem 0.75rem padding (reduced from 0.75rem 1rem) for compact panel chrome @spec @implemented
-- content items in panels use 0.5rem 0.75rem padding, 0.35rem meta gaps, 0.15rem title margin-bottom and 0.2rem summary margin-top for tighter vertical spacing @spec @implemented
-- item titles in dashboard panels use 0.85rem font-size; summaries use 0.75rem font-size for higher information density in compact panels @spec @implemented
-- panel action gaps reduced to 0.35rem, refresh button padding to 0.1rem 0.3rem, and empty-state padding to 1.5rem 1rem for consistent compact panel styling @spec @implemented
-- dashboard panels use more compact styling overall (reduced paddings, margins, gaps and fonts inside panels and items) resulting in higher content density and less wasted vertical space compared to prior styling @spec @implemented
-- when dashboard panels contain more items than fit their space, they display an internal scrollbar rather than expanding the dashboard page or causing the viewport to scroll @spec @implemented
-- the dashboard root (html, body, .flex-root and top-level layout containers) is strictly constrained to the full viewport height using min-height:100vh + height:100% propagation and overflow:hidden on the document body; this gives .panel-body a definite height so it renders an internal vertical scrollbar for excess items instead of expanding the page @spec @implemented
-- the .panel element (direct parent of .panel-body) receives explicit height:100% (in addition to flex:1) so the flex column inside it constrains .panel-body to a definite height smaller than its content; overflow-y:auto then produces a visible internal scrollbar for excess items @spec @implemented
-
-# readme
-
-## quick-start
-- label: README Quick Start includes a docker run example that mounts a pre-built preset config
-  command: grep -q "Quick start" README.md && grep -A 30 "## Quick start" README.md | grep -q "preset" && grep -A 30 "## Quick start" README.md | grep -q "config\..*\.yaml"
-  tags: [spec, implemented]
-- README Quick Start From source section states that Bun v1.3+ is required before the clone/install commands @spec @implemented
-- README Quick Start instructs users that content populates after the initial adapter fetches once the server is listening @spec @implemented
+## errors
+- label: When the config YAML is invalid (bad syntax, duplicate panel names, reference to unknown source, etc.), the process prints a clear error starting with 'config:' and exits without starting the server
+  command: PACE_CONFIG=/nonexistent/path/config.yaml bun run src/cli.ts 2>&1 | head -1 | grep -q 'config: file not found'
 
 ## presets
-- label: README contains a table of presets documenting all pre-built config files and their focus areas
-  command: grep -q "^## Presets" README.md && grep -A 15 "^## Presets" README.md | grep -q "config\..*yaml"
-  tags: [spec, implemented]
-- label: The presets table in README lists exactly the pre-built configs shipped in the repo: example, tech-news, ml-ai, product-launches, release-tracker, academic-papers, video-podcast
-  command: grep -q "config.example.yaml" README.md && grep -q "config.tech-news.yaml" README.md && grep -q "config.ml-ai.yaml" README.md && grep -q "config.academic-papers.yaml" README.md && grep -q "config.video-podcast.yaml" README.md
-  tags: [spec, implemented]
+- Users can start with a ready-made configuration using --preset tech-news (or ml-ai, academic-papers, product-launches, etc.) instead of writing their own config.yaml
 
-# docker
-- label: Docker image bundles all 7 config.*.yaml files under /app/presets/
-  command: grep -q "COPY config.*.yaml /app/presets" Dockerfile
-  tags: [spec, implemented]
-- label: docker run image --preset tech-news works directly (no volume mount needed for preset)
-  command: grep -q 'src/cli.ts' Dockerfile
-  tags: [spec, implemented]
-- docker run ghcr.io/av/pace:latest --preset tech-news starts the server using the tech-news preset config @spec @implemented
-- docker run -v pace-data:/app/data ghcr.io/av/pace:latest starts successfully on first run and serves the dashboard (data dir is writable) @spec @implemented
+# adapters
 
-# docs
+## contract
+- When a source fails to fetch (network error, bad response, parse error), the log and error message clearly identify which source had the problem
+- mastodon, lobsters, youtube, podcast, stackexchange, and github adapters previously swallowed fetch errors (non-2xx, network, parse) via console.warn + return [] or null; after minimal fixes they now throw Error messages starting with '<name>: ' (e.g. 'mastodon: failed to fetch...') per the Adapter contract documented in src/adapters/types.ts and oz1 @spec @implemented
+- 16 of 17 adapters' fetch methods comply with the contract in types.ts: throw on network/!2xx/parse/auth errors with name: prefix using errorMessage helper (twitter intentionally returns []+log without attempting fetch per its ox1 design; explicit no-sources [] only in configured cases for others) @spec @implemented
+- The .facts file, relevant adapter source, and their .test.ts were updated (minimal diffs) so that contract-violating swallow behaviors are removed and tests assert the throwing behavior instead; no unrelated changes, no new features (e.g. no reddit OAuth) @spec @implemented
 
-## setup
-- skills/pace-dashboard-setup/SKILL.md CLI flags section documents --preset/-P and --list-presets matching the current CLI help output @spec @implemented
+## reddit
+- reddit adapter fetch for any public subreddit always fails with 403 (message starts with 'reddit: failed to fetch ...: 403' or wrapped); confirmed even using browser User-Agent + Accept headers on both www.reddit.com and old.reddit.com (upstream blocking of unauthenticated .json API access; not fixable with headers/UA; requires OAuth app + credentials or authenticated session) @spec @implemented
+- config.example.yaml documents reddit as commented example (with note that it requires credentials due to upstream 403; no functional change to yaml; other presets untouched per smallest-change scope) @spec @implemented
 
-# tests
+## out-of-box
+- Of the 17 adapters, the following work out-of-the-box returning real public content with no credentials/secrets (using only basic params from config.example or defaults): hackernews, lobsters, devto, arxiv, rss, wikipedia, stackexchange, npm (keywords), lemmy, producthunt, podcast (public feeds), youtube (public channels), github (trending mode and releases atom mode), mastodon (with hashtags or accounts), github-releases (anon in some envs; caveats per nzg) @spec @implemented
+- Live one-by-one re-tests (bun -e imports + fetch with configs from *.test.ts and config.*.yaml) confirm: reddit and twitter cannot work out-of-the-box without credentials; the other 15 (incl. github-releases with anon caveats per nzg) can (with caveats for mastodon some endpoints); reddit root cause is upstream 403 on public .json not solvable without auth @spec @implemented
 
-## layout
-- layout.test.ts contains a regression test asserting that renderDashboard produces the compact footer with 'Pace' github hyperlink + updatedAt UTC, document title remains 'pace', and omits deprecated .header or .updated span (directly guarding the compact layout facts gp9,r3s,swp,c00) @implemented
+## twitter
+- twitter adapter never returns real Items out-of-the-box; it always logs a message about requiring credentials and returns [] (even if lists/searches configured); this is by design as it has no unauthenticated public fetch path @spec @implemented
+
+## github-releases
+- github-releases adapter (the dedicated API one) can return real release Items with anon unauth request in some environments (e.g. low rate), but may receive 403 or rate limit errors on api.github.com without token param; its error path correctly throws 'github-releases: ' per contract (unlike some other adapters) @spec @implemented
+
+## status
+- hackernews adapter works out-of-the-box: public unauth fetch to firebaseio.com returns real Items (verified via bun -e with default params) @spec @implemented
+- lobsters adapter works out-of-the-box with public unauth JSON (verified); its internal fetch now throws on !ok per contract (test updated) @spec @implemented
+- mastodon adapter can work out-of-the-box for hashtags/accounts on public instances (verified bun -e); public timeline may 422 but now correctly throws 'mastodon: ' error instead of swallowing (contract fix + test update) @spec @implemented
+- youtube, podcast, stackexchange adapters work out-of-the-box on public endpoints (verified); now throw on fetch errors with prefix instead of warn+[] (contract + tests updated) @spec @implemented
+- github adapter (trending + atom releases) works out-of-the-box (public scrape/Atom verified); its error paths updated to throw per contract (smallest change in fetchGithubResource and callers) @spec @implemented
+- devto, arxiv, rss, wikipedia, npm, lemmy, producthunt adapters work out-of-the-box with public unauth fetches (verified via live bun -e one-by-one re-tests using example configs) @spec @implemented
+
+## quality
+- stackexchange adapter source contains no dead/unused 'warnAndReturnEmpty' helper function (nor its multi-line comment claiming to centralize warn+return[] for fetch errors); the dead code was removed after its call sites in !ok/catch were updated to throw per the Adapter contract and errorMessage usage in types.ts (verifiable by: ! grep -q 'warnAndReturnEmpty' src/adapters/stackexchange.ts ) @implemented
+
+# rendering
+- The Dashboard is fully server-rendered HTML with no client-side JavaScript; it works in any browser, including on mobile, and updates require a page reload or explicit refresh
+
+# domain
+- a Dashboard is the self-hosted web interface that displays aggregated, deduplicated, and optionally LLM-processed content from many sources in a single customizable view
+- a Source is a content provider (Hacker News, Reddit, arXiv, RSS feeds, GitHub releases, podcasts, etc.) that a user configures to pull Items into the Dashboard
+- an Item is a single piece of content (story, paper, video, release note, etc.) shown in the Dashboard, with title, link, publication time, and optional summary or body
+- a Panel is a section of the Dashboard that shows a curated list of Items from one or more Sources after the user's configured Transforms have been applied
+- a Transform is a processing step (deduplicate, keyword filter/exclude, keep latest N, LLM summarize/rank/filter, time decay scoring, etc.) that the user declares in their Config to control which Items appear and in what order
+- a Config is the single YAML file in which the user declares Sources with their refresh schedules, the sequence of Transforms to apply, the recursive flexbox Layout of Panels, and optional LLM provider settings
+- a Preset is a ready-to-use Config file (tech-news, ml-ai, academic-papers, product-launches, etc.) that can be selected with --preset or -P so a user can get a working Dashboard instantly without writing YAML
+- a Refresh updates the Items for a Panel (or all Panels) by re-fetching from the underlying Sources, re-applying Transforms, and redrawing the Dashboard; users can trigger it manually via a button or it happens on the schedule defined per Source
+- LLM-powered Transforms (summarize, filter, rank by interests) are optional; when no LLM is configured or the provider is unreachable, the Dashboard still works normally using only the non-LLM Transforms
+- the entire system runs as a single Docker container (or local Bun process) serving server-rendered HTML with no client-side JavaScript; the Dashboard is responsive and works on phones, tablets, and desktops
+
+# content
+
+## dedup
+- Items from different Sources that point to the same story are automatically deduplicated so a user does not see the same link multiple times in one Panel
+
+## filtering
+- Users can add keyword filters or excludes in their Config so that, for example, hiring posts or off-topic content never appear in the Dashboard
+
+# usage
+
+## refresh
+- Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server
+
+## startup
+- Running 'pace' or 'pace serve' (or the Docker image) starts a web server on port 7453 by default and begins populating the Dashboard from the configured Sources within seconds
+
+## onboarding
+- The Dashboard works with zero configuration using the built-in example (or any Preset) and requires no database setup beyond the automatically created data/ directory
+- A user can go from zero to a useful personalized tech/news/research Dashboard in under a minute by running the Docker image with --preset tech-news or ml-ai
+
+# llm
+
+## user-experience
+- When an LLM is configured, Items can show AI-written summaries and be sorted according to the user's stated interests; without an LLM the same Transforms and layout still work
+
+# cli
+
+## usage
+- The CLI accepts --config to point at a custom YAML file and --port to change the listening port; --help shows all options
+
+# reliability
+- If a Source is temporarily unreachable, the Dashboard continues to show the last successfully fetched Items for that Source instead of going blank or crashing
