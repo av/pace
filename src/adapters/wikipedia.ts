@@ -78,7 +78,7 @@ async function fetchFeaturedFeed(
     signal: AbortSignal.timeout(15000),
   });
   if (!res.ok) {
-    throw new Error(`wikipedia: failed to fetch featured feed: ${res.status}`);
+    throw new Error(`wikipedia: failed to fetch featured feed: ${errorMessage({ message: `${res.status}` })}`);
   }
   return await res.json();
 }

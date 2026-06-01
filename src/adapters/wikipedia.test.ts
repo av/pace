@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import adapter from "./wikipedia";
+import * as typesMod from "./types";
 
 describe("wikipedia adapter", () => {
   let fetchMock: ReturnType<typeof mock>;
@@ -235,5 +236,25 @@ describe("wikipedia adapter", () => {
     const items = await adapter.fetch({ type: "wikipedia", params: {} });
 
     expect(items[0].title).toBe("United States of America");
+  });
+
+  it("uses errorMessage helper in !ok and network error paths per mmu/sh1", async () => {
+    const emSpy = spyOn(typesMod, "errorMessage");
+
+    // HTTP !ok path (raw status in template before quality edit)
+    fetchMock.mockResolvedValue(new Response("Not Found", { status: 404 }));
+
+    await expect(
+      adapter.fetch({ type: "wikipedia", params: {} }),
+    ).rejects.toThrow("wikipedia:");
+    expect(emSpy).toHaveBeenCalledWith({ message: "404" });
+
+    // network error path
+    fetchMock.mockRejectedValue(new Error("DNS resolution failed"));
+
+    await expect(
+      adapter.fetch({ type: "wikipedia", params: {} }),
+    ).rejects.toThrow("wikipedia:");
+    expect(emSpy).toHaveBeenCalled();
   });
 });
