@@ -618,4 +618,43 @@ describe("adapters/index discoverAdapters (TDD full coverage for untouched disco
     expect(badModWarns.length).toBe(0);
     mock.restore();
   });
+
+  test("direct bad mod name-present-but-fetch-not-fn edge (ngb discovery remaining): readdir yielding .ts with default export having clean .name (string, trimmed) + fetch prop present but NOT a function (e.g. number) exercises the final shape guard term (typeof fetch === 'function' fails while prior name checks pass) -> 'bad mod filter' warn emitted + skipped (not added); dedicated direct TDD it() in index.test.ts (test-first red before facts add or edit for this remaining ngb discovery shape guard edge per high-impact remaining after 21c/pzm/k5h + ngb '.name (string) and .fetch' contract + prior splits for name variants/fn/class but not this fetch-not-fn subcase); extends 4qd/8cf/q5f/s28/0od/ydz/ud8/jru guard quality/observability for this edge (current guard correctly rejects but no dedicated direct it yet for name-ok + fetch-bad specific); only valid goods added, 0 loadFail attributable to bad one", async () => {
+    const badFetchName = "badfetch-direct-60-edge.ts";
+    const absBad = "/home/everlier/code/pace/src/adapters/" + badFetchName;
+    mock.module(absBad, () => ({
+      default: { name: "badfetch-should-not-appear", fetch: 42 },  // name clean string trimmed, but fetch not fn -> shape guard last term fails -> bad mod warn + skip
+    }));
+    const goodName = "good-adapter-edge-60.ts";
+    const absGood = "/home/everlier/code/pace/src/adapters/" + goodName;
+    mock.module(absGood, () => ({
+      default: { name: "good-adapter-ngb-60", fetch: async (_c?: any) => [] },
+    }));
+    // fixed for green: good mock now present (added in minimal test edit post-facts-add); badfetch exercises name-ok + fetch-not-fn specific (shape reject at fetch term, badmod warn, no load err for it)
+    mock.module("node:fs/promises", () => ({
+      readdir: async () => [
+        "rss.ts",          // valid -> added
+        badFetchName,      // name ok + fetch not fn -> shape reject + bad mod warn (no load err)
+        goodName,          // now succeeds via mock -> added
+        "foo.test.ts",
+        "types.ts",
+        "index.ts",
+        "bar.js",
+      ],
+    }));
+    const adapters = await discoverAdapters();
+    expect(adapters.has("rss")).toBe(true);
+    expect(adapters.has("good-adapter-ngb-60")).toBe(true);
+    expect(adapters.has("badfetch-should-not-appear")).toBe(false);
+    const loadFailCalls = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("failed to load adapter")
+    );
+    expect(loadFailCalls.length).toBe(0);  // 0 for badfetch (shape, not load); good now mocked no err
+    const badModWarns = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("bad mod filter") || String(call[0]).includes("non-conforming")
+    );
+    expect(badModWarns.length).toBe(1);  // for the fetch-not-fn bad one (name checks passed, fetch term failed)
+    expect(String(badModWarns[0]?.[0] ?? "")).toContain(badFetchName);
+    mock.restore();
+  });
 });
