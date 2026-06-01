@@ -696,4 +696,42 @@ describe("adapters/index discoverAdapters (TDD full coverage for untouched disco
     expect(String(badModWarns[0]?.[0] ?? "")).toContain(nullDefName);
     mock.restore();
   });
+
+  test("direct string-only readdir compat isolation edge (ngb discovery remaining): readdir yielding pure string[] (exercises the typeof entry==='string' ? entry : name + isFile=true hardcode compat branch exclusively for file/name/isFile in discoverAdapters, distinct from Dirent paths in pzm/k5h etc; name filters + shape guard still correctly add valids/skips bads; dedicated direct TDD it() in index.test.ts (test-first for this remaining ngb discovery edge per high-impact string-only readdir compat isolation noted in 61/60 remaining + ngb 'scans src/adapters/*.ts at runtime (excludes tests/types/index)'); extends all prior filter/shape (2tm/xwu/bf8/k5h/pzm/21c/4qd/8cf/q5f/s28/0od/ydz/t8g/qea/jru/ud8) with explicit pure-string[] readdir mock coverage (real code always uses {withFileTypes:true} but string compat for test mocks + isolation quality); only valid goods added, 0 attributable warns for goods", async () => {
+    const stringGoodName = "stringonly-good-direct-62-edge.ts";
+    const absStringGood = "/home/everlier/code/pace/src/adapters/" + stringGoodName;
+    const stringBadName = "stringonly-badshape-direct-62-edge.ts";
+    const absStringBad = "/home/everlier/code/pace/src/adapters/" + stringBadName;
+    mock.module(absStringBad, () => ({
+      default: { foo: "bad shape, no name/fetch fn" },  // import "succeeds" (mocked) -> shape guard fail -> bad mod warn (exercises string compat + guard)
+    }));
+    mock.module(absStringGood, () => ({
+      default: { name: "good-adapter-ngb-string-62", fetch: async (_c?: any) => [] },  // string-only compat: now mocked -> added via isFile=true branch + guard (post minimal fix)
+    }));
+    mock.module("node:fs/promises", () => ({
+      readdir: async () => [
+        "rss.ts",          // valid -> added (via string compat isFile=true + name filter)
+        stringGoodName,    // string-only -> compat branch exercised + good added post-fix
+        stringBadName,     // string-only -> compat + import ok (mock) -> badmod
+        "foo.test.ts",     // filename filter
+        "types.ts",        // excluded
+        "index.ts",        // excluded
+        "bar.js",          // !.ts
+      ],
+    }));
+    const adapters = await discoverAdapters();
+    expect(adapters.has("rss")).toBe(true);
+    expect(adapters.has("good-adapter-ngb-string-62")).toBe(true);  // now true post mock fix for string compat isolation
+    expect(adapters.has("stringonly-badshape-direct-62-edge")).toBe(false);
+    const loadFailCalls = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("failed to load adapter")
+    );
+    expect(loadFailCalls.length).toBe(0);  // 0 post-fix (both good+badshape now mocked; string branch no load errs)
+    const badModWarns = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("bad mod filter") || String(call[0]).includes("non-conforming")
+    );
+    expect(badModWarns.length).toBe(1);  // for the badshape (string compat path)
+    expect(String(badModWarns[0]?.[0] ?? "")).toContain(stringBadName);
+    mock.restore();
+  });
 });
