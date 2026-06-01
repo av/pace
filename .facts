@@ -55,6 +55,9 @@
 ## LLMConfig
 - LLMConfig > domain.test.ts asserts LLMConfig shape fidelity per dhu {provider?, model?, api_key?, base_url?, interests?: string[]} (covers fc3); provides TDD coverage for LLMConfig entity (pure test, no prod change, fills fidelity gap for remaining domain entity beyond ContentItem/Row wr4 + Panel ffh + Adapter y1z + Layout kb9 + Transform jwa + Pipeline 6wk + AppConfig 0b6 + Scheduler rhq) @implemented
 
+## fc3
+- LLMConfig fc3 shape fidelity: LLM-powered Transforms and summaries require a valid LLMConfig and model; otherwise they silently degrade to no-op per fc3 covered by new dedicated it() in domain.test.ts (pure test extension for domain entity; strengthens wiw + dhu) @implemented
+
 # cli
 - label: the CLI supports --config, --port, --preset/-P, --list-presets, --help, --version; unknown commands or options cause immediate exit with usage
   command: bun run src/cli.ts --help 2>&1 | grep -q "Usage:" && bun run src/cli.ts badcmd 2>&1 | grep -q "Unknown command"
