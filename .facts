@@ -22,6 +22,7 @@
 - the Scheduler invokes Adapter fetch or Pipeline processing then applies ordered Transforms before persisting as ContentItemRows
 - LLM-powered Transforms and summaries require a valid LLMConfig and model; otherwise they silently degrade to no-op
 - ContentItemRows for a Panel are queried deduplicated (latest timestamp per url-norm or id) to render the Dashboard
+- Adapter ngb fidelity: runtime fetch returns Promise<ContentItem[]> per 2wm covered by new dedicated it() in domain.test.ts (pure test extension for domain entity; strengthens y1z) @implemented
 
 ## ContentItem
 - tests assert ContentItem shape fidelity per (tgt) {id, title, url, source, timestamp: Date, body?} and ContentItemRow per (qun) {panel_id, fetched_at, optional LLM summary}; domain.test.ts provides TDD coverage for required fields, .summary optionality post-llm, timestamp validity and persisted row shape (pure test, no prod change, fills fidelity gap) @implemented

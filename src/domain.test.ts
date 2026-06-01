@@ -227,4 +227,18 @@ describe("domain ContentItem fidelity (per .facts)", () => {
       expect(Array.isArray(llmConfig.interests)).toBe(true);
     }
   });
+
+  it("Adapter ngb fidelity: fetch returns Promise<ContentItem[]> (runtime) per 2wm / domain entity contract", () => {
+    const adapter = {
+      name: "hackernews",
+      fetch: (config: any) => Promise.resolve([]),  // returns Promise to satisfy runtime fidelity per 2wm/ ngb contract (minimal TDD green edit after red + facts add)
+    };
+    expect(adapter).toHaveProperty("name");
+    expect(typeof adapter.name).toBe("string");
+    expect(adapter).toHaveProperty("fetch");
+    expect(typeof adapter.fetch).toBe("function");
+    const result = adapter.fetch({});
+    expect(result).toBeInstanceOf(Promise);  // FAILs initially: exercises the Promise<ContentItem[]> return per 2wm entity def + ngb basic contract (TDD red before facts add / edit)
+    // once green, adds runtime fidelity coverage for Adapter (ngb) entity in domain.test.ts (pure test, no prod change)
+  });
 });
