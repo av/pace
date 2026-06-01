@@ -515,4 +515,37 @@ describe("adapters/index discoverAdapters (TDD full coverage for untouched disco
     expect(badModWarns.length).toBe(0);
     mock.restore();
   });
+
+  test("direct subdir/dir entry filter edge (ngb discovery remaining): readdir yielding directory names (e.g. 'subdir-direct-57-edge' no .ts ext, simulating subdir in adapters/ dir) + good .ts is exercised in filename filter ( !endsWith('.ts') skips dir early before import/shape, only goods added, 0 attributable warns); dedicated direct TDD it() in index.test.ts (test-first for this remaining ngb discovery edge per high-impact subdir readdir in 56/55 remaining + ngb 'scans src/adapters/*.ts at runtime (excludes tests/types/index)'); extends all prior filter edges (2tm/xwu/bf8/f69/jru/ud8) with explicit dir entry coverage in readdir list (real FS readdir mixes files+dirs)", async () => {
+    const dirName = "subdir-direct-57-edge";
+    const goodName = "good-adapter-edge-57.ts";
+    const absGood = "/home/everlier/code/pace/src/adapters/" + goodName;
+    mock.module(absGood, () => ({
+      default: { name: "good-adapter-ngb-57", fetch: async (_c?: any) => [] },
+    }));
+    // DELIBERATE incomplete setup for red (now fixed): goodName in readdir + mock added; dirName exercises skip of dir entry (non-.ts, filtered pre-try by !endsWith .ts in index.ts, no import, no warn, not added)
+    mock.module("node:fs/promises", () => ({
+      readdir: async () => [
+        goodName,     // now succeeds via mock -> added; dir entry skipped
+        dirName,      // dir entry (sim subdir) -> !.ts filter skips early (no import, no warn, not added)
+        "foo.test.ts",
+        "types.ts",
+        "index.ts",
+        "bar.js",
+      ],
+    }));
+    const adapters = await discoverAdapters();
+    expect(adapters.has("good-adapter-ngb-57")).toBe(true);
+    expect(adapters.has("subdir-direct-57-edge")).toBe(false);
+    expect(adapters.has("good-adapter-edge-57")).toBe(false);
+    const loadFailCalls = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("failed to load adapter")
+    );
+    expect(loadFailCalls.length).toBe(0);  // DELIBERATE RED pre-fix (missing good mock setup causes import err path hit)
+    const badModWarns = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("bad mod filter") || String(call[0]).includes("non-conforming")
+    );
+    expect(badModWarns.length).toBe(0);
+    mock.restore();
+  });
 });
