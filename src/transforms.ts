@@ -29,7 +29,7 @@ export function rowToContentItem(row: ContentItemRow): ContentItem {
 export function contentItemToRow(item: ContentItem, base?: ContentItemRow): ContentItemRow {
   return {
     id: item.id,
-    adapter_name: base?.adapter_name ?? "merged",
+    panel_id: base?.panel_id ?? "merged",
     title: item.title,
     url: item.url,
     source: item.source,
@@ -674,7 +674,7 @@ const transforms: Record<string, TransformFn> = {
       return {
         domain: extractDomain(item.url),
         keywords: allKeywords,
-        source: item.source ?? item.adapter_name ?? "",
+        source: item.source ?? item.panel_id ?? "",
       };
     });
 

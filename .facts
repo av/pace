@@ -89,3 +89,6 @@
 
 # reliability
 - If a Source is temporarily unreachable, the Dashboard continues to show the last successfully fetched Items for that Source instead of going blank or crashing
+
+# code-quality
+- transforms.ts ContentItemRow handling uses only the current panel_id field name (post DB rename from adapter_name column); the two obsolete .adapter_name references (in contentItemToRow and cluster signal extraction) have been removed so rows always conform to the ContentItemRow interface and source fallback uses panel_id when applicable (verifiable by: ! grep -q "adapter_name" src/transforms.ts ) @implemented
