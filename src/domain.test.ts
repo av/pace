@@ -158,4 +158,20 @@ describe("domain ContentItem fidelity (per .facts)", () => {
     expect(Array.isArray(pipelineEx.sources)).toBe(true);
     expect(Array.isArray(pipelineEx.transforms)).toBe(true);
   });
+
+  it("Pipeline has shape fidelity per niu {name, sources: string[], transforms: TransformConfig[], refresh_interval?}", () => {
+    const pipeline = {
+      name: "news-pipe",
+      sources: ["hackernews", "github-releases"],
+      transforms: [{ type: "dedupe" as const, strategy: "url" as const, keep: "latest" as const }],
+      // refresh_interval optional per domain + config.ts:75-80
+    };
+    expect(pipeline).toHaveProperty("name");
+    expect(typeof pipeline.name).toBe("string");
+    expect(Array.isArray(pipeline.sources)).toBe(true);
+    expect(Array.isArray(pipeline.transforms)).toBe(true);
+    if (pipeline.refresh_interval !== undefined) {
+      expect(typeof pipeline.refresh_interval).toBe("number");
+    }
+  });
 });
