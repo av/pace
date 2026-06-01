@@ -1,5 +1,6 @@
-import { beforeEach, afterEach, describe, test, expect, mock } from "bun:test";
+import { beforeEach, afterEach, describe, test, expect, mock, spyOn } from "bun:test";
 import adapter from "./adapters/github";
+import * as typesMod from "./adapters/types";
 
 const releasesXml = `<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
@@ -177,5 +178,35 @@ describe("github adapter", () => {
     expect(warnSpy.mock.calls.some((c: any[]) =>
       String(c[0]).includes("error fetching trending")
     )).toBe(true);
+  });
+
+  test("uses errorMessage helper in !ok and network error paths per mmu/sh1", async () => {
+    const emSpy = spyOn(typesMod, "errorMessage");
+
+    // !ok path via shared fetchGithubResource (releases mode)
+    fetchMock.mockImplementation(async (url: string) => ({
+      ok: false,
+      status: 404,
+      text: async () => "",
+    } as any));
+
+    const items1 = await adapter.fetch({
+      params: { mode: "releases", repos: ["bad/repo"], limit: 10 },
+    } as any);
+    expect(items1).toEqual([]);
+    expect(emSpy.mock.calls.some((c: any[]) =>
+      c[0] && c[0].message === "404"
+    )).toBe(true);
+
+    // network error path (trending uses fetchGithubResource catch)
+    fetchMock.mockImplementation(async () => {
+      throw new Error("network boom");
+    });
+
+    const items2 = await adapter.fetch({
+      params: { mode: "trending" },
+    } as any);
+    expect(items2).toEqual([]);
+    expect(emSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 });

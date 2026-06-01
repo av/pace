@@ -1,5 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
+import { errorMessage } from "./types";
 
 type Mode = "releases" | "trending";
 type TrendingPeriod = "daily" | "weekly" | "monthly";
@@ -75,13 +76,13 @@ async function fetchGithubResource(
     });
 
     if (!res.ok) {
-      console.warn(`github: failed to fetch ${context}: ${res.status}`);
+      console.warn(`github: failed to fetch ${context}: ${errorMessage({ message: `${res.status}` })}`);
       return null;
     }
 
     return await res.text();
   } catch (err) {
-    console.warn(`github: error fetching ${context}:`, err);
+    console.warn(`github: error fetching ${context}: ${errorMessage(err)}`);
     return null;
   }
 }
@@ -136,7 +137,7 @@ async function fetchReleasesFeed(repo: string, limit: number): Promise<ContentIt
 
     return items;
   } catch (err) {
-    console.warn(`github: error fetching releases for ${repo}:`, err);
+    console.warn(`github: error fetching releases for ${repo}: ${errorMessage(err)}`);
     return [];
   }
 }
@@ -241,7 +242,7 @@ async function fetchTrending(
       };
     });
   } catch (err) {
-    console.warn("github: error fetching trending:", err);
+    console.warn(`github: error fetching trending: ${errorMessage(err)}`);
     return [];
   }
 }
