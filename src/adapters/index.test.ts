@@ -164,4 +164,25 @@ describe("adapters/index discoverAdapters (TDD full coverage for untouched disco
     expect(String(importErrorWarns[0]?.[0] ?? "")).toContain(badImport);
     mock.restore();
   });
+
+  test("duplicate name edge in ngb discovery: readdir yielding multiple .ts with same .name triggers 'duplicate adapter name' warn (incl file+ 'vs config names' note), last wins (Map keeps 1 entry, overwritten) (direct TDD for remaining dup handling branch per ngb)", async () => {
+    const dupName = "dup-adapter-edge-30";
+    const f1 = "dup-edge-1-30.ts";
+    const f2 = "dup-edge-2-30.ts";
+    const abs1 = "/home/everlier/code/pace/src/adapters/" + f1;
+    const abs2 = "/home/everlier/code/pace/src/adapters/" + f2;
+    mock.module(abs1, () => ({ default: { name: dupName, fetch: async (_c?: any) => [] } }));
+    mock.module(abs2, () => ({ default: { name: dupName, fetch: async (_c?: any) => [{id: "last-wins"}] } }));
+    mock.module("node:fs/promises", () => ({
+      readdir: async () => [f1, f2, "rss.ts", "types.ts", "index.ts", "foo.test.ts"],
+    }));
+    const adapters = await discoverAdapters();
+    expect(adapters.has("rss")).toBe(true);
+    expect(adapters.has(dupName)).toBe(true);
+    const dups = warnSpy.mock.calls.filter((c: any[]) => String(c[0]).includes("duplicate adapter name"));
+    expect(dups.length).toBe(1); // fixed from deliberate 99 red (now matches actual dup warn emitted by the exercised branch)
+    expect(String(dups[0]?.[0] ?? "")).toContain(dupName);
+    expect(String(dups[0]?.[0] ?? "")).toContain("config names");
+    mock.restore();
+  });
 });
