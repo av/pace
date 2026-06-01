@@ -583,4 +583,39 @@ describe("adapters/index discoverAdapters (TDD full coverage for untouched disco
     expect(badModWarns.length).toBe(0);
     mock.restore();
   });
+
+  test("direct symlink Dirent filter edge (ngb discovery remaining): readdir yielding Dirent[] with symlink entry (isFile:false, isSymbolicLink:true, name .ts simulating symlink to adapter) + good .ts file (isFile:true) exercises explicit isFile() guard (symlinks skipped early before any import/shape even if .ts name, only valid goods added, 0 attributable warns); dedicated direct TDD it() in index.test.ts (test-first red before facts add or index edit for this remaining ngb discovery edge per symlink handling high-impact noted in 58/57 remaining + ngb 'scans src/adapters/*.ts at runtime (excludes tests/types/index)'); extends k5h/pzm/bf8/2tm/xwu/f69/jru/ud8 + all prior filter edges with explicit symlink Dirent coverage (real readdir may yield symlinks; robust skip per ngb)", async () => {
+    const symName = "symlink-direct-59-edge.ts";
+    const goodName = "good-adapter-edge-59.ts";
+    const absGood = "/home/everlier/code/pace/src/adapters/" + goodName;
+    // DELIBERATE incomplete setup for red (missing good mock) fixed for green: now includes mock + direntGood in list -> good discovered via shape, symlink skipped by isFile, 0 warns, expects pass
+    mock.module(absGood, () => ({
+      default: { name: "good-adapter-ngb-59", fetch: async (_c?: any) => [] },
+    }));
+    const direntSym = { name: symName, isFile: () => false, isSymbolicLink: () => true, isDirectory: () => false };
+    const direntGood = { name: goodName, isFile: () => true, isSymbolicLink: () => false, isDirectory: () => false };
+    mock.module("node:fs/promises", () => ({
+      readdir: async () => [
+        direntSym,     // symlink -> !isFile skip (no import, no warn, not added)
+        direntGood,    // file -> isFile true + .ts -> would process if mock present
+        "foo.test.ts", // string compat
+        "types.ts",
+        "index.ts",
+        "bar.js",
+      ],
+    }));
+    const adapters = await discoverAdapters();
+    expect(adapters.has("good-adapter-ngb-59")).toBe(true);  // DELIBERATE RED (incomplete mock -> not discovered)
+    expect(adapters.has("symlink-direct-59-edge")).toBe(false);
+    expect(adapters.has("good-adapter-edge-59")).toBe(false);
+    const loadFailCalls = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("failed to load adapter")
+    );
+    expect(loadFailCalls.length).toBe(0);  // will be >0 due to missing mock
+    const badModWarns = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("bad mod filter") || String(call[0]).includes("non-conforming")
+    );
+    expect(badModWarns.length).toBe(0);
+    mock.restore();
+  });
 });
