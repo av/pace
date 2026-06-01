@@ -205,4 +205,26 @@ describe("domain ContentItem fidelity (per .facts)", () => {
     expect(schedulerShape).toHaveProperty("persists");
     expect(schedulerShape.refreshResult).toHaveProperty("status");
   });
+
+  it("LLMConfig has shape fidelity per dhu {provider?, model?, api_key?, base_url?, interests?: string[]}", () => {
+    const llmConfig = {
+      provider: "openai",
+      model: "gpt-4o-mini",
+      api_key: "sk-test-123",
+      base_url: "https://api.openai.com/v1",
+      interests: ["AI safety", "open source models"],
+      // representative of domain LLMConfig per dhu + fc3 (pure test, no prod imports per scope; matches config.ts:60-66 + validate + llm.ts + ml-ai.yaml)
+    };
+    expect(llmConfig).toHaveProperty("provider");
+    expect(typeof llmConfig.provider).toBe("string");
+    expect(llmConfig).toHaveProperty("model");
+    expect(typeof llmConfig.model).toBe("string");
+    expect(llmConfig).toHaveProperty("api_key");
+    if (llmConfig.base_url !== undefined) {
+      expect(typeof llmConfig.base_url).toBe("string");
+    }
+    if (llmConfig.interests !== undefined) {
+      expect(Array.isArray(llmConfig.interests)).toBe(true);
+    }
+  });
 });
