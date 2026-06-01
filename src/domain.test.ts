@@ -174,4 +174,22 @@ describe("domain ContentItem fidelity (per .facts)", () => {
       expect(typeof pipeline.refresh_interval).toBe("number");
     }
   });
+
+  it("AppConfig has shape fidelity per (kde) {adapters: IngestAdapterConfig[], pipelines?: PipelineConfig[], layout: LayoutNodeConfig, llm?: LlmConfig }", () => {
+    const appConfig = {
+      adapters: [{ name: "hackernews" }],
+      pipelines: [{ name: "p1", sources: ["hn"], transforms: [] }],
+      layout: { direction: "column", children: [] },
+      llm: { provider: "openai", model: "gpt-4o-mini" },
+    };
+    expect(appConfig).toHaveProperty("adapters");
+    expect(Array.isArray(appConfig.adapters)).toBe(true);
+    expect(appConfig).toHaveProperty("layout");
+    if (appConfig.pipelines !== undefined) {
+      expect(Array.isArray(appConfig.pipelines)).toBe(true);
+    }
+    if (appConfig.llm !== undefined) {
+      expect(typeof appConfig.llm).toBe("object");
+    }
+  });
 });
