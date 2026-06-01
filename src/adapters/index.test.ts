@@ -214,4 +214,36 @@ describe("adapters/index discoverAdapters (TDD full coverage for untouched disco
     expect(String(badModWarns[0]?.[0] ?? "")).toContain(noDefName);
     mock.restore();
   });
+
+  test("direct bad mod non-string name edge (ngb discovery remaining): modules where dynamic import succeeds but default has .name that is not a string (e.g. number, per ngb '.name (string)' contract in types+root fact) hit shape guard fail + emit 'bad mod filter' warn + skipped (not added to Map; distinct from import err); no 'failed to load' warn; TDD extends 4qd/ud8/qea guard quality/observability for this edge (current truthy-only name check would wrongly accept)", async () => {
+    const badNameFile = "badnamenum-direct-35-edge.ts";
+    const absBad = "/home/everlier/code/pace/src/adapters/" + badNameFile;
+    mock.module(absBad, () => ({
+      default: { name: 123, fetch: async (_c?: any) => [] },  // name=number (truthy but !string) -> currently passes guard (added as Map key 123), no badmod warn -> red until guard edit
+    }));
+    mock.module("node:fs/promises", () => ({
+      readdir: async () => [
+        "rss.ts",      // valid -> added
+        badNameFile,   // bad name type after import -> should filter + bad mod warn + skip
+        "foo.test.ts", // filename filter
+        "types.ts",    // excluded
+        "index.ts",    // excluded
+        "bar.js",      // !.ts
+      ],
+    }));
+    const adapters = await discoverAdapters();
+    expect(adapters.has("rss")).toBe(true);
+    expect(adapters.has(123)).toBe(false);  // not added (would be pre-fix)
+    expect(adapters.has("123")).toBe(false);
+    const loadFailCalls = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("failed to load adapter")
+    );
+    expect(loadFailCalls.length).toBe(0);  // import "succeeded" (mocked), only shape guard
+    const badModWarns = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("bad mod filter") || String(call[0]).includes("non-conforming")
+    );
+    expect(badModWarns.length).toBe(1);  // DELIBERATE RED initially (0 warns, name truthy passes); after index.ts guard typeof string edit -> 1 + contains file
+    expect(String(badModWarns[0]?.[0] ?? "")).toContain(badNameFile);
+    mock.restore();
+  });
 });
