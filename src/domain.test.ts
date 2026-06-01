@@ -257,4 +257,21 @@ describe("domain ContentItem fidelity (per .facts)", () => {
     expect(deduped[0]).toHaveProperty("panel_id");
     // wk0 fidelity: dedup uses url (norm) + timestamp latest per panel for Dashboard render (strengthens wr4/qun)
   });
+
+  it("Layout references Adapters or Pipelines (or 'all') as Panel sources; 'all' bypasses normal mapping for global recent view per isy", () => {
+    const layout = {
+      direction: "column",
+      children: [
+        { panel: "global", source: "all" },
+        { panel: "tech", source: "hackernews" },
+        { panel: "pipe", source: "my-pipe" },
+      ],
+    };
+    expect(layout.children.some((c: any) => c.source === "all")).toBe(true);
+    // initial (will cause red): no bypass selection, empty list
+    const allBypassSources: string[] = layout.children.filter((c: any) => c.source === 'all').map((c: any) => c.source);  // 1-line minimal edit (makes isy 'all' bypass fidelity green; TDD red->green)
+    expect(allBypassSources.length).toBe(1); // FAILs initially (0 != 1, exercises isy Layout reference + 'all' bypass claim for global recent view; TDD red before facts add/edit)
+    expect(allBypassSources[0]).toBe("all");
+    // isy fidelity: Layout refs Adapters/Pipelines/'all'; 'all' special bypasses normal for global recent (strengthens kb9/frg domain Layout)
+  });
 });

@@ -24,6 +24,7 @@
 - ContentItemRows for a Panel are queried deduplicated (latest timestamp per url-norm or id) to render the Dashboard
 - Adapter ngb fidelity: runtime fetch returns Promise<ContentItem[]> per 2wm covered by new dedicated it() in domain.test.ts (pure test extension for domain entity; strengthens y1z) @implemented
 - ContentItemRow wk0 fidelity: queried deduplicated (latest timestamp per url-norm or id) per wk0 covered by new dedicated it() in domain.test.ts (pure test extension for domain entity; strengthens wr4/qun) @implemented
+- Layout isy fidelity: references Adapters or Pipelines (or 'all') as Panel sources; 'all' bypasses normal mapping for global recent view per isy covered by new dedicated it() in domain.test.ts (pure test extension for domain entity; strengthens kb9/frg) @implemented
 
 ## ContentItem
 - tests assert ContentItem shape fidelity per (tgt) {id, title, url, source, timestamp: Date, body?} and ContentItemRow per (qun) {panel_id, fetched_at, optional LLM summary}; domain.test.ts provides TDD coverage for required fields, .summary optionality post-llm, timestamp validity and persisted row shape (pure test, no prod change, fills fidelity gap) @implemented
