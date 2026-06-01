@@ -21,8 +21,18 @@ export async function discoverAdapters(): Promise<Map<string, Adapter>> {
   }
 
   for (const entry of files) {
-    const file = typeof entry === "string" ? entry : entry.name;
-    const isFile = typeof entry === "string" ? true : entry.isFile();
+    let file: string;
+    let isFile: boolean;
+    if (typeof entry === "string") {
+      file = entry;
+      isFile = true;
+    } else if (entry && typeof entry.name === "string" && typeof entry.isFile === "function") {
+      file = entry.name;
+      isFile = entry.isFile();
+    } else {
+      console.warn(`bad readdir entry: skipped non string/Dirent entry (per ngb error handling for corrupt FS results)`);
+      continue;
+    }
     if (!isFile || !file.toLowerCase().endsWith(".ts") || file.toLowerCase().endsWith(".test.ts") || file.toLowerCase().endsWith(".d.ts") || file.startsWith(".") || EXCLUDED.has(file.toLowerCase())) continue;
 
     try {

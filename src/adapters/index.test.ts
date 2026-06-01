@@ -1121,4 +1121,44 @@ describe("adapters/index discoverAdapters (TDD full coverage for untouched disco
     expect(badModWarns.length).toBe(0);
     mock.restore();
   });
+
+  test("direct bad readdir entry types edge (ngb discovery remaining error path): readdir yielding array containing corrupt non-string/non-Dirent entries (e.g. number, null, plain obj without name/isFile, mixed with valid goods) exercises graceful skip of bads without crash/throw on .name or .isFile access + only valid .ts goods added to Map + emits 'bad readdir entry' warn for observability/quality (per ngb 'cleanly handles readdir errors' + extends 7yv non-iterable + prior compat); dedicated direct TDD it() in index.test.ts (test-first red on crash pre index guard; post minimal guard edit in index.ts green)", async () => {
+    const goodName = "good-adapter-edge-74.ts";
+    const absGood = "/home/everlier/code/pace/src/adapters/" + goodName;
+    mock.module(absGood, () => ({
+      default: { name: "good-adapter-ngb-74", fetch: async (_c?: any) => [] },
+    }));
+    // DELIBERATE red pre-edit: bad entries (number etc) will cause "Cannot read ... .name" or .isFile() throw in current index.ts:24-25 when !string branch hits non-Dirent
+    mock.module("node:fs/promises", () => ({
+      readdir: async () => [
+        "rss.ts",                    // valid real -> added
+        goodName,                    // good via string compat -> added post mock
+        42 as any,                   // bad number entry -> crash pre-guard
+        null as any,                 // bad null
+        { foo: "no-name-or-isfile" } as any, // bad plain obj
+        { name: "bad-dirent-missing-isfile" } as any, // bad Dirent-like missing isFile fn
+        "foo.test.ts",
+        "types.ts",
+        "index.ts",
+        "bar.js",
+      ],
+    }));
+    const adapters = await discoverAdapters();
+    expect(adapters.has("rss")).toBe(true);
+    expect(adapters.has("good-adapter-ngb-74")).toBe(true);
+    expect(adapters.has("bad-dirent-missing-isfile")).toBe(false);
+    const loadFailCalls = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("failed to load adapter")
+    );
+    expect(loadFailCalls.length).toBe(0);  // no load for bad entries (skipped pre-import)
+    const badModWarns = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("bad mod filter") || String(call[0]).includes("non-conforming")
+    );
+    expect(badModWarns.length).toBe(0);
+    const badEntryWarns = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("bad readdir entry") || String(call[0]).includes("corrupt entry") || String(call[0]).includes("non string/Dirent")
+    );
+    expect(badEntryWarns.length).toBeGreaterThanOrEqual(1);  // DELIBERATE red pre (0 warns, throws instead)
+    mock.restore();
+  });
 });
