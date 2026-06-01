@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import { errorMessage, isValidPort } from "./adapters/types";
+import { errorMessage, isValidPort } from "./utils";
 import { tryReadRegularFile } from "./config";
 
 const pkg = JSON.parse(readFileSync(join(import.meta.dir, "../package.json"), "utf-8"));

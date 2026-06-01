@@ -2,7 +2,7 @@ import { readFileSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import yaml from "js-yaml";
 import type { AdapterConfig } from "./adapters/types";
-import { getAdapterName } from "./adapters/types";
+import { getAdapterName } from "./utils";
 
 // --- Layout Tree ---
 

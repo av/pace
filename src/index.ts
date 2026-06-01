@@ -7,7 +7,7 @@ import { discoverAdapters } from "./adapters/index";
 import { renderDashboard, type PanelData } from "./layout";
 import { createModel } from "./llm";
 import { startScheduler, stopScheduler, refreshSources, type SourcePanelMap } from "./scheduler";
-import { parsePort, getAdapterName } from "./adapters/types";
+import { parsePort, getAdapterName } from "./utils";
 
 /** Single source of truth for the special "all" adapter sentinel (used in source mapping, dashboard "recent" fallback, and refresh expansion). */
 function isAllAdapter(adapter: string): boolean {
