@@ -657,4 +657,43 @@ describe("adapters/index discoverAdapters (TDD full coverage for untouched disco
     expect(String(badModWarns[0]?.[0] ?? "")).toContain(badFetchName);
     mock.restore();
   });
+
+  test("direct bad mod null-default-export edge (ngb discovery remaining): readdir yielding .ts with default export === null (import succeeds but shape guard falsy on adapter && typeof object && !== null && proto && name checks && fetch fn) hits bad mod filter + 'bad mod filter' warn emitted + skipped (no 'failed to load' warn for it); dedicated direct TDD it() in index.test.ts (test-first red before facts add or edit for this remaining ngb discovery shape guard edge per high-impact 'null default' noted in 60 remaining + ngb 'default object with .name (string) and .fetch' contract + extends qea no-default-undef + 4qd/ud8 guard quality/observability for explicit null case (distinct from undef from missing key)); only valid goods added, 0 loadFail attributable to the nulldef one", async () => {
+    const nullDefName = "nulldefault-direct-61-edge.ts";
+    const absNull = "/home/everlier/code/pace/src/adapters/" + nullDefName;
+    mock.module(absNull, () => ({
+      default: null,  // import "succeeds" -> default null -> !(adapter && ...) -> bad mod warn + skip (no load err)
+    }));
+    const goodName = "good-adapter-edge-61.ts";
+    const absGood = "/home/everlier/code/pace/src/adapters/" + goodName;
+    mock.module(absGood, () => ({
+      default: { name: "good-adapter-ngb-61", fetch: async (_c?: any) => [] },
+    }));
+    // fixed for green: good mock now present (added in minimal test edit post-facts-add); nulldefault exercises default===null specific (shape reject at guard, badmod warn, no load err for it)
+    mock.module("node:fs/promises", () => ({
+      readdir: async () => [
+        "rss.ts",          // valid -> added
+        nullDefName,       // default null -> shape reject + bad mod warn (no load err for it)
+        goodName,          // now succeeds via mock -> added
+        "foo.test.ts",
+        "types.ts",
+        "index.ts",
+        "bar.js",
+      ],
+    }));
+    const adapters = await discoverAdapters();
+    expect(adapters.has("rss")).toBe(true);
+    expect(adapters.has("good-adapter-ngb-61")).toBe(true);
+    expect(adapters.has("nulldefault-should-not-appear")).toBe(false);
+    const loadFailCalls = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("failed to load adapter")
+    );
+    expect(loadFailCalls.length).toBe(0);  // 0 for nulldef (shape, not load); good now mocked no err
+    const badModWarns = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("bad mod filter") || String(call[0]).includes("non-conforming")
+    );
+    expect(badModWarns.length).toBe(1);  // for the null default bad one
+    expect(String(badModWarns[0]?.[0] ?? "")).toContain(nullDefName);
+    mock.restore();
+  });
 });
