@@ -443,4 +443,40 @@ describe("adapters/index discoverAdapters (TDD full coverage for untouched disco
     expect(badModWarns.length).toBe(0);  // filtered by filename before shape/import (post edit)
     mock.restore();
   });
+
+  test("direct case-sens EXCLUDED filter edge (ngb discovery remaining): readdir yielding mixed-case excluded file e.g. 'TYPES.TS' (EXCLUDED.has(file) exact case-sens, unlike lowered .ts/.test.ts checks post-2tm) leaks past exclusion (imported if valid shape, added to Map polluting per ngb 'excludes tests/types/index'); dedicated direct TDD it() exercises the case leak in EXCLUDED filter (test-first red before any facts/code change); extends 2tm case-sens + jru/ud8 for this remaining ngb discovery filter edge (EXCLUDED exact vs toLower on linux FS)", async () => {
+    const exclName = "TYPES.TS";
+    const absExcl = "/home/everlier/code/pace/src/adapters/" + exclName;
+    const goodName = "good-adapter-edge-55.ts";
+    const absGood = "/home/everlier/code/pace/src/adapters/" + goodName;
+    mock.module(absExcl, () => ({
+      default: { name: "leaky-excluded-should-not-appear", fetch: async (_c?: any) => [] },  // valid shape, but upper EXCLUDED -> should filter by case-insens EXCLUDED (no import, no add, no warn)
+    }));
+    mock.module(absGood, () => ({
+      default: { name: "good-adapter-ngb-55", fetch: async (_c?: any) => [] },  // the valid one we assert is discovered (under mock fs)
+    }));
+    mock.module("node:fs/promises", () => ({
+      readdir: async () => [
+        goodName,     // valid mocked -> added (the one we assert)
+        exclName,     // mixed case EXCLUDED -> currently leaks (passes has exact, processed as .ts), would add leaky -> red until EXCLUDED.has(file.toLowerCase()) edit
+        "foo.test.ts", // exact filter
+        "types.ts",    // excluded exact
+        "index.ts",    // excluded exact
+        "bar.js",      // !.ts
+      ],
+    }));
+    const adapters = await discoverAdapters();
+    expect(adapters.has("good-adapter-ngb-55")).toBe(true);
+    expect(adapters.has("leaky-excluded-should-not-appear")).toBe(false);  // DELIBERATE RED pre-edit (leaks past case-sens EXCLUDED.has)
+    expect(adapters.has("TYPES")).toBe(false);
+    const loadFailCalls = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("failed to load adapter")
+    );
+    expect(loadFailCalls.length).toBe(0);  // no import for leaky-excl (will be filtered post-edit; also no err for good)
+    const badModWarns = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("bad mod filter") || String(call[0]).includes("non-conforming")
+    );
+    expect(badModWarns.length).toBe(0);  // filtered by EXCLUDED before shape/import (post edit)
+    mock.restore();
+  });
 });
