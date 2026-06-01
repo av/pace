@@ -773,4 +773,43 @@ describe("adapters/index discoverAdapters (TDD full coverage for untouched disco
     expect(String(badModWarns[0]?.[0] ?? "")).toContain(internalWsBadName);
     mock.restore();
   });
+
+  test("direct internal-space-in-name (embedded ws char) name guard edge (ngb discovery remaining): readdir yielding .ts with default export having .name containing internal whitespace char e.g. 'good adapter with space 64' (no leading/trailing ws so name===name.trim() true + trim() truthy) + clean fetch fn exercises the name checks in shape guard (passes, added to Map with the spaced name as key unlike ws-only/padded cases); dedicated direct TDD it() in index.test.ts (test-first red before facts add or edit for this remaining ngb discovery name guard edge per high-impact gap in or8 'internal-ws' claim + prior ws-only/padded q5f/s28/8cf but no dedicated for actual embedded space char positive path exercising guard's internal ws tolerance per ngb '.name (string)' contract + 'default object with .name (string) and .fetch'); extends or8/h18/t8g/psy/4qd/ud8/jru + all prior name/shape with explicit spaced name in mocked good module + readdir list (current guard accepts embedded space names as valid .name strings); only valid goods added, 0 loadFail for the spaced good (post minimal mock fix)", async () => {
+    const spaceGoodName = "space-good-direct-64-edge.ts";
+    const absSpaceGood = "/home/everlier/code/pace/src/adapters/" + spaceGoodName;
+    const spaceBadName = "space-badshape-direct-64-edge.ts";
+    const absSpaceBad = "/home/everlier/code/pace/src/adapters/" + spaceBadName;
+    mock.module(absSpaceBad, () => ({
+      default: { foo: "bad shape, no name/fetch fn" },  // import ok -> badmod (exercises guard)
+    }));
+    mock.module(absSpaceGood, () => ({
+      default: { name: "good adapter with space 64", fetch: async (_c?: any) => [] },  // embedded space name (no outer ws) + fetch fn -> passes guard name checks (===trim true, trim() truthy) -> added with spaced key
+    }));
+    // fixed for green: good mock now present (added in minimal test edit post-facts-add); spaceGood exercises embedded space positive path through name guard (accepted as valid .name string per ngb)
+    mock.module("node:fs/promises", () => ({
+      readdir: async () => [
+        "rss.ts",              // valid -> added
+        spaceGoodName,         // now succeeds via mock -> embedded space name + guard passes + added
+        spaceBadName,          // bad shape -> badmod warn
+        "foo.test.ts",
+        "types.ts",
+        "index.ts",
+        "bar.js",
+      ],
+    }));
+    const adapters = await discoverAdapters();
+    expect(adapters.has("rss")).toBe(true);
+    expect(adapters.has("good adapter with space 64")).toBe(true);  // now true post mock fix for internal-space-in-name name guard edge
+    expect(adapters.has("space-badshape-direct-64-edge")).toBe(false);
+    const loadFailCalls = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("failed to load adapter")
+    );
+    expect(loadFailCalls.length).toBe(0);  // 0 post-fix (both good+bad now mocked; spaced good no load err)
+    const badModWarns = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("bad mod filter") || String(call[0]).includes("non-conforming")
+    );
+    expect(badModWarns.length).toBe(1);  // for the badshape one
+    expect(String(badModWarns[0]?.[0] ?? "")).toContain(spaceBadName);
+    mock.restore();
+  });
 });
