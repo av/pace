@@ -40,6 +40,7 @@
 
 ## quality
 - stackexchange adapter source contains no dead/unused 'warnAndReturnEmpty' helper function (nor its multi-line comment claiming to centralize warn+return[] for fetch errors); the dead code was removed after its call sites in !ok/catch were updated to throw per the Adapter contract and errorMessage usage in types.ts (verifiable by: ! grep -q 'warnAndReturnEmpty' src/adapters/stackexchange.ts ) @implemented
+- podcast adapter source contains no over-engineered 'warnAndReturnEmpty' helper function (nor its multi-line JSDoc claiming to 'Centralize the repeated warn + return [] pattern used for recoverable fetch/parse issues'); after prior contract updates the helper is only called from one site and has been inlined there for simplicity (verifiable by: ! grep -q 'warnAndReturnEmpty' src/adapters/podcast.ts ) @implemented
 
 # rendering
 - The Dashboard is fully server-rendered HTML with no client-side JavaScript; it works in any browser, including on mobile, and updates require a page reload or explicit refresh

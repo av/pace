@@ -276,15 +276,6 @@ function episodeToContentItem(ep: PodcastEpisode): ContentItem {
   };
 }
 
-/**
- * Warn with any args (supports console.warn(msg) or console.warn(msg, err)) and return empty list.
- * Centralizes the repeated warn + return [] pattern used for recoverable fetch/parse issues.
- */
-function warnAndReturnEmpty(...args: any[]): ContentItem[] {
-  console.warn(...args);
-  return [];
-}
-
 async function fetchPodcastFeed(
   feedUrl: string,
   limit: number,
@@ -298,7 +289,7 @@ async function fetchPodcastFeed(
       signal: AbortSignal.timeout(20000),
     });
     if (!res.ok) {
-      return warnAndReturnEmpty(`podcast: failed to fetch ${feedUrl}: ${errorMessage({ message: String(res.status) })}`);
+      throw new Error(`podcast: failed to fetch ${feedUrl}: ${errorMessage({ message: String(res.status) })}`);
     }
     const xml = await res.text();
     const parsed = parser.parse(xml);
@@ -306,7 +297,8 @@ async function fetchPodcastFeed(
     // Extract channel info (RSS 2.0 structure)
     const channel = parsed?.rss?.channel;
     if (!channel) {
-      return warnAndReturnEmpty(`podcast: no channel found in feed ${feedUrl}`);
+      console.warn(`podcast: no channel found in feed ${feedUrl}`);
+      return [];
     }
 
     const showName = extractChannelTitle(channel);
@@ -328,7 +320,7 @@ async function fetchPodcastFeed(
 
     return episodes;
   } catch (err) {
-    return warnAndReturnEmpty(`podcast: error fetching ${feedUrl}: ${errorMessage(err)}`);
+    throw new Error(`podcast: error fetching ${feedUrl}: ${errorMessage(err)}`);
   }
 }
 
