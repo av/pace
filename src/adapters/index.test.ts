@@ -1020,4 +1020,35 @@ describe("adapters/index discoverAdapters (TDD full coverage for untouched disco
     expect(badModWarns.length).toBe(0);
     mock.restore();
   });
+
+  test("direct mixed-case good .TS extension filter accept Dirent edge (ngb discovery remaining): readdir yielding Dirent[] (explicit withFileTypes path) with mixed-case ext good e.g. 'good-mixedcase-ts-dirent-71.TS' (toLowerCase().endsWith(\".ts\") on Dirent.name + isFile true) is accepted by filename filter (not skipped early), gets shape-checked + added if good (per ngb 'scans src/adapters/*.ts at runtime (excludes tests/types/index)' + case-insens ext filter + Dirent compat robustness); dedicated direct TDD it() (test-first red via incomplete mock) for this remaining ngb discovery Dirent+case edge (positive accept for upper .TS via Dirent; complements ay8 string-path .TS + 1ha mixed compat + pzm/21c/k5h Dirent isFile/filter); extends all prior filter/compat/case (f69/bf8/k5h/pzm/21c/bic/1ha/7yv/ay8/wgp + ud8/jru/4qd + ...) with explicit mixed-case good .TS in Dirent-mocked readdir (current lowered check + isFile accepts; no prior dedicated positive Dirent+case test for .TS good); only valid goods added, 0 attributable warns for the good .TS (post mock fix)", async () => {
+    const goodTsName = "good-mixedcase-ts-dirent-71.TS";
+    const absGoodTs = "/home/everlier/code/pace/src/adapters/" + goodTsName;
+    mock.module(absGoodTs, () => ({
+      default: { name: "good-mixedcase-ts-dirent-71", fetch: async (_c?: any) => [] },  // good via mixed-case .TS + explicit Dirent readdir entry (exercises toLower + isFile accept path on Dirent)
+    }));
+    // fixed for green (minimal test edit post-facts-add): goodTsDirent mock now present; .TS good via Dirent exercises lowered .ts filter + isFile + added; rss real; 0 load/badmod for it
+    mock.module("node:fs/promises", () => ({
+      readdir: async () => [
+        { name: "rss.ts", isFile: () => true },      // Dirent-like valid real -> added
+        { name: goodTsName, isFile: () => true },    // mixed-case .TS good via Dirent path -> passes toLower .ts filter + isFile (case+Dirent path) + (post fix) mocked -> added
+        { name: "foo.test.ts", isFile: () => true },
+        { name: "types.ts", isFile: () => true },
+        { name: "index.ts", isFile: () => true },
+        { name: "bar.js", isFile: () => true },
+      ],
+    }));
+    const adapters = await discoverAdapters();
+    expect(adapters.has("rss")).toBe(true);
+    expect(adapters.has("good-mixedcase-ts-dirent-71")).toBe(true);  // FAIL pre-fix (red)
+    const loadFailCalls = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("failed to load adapter")
+    );
+    expect(loadFailCalls.length).toBe(0);  // FAIL pre-fix (import err for unmapped goodTsName via Dirent+case)
+    const badModWarns = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("bad mod filter") || String(call[0]).includes("non-conforming")
+    );
+    expect(badModWarns.length).toBe(0);
+    mock.restore();
+  });
 });

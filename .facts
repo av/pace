@@ -172,6 +172,7 @@
 - discoverAdapters in adapters/index.ts gracefully handles readdir resolving to non-iterable value (e.g. null) by returning empty Map + emitting warn (no crash/throw from for-of on files); extends prior readdir error (throw) + 1ha mixed compat + all ngb discovery filter/guard cases with dedicated direct TDD test in index.test.ts @implemented
 - adapters/discovery > direct TDD test for mixed-case good .TS extension filter accept edge (toLowerCase().endsWith(".ts") accepts upper .TS good adapter + dedicated direct TDD test (test-first red/green)) @implemented
 - adapters/discovery > direct TDD test for mixed-case .D.TS declaration filter exclusion edge (toLowerCase().endsWith(".d.ts") skips upper .D.TS decl + dedicated direct TDD test (test-first red/green)) @implemented
+- adapters/discovery > direct TDD test for mixed-case good .TS extension filter accept Dirent edge (toLowerCase().endsWith(".ts") on Dirent.name + isFile accepts upper .TS good adapter via explicit Dirent readdir entry + dedicated direct TDD test (test-first red/green)) @implemented
 
 ## arxiv
 - arxiv adapter fetch error paths (HTTP !ok and network/parse) use errorMessage helper for the cause string in thrown errors prefixed 'arxiv: ' (inner !ok status now via helper for quality + outer catch wrapper always uses it; dedicated TDD it() in arxiv.test.ts for !ok mmu errorMessage path per contract in types.ts JSDoc and mmu) @implemented
