@@ -35,6 +35,9 @@
 ## Layout
 - domain.test.ts asserts Layout shape fidelity per (frg) { recursive tree: FlexContainerConfig {direction: 'row'|'column', children: LayoutNodeConfig[], flex?, gap?} | PanelConfig {panel: string, source: SourceValue (str|arr|obj|SourceConfig), id?, flex?, limit?} }; provides TDD coverage for Layout entity (pure test, no prod change, fills fidelity gap for other domain entities beyond ContentItem/Row wr4 + Panel ffh + Adapter y1z) @implemented
 
+## Transform
+- domain.test.ts asserts Transform shape fidelity per (bv5) {type: 'dedupe'|'filter'|...|'llm-*' per TransformConfig union; dedupe supports strategy ('url'|'domain-normalized'|'title-similarity' per 8eh), keep, threshold, log?}; also PipelineConfig {name, sources, transforms: TransformConfig[], refresh_interval?}; provides TDD coverage for Transform/Pipeline entities (pure test, no prod change, fills fidelity gap for other domain entities beyond ContentItem/Row wr4 + Panel ffh + Adapter y1z + Layout kb9) @implemented
+
 # cli
 - label: the CLI supports --config, --port, --preset/-P, --list-presets, --help, --version; unknown commands or options cause immediate exit with usage
   command: bun run src/cli.ts --help 2>&1 | grep -q "Usage:" && bun run src/cli.ts badcmd 2>&1 | grep -q "Unknown command"

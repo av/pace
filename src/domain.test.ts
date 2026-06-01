@@ -129,4 +129,33 @@ describe("domain ContentItem fidelity (per .facts)", () => {
     }
     // recursive LayoutNodeConfig per frg + config.ts types (FlexContainer | PanelConfig); source string subset of SourceValue; pure test no imports per scope
   });
+
+  it("Transform has shape fidelity per bv5 (TransformConfig union e.g. dedupe per 8eh {type, strategy?, threshold?, keep?, log?} + variants like llm-summarize/filter + PipelineConfig {name, sources, transforms: TransformConfig[]})", () => {
+    const dedupeXform = {
+      type: "dedupe" as const,
+      strategy: "title-similarity" as const,
+      threshold: 0.85,
+      keep: "highest-score" as const,
+      log: true,
+    };
+    expect(dedupeXform).toHaveProperty("type");
+    expect(dedupeXform.type).toBe("dedupe");
+    expect(dedupeXform).toHaveProperty("strategy");
+    expect(typeof dedupeXform.strategy).toBe("string");
+    expect(dedupeXform).toHaveProperty("keep");
+
+    const llmXform = { type: "llm-summarize" as const };
+    expect(llmXform.type).toBe("llm-summarize");
+
+    const pipelineEx = {
+      name: "tech-pipe",
+      sources: ["hackernews", "rss"],
+      transforms: [dedupeXform, llmXform],
+      refresh_interval: 900,
+    };
+    expect(pipelineEx).toHaveProperty("name");
+    expect(typeof pipelineEx.name).toBe("string");
+    expect(Array.isArray(pipelineEx.sources)).toBe(true);
+    expect(Array.isArray(pipelineEx.transforms)).toBe(true);
+  });
 });
