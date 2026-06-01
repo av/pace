@@ -343,4 +343,35 @@ describe("adapters/index discoverAdapters (TDD full coverage for untouched disco
     expect(String(badModWarns[0]?.[0] ?? "")).toContain(fnDefName);
     mock.restore();
   });
+
+  test("direct dotfile handling edge (ngb discovery remaining): readdir yielding dotfile .ts (e.g. '.dot-direct-52-edge.ts' starting with .) is filtered early in filename check (like .test.ts/excluded/non-.ts) before any dynamic import or shape guard; never added to Map even if the mock provides conforming default object; produces zero 'failed to load' or 'bad mod filter' warns attributable to it (distinct from import/shape cases); dedicated direct TDD it() for this remaining ngb discovery filter edge (prevents hidden files from polluting discovered adapters per ngb scan of real src/adapters/*.ts only)", async () => {
+    const dotName = ".dot-direct-52-edge.ts";
+    const absDot = "/home/everlier/code/pace/src/adapters/" + dotName;
+    mock.module(absDot, () => ({
+      default: { name: "dot-should-not-appear", fetch: async (_c?: any) => [] },  // conforming shape, but dotfile -> filter early
+    }));
+    mock.module("node:fs/promises", () => ({
+      readdir: async () => [
+        "rss.ts",      // valid -> added
+        dotName,       // dot-prefixed .ts -> should filter early (no import attempted, no warn, not added)
+        "foo.test.ts", // filename filter
+        "types.ts",    // excluded
+        "index.ts",    // excluded
+        "bar.js",      // !.ts
+      ],
+    }));
+    const adapters = await discoverAdapters();
+    expect(adapters.has("rss")).toBe(true);
+    expect(adapters.has("dot-should-not-appear")).toBe(false);  // not added (would be pre-fix, since !startsWith('.') filter missing)
+    expect(adapters.has(".dot-direct-52-edge")).toBe(false);
+    const loadFailCalls = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("failed to load adapter")
+    );
+    expect(loadFailCalls.length).toBe(0);  // no import for dot (filtered pre-try)
+    const badModWarns = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("bad mod filter") || String(call[0]).includes("non-conforming")
+    );
+    expect(badModWarns.length).toBe(0);  // filtered by filename before shape, no badmod emitted for dot
+    mock.restore();
+  });
 });
