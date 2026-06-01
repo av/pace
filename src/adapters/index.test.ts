@@ -311,4 +311,36 @@ describe("adapters/index discoverAdapters (TDD full coverage for untouched disco
     expect(String(badModWarns[0]?.[0] ?? "")).toContain(paddedNameFile);
     mock.restore();
   });
+
+  test("direct bad mod function-default edge (ngb discovery remaining): modules where dynamic import succeeds but default is a function (e.g. class ctor or fn with .name + .fetch props attached, per ngb 'default object' contract intent in types+root fact + all real adapters use plain object literals for default export) hit shape guard fail + emit 'bad mod filter' warn + skipped (not added to Map); no 'failed to load' warn; TDD extends 4qd/8cf/q5f/ud8/qea/8cf/s28 guard quality/observability for this edge (current 'adapter &&' + name/fetch checks accepts function defaults with attached props, would wrongly treat fn as adapter polluting Map per ngb) + dedicated direct it() in index.test.ts exercising mocked fn-default module + readdir list", async () => {
+    const fnDefName = "funcdefault-direct-51-edge.ts";
+    const absFn = "/home/everlier/code/pace/src/adapters/" + fnDefName;
+    const badFn: any = function() {};
+    Object.defineProperty(badFn, "name", { value: "func-default-ngb-edge-51", writable: false, enumerable: true, configurable: true });  // simulate fn/class default with .name (readonly in JS) + fetch; attached would be Map key if guard accepted fn
+    badFn.fetch = async (_c?: any) => [];
+    mock.module(absFn, () => ({ default: badFn })); // import succeeds, default=fn (truthy + str name clean + fn fetch) -> currently passes guard (added), no badmod warn -> red until guard edit
+    mock.module("node:fs/promises", () => ({
+      readdir: async () => [
+        "rss.ts",      // valid -> added
+        fnDefName,     // function default after import -> should filter + bad mod warn + skip
+        "foo.test.ts", // filename filter
+        "types.ts",    // excluded
+        "index.ts",    // excluded
+        "bar.js",      // !.ts
+      ],
+    }));
+    const adapters = await discoverAdapters();
+    expect(adapters.has("rss")).toBe(true);
+    expect(adapters.has("func-default-ngb-edge-51")).toBe(false);  // not added (would be pre-fix)
+    const loadFailCalls = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("failed to load adapter")
+    );
+    expect(loadFailCalls.length).toBe(0);  // import "succeeded" (mocked), only shape guard
+    const badModWarns = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("bad mod filter") || String(call[0]).includes("non-conforming")
+    );
+    expect(badModWarns.length).toBe(1);  // DELIBERATE RED initially (0 warns, fn default passes guard); after index.ts guard object check edit -> 1 + contains file
+    expect(String(badModWarns[0]?.[0] ?? "")).toContain(fnDefName);
+    mock.restore();
+  });
 });
