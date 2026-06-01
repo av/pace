@@ -153,6 +153,9 @@
 ## stackexchange
 - stackexchange adapter fetch error paths (HTTP !ok and network) use errorMessage helper for the cause string in its warn messages (per mmu contract + sh1 quality for robust msgs); covered by dedicated TDD it() in stackexchange.test.ts exercising helper in warn+[] error paths @implemented
 
+## lemmy
+- lemmy adapter fetch error paths (HTTP !ok and network) use errorMessage helper for the cause string in its error throws prefixed 'lemmy: ' (inner !ok status now via helper for quality + outer catch wrapper always uses it; dedicated TDD it() in lemmy.test.ts for mmu errorMessage path per contract in types.ts JSDoc and mmu) @implemented
+
 # db
 - DB persistence uses SQLite with WAL mode and 5s busy_timeout; items are upserted by id (ON CONFLICT DO UPDATE); reads for UI and transforms always deduplicate keeping MAX(timestamp) per url-normalized key (or id if no url)
 - old ContentItemRows are pruned daily (and on startup) if their fetched_at is older than 30 days; prune is independent of item timestamp

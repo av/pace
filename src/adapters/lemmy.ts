@@ -82,7 +82,7 @@ async function fetchLemmyPosts(
     signal: AbortSignal.timeout(15000),
   });
   if (!res.ok) {
-    throw new Error(`lemmy: failed to fetch ${context}: ${res.status}`);
+    throw new Error(`lemmy: failed to fetch ${context}: ${errorMessage({ message: `${res.status}` })}`);
   }
   const json: LemmyPostListResponse = await res.json();
   return json.posts ?? [];

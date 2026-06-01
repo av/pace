@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import { beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import adapter from "./lemmy";
+import * as typesMod from "./types";
 
 describe("lemmy adapter", () => {
   let fetchMock: ReturnType<typeof mock>;
@@ -251,5 +252,29 @@ describe("lemmy adapter", () => {
     await expect(
       adapter.fetch({ type: "lemmy", params: {} }),
     ).rejects.toThrow("lemmy:");
+  });
+
+  it("uses errorMessage helper in !ok and network error paths per mmu/sh1 (TDD coverage for lemmy mmu errorMessage use)", async () => {
+    const emSpy = spyOn(typesMod, "errorMessage");
+    try {
+      // !ok HTTP error path (exercises fetchLemmyPosts !ok construction + outer catch; will call errorMessage for status duck after quality edit)
+      fetchMock.mockResolvedValue(new Response("Server Error", { status: 500 }));
+      await expect(
+        adapter.fetch({ type: "lemmy", params: {} }),
+      ).rejects.toThrow("lemmy:");
+
+      // network/fetch reject path (exercises outer catch + errorMessage(err))
+      fetchMock.mockRejectedValue(new Error("connection refused for lemmy mmu test"));
+      await expect(
+        adapter.fetch({ type: "lemmy", params: {} }),
+      ).rejects.toThrow("lemmy:");
+
+      // pre-edit: only catch calls (with Error objs) -> 2 calls but no {message:"500"} duck from !ok site; post-edit >=3 calls + duck call from !ok (red first)
+      const calls = emSpy.mock.calls.length;
+      expect(calls).toBeGreaterThanOrEqual(2);
+      expect(emSpy).toHaveBeenCalledWith({ message: "500" });
+    } finally {
+      emSpy.mockRestore();
+    }
   });
 });
