@@ -1161,4 +1161,44 @@ describe("adapters/index discoverAdapters (TDD full coverage for untouched disco
     expect(badEntryWarns.length).toBeGreaterThanOrEqual(1);  // DELIBERATE red pre (0 warns, throws instead)
     mock.restore();
   });
+
+  test("direct non-ts filename filter isolation edge (ngb discovery remaining): readdir yielding mix of only non-.ts files (bar.js, subdir noext, .dot.ts, foo.test.ts, upper TYPES.TS, index.ts) + one good .ts exercises early !endsWith + startsWith + EXCLUDED + .test/.d filter skips (no import attempted, no load/badmod/badreaddir warns for the non-ts) + only the good .ts added cleanly with 0 attributable warns; dedicated direct TDD it() in index.test.ts (test-first red via incomplete good mock setup) for this remaining ngb discovery filter edge per high-impact 'further FS/Dirent/case/compat/error paths' + ngb 'scans src/adapters/*.ts at runtime (excludes tests/types/index)' + extends jru/ud8/bf8/k5h/2tm/xwu/f69 + all prior filter/compat; only valid goods added, 0 warns post minimal mock fix", async () => {
+    const goodName = "good-adapter-edge-75.ts";
+    const absGood = "/home/everlier/code/pace/src/adapters/" + goodName;
+    mock.module(absGood, () => ({
+      default: { name: "good-adapter-ngb-75", fetch: async (_c?: any) => [] },  // added in minimal post-facts-add edit for green; enables clean good discovery via non-ts filter path
+    }));
+    // DELIBERATE incomplete setup for red (no mock for goodName yet -> dynamic import fails for it -> load warn + not added); post-facts-add minimal edit adds the mock -> green, exercises clean non-ts filter path (skips pre-import, 0 warns from them) + good via string
+    mock.module("node:fs/promises", () => ({
+      readdir: async () => [
+        "rss.ts",          // valid real -> added
+        goodName,          // good .ts via string -> filter passes (ends .ts, not .test not .d not dot not excl) -> should add post mock fix
+        "bar.js",          // !.ts -> early filter skip, no import, no warn attributable
+        "subdir-noext",    // no ext .ts -> skip
+        ".dot.ts",         // startsWith . -> skip
+        "foo.test.ts",     // .test.ts -> skip
+        "TYPES.TS",        // EXCLUDED after toLower -> skip
+        "index.ts",        // excluded
+      ],
+    }));
+    const adapters = await discoverAdapters();
+    expect(adapters.has("rss")).toBe(true);
+    expect(adapters.has("good-adapter-ngb-75")).toBe(true);  // DELIBERATE RED pre (no mock for goodName -> load err path hit, not added)
+    expect(adapters.has("good-adapter-edge-75")).toBe(false);
+    const loadFailCalls = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("failed to load adapter")
+    );
+    expect(loadFailCalls.length).toBe(0);  // DELIBERATE RED pre (will be >0 due to missing mock for good)
+    const badModWarns = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("bad mod filter") || String(call[0]).includes("non-conforming")
+    );
+    expect(badModWarns.length).toBe(0);
+    const badEntryWarns = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("bad readdir entry")
+    );
+    expect(badEntryWarns.length).toBe(0);
+    const anyDup = warnSpy.mock.calls.filter((c: any[]) => String(c[0]).includes("duplicate adapter name"));
+    expect(anyDup.length).toBe(0);
+    mock.restore();
+  });
 });
