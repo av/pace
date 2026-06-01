@@ -135,4 +135,33 @@ describe("adapters/index discoverAdapters (TDD full coverage for untouched disco
     expect(String(badModWarns[0]?.[0] ?? "")).toContain(badName);
     mock.restore();
   });
+
+  test("direct import error behavior: dynamic import() failure for a listed .ts (e.g. missing module) is caught + warned (with 'failed to load adapter' + 'import error' for clarity/quality) + filtered (not added to Map) without crashing discover; dedicated direct test (distinct from mixed readdir+import or shape) per ngb discovery contract", async () => {
+    const badImport = "nonexistent-direct-import-err-27-pure-test.ts";
+    mock.module("node:fs/promises", () => ({
+      readdir: async () => [
+        "rss.ts",      // valid shape -> added
+        badImport,     // triggers native dynamic import() reject -> catch path
+        "foo.test.ts", // filename filter
+        "types.ts",    // excluded
+        "index.ts",    // excluded
+        "bar.js",      // !.ts filter
+      ],
+    }));
+    const adapters = await discoverAdapters();
+    expect(adapters.has("rss")).toBe(true);
+    expect(adapters.has("nonexistent-direct-import-err-27-pure-test")).toBe(false); // filtered
+    const loadFailCalls = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("failed to load adapter")
+    );
+    expect(loadFailCalls.length).toBeGreaterThanOrEqual(1);
+    expect(String(loadFailCalls[0]?.[0] ?? "")).toContain(badImport);
+    // quality observability: warn now explicitly signals import error (drives minimal index.ts edit for "import error" prefix in catch; initial red)
+    const importErrorWarns = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("import error")
+    );
+    expect(importErrorWarns.length).toBe(1);  // FAIL initially (no "import error" phrase yet in warn msg)
+    expect(String(importErrorWarns[0]?.[0] ?? "")).toContain(badImport);
+    mock.restore();
+  });
 });

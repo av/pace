@@ -31,7 +31,7 @@ export async function discoverAdapters(): Promise<Map<string, Adapter>> {
         console.warn(`bad mod filter: skipped non-conforming module ${file} (invalid default export shape per ngb)`);
       }
     } catch (err) {
-      console.warn(`failed to load adapter ${file}:`, err);
+      console.warn(`import error: failed to load adapter ${file}:`, err);
     }
   }
 
