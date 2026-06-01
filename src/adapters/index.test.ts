@@ -479,4 +479,40 @@ describe("adapters/index discoverAdapters (TDD full coverage for untouched disco
     expect(badModWarns.length).toBe(0);  // filtered by EXCLUDED before shape/import (post edit)
     mock.restore();
   });
+
+  test("direct .d.ts declaration filter edge (ngb discovery remaining): readdir yielding .d.ts declaration files e.g. 'foo.d.ts' (endsWith .ts true, not .test.ts, not starts ., not EXCLUDED) leak past filename filter (get imported, cause import err warn since no runtime .d.ts module); dedicated direct TDD it() exercises the .d.ts leak (test-first red before facts/add or edit); extends 2tm/xwu case/EXCLUDED + f69 dot + jru/ud8 for this remaining ngb discovery filter edge (robust *.ts runtime impls only, no decl pollution per ngb 'scans src/adapters/*.ts at runtime (excludes tests/types/index)')", async () => {
+    const dtsName = "foo-direct-dts-56-edge.d.ts";
+    const absDts = "/home/everlier/code/pace/src/adapters/" + dtsName;
+    const goodName = "good-adapter-edge-56.ts";
+    const absGood = "/home/everlier/code/pace/src/adapters/" + goodName;
+    mock.module(absDts, () => ({
+      default: { name: "leaky-dts-should-not-appear", fetch: async (_c?: any) => [] },  // would be imported (leak) -> import err -> red until .d.ts filter
+    }));
+    mock.module(absGood, () => ({
+      default: { name: "good-adapter-ngb-56", fetch: async (_c?: any) => [] },
+    }));
+    mock.module("node:fs/promises", () => ({
+      readdir: async () => [
+        goodName,     // valid -> added
+        dtsName,      // .d.ts leak -> currently causes load err warn (no mock for it) -> red on expect 0
+        "foo.test.ts",
+        "types.ts",
+        "index.ts",
+        "bar.js",
+      ],
+    }));
+    const adapters = await discoverAdapters();
+    expect(adapters.has("good-adapter-ngb-56")).toBe(true);
+    expect(adapters.has("leaky-dts-should-not-appear")).toBe(false);
+    expect(adapters.has("foo-direct-dts-56-edge")).toBe(false);
+    const loadFailCalls = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("failed to load adapter")
+    );
+    expect(loadFailCalls.length).toBe(0);  // DELIBERATE RED pre-edit (.d.ts leaks to import err path)
+    const badModWarns = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("bad mod filter") || String(call[0]).includes("non-conforming")
+    );
+    expect(badModWarns.length).toBe(0);
+    mock.restore();
+  });
 });
