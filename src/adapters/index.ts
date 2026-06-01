@@ -27,7 +27,7 @@ export async function discoverAdapters(): Promise<Map<string, Adapter>> {
           console.warn(`duplicate adapter name "${adapter.name}" from ${file} (overwriting previous; check for name clashes at runtime vs config names)`);
         }
         adapters.set(adapter.name, adapter);
-      } else if (mod && mod.default !== undefined) {
+      } else {
         console.warn(`bad mod filter: skipped non-conforming module ${file} (invalid default export shape per ngb)`);
       }
     } catch (err) {

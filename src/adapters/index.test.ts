@@ -185,4 +185,33 @@ describe("adapters/index discoverAdapters (TDD full coverage for untouched disco
     expect(String(dups[0]?.[0] ?? "")).toContain("config names");
     mock.restore();
   });
+
+  test("direct bad mod no-default-export edge (ngb discovery remaining): modules where dynamic import succeeds but default===undefined (no export default at all) hit shape guard fail + 'bad mod filter' warn emitted + skipped (no 'failed to load' warn); extends observability to this silent-skip path (previously no warn unlike default-present bad shapes per 4qd/ud8/ngb)", async () => {
+    const noDefName = "nodefault-direct-34-edge.ts";
+    const absNo = "/home/everlier/code/pace/src/adapters/" + noDefName;
+    mock.module(absNo, () => ({})); // import succeeds, but no .default key => default===undefined => !shape && !(... !== undefined) => currently silent (no bad mod warn)
+    mock.module("node:fs/promises", () => ({
+      readdir: async () => [
+        "rss.ts",      // valid -> added
+        noDefName,     // success import, bad shape (undef default) -> should warn bad mod + skip
+        "foo.test.ts", // filename filter
+        "types.ts",    // excluded
+        "index.ts",    // excluded
+        "bar.js",      // !.ts
+      ],
+    }));
+    const adapters = await discoverAdapters();
+    expect(adapters.has("rss")).toBe(true);
+    expect(adapters.has(noDefName)).toBe(false);
+    const loadFailCalls = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("failed to load adapter")
+    );
+    expect(loadFailCalls.length).toBe(0);  // import "succeeded" (mocked), only shape guard
+    const badModWarns = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("bad mod filter") || String(call[0]).includes("non-conforming")
+    );
+    expect(badModWarns.length).toBe(1);  // DELIBERATE RED initially (0 warns, silent for undef default case); after index.ts else edit -> 1 + contains name
+    expect(String(badModWarns[0]?.[0] ?? "")).toContain(noDefName);
+    mock.restore();
+  });
 });
