@@ -92,3 +92,4 @@
 
 # code-quality
 - transforms.ts ContentItemRow handling uses only the current panel_id field name (post DB rename from adapter_name column); the two obsolete .adapter_name references (in contentItemToRow and cluster signal extraction) have been removed so rows always conform to the ContentItemRow interface and source fallback uses panel_id when applicable (verifiable by: ! grep -q "adapter_name" src/transforms.ts ) @implemented
+- config.ts validateAdapterConfig reuses validateOptionalNonEmptyString for the optional adapter.name field (no inline duplication of the typeof+trim non-empty check logic that the helper already provides and which is used for similar optional string fields like half_life/criteria/prompt); verifiable by: grep -q "validateOptionalNonEmptyString(adapter.name" src/config.ts @implemented

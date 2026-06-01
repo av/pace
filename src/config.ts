@@ -503,12 +503,7 @@ function validateAdapterConfig(adapter: unknown, index: number): asserts adapter
     throw new Error(`config: ${path} must be an object`);
   }
   validateNonEmptyString(adapter.type, `${path}.type`);
-  if (
-    adapter.name !== undefined &&
-    (typeof adapter.name !== "string" || adapter.name.trim().length === 0)
-  ) {
-    throw new Error(`config: ${path}.name must be a non-empty string`);
-  }
+  validateOptionalNonEmptyString(adapter.name, `${path}.name`);
   if (adapter.params !== undefined && !isRecord(adapter.params)) {
     throw new Error(`config: ${path}.params must be an object`);
   }
