@@ -939,4 +939,19 @@ describe("adapters/index discoverAdapters (TDD full coverage for untouched disco
     expect(String(badModWarns[0]?.[0] ?? "")).toContain(badMixedName);
     mock.restore();
   });
+
+  test("direct non-iterable readdir result edge (ngb discovery remaining): readdir resolving to non-iterable value (e.g. null, not string[]|Dirent[]) causes discoverAdapters to return empty Map + emit warn (no uncaught 'not iterable' throw from for-of) per ngb 'cleanly handles readdir errors' (extends throw-only readdir test + 1ha mixed/Dirent/string compat); dedicated direct TDD it() for this remaining ngb discovery error-path edge", async () => {
+    mock.module("node:fs/promises", () => ({
+      readdir: async () => null,  // non-iterable resolve (distinct from throw in catch) -> for-of crashes currently
+    }));
+    const adapters = await discoverAdapters();
+    expect(adapters).toBeInstanceOf(Map);
+    expect(adapters.size).toBe(0);
+    const readdirWarns = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("failed to read adapters dir") || String(call[0]).includes("non-iterable")
+    );
+    expect(readdirWarns.length).toBe(1);  // FAIL initially (no guard, throws before warn/return)
+    expect(String(readdirWarns[0]?.[0] ?? "")).toContain("non-iterable");
+    mock.restore();
+  });
 });

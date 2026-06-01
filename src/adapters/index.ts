@@ -11,6 +11,10 @@ export async function discoverAdapters(): Promise<Map<string, Adapter>> {
   let files: (string | Dirent)[];
   try {
     files = await readdir(dir, { withFileTypes: true });
+    if (!Array.isArray(files)) {
+      console.warn(`failed to read adapters dir ${dir}: non-iterable result`);
+      return adapters;
+    }
   } catch (err) {
     console.warn(`failed to read adapters dir ${dir}:`, err);
     return adapters;
