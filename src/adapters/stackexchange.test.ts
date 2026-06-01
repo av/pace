@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import adapter from "./stackexchange";
+import * as typesMod from "./types";
 
 describe("stackexchange adapter", () => {
   let fetchMock: ReturnType<typeof mock>;
@@ -152,9 +153,9 @@ describe("stackexchange adapter", () => {
     const items = await adapter.fetch({ type: "stackexchange", params: { site: "bad.site" } });
 
     expect(items).toEqual([]);
-    // second arg is the err
+    // second arg is the err; first now includes cause via errorMessage (mmu quality)
     expect(warnSpy).toHaveBeenCalledWith(
-      "stackexchange: error fetching from bad.site:",
+      "stackexchange: error fetching from bad.site: connection refused",
       expect.any(Error)
     );
   });
@@ -172,5 +173,29 @@ describe("stackexchange adapter", () => {
 
     expect(items[0].source).toBe("ru.stackoverflow.com:hot");
     expect(items[0].body).toContain("1.2m views");
+  });
+
+  it("uses errorMessage helper in !ok and network error warn paths per mmu/sh1 (warn+[] recoverable per contract; TDD coverage for stackexchange errorMessage use)", async () => {
+    const emSpy = spyOn(typesMod, "errorMessage");
+    try {
+      // !ok HTTP error path (exercises warnAndReturnEmpty + errorMessage for status obj)
+      fetchMock.mockResolvedValue(
+        new Response("rate limit", { status: 429, statusText: "Too Many Requests" })
+      );
+      const items1 = await adapter.fetch({ type: "stackexchange", params: { site: "meta.stackexchange.com" } });
+      expect(items1).toEqual([]);
+
+      // network/fetch reject path (exercises catch + errorMessage(err))
+      fetchMock.mockRejectedValue(new Error("connection refused for se mmu test"));
+      const items2 = await adapter.fetch({ type: "stackexchange", params: { site: "bad.site" } });
+      expect(items2).toEqual([]);
+
+      // will be >=2 calls post-edit (status helper + err helper); pre-edit 0 -> red
+      const calls = emSpy.mock.calls.length;
+      expect(calls).toBeGreaterThanOrEqual(2);
+      expect(emSpy).toHaveBeenCalledWith({ message: "429 Too Many Requests" });
+    } finally {
+      emSpy.mockRestore();
+    }
   });
 });

@@ -1,4 +1,4 @@
-import type { Adapter, AdapterConfig, ContentItem } from "./types";
+import { type Adapter, type AdapterConfig, type ContentItem, errorMessage } from "./types";
 
 const SE_API = "https://api.stackexchange.com/2.3";
 
@@ -104,7 +104,7 @@ async function fetchQuestions(
 
     if (!res.ok) {
       return warnAndReturnEmpty(
-        `stackexchange: failed to fetch from ${site}: ${res.status} ${res.statusText}`,
+        `stackexchange: failed to fetch from ${site}: ${errorMessage({ message: `${res.status} ${res.statusText}` })}`,
       );
     }
 
@@ -118,7 +118,7 @@ async function fetchQuestions(
 
     return json.items ?? [];
   } catch (err) {
-    return warnAndReturnEmpty(`stackexchange: error fetching from ${site}:`, err);
+    return warnAndReturnEmpty(`stackexchange: error fetching from ${site}: ${errorMessage(err)}`, err);
   }
 }
 
