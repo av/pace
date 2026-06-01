@@ -548,4 +548,39 @@ describe("adapters/index discoverAdapters (TDD full coverage for untouched disco
     expect(badModWarns.length).toBe(0);
     mock.restore();
   });
+
+  test("direct withFileTypes explicit isFile dir/file filter edge (ngb discovery remaining): readdir yielding Dirent[] (via internal {withFileTypes:true}) with dir entry (isFile:false, name simulating subdir) + good .ts file (isFile:true) exercises explicit isFile() + name filter (dirs skipped early before any import/shape even if name would leak string filter, only valid .ts goods added, 0 attributable warns); dedicated direct TDD it() in index.test.ts (test-first red before facts add or index edit for this remaining ngb discovery edge per withFileTypes high-impact noted in 57/56 remaining + ngb 'scans src/adapters/*.ts at runtime (excludes tests/types/index)'); extends k5h/bf8/2tm/xwu/f69/jru/ud8 + all prior filter edges with explicit Dirent isFile() coverage (real readdir with options returns Dirent[] for robust file-only scan per ngb)", async () => {
+    const dirName = "subdir-withfile-58-edge";
+    const goodName = "good-adapter-edge-58.ts";
+    const absGood = "/home/everlier/code/pace/src/adapters/" + goodName;
+    mock.module(absGood, () => ({
+      default: { name: "good-adapter-ngb-58", fetch: async (_c?: any) => [] },
+    }));
+    // simulate readdir(dir, {withFileTypes: true}) yielding Dirent[] (dirs + files)
+    const direntDir = { name: dirName, isFile: () => false, isDirectory: () => true };
+    const direntGood = { name: goodName, isFile: () => true, isDirectory: () => false };
+    mock.module("node:fs/promises", () => ({
+      readdir: async () => [
+        direntDir,     // dir -> isFile false -> skip (new explicit guard)
+        direntGood,    // file -> isFile true + .ts -> process via shape mock
+        "foo.test.ts", // string compat path
+        "types.ts",
+        "index.ts",
+        "bar.js",
+      ],
+    }));
+    const adapters = await discoverAdapters();
+    expect(adapters.has("good-adapter-ngb-58")).toBe(true);
+    expect(adapters.has("subdir-withfile-58-edge")).toBe(false);
+    expect(adapters.has("good-adapter-edge-58")).toBe(false);
+    const loadFailCalls = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("failed to load adapter")
+    );
+    expect(loadFailCalls.length).toBe(0);  // DELIBERATE RED pre-edit (objects hit .toLowerCase crash in old string-only filter)
+    const badModWarns = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("bad mod filter") || String(call[0]).includes("non-conforming")
+    );
+    expect(badModWarns.length).toBe(0);
+    mock.restore();
+  });
 });

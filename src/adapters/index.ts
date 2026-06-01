@@ -1,4 +1,4 @@
-import { readdir } from "node:fs/promises";
+import { readdir, type Dirent } from "node:fs/promises";
 import { join } from "node:path";
 import type { Adapter } from "./types";
 
@@ -8,16 +8,18 @@ export async function discoverAdapters(): Promise<Map<string, Adapter>> {
   const adapters = new Map<string, Adapter>();
   const dir = join(import.meta.dir);
 
-  let files: string[];
+  let files: (string | Dirent)[];
   try {
-    files = await readdir(dir);
+    files = await readdir(dir, { withFileTypes: true });
   } catch (err) {
     console.warn(`failed to read adapters dir ${dir}:`, err);
     return adapters;
   }
 
-  for (const file of files) {
-    if (!file.toLowerCase().endsWith(".ts") || file.toLowerCase().endsWith(".test.ts") || file.toLowerCase().endsWith(".d.ts") || file.startsWith(".") || EXCLUDED.has(file.toLowerCase())) continue;
+  for (const entry of files) {
+    const file = typeof entry === "string" ? entry : entry.name;
+    const isFile = typeof entry === "string" ? true : entry.isFile();
+    if (!isFile || !file.toLowerCase().endsWith(".ts") || file.toLowerCase().endsWith(".test.ts") || file.toLowerCase().endsWith(".d.ts") || file.startsWith(".") || EXCLUDED.has(file.toLowerCase())) continue;
 
     try {
       const mod = await import(join(dir, file));
