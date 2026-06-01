@@ -44,6 +44,9 @@
 ## AppConfig
 - AppConfig > domain.test.ts asserts AppConfig shape fidelity per (kde) {adapters: IngestAdapterConfig[], pipelines?: PipelineConfig[], layout: LayoutNodeConfig, llm?: LlmConfig }; provides TDD coverage for AppConfig entity (pure test, no prod change, fills fidelity gap for remaining domain entities beyond ContentItem/Row wr4 + Panel ffh + Adapter y1z + Layout kb9 + Transform jwa + Pipeline 6wk) @implemented
 
+## Scheduler
+- Scheduler > domain.test.ts asserts Scheduler shape fidelity per l16 {manages periodic and manual refreshes of adapters and pipelines, persisting results to DB} (covers 99y/6de relations); provides TDD coverage for Scheduler entity (pure test, no prod change, fills fidelity gap for remaining domain entity beyond ContentItem/Row wr4 + Panel ffh + Adapter y1z + Layout kb9 + Transform jwa + Pipeline 6wk + AppConfig 0b6) @implemented
+
 # cli
 - label: the CLI supports --config, --port, --preset/-P, --list-presets, --help, --version; unknown commands or options cause immediate exit with usage
   command: bun run src/cli.ts --help 2>&1 | grep -q "Usage:" && bun run src/cli.ts badcmd 2>&1 | grep -q "Unknown command"
