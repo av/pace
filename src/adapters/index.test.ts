@@ -412,4 +412,35 @@ describe("adapters/index discoverAdapters (TDD full coverage for untouched disco
     expect(String(badModWarns[0]?.[0] ?? "")).toContain(ciName);
     mock.restore();
   });
+
+  test("direct case-sens .ts filter edge (ngb discovery remaining): readdir yielding .ts file with mixed-case test extension e.g. 'leaky-test.TEST.ts' (endsWith .ts true but endsWith .test.ts false due to case-sens) leaks past filename filter (unlike exact .test.ts), gets imported + if valid shape added to Map (pollutes per ngb 'scans src/adapters/*.ts' excluding tests); dedicated direct TDD it() exercises the case-sens leak in filter (test-first red before any facts/code change); extends dotfile/f69 + prior filter tests jru/ud8 for this remaining ngb discovery filter edge (case exact in .test.ts + .ts checks on linux FS)", async () => {
+    const leakyName = "leaky-test.TEST.ts";
+    const absLeaky = "/home/everlier/code/pace/src/adapters/" + leakyName;
+    mock.module(absLeaky, () => ({
+      default: { name: "leaky-test-should-not-appear", fetch: async (_c?: any) => [] },  // valid shape, but leaky case .TEST.ts -> should filter early like .test.ts (no import, no add, no warn)
+    }));
+    mock.module("node:fs/promises", () => ({
+      readdir: async () => [
+        "rss.ts",      // valid -> added
+        leakyName,     // mixed case .TEST.ts -> currently leaks (processed as .ts), would add -> red until filter toLower edit
+        "foo.test.ts", // exact filter
+        "types.ts",    // excluded
+        "index.ts",    // excluded
+        "bar.js",      // !.ts
+      ],
+    }));
+    const adapters = await discoverAdapters();
+    expect(adapters.has("rss")).toBe(true);
+    expect(adapters.has("leaky-test-should-not-appear")).toBe(false);  // DELIBERATE RED pre-edit (leaks past case-sens .test.ts check)
+    expect(adapters.has("leaky-test.TEST")).toBe(false);
+    const loadFailCalls = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("failed to load adapter")
+    );
+    expect(loadFailCalls.length).toBe(0);  // no import for leaky (will be filtered post-edit)
+    const badModWarns = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("bad mod filter") || String(call[0]).includes("non-conforming")
+    );
+    expect(badModWarns.length).toBe(0);  // filtered by filename before shape/import (post edit)
+    mock.restore();
+  });
 });

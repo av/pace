@@ -17,7 +17,7 @@ export async function discoverAdapters(): Promise<Map<string, Adapter>> {
   }
 
   for (const file of files) {
-    if (!file.endsWith(".ts") || file.endsWith(".test.ts") || file.startsWith(".") || EXCLUDED.has(file)) continue;
+    if (!file.toLowerCase().endsWith(".ts") || file.toLowerCase().endsWith(".test.ts") || file.startsWith(".") || EXCLUDED.has(file)) continue;
 
     try {
       const mod = await import(join(dir, file));
