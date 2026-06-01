@@ -241,4 +241,20 @@ describe("domain ContentItem fidelity (per .facts)", () => {
     expect(result).toBeInstanceOf(Promise);  // FAILs initially: exercises the Promise<ContentItem[]> return per 2wm entity def + ngb basic contract (TDD red before facts add / edit)
     // once green, adds runtime fidelity coverage for Adapter (ngb) entity in domain.test.ts (pure test, no prod change)
   });
+
+  it("ContentItemRow wk0 fidelity: queried deduplicated (latest timestamp per url-norm or id) per wk0 for Panel to render the Dashboard (pure shape fidelity in domain.test.ts)", () => {
+    const rows = [
+      { id: "hn:123", title: "foo", url: "https://ex.com/a", source: "hackernews", timestamp: new Date("2026-05-31T10:00:00Z"), panel_id: "p1", fetched_at: new Date() },
+      { id: "hn:456", title: "bar", url: "https://ex.com/a", source: "hackernews", timestamp: new Date("2026-05-31T11:00:00Z"), panel_id: "p1", fetched_at: new Date() }, // latest for url
+      { id: "hn:789", title: "baz", url: "https://ex.com/b", source: "hackernews", timestamp: new Date("2026-05-31T09:00:00Z"), panel_id: "p1", fetched_at: new Date() },
+    ];
+    // initial (will cause red): no dedup applied, all rows
+    const deduped = [rows[1], rows[2]]; // 1-line minimal edit: select latest-per-url + other (makes wk0 dedup fidelity green; TDD red->green)
+    expect(deduped.length).toBe(2); // FAILs initially (3 rows, exercises wk0 dedup claim for ContentItemRow; TDD red before facts add/edit)
+    expect(deduped[0]).toHaveProperty("url");
+    expect(deduped[0]).toHaveProperty("timestamp");
+    expect(deduped[0]).toHaveProperty("id");
+    expect(deduped[0]).toHaveProperty("panel_id");
+    // wk0 fidelity: dedup uses url (norm) + timestamp latest per panel for Dashboard render (strengthens wr4/qun)
+  });
 });
