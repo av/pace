@@ -79,7 +79,7 @@ async function searchNpm(
     signal: AbortSignal.timeout(15000),
   });
   if (!res.ok) {
-    throw new Error(`npm: failed to search ${context}: ${res.status}`);
+    throw new Error(`npm: failed to search ${context}: ${errorMessage({ message: `${res.status}` })}`);
   }
   const json: NpmSearchResult = await res.json();
   return json.objects ?? [];

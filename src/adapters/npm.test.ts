@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 import adapter from "./npm";
+import * as typesMod from "./types";
 
 describe("npm adapter", () => {
   let fetchMock: ReturnType<typeof mock>;
@@ -266,5 +267,27 @@ describe("npm adapter", () => {
     await expect(
       adapter.fetch({ type: "npm", params: { keywords: ["test"] } }),
     ).rejects.toThrow("npm:");
+  });
+
+  it("uses errorMessage helper in !ok and network error paths per mmu/sh1", async () => {
+    const emSpy = spyOn(typesMod, "errorMessage");
+
+    // HTTP !ok path (raw status in template before quality edit)
+    fetchMock.mockResolvedValue(new Response("Rate limited", { status: 429 }));
+    await expect(
+      adapter.fetch({ type: "npm", params: { keywords: ["test"] } }),
+    ).rejects.toThrow("npm:");
+    expect(emSpy).toHaveBeenCalledWith({ message: "429" });
+
+    emSpy.mockClear();
+
+    // network error path
+    fetchMock.mockRejectedValue(new Error("ECONNREFUSED"));
+    await expect(
+      adapter.fetch({ type: "npm", params: { keywords: ["test"] } }),
+    ).rejects.toThrow("npm:");
+    expect(emSpy).toHaveBeenCalled();
+
+    emSpy.mockRestore();
   });
 });
