@@ -121,6 +121,7 @@
 
 ## discovery
 - discoverAdapters in adapters/index.ts implements ngb by using filename filter (excludes .test.ts/types/index + non-.ts) + shape guard (bad mod filter: only add if default adapter && .name && typeof .fetch==='function') and cleanly handles readdir errors (return empty Map) + per-file import errors (console.warn + skip); covered by regression test in index.test.ts (bad mod filter edges) @implemented
+- adapters/discovery > direct TDD tests in index.test.ts for readdir error (returns empty Map + emits warn for observability), import error (warn+skip on bad/nonexistent .ts), .ts filter (excludes .test.ts/excluded/non-.ts) + only valid shape adapters added; strengthens ud8/ngb with direct (mock readdir) edge coverage beyond indirect (TDD test-first + quality warn in catch) @implemented
 
 # db
 - DB persistence uses SQLite with WAL mode and 5s busy_timeout; items are upserted by id (ON CONFLICT DO UPDATE); reads for UI and transforms always deduplicate keeping MAX(timestamp) per url-normalized key (or id if no url)

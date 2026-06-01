@@ -11,7 +11,8 @@ export async function discoverAdapters(): Promise<Map<string, Adapter>> {
   let files: string[];
   try {
     files = await readdir(dir);
-  } catch {
+  } catch (err) {
+    console.warn(`failed to read adapters dir ${dir}:`, err);
     return adapters;
   }
 
