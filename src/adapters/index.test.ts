@@ -812,4 +812,46 @@ describe("adapters/index discoverAdapters (TDD full coverage for untouched disco
     expect(String(badModWarns[0]?.[0] ?? "")).toContain(spaceBadName);
     mock.restore();
   });
+
+  test("direct bad mod null-proto-object default edge (ngb discovery remaining): readdir yielding .ts with default export === Object.create(null) (import succeeds but shape guard falsy on ... && Object.getPrototypeOf(adapter) === Object.prototype even if .name string clean + .fetch fn attached; hits bad mod filter + 'bad mod filter' warn emitted + skipped (no 'failed to load' warn for it); dedicated direct TDD it() in index.test.ts (test-first red before facts add or edit for this remaining ngb discovery shape guard edge per high-impact 'plain object' + proto check in guard noted in 64/63 remaining + ngb 'default object with .name (string) and .fetch' contract + extends psy/qea/0od/ydz/4qd/ud8 guard quality/observability for explicit null-proto case (distinct from null/undef/fn/class-inst); only valid goods added, 0 loadFail attributable to the nullproto one", async () => {
+    const nullProtoName = "nullproto-direct-65-edge.ts";
+    const absNullProto = "/home/everlier/code/pace/src/adapters/" + nullProtoName;
+    const badNullProto: any = Object.create(null);
+    badNullProto.name = "nullproto-should-not-appear";
+    badNullProto.fetch = async (_c?: any) => [];
+    mock.module(absNullProto, () => ({
+      default: badNullProto,  // import "succeeds" -> default null-proto obj -> proto!==Object.prototype -> bad mod warn + skip (no load err for it)
+    }));
+    const goodName = "good-adapter-ngb-65.ts";
+    const absGood = "/home/everlier/code/pace/src/adapters/" + goodName;
+    mock.module(absGood, () => ({
+      default: { name: "good-adapter-ngb-65", fetch: async (_c?: any) => [] },  // now mocked -> added via name+fetch+plain-proto
+    }));
+    // fixed for green: good mock now present (added in minimal test edit post-facts-add); nullProto exercises null-proto default (proto check fails) + badmod warn + good added
+    mock.module("node:fs/promises", () => ({
+      readdir: async () => [
+        "rss.ts",          // valid -> added
+        nullProtoName,     // null-proto default -> shape reject at proto check + bad mod warn (no load err for it)
+        goodName,          // now succeeds via mock -> added
+        "foo.test.ts",
+        "types.ts",
+        "index.ts",
+        "bar.js",
+      ],
+    }));
+    const adapters = await discoverAdapters();
+    expect(adapters.has("rss")).toBe(true);
+    expect(adapters.has("good-adapter-ngb-65")).toBe(true);  // now true post mock fix for null-proto-object name guard edge
+    expect(adapters.has("nullproto-should-not-appear")).toBe(false);
+    const loadFailCalls = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("failed to load adapter")
+    );
+    expect(loadFailCalls.length).toBe(0);  // 0 post-fix (both good+nullproto now mocked; nullproto good no load err)
+    const badModWarns = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("bad mod filter") || String(call[0]).includes("non-conforming")
+    );
+    expect(badModWarns.length).toBe(1);  // for the nullproto one (proto check)
+    expect(String(badModWarns[0]?.[0] ?? "")).toContain(nullProtoName);
+    mock.restore();
+  });
 });
