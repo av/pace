@@ -146,7 +146,7 @@ describe("rss adapter (fresh TDD coverage for iter18)", () => {
   test("throws on non-ok response with 'rss: failed to fetch ...' prefix", async () => {
     const cfg: AdapterConfig = { type: "rss", params: { urls: ["https://ex.com/badstatus"] } };
     await expect(rssAdapter.fetch(cfg)).rejects.toThrow(
-      /rss: failed to fetch https:\/\/ex.com\/badstatus: 404/
+      /rss: failed to fetch https:\/\/ex.com\/badstatus: HTTP error 404/
     );
   });
 
@@ -154,6 +154,13 @@ describe("rss adapter (fresh TDD coverage for iter18)", () => {
     const cfg: AdapterConfig = { type: "rss", params: { urls: ["https://ex.com/badparse"] } };
     await expect(rssAdapter.fetch(cfg)).rejects.toThrow(
       /rss: error parsing xml from https:\/\/ex.com\/badparse/
+    );
+  });
+
+  test("throws on non-ok response using errorMessage helper for the cause (mmu error contract coverage for rss error path)", async () => {
+    const cfg: AdapterConfig = { type: "rss", params: { urls: ["https://ex.com/badstatus"] } };
+    await expect(rssAdapter.fetch(cfg)).rejects.toThrow(
+      /rss: failed to fetch https:\/\/ex.com\/badstatus: HTTP error 404/
     );
   });
 });

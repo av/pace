@@ -114,7 +114,7 @@ async function fetchFeed(url: string): Promise<ContentItem[]> {
   }
 
   if (!res.ok) {
-    throw new Error(`rss: failed to fetch ${url}: ${res.status}`);
+    throw new Error(`rss: failed to fetch ${url}: ${errorMessage({ message: `HTTP error ${res.status}` })}`);
   }
 
   let xml: string;
