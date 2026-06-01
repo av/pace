@@ -734,4 +734,43 @@ describe("adapters/index discoverAdapters (TDD full coverage for untouched disco
     expect(String(badModWarns[0]?.[0] ?? "")).toContain(stringBadName);
     mock.restore();
   });
+
+  test("direct internal-ws name guard edge (ngb discovery remaining): readdir yielding .ts with default export having .name containing internal whitespace (e.g. 'internal ws name 63', no leading/trailing so name===name.trim() true + trim() truthy) + clean fetch fn exercises the name checks in shape guard (passes unlike ws-only/padded cases) -> added to Map; dedicated direct TDD it() in index.test.ts (test-first red before facts add or edit for this remaining ngb discovery name guard edge per high-impact 'internal-ws name guard' noted in 62/61 remaining + ngb root '.name (string)' contract + prior ws-only/padded  q5f/s28 but no dedicated for internal-ws positive path); extends 8cf/q5f/s28/0od/t8g/psy/h18 + all prior name/shape (4qd/ud8/jru) with explicit internal-ws name in mocked good module + readdir list (current guard accepts internal ws names as valid .name strings); only valid goods added, 0 loadFail for the internal-ws good (post minimal mock fix)", async () => {
+    const internalWsGoodName = "internalws-good-direct-63-edge.ts";
+    const absInternalWsGood = "/home/everlier/code/pace/src/adapters/" + internalWsGoodName;
+    const internalWsBadName = "internalws-badshape-direct-63-edge.ts";
+    const absInternalWsBad = "/home/everlier/code/pace/src/adapters/" + internalWsBadName;
+    mock.module(absInternalWsBad, () => ({
+      default: { foo: "bad shape, no name/fetch fn" },  // import ok -> badmod (exercises guard)
+    }));
+    mock.module(absInternalWsGood, () => ({
+      default: { name: "internal-ws-adapter-ngb-63", fetch: async (_c?: any) => [] },  // internal-ws name (has space, no outer ws) + fetch fn -> passes guard name checks (===trim true, trim() truthy) -> added
+    }));
+    // fixed for green: good mock now present (added in minimal test edit post-facts-add); internalWsGood exercises internal-ws positive path through name guard (accepted as valid .name string per ngb)
+    mock.module("node:fs/promises", () => ({
+      readdir: async () => [
+        "rss.ts",              // valid -> added
+        internalWsGoodName,    // now succeeds via mock -> internal ws name + guard passes + added
+        internalWsBadName,     // bad shape -> badmod warn
+        "foo.test.ts",
+        "types.ts",
+        "index.ts",
+        "bar.js",
+      ],
+    }));
+    const adapters = await discoverAdapters();
+    expect(adapters.has("rss")).toBe(true);
+    expect(adapters.has("internal-ws-adapter-ngb-63")).toBe(true);  // now true post mock fix for internal-ws name guard edge
+    expect(adapters.has("internalws-badshape-direct-63-edge")).toBe(false);
+    const loadFailCalls = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("failed to load adapter")
+    );
+    expect(loadFailCalls.length).toBe(0);  // 0 post-fix (both good+bad now mocked; internal ws good no load err)
+    const badModWarns = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("bad mod filter") || String(call[0]).includes("non-conforming")
+    );
+    expect(badModWarns.length).toBe(1);  // for the badshape one
+    expect(String(badModWarns[0]?.[0] ?? "")).toContain(internalWsBadName);
+    mock.restore();
+  });
 });
