@@ -374,4 +374,42 @@ describe("adapters/index discoverAdapters (TDD full coverage for untouched disco
     expect(badModWarns.length).toBe(0);  // filtered by filename before shape, no badmod emitted for dot
     mock.restore();
   });
+
+  test("direct bad mod class-instance default edge (ngb discovery remaining): readdir yielding .ts whose default export is a class *instance* (not plain object literal) with clean .name + .fetch fn is rejected by shape guard (emits 'bad mod filter' warn + skipped, not added to Map) even though passes basic 'object' check; per ngb 'default object' + 0od 'plain object' contract intent (current guard accepts inst -> bug/pollution of Map); covered by dedicated direct TDD it() in adapters/index.test.ts (test-first for this remaining ngb discovery edge after fn-default/dotfile/padded)", async () => {
+    const ciName = "classinst-direct-53-edge.ts";
+    const absCi = "/home/everlier/code/pace/src/adapters/" + ciName;
+    mock.module(absCi, () => ({
+      default: (() => {
+        class CIAdapter {
+          name = "classinst-should-not-appear";
+          async fetch(_c?: any) { return []; }
+        }
+        return new CIAdapter();
+      })(),
+    }));
+    mock.module("node:fs/promises", () => ({
+      readdir: async () => [
+        "rss.ts",      // valid -> added
+        ciName,       // class instance default -> should filter by shape (bad mod) after guard tighten
+        "foo.test.ts", // filename filter
+        "types.ts",    // excluded
+        "index.ts",    // excluded
+        "bar.js",      // !.ts
+      ],
+    }));
+    const adapters = await discoverAdapters();
+    expect(adapters.has("rss")).toBe(true);
+    expect(adapters.has("classinst-should-not-appear")).toBe(false);  // DELIBERATE RED pre-edit (passes object check currently)
+    expect(adapters.has("classinst-direct-53-edge")).toBe(false);
+    const loadFailCalls = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("failed to load adapter")
+    );
+    expect(loadFailCalls.length).toBe(0);  // import succeeded (mocked), only shape guard (plain obj req) will filter
+    const badModWarns = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("bad mod filter") || String(call[0]).includes("non-conforming")
+    );
+    expect(badModWarns.length).toBe(1);  // DELIBERATE RED initially (0 warns, inst passes guard); after index.ts guard plain-proto edit -> 1 + contains file
+    expect(String(badModWarns[0]?.[0] ?? "")).toContain(ciName);
+    mock.restore();
+  });
 });
