@@ -854,4 +854,41 @@ describe("adapters/index discoverAdapters (TDD full coverage for untouched disco
     expect(String(badModWarns[0]?.[0] ?? "")).toContain(nullProtoName);
     mock.restore();
   });
+
+  test("direct dotfile Dirent filter edge (ngb discovery remaining): readdir yielding Dirent[] with dotfile entry (name starts with ., isFile true) + good .ts file (isFile true) + rss exercises the startsWith('.') guard on entry.name (explicit Dirent path, distinct from prior f69 string-dot) early before dynamic import/shape; dot never added (even if would conform); 0 attributable loadFail/badmod for dot/good (post fix); dedicated direct TDD it() in index.test.ts (test-first red before facts add or edit for this remaining ngb discovery filter edge per high-impact dot+Dirent noted after f69/pzm/21c + ngb 'scans src/adapters/*.ts at runtime (excludes tests/types/index)'); extends f69 (string dot) + pzm/k5h/21c (Dirent isFile/skip) + all prior filter edges with explicit dotfile+Dirent coverage (real readdir with withFileTypes returns Dirent for dots too); only valid goods added", async () => {
+    const dotName = ".dotdirent-direct-66-edge.ts";
+    const goodName = "good-adapter-edge-66.ts";
+    const absGood = "/home/everlier/code/pace/src/adapters/" + goodName;
+    mock.module(absGood, () => ({
+      default: { name: "good-adapter-ngb-66", fetch: async (_c?: any) => [] },  // fixed for green: good mock now present (added in minimal test edit post-facts-add); dotDirent exercises startsWith on Dirent.name filter path (no import/warn/add)
+    }));
+    // fixed for green: good mock now present (added in minimal test edit post-facts-add); dot Dirent + good + rss in readdir list; dot filtered by startsWith on Dirent.name (exercises that path); good now loads via mock -> added
+    const direntDot = { name: dotName, isFile: () => true, isDirectory: () => false, isSymbolicLink: () => false };
+    const direntGood = { name: goodName, isFile: () => true, isDirectory: () => false, isSymbolicLink: () => false };
+    mock.module("node:fs/promises", () => ({
+      readdir: async () => [
+        direntDot,     // dot via Dirent -> startsWith('.') on .name -> filter early (no import, no warn, not added) -- this path now explicitly covered
+        "rss.ts",      // real loads via import (no mock for it) -> added
+        direntGood,    // good -> now succeeds via mock -> added
+        "foo.test.ts",
+        "types.ts",
+        "index.ts",
+        "bar.js",
+      ],
+    }));
+    const adapters = await discoverAdapters();
+    expect(adapters.has("rss")).toBe(true);
+    expect(adapters.has("good-adapter-ngb-66")).toBe(true);  // now true post mock fix for dotfile Dirent filter edge
+    expect(adapters.has(".dotdirent-direct-66-edge")).toBe(false);
+    expect(adapters.has("dot-should-not-appear")).toBe(false);
+    const loadFailCalls = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("failed to load adapter")
+    );
+    expect(loadFailCalls.length).toBe(0);  // 0 post-fix (dot filtered pre-import; good now mocked no err; rss real)
+    const badModWarns = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("bad mod filter") || String(call[0]).includes("non-conforming")
+    );
+    expect(badModWarns.length).toBe(0);
+    mock.restore();
+  });
 });
