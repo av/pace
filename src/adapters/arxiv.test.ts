@@ -138,7 +138,7 @@ describe("arxiv adapter (DRY quality + test coverage)", () => {
 
     await expect(
       adapter.fetch({ params: { categories: ["cs.AI"] } } as any),
-    ).rejects.toThrow(/arxiv: failed to fetch query "cat:cs.AI": 429/);
+    ).rejects.toThrow(/arxiv: failed to fetch query "cat:cs.AI": .*429/);
   });
 
   test("throws on network/fetch reject (wrapped error)", async () => {
@@ -163,5 +163,13 @@ describe("arxiv adapter (DRY quality + test coverage)", () => {
     expect(calls).toBe(2);
     expect(items.length).toBe(2);
     expect(items.map((i) => i.source)).toEqual(expect.arrayContaining(["arxiv:cs.AI", "arxiv:cs.LG"]));
+  });
+
+  test("throws on HTTP !ok using errorMessage helper for the cause (mmu error contract coverage for arxiv error path)", async () => {
+    fetchMock.mockResolvedValue(new Response("rate limit", { status: 429 }));
+
+    await expect(
+      adapter.fetch({ params: { categories: ["cs.AI"] } } as any),
+    ).rejects.toThrow(/arxiv: failed to fetch query "cat:cs.AI": HTTP error 429/);
   });
 });

@@ -126,7 +126,7 @@ async function fetchArxivQuery(
     });
 
     if (!res.ok) {
-      throw new Error(`arxiv: failed to fetch query "${queryStr}": ${res.status}`);
+      throw new Error(`arxiv: failed to fetch query "${queryStr}": ${errorMessage({ message: `HTTP error ${res.status}` })}`);
     }
 
     const xml = await res.text();
