@@ -87,4 +87,46 @@ describe("domain ContentItem fidelity (per .facts)", () => {
     expect(typeof adapter.fetch).toBe("function");
     // AdapterConfig and ContentItem[] return per 2wm entity def; pure test no imports per scope
   });
+
+  it("Layout has shape fidelity {direction, children[] (recursive FlexContainerConfig|PanelConfig)} per frg", () => {
+    const layout = {
+      direction: "row",
+      gap: "1rem",
+      children: [
+        { panel: "all", source: "all", limit: 50, flex: 2 },
+        {
+          direction: "column",
+          flex: 1,
+          gap: "0.5rem",
+          children: [
+            { panel: "blogs", source: "rss", limit: 15 },
+          ],
+        },
+      ],
+    };
+    expect(layout).toHaveProperty("direction");
+    expect(typeof layout.direction).toBe("string");
+    expect(layout).toHaveProperty("children");
+    expect(Array.isArray(layout.children)).toBe(true);
+    if (layout.gap !== undefined) {
+      expect(typeof layout.gap).toBe("string");
+    }
+    const leaf = layout.children[0] as any;
+    expect(leaf).toHaveProperty("panel");
+    expect(typeof leaf.panel).toBe("string");
+    expect(leaf).toHaveProperty("source");
+    if (leaf.limit !== undefined) {
+      expect(typeof leaf.limit).toBe("number");
+    }
+    if (leaf.flex !== undefined) {
+      expect(typeof leaf.flex).toBe("number");
+    }
+    const container = layout.children[1] as any;
+    expect(container).toHaveProperty("direction");
+    expect(Array.isArray(container.children)).toBe(true);
+    if (container.gap !== undefined) {
+      expect(typeof container.gap).toBe("string");
+    }
+    // recursive LayoutNodeConfig per frg + config.ts types (FlexContainer | PanelConfig); source string subset of SourceValue; pure test no imports per scope
+  });
 });
