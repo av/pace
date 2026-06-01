@@ -104,4 +104,35 @@ describe("adapters/index discoverAdapters (TDD full coverage for untouched disco
     expect(String(loadFailCalls[0]?.[0] ?? "")).toContain(nonExistent);
     mock.restore();
   });
+
+  test("direct bad mod shape filter: discovery skips modules where import succeeds but default fails shape guard (no .name or no fetch fn) without 'failed to load' warn (distinct from import err); emits 'bad mod filter' warn for observability/quality (per ngb/ud8 shape guard)", async () => {
+    const badName = "badshape-direct-filter-26.ts";
+    const badAbs = "/home/everlier/code/pace/src/adapters/" + badName;
+    mock.module(badAbs, () => ({
+      default: { foo: "bad shape, no name/fetch fn" },  // import "succeeds" via mock -> shape guard should filter
+    }));
+    mock.module("node:fs/promises", () => ({
+      readdir: async () => [
+        "rss.ts",      // valid
+        badName,       // bad shape after import -> filter + bad mod warn
+        "foo.test.ts", // filename filter
+        "types.ts",    // excluded
+        "index.ts",    // excluded
+        "bar.js",      // !.ts
+      ],
+    }));
+    const adapters = await discoverAdapters();
+    expect(adapters.has("rss")).toBe(true);
+    expect(adapters.has("badshape-direct-filter-26")).toBe(false);
+    const loadFailCalls = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("failed to load adapter")
+    );
+    expect(loadFailCalls.length).toBe(0);  // import succeeded (mocked), only shape guard filtered it (not a load err)
+    const badModWarns = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("bad mod filter") || String(call[0]).includes("non-conforming")
+    );
+    expect(badModWarns.length).toBe(1);  // currently 0 (silent skip on shape fail) -> will drive red until index quality edit adds warn
+    expect(String(badModWarns[0]?.[0] ?? "")).toContain(badName);
+    mock.restore();
+  });
 });
