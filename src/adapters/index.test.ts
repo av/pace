@@ -278,4 +278,37 @@ describe("adapters/index discoverAdapters (TDD full coverage for untouched disco
     expect(String(badModWarns[0]?.[0] ?? "")).toContain(wsNameFile);
     mock.restore();
   });
+
+  test("direct bad mod padded ws name edge (ngb discovery remaining): modules where dynamic import succeeds but default has .name with leading/trailing whitespace (e.g. ' padded-ngb-edge-50 ', per ngb '.name (string)' contract intent in types+root ngb fact + all real adapters use clean names w/o surrounding ws) hit shape guard fail + emit 'bad mod filter' warn + skipped (not added to Map, no dirty keys); no 'failed to load' warn; TDD extends 4qd/8cf/q5f/ud8 guard quality/observability for this remaining edge (current truthy-only .name.trim() accepts padded ws-surrounded names, would pollute Map keys vs config lookups) + dedicated direct it() in index.test.ts exercising mocked padded module + readdir list", async () => {
+    const paddedNameFile = "paddedws-direct-50-edge.ts";
+    const absPadded = "/home/everlier/code/pace/src/adapters/" + paddedNameFile;
+    mock.module(absPadded, () => ({
+      default: { name: " padded-ngb-edge-50 ", fetch: async (_c?: any) => [] },  // padded ws (trim truthy but !== orig) -> currently passes guard (added w/ dirty key), no badmod warn -> red until guard edit
+    }));
+    mock.module("node:fs/promises", () => ({
+      readdir: async () => [
+        "rss.ts",      // valid -> added
+        paddedNameFile, // padded name after import -> should filter + bad mod warn + skip
+        "foo.test.ts", // filename filter
+        "types.ts",    // excluded
+        "index.ts",    // excluded
+        "bar.js",      // !.ts
+      ],
+    }));
+    const adapters = await discoverAdapters();
+    expect(adapters.has("rss")).toBe(true);
+    expect(adapters.has(" padded-ngb-edge-50 ")).toBe(false);  // not added (would be pre-fix)
+    expect(adapters.has("padded-ngb-edge-50")).toBe(false);
+    expect(adapters.has(" padded-ngb-edge-50".trim())).toBe(false);
+    const loadFailCalls = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("failed to load adapter")
+    );
+    expect(loadFailCalls.length).toBe(0);  // import "succeeded" (mocked), only shape guard
+    const badModWarns = warnSpy.mock.calls.filter((call: any[]) =>
+      String(call[0]).includes("bad mod filter") || String(call[0]).includes("non-conforming")
+    );
+    expect(badModWarns.length).toBe(1);  // DELIBERATE RED initially (0 warns, padded name trim truthy passes); after index.ts guard ===trim edit -> 1 + contains file
+    expect(String(badModWarns[0]?.[0] ?? "")).toContain(paddedNameFile);
+    mock.restore();
+  });
 });
