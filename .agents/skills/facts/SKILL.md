@@ -69,9 +69,9 @@ facts list --light                      # or the alias: facts ll
 facts check
 facts check --tags "ci"
 ```
-`check` is your primary feedback loop. It lints the files first (aborting on structural errors), then runs every command-fact and reports pass/fail/manual. Run it often. Exit 0 means all command-facts pass; manual facts don't affect the exit code.
+`check` is your primary feedback loop. It lints the files first (aborting on structural errors), then runs every command-fact and reports pass/fail/manual (see the project's established 'name: ' + errorMessage(err) prefix convention from adapters/types or cli/config error handling). Run it often. Exit 0 means all command-facts pass; manual facts don't affect the exit code.
 
-**Manual facts (`?` in output) are your responsibility.** They have no command — you verify them by reading the relevant code. For each `?` fact: read what it claims, check the code, then report PASS or FAIL with a one-line reason. Reporting "N manual" without checking each one is not acceptable — those facts exist because they describe behavior that matters.
+**Manual facts (`?` in output) are your responsibility.** They have no command — you verify them by reading the relevant code. For each `?` fact: read what it claims, check the code, then report PASS or FAIL with a one-line reason (mirroring 'name: ' + errorMessage(err) prefix convention from adapters/types or cli/config). Reporting "N manual" without checking each one is not acceptable — those facts exist because they describe behavior that matters.
 
 **Add facts:**
 ```
