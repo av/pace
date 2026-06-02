@@ -20,7 +20,7 @@ import { extractEngagementScore, extractScore } from "./adapters/engagement";
 import { normalizeUrl, levenshteinSimilarity } from "./dedupe";
 
 export { extractEngagementScore };
-import { compareIsoTimestamp, errorMessage } from "./utils";
+import { compareIsoTimestamp, errorMessage, sliceToLimit } from "./utils";
 
 export interface TransformContext {
   llmModel: Model<Api> | null;
@@ -426,6 +426,12 @@ const dedupeStrategyHandlers: Record<DedupeStrategy, DedupeStrategyHandler> = {
     applyDedupeTitleSimilarity(items, threshold, keep, shouldLog),
 };
 
+type LatestTransformConfig = Extract<TransformConfig, { type: "latest" }>;
+
+function applyLatest(items: ContentItemRow[], { count }: LatestTransformConfig): ContentItemRow[] {
+  return sliceToLimit(items, count);
+}
+
 function sortRowsByInputOrder(rows: ContentItemRow[], order: ContentItemRow[]): ContentItemRow[] {
   const orderMap = new Map<string, number>();
   order.forEach((item, i) => {
@@ -467,10 +473,7 @@ type TransformFn = (
 ) => Promise<ContentItemRow[]>;
 
 const transforms: Record<string, TransformFn> = {
-  latest: async (items, config) => {
-    const { count } = config as { type: "latest"; count: number };
-    return items.slice(0, count);
-  },
+  latest: async (items, config) => applyLatest(items, config as LatestTransformConfig),
 
   filter: async (items, config) => {
     const { keywords, fields } = config as Extract<TransformConfig, { type: "filter" }>;

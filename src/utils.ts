@@ -39,3 +39,8 @@ export function compareIsoTimestamp(
   const descCmp = b > a ? 1 : b < a ? -1 : 0;
   return direction === "asc" ? -descCmp : descCmp;
 }
+
+/** Return at most `limit` items from the start of the array. */
+export function sliceToLimit<T>(items: readonly T[], limit: number): T[] {
+  return items.slice(0, limit);
+}

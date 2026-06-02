@@ -1,3 +1,7 @@
+import { sliceToLimit } from "../utils";
+
+export { sliceToLimit };
+
 /** Fetch each key sequentially and concatenate results (multi-tag / multi-endpoint merge). */
 export async function fetchAndConcat<T>(
   keys: readonly string[],
@@ -19,11 +23,6 @@ export function dedupeByKey<T, K>(items: readonly T[], key: (item: T) => K): T[]
     seen.add(k);
     return true;
   });
-}
-
-/** Return at most `limit` items from the start of the array. */
-export function sliceToLimit<T>(items: readonly T[], limit: number): T[] {
-  return items.slice(0, limit);
 }
 
 /** Sort items newest-first by ISO `created_at` timestamp. */
