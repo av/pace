@@ -58,7 +58,6 @@ async function fetchDevToArticles(
   const url = `${DEVTO_API}?${params.toString()}`;
 
   return fetchJson<DevToArticle[]>("devto", url, context, {
-    userAgent: "pace:feed-aggregator/1.0",
     accept: "application/json",
   });
 }

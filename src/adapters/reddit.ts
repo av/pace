@@ -14,7 +14,6 @@ import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 const REDDIT_BASE = "https://www.reddit.com";
-const USER_AGENT = "pace:feed-aggregator/1.0 (github.com/everlier/pace)";
 
 type SortType = "hot" | "new" | "top" | "rising";
 type TimePeriod = "hour" | "day" | "week" | "month" | "year" | "all";
@@ -97,9 +96,7 @@ async function fetchRedditListing(
   }
 
   const context = `${path}/${sort}`;
-  const json = await fetchJson<RedditListing>("reddit", url, context, {
-    userAgent: USER_AGENT,
-  });
+  const json = await fetchJson<RedditListing>("reddit", url, context);
   return json?.data?.children ?? [];
 }
 

@@ -18,8 +18,25 @@
  */
 import { errorMessage } from "./types";
 
-const PACE_USER_AGENT = "pace/1.0";
+/** Short UA for tests and rare overrides (e.g. podcast). */
+export const PACE_USER_AGENT = "pace/1.0";
+
+/** Default for adapter HTTP — APIs that require an identifiable client string. */
+export const PACE_FEED_USER_AGENT =
+  "pace:feed-aggregator/1.0 (github.com/everlier/pace)";
+
 const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
+
+function buildFetchHeaders(options: FetchWithTimeoutOptions): Record<string, string> {
+  const headers: Record<string, string> = {
+    "User-Agent": options.userAgent ?? PACE_FEED_USER_AGENT,
+    ...options.headers,
+  };
+  if (options.accept) {
+    headers.Accept = options.accept;
+  }
+  return headers;
+}
 
 export type FetchWithTimeoutOptions = {
   timeoutMs?: number;
@@ -39,15 +56,8 @@ export async function fetchWithTimeout(
   options: FetchWithTimeoutOptions = {},
 ): Promise<Response> {
   const timeoutMs = options.timeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
-  const headers: Record<string, string> = {
-    "User-Agent": options.userAgent ?? PACE_USER_AGENT,
-    ...options.headers,
-  };
-  if (options.accept) {
-    headers.Accept = options.accept;
-  }
   return fetch(url, {
-    headers,
+    headers: buildFetchHeaders(options),
     signal: AbortSignal.timeout(timeoutMs),
   });
 }

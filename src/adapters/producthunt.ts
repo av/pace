@@ -231,7 +231,6 @@ async function fetchProductHuntFeed(): Promise<{
   }>;
 }> {
   const xml = await fetchText("producthunt", PH_FEED_URL, "feed", {
-    userAgent: "pace:feed-aggregator/1.0",
     accept: "application/atom+xml, application/xml, text/xml",
   });
 

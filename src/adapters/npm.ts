@@ -64,7 +64,6 @@ async function searchNpm(
   const url = `${NPM_REGISTRY}/-/v1/search?${params.toString()}`;
 
   const json = await fetchJson<NpmSearchResult>("npm", url, context, {
-    userAgent: "pace:feed-aggregator/1.0 (github.com/everlier/pace)",
     accept: "application/json",
   });
   return json.objects ?? [];

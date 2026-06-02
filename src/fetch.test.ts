@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { fetchJson, fetchText, fetchWithTimeout } from "./adapters/fetch";
+import {
+  fetchJson,
+  fetchText,
+  fetchWithTimeout,
+  PACE_FEED_USER_AGENT,
+  PACE_USER_AGENT,
+} from "./adapters/fetch";
 import { useFetchMockSuite } from "./test/adapter-mocks";
 
 const mocks = useFetchMockSuite();
@@ -15,8 +21,12 @@ describe("fetchWithTimeout", () => {
     expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = mocks.fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe("https://example.com/feed");
-    expect(init.headers).toMatchObject({ "User-Agent": "pace/1.0" });
+    expect(init.headers).toMatchObject({ "User-Agent": PACE_FEED_USER_AGENT });
     expect(init.signal).toBeDefined();
+  });
+
+  test("PACE_USER_AGENT is exported for short overrides", () => {
+    expect(PACE_USER_AGENT).toBe("pace/1.0");
   });
 
   test("merges custom userAgent, headers, and accept", async () => {
@@ -41,6 +51,35 @@ describe("fetchWithTimeout", () => {
     const res = await fetchWithTimeout("https://example.com/missing");
     expect(res.ok).toBe(false);
     expect(res.status).toBe(503);
+  });
+});
+
+describe("fetchText / fetchJson default User-Agent", () => {
+  test("fetchText and fetchJson share default feed User-Agent via fetchWithTimeout", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), { status: 200 }),
+    );
+
+    await fetchText("rss", "https://example.com/feed.xml");
+    const textUa = (mocks.fetchMock.mock.calls[0] as [string, RequestInit])[1].headers as Record<
+      string,
+      string
+    >;
+
+    mocks.fetchMock.mockClear();
+    mocks.fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), { status: 200 }),
+    );
+
+    await fetchJson("npm", "https://example.com/search");
+    const jsonUa = (mocks.fetchMock.mock.calls[0] as [string, RequestInit])[1].headers as Record<
+      string,
+      string
+    >;
+
+    expect(textUa["User-Agent"]).toBe(PACE_FEED_USER_AGENT);
+    expect(jsonUa["User-Agent"]).toBe(PACE_FEED_USER_AGENT);
+    expect(textUa["User-Agent"]).toBe(jsonUa["User-Agent"]);
   });
 });
 

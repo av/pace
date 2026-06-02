@@ -89,7 +89,6 @@ async function fetchLemmyPosts(
   const url = `https://${instance}/api/v3/post/list?${query.toString()}`;
 
   const json = await fetchJson<LemmyPostListResponse>("lemmy", url, context, {
-    userAgent: "pace:feed-aggregator/1.0 (github.com/everlier/pace)",
     accept: "application/json",
   });
   return json.posts ?? [];
