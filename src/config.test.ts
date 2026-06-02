@@ -288,6 +288,53 @@ layout:
     expect(() => loadConfig()).toThrow(/config: unknown top-level key "foo"/);
   });
 
+  test("rejects layout panel and pipeline references to unknown adapter source", () => {
+    const layoutYaml = `
+adapters:
+  - type: rss
+layout:
+  direction: row
+  children:
+    - panel: news
+      source: no-such-adapter
+`;
+    setConfig(layoutYaml);
+    expect(() => loadConfig()).toThrow(
+      /config: layout panel "news" source references unknown source "no-such-adapter"/,
+    );
+
+    const multiSourceYaml = `
+adapters:
+  - type: rss
+layout:
+  direction: row
+  children:
+    - panel: mix
+      source: [rss, phantom]
+`;
+    setConfig(multiSourceYaml);
+    expect(() => loadConfig()).toThrow(
+      /config: layout panel "mix" source\[1\] references unknown source "phantom"/,
+    );
+
+    const pipelineYaml = `
+adapters:
+  - type: rss
+pipelines:
+  - name: enrich
+    sources: [missing-feed]
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(pipelineYaml);
+    expect(() => loadConfig()).toThrow(
+      /config: pipelines\[0\].sources\[0\] references unknown source "missing-feed"/,
+    );
+  });
+
   test("rejects filter with empty keywords list (validateStringList)", () => {
     const yaml = `
 adapters:
