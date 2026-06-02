@@ -413,4 +413,24 @@ describe("transforms - cluster (coverage + future DRY)", () => {
     expect(unclustered).toBeTruthy();
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('1 cluster(s)'));
   });
+
+  test("cluster warns on extractDomain parse failure for invalid item urls", async () => {
+    const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const badUrl = "not-a-valid-url";
+      const items = [
+        makeRow({ id: "u1", url: badUrl, title: "Shared alpha news topic", source: "s1" }),
+        makeRow({ id: "u2", url: badUrl, title: "Shared alpha news topic two", source: "s2" }),
+      ];
+      const steps = transformPipeline({ type: "cluster", min_cluster_size: 2, annotate: false });
+      const result = await runPipeline(items, steps, ctx);
+      expect(result.length).toBe(2);
+      expect(warnSpy).toHaveBeenCalledTimes(2);
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/^transforms: extractDomain failed for "not-a-valid-url": /),
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
 });
