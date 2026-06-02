@@ -4,6 +4,11 @@ import { join } from "node:path";
 import { errorMessage, type Adapter } from "./types";
 
 const EXCLUDED = new Set(["types.ts", "index.ts"]);
+const ADAPTERS_DIR = import.meta.dir;
+
+function warnDiscover(detail: string): void {
+  console.warn(`discoverAdapters: ${detail}`);
+}
 
 function isAdapterSourceFile(name: string): boolean {
   const lower = name.toLowerCase();
@@ -24,7 +29,7 @@ function parseReaddirEntry(entry: string | Dirent): { file: string; isFile: bool
 }
 
 function isValidAdapter(adapter: unknown): adapter is Adapter {
-  if (!adapter || typeof adapter !== "object" || adapter === null) return false;
+  if (!adapter || typeof adapter !== "object") return false;
   if (Object.getPrototypeOf(adapter) !== Object.prototype) return false;
   const a = adapter as Adapter;
   if (typeof a.name !== "string" || !a.name.trim() || a.name !== a.name.trim()) return false;
@@ -33,46 +38,45 @@ function isValidAdapter(adapter: unknown): adapter is Adapter {
 
 export async function discoverAdapters(): Promise<Map<string, Adapter>> {
   const adapters = new Map<string, Adapter>();
-  const dir = join(import.meta.dir);
 
   let files: (string | Dirent)[];
   try {
-    files = await readdir(dir, { withFileTypes: true });
+    files = await readdir(ADAPTERS_DIR, { withFileTypes: true });
     if (!Array.isArray(files)) {
-      console.warn(`discoverAdapters: failed to read ${dir}: non-iterable result`);
+      warnDiscover(`failed to read ${ADAPTERS_DIR}: non-iterable result`);
       return adapters;
     }
   } catch (err) {
-    console.warn(`discoverAdapters: failed to read ${dir}: ${errorMessage(err)}`);
+    warnDiscover(`failed to read ${ADAPTERS_DIR}: ${errorMessage(err)}`);
     return adapters;
   }
 
   for (const entry of files) {
     const parsed = parseReaddirEntry(entry);
     if (!parsed) {
-      console.warn("discoverAdapters: skipped invalid readdir entry");
+      warnDiscover("skipped invalid readdir entry");
       continue;
     }
     const { file, isFile } = parsed;
     if (!isFile || !isAdapterSourceFile(file)) continue;
 
     try {
-      const mod = await import(join(dir, file));
+      const mod = await import(join(ADAPTERS_DIR, file));
       const adapter: unknown = mod.default;
       if (!isValidAdapter(adapter)) {
-        console.warn(
-          `discoverAdapters: skipped ${file} (invalid default export: plain object with trimmed name and fetch)`
+        warnDiscover(
+          `skipped ${file} (invalid default export: plain object with trimmed name and fetch)`
         );
         continue;
       }
       if (adapters.has(adapter.name)) {
-        console.warn(
-          `discoverAdapters: duplicate adapter "${adapter.name}" in ${file} (overwrites previous; check config source types)`
+        warnDiscover(
+          `duplicate adapter "${adapter.name}" in ${file} (overwrites previous; check config source types)`
         );
       }
       adapters.set(adapter.name, adapter);
     } catch (err) {
-      console.warn(`discoverAdapters: failed to import ${file}: ${errorMessage(err)}`);
+      warnDiscover(`failed to import ${file}: ${errorMessage(err)}`);
     }
   }
 
