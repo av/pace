@@ -485,8 +485,10 @@ function applyKeywordScore(
     if (kw.regex) {
       try {
         return { regex: new RegExp(kw.term, "gi"), weight: kw.weight, term: kw.term };
-      } catch {
-        console.warn(`[keyword-score] invalid regex "${kw.term}", treating as literal`);
+      } catch (err) {
+        console.warn(
+          `transforms: invalid keyword-score regex "${kw.term}": ${errorMessage(err)}, treating as literal`,
+        );
         return { regex: null, literal: kw.term.toLowerCase(), weight: kw.weight, term: kw.term };
       }
     }
