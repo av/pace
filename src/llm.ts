@@ -106,6 +106,14 @@ function parseLlmJsonResponse<T>(text: string | null): T | null {
   }
 }
 
+/** Skip merge/filter/lens when there is no model or nothing to process. */
+function shouldPassthroughLlmBatch(
+  model: Model<Api> | null,
+  items: ContentItem[]
+): boolean {
+  return !model || items.length === 0;
+}
+
 async function queryLlmForJson<T>(
   model: Model<Api>,
   systemPrompt: string,
@@ -150,7 +158,7 @@ export async function mergeItems(
   items: ContentItem[],
   prompt?: string
 ): Promise<ContentItem[]> {
-  if (!model || items.length === 0) return items;
+  if (shouldPassthroughLlmBatch(model, items)) return items;
 
   const mergePrompt = prompt ?? "Group related items about the same topic into merged summaries";
   const systemPrompt = `${mergePrompt}
@@ -199,7 +207,7 @@ export async function filterItemsByLlm(
   items: ContentItem[],
   criteria: string
 ): Promise<ContentItem[]> {
-  if (!model || items.length === 0) return items;
+  if (shouldPassthroughLlmBatch(model, items)) return items;
 
   const systemPrompt = `Given the criteria: "${criteria}", decide which items to keep. Return a JSON array of item IDs that match. Return ONLY the JSON array of strings.`;
 
@@ -216,7 +224,7 @@ export async function lensItems(
   items: ContentItem[],
   interests: string[]
 ): Promise<ContentItem[]> {
-  if (!model || items.length === 0 || interests.length === 0) return items;
+  if (shouldPassthroughLlmBatch(model, items) || interests.length === 0) return items;
 
   const interestList = interests.join(", ");
   const systemPrompt = `Score each item's relevance to these interests: ${interestList}. Return a JSON array of {id, score} objects where score is 0-10. Return ONLY the JSON array, no other text.`;
