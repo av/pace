@@ -1,4 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
+import { stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 
@@ -66,10 +67,10 @@ function extractContent(entry: PHEntry): { tagline: string; productLink: string 
   const firstParagraph = raw.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
   let tagline = "";
   if (firstParagraph) {
-    tagline = stripHtml(firstParagraph[1]);
+    tagline = stripHtml(firstParagraph[1], { whitespace: "collapse-all" });
   } else {
     // Fallback: strip everything but remove "Discussion | Link" noise
-    tagline = stripHtml(raw)
+    tagline = stripHtml(raw, { whitespace: "collapse-all" })
       .replace(/Discussion\s*\|\s*Link/gi, "")
       .trim();
   }
@@ -91,18 +92,6 @@ function extractId(entry: PHEntry): string {
     return entry.id;
   }
   return extractLink(entry);
-}
-
-function stripHtml(html: string): string {
-  return html
-    .replace(/<[^>]+>/g, "")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 async function enrichProduct(url: string): Promise<EnrichedData | null> {

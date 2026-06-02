@@ -1,3 +1,4 @@
+import { stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 
@@ -34,17 +35,6 @@ interface WikiOnThisDay {
 interface WikiNewsItem {
   story: string;
   links: WikiArticle[];
-}
-
-function stripHtml(html: string): string {
-  return html
-    .replace(/<[^>]+>/g, "")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .trim();
 }
 
 function formatViews(n: number): string {
@@ -121,8 +111,8 @@ function extractOnThisDay(data: WikiFeaturedResponse, limit: number): ContentIte
     const page = event.pages?.[0];
     const url = page?.content_urls?.desktop?.page ?? `https://en.wikipedia.org/wiki/Portal:Current_events`;
     return {
-      id: `wikipedia:otd:${event.year}:${stripHtml(event.text).slice(0, 40)}`,
-      title: `${event.year}: ${stripHtml(event.text)}`,
+      id: `wikipedia:otd:${event.year}:${stripHtml(event.text, { whitespace: "preserve" }).slice(0, 40)}`,
+      title: `${event.year}: ${stripHtml(event.text, { whitespace: "preserve" })}`,
       url,
       source: "wikipedia:on_this_day",
       timestamp: new Date(),
@@ -138,7 +128,7 @@ function extractNews(data: WikiFeaturedResponse, limit: number): ContentItem[] {
     const url = link?.content_urls?.desktop?.page ?? "https://en.wikipedia.org/wiki/Portal:Current_events";
     return {
       id: `wikipedia:news:${link?.title ?? `untitled-${i}`}`,
-      title: stripHtml(item.story),
+      title: stripHtml(item.story, { whitespace: "preserve" }),
       url,
       source: "wikipedia:news",
       timestamp: new Date(),

@@ -1,5 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import { extractAtomLink } from "./atom";
+import { stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 
@@ -29,19 +30,6 @@ function extractTextContent(val: string | { "#text": string } | undefined): stri
   if (!val) return "";
   if (typeof val === "string") return val;
   return val["#text"] ?? "";
-}
-
-function stripHtml(html: string): string {
-  // Simple HTML tag stripping for release notes
-  return html
-    .replace(/<[^>]+>/g, "")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
 }
 
 /**

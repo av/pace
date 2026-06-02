@@ -1,4 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
+import { decodeHtmlEntities, stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 
@@ -9,33 +10,6 @@ const parser = new XMLParser({
   cdataPropName: "__cdata",
   trimValues: true,
 });
-
-/**
- * Decode common HTML/XML entities.
- */
-function decodeEntities(str: string): string {
-  return str
-    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)))
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, code) => String.fromCharCode(parseInt(code, 16)))
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&#39;/g, "'");
-}
-
-/**
- * Strip HTML tags from a string and collapse whitespace.
- */
-function stripHtml(html: string): string {
-  return decodeEntities(
-    html.replace(/<[^>]*>/g, " "),
-  )
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 /**
  * Extract text content from a field that may be a string, an object with #text or __cdata.
@@ -126,12 +100,12 @@ interface PodcastEpisode {
 
 function extractChannelTitle(channel: any): string {
   const title = channel?.title;
-  return decodeEntities(extractText(title) || "Unknown Podcast");
+  return decodeHtmlEntities(extractText(title) || "Unknown Podcast", { numeric: true });
 }
 
 function parseEpisode(item: any, showName: string, channelLink: string = ""): PodcastEpisode | null {
   // Title
-  const title = decodeEntities(extractText(item.title));
+  const title = decodeHtmlEntities(extractText(item.title), { numeric: true });
   if (!title) return null;
 
   // Link / URL
@@ -198,7 +172,11 @@ function parseEpisode(item: any, showName: string, channelLink: string = ""): Po
     extractText(item["itunes:subtitle"]) ||
     extractText(item["content:encoded"]) ||
     "";
-  const description = stripHtml(rawDesc);
+  const description = stripHtml(rawDesc, {
+    tagSeparator: " ",
+    whitespace: "collapse-all",
+    numericEntities: true,
+  });
 
   // Duration from itunes:duration
   const duration = parseDuration(item["itunes:duration"]);

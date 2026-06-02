@@ -1,3 +1,4 @@
+import { stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 
@@ -46,24 +47,6 @@ interface MastodonAccount {
 
 type Mode = "public" | "hashtag" | "account";
 
-function stripHtml(html: string): string {
-  // Replace <br> and </p> with newlines, then strip all tags
-  let text = html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n")
-    .replace(/<[^>]+>/g, "");
-  // Decode common HTML entities
-  text = text
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, " ");
-  // Collapse multiple newlines and trim
-  return text.replace(/\n{3,}/g, "\n\n").trim();
-}
-
 function resolveAcct(account: MastodonStatus["account"], instance: string): string {
   // If acct contains @, it's already fully qualified (remote user)
   if (account.acct.includes("@")) {
@@ -95,7 +78,7 @@ function buildBody(status: MastodonStatus, instance: string): string {
 }
 
 function buildTitle(status: MastodonStatus): string {
-  const content = stripHtml(status.content);
+  const content = stripHtml(status.content, { blockBreaks: true });
   if (!content && status.spoiler_text) {
     return status.spoiler_text;
   }
@@ -128,8 +111,7 @@ async function fetchMastodonStatuses(
 ): Promise<MastodonStatus[]> {
   const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
   if (!res.ok) {
-    console.warn(`mastodon: failed to fetch ${context}: ${res.status}`);
-    return [];
+    throw new Error(`mastodon: failed to fetch ${context}: ${errorMessage({ message: String(res.status) })}`);
   }
   return await res.json();
 }
@@ -266,8 +248,7 @@ const adapter: Adapter = {
         body: buildBody(status, instance),
       }));
     } catch (err) {
-      console.warn(`mastodon: error fetching from ${instance}: ${errorMessage(err)}`);
-      return [];
+      throw new Error(`mastodon: error fetching from ${instance}: ${errorMessage(err)}`);
     }
   },
 };
