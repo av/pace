@@ -145,7 +145,7 @@ describe("hackernews adapter", () => {
 
     await expect(
       hackernewsAdapter.fetch({ params: { feed: "top" } } as any),
-    ).rejects.toThrow(/hackernews: error fetching stories: hackernews: failed to fetch topstories: 500/);
+    ).rejects.toThrow(/hackernews: failed to fetch topstories: 500/);
   });
 
   test("throws on network/fetch reject (wrapped via errorMessage)", async () => {
@@ -195,7 +195,7 @@ describe("hackernews adapter", () => {
 
     await expect(
       hackernewsAdapter.fetch({ params: { feed: "top" } } as any),
-    ).rejects.toThrow(/hackernews: error fetching stories: hackernews: failed to fetch topstories: 500/);
+    ).rejects.toThrow(/hackernews: failed to fetch topstories: 500/);
 
     const hadDuckForStatus = emSpy.mock.calls.some((c: any[]) => {
       const arg = c[0];

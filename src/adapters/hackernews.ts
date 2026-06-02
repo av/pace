@@ -104,34 +104,44 @@ const adapter: Adapter = {
 
     const endpoint = FEED_ENDPOINTS[feedType];
 
+    let ids: number[];
     try {
-      const ids: number[] = await fetchHN<number[]>(`${endpoint}.json`, 15000, endpoint);
-
-      // Fetch more items than needed if we're filtering by score,
-      // since some may be below threshold
-      const fetchCount = minScore > 0 ? Math.min(limit * 3, ids.length) : limit;
-      const sliced = ids.slice(0, fetchCount);
-      const items = await fetchInBatches(sliced);
-
-      // Apply score filter
-      const filtered = minScore > 0
-        ? items.filter((item) => (item.score ?? 0) >= minScore)
-        : items;
-
-      // Respect limit after filtering
-      const limited = filtered.slice(0, limit);
-
-      return limited.map((item) => ({
-        id: `hn:${item.id}`,
-        title: item.title ?? "(untitled)",
-        url: item.url ?? `https://news.ycombinator.com/item?id=${item.id}`,
-        source: `hackernews:${feedType}`,
-        timestamp: item.time ? new Date(item.time * 1000) : new Date(),
-        body: buildBody(item),
-      }));
+      const res = await fetchWithTimeout(`${HN_API}/${endpoint}.json`, { timeoutMs: 15000 });
+      if (!res.ok) {
+        throw new Error(
+          `hackernews: failed to fetch ${endpoint}: ${errorMessage({ message: String(res.status) })}`,
+        );
+      }
+      ids = (await res.json()) as number[];
     } catch (err) {
+      if (err instanceof Error && err.message.startsWith("hackernews: failed to fetch")) {
+        throw err;
+      }
       throw new Error(`hackernews: error fetching stories: ${errorMessage(err)}`);
     }
+
+    // Fetch more items than needed if we're filtering by score,
+    // since some may be below threshold
+    const fetchCount = minScore > 0 ? Math.min(limit * 3, ids.length) : limit;
+    const sliced = ids.slice(0, fetchCount);
+    const items = await fetchInBatches(sliced);
+
+    // Apply score filter
+    const filtered = minScore > 0
+      ? items.filter((item) => (item.score ?? 0) >= minScore)
+      : items;
+
+    // Respect limit after filtering
+    const limited = filtered.slice(0, limit);
+
+    return limited.map((item) => ({
+      id: `hn:${item.id}`,
+      title: item.title ?? "(untitled)",
+      url: item.url ?? `https://news.ycombinator.com/item?id=${item.id}`,
+      source: `hackernews:${feedType}`,
+      timestamp: item.time ? new Date(item.time * 1000) : new Date(),
+      body: buildBody(item),
+    }));
   },
 };
 
