@@ -253,6 +253,25 @@ describe("producthunt", () => {
     expect(items[0].body).toContain("300 upvotes");
   });
 
+  test("warns when enrich + min_upvotes filters all items", async () => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
+      const u = String(url);
+      if (u.includes("feed")) {
+        return new Response(makePHFeedFixture(), { status: 200 });
+      }
+      return new Response(makeEnrichHtml(50, 10), { status: 200 });
+    });
+
+    const items = await producthuntAdapter.fetch(
+      producthuntCfg({ enrich: true, min_upvotes: 100 }),
+    );
+
+    expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "producthunt: min_upvotes (100) filtered all 2 enriched item(s)",
+    );
+  });
+
   test("warns when min_upvotes set without enrich (threshold ignored)", async () => {
     mocks.fetchMock.mockResolvedValue(
       new Response(makePHFeedFixture(), { status: 200 }),

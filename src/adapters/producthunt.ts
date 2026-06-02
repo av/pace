@@ -311,6 +311,11 @@ const adapter: Adapter = {
         const data = enrichedMap.get(item.id);
         return data?.upvotes !== undefined && data.upvotes >= minUpvotes;
       });
+      if (items.length > 0 && filtered.length === 0) {
+        console.warn(
+          `producthunt: min_upvotes (${minUpvotes}) filtered all ${items.length} enriched item(s)`,
+        );
+      }
     }
 
     return filtered.map((item) => {
