@@ -43,11 +43,6 @@ function simpleHash(str: string): string {
   return (h >>> 0).toString(36);
 }
 
-/**
- * Extracts plain string content from an RSS/Atom parsed field.
- * Fields may be a raw string or an object like { "#text": "value", ...attrs }.
- * Used to DRY the repeated typeof + ["#text"] access patterns.
- */
 function extractText(raw: XmlTextField | undefined): string | undefined {
   if (raw == null) return undefined;
   if (typeof raw === "string") return raw;
@@ -61,12 +56,10 @@ const parser = new XMLParser({
 });
 
 function extractItems(parsed: RssFeedParsed): RssFeedItem[] {
-  // RSS 2.0
   if (parsed?.rss?.channel?.item) {
     const items = parsed.rss.channel.item;
     return Array.isArray(items) ? items : [items];
   }
-  // Atom
   if (parsed?.feed?.entry) {
     const entries = parsed.feed.entry;
     return Array.isArray(entries) ? entries : [entries];
@@ -89,7 +82,6 @@ function extractFeedTitle(parsed: RssFeedParsed, url: string): string {
 }
 
 function parseItem(raw: RssFeedItem, source: string): ContentItem {
-  // title
   const title = extractText(raw.title) ?? "(untitled)";
 
   const link = extractAtomLink(raw.link);
