@@ -892,11 +892,20 @@ const transforms: Record<string, TransformFn> = {
       if (effectiveInterests.length === 0) return items;
       const contentItems = toContentItems(items);
       const ranked = await lensItems(model, contentItems, effectiveInterests);
-      const orderMap = new Map<string, number>();
-      ranked.forEach((item, i) => orderMap.set(item.id, i));
-      return [...items].sort(
-        (a, b) => (orderMap.get(a.id) ?? items.length) - (orderMap.get(b.id) ?? items.length)
-      );
+      const rowById = new Map(items.map((r) => [r.id, r]));
+      const order: ContentItemRow[] = [];
+      const seen = new Set<string>();
+      for (const item of ranked) {
+        const row = rowById.get(item.id);
+        if (row) {
+          order.push(row);
+          seen.add(row.id);
+        }
+      }
+      for (const row of items) {
+        if (!seen.has(row.id)) order.push(row);
+      }
+      return sortRowsByInputOrder(items, order);
     }),
 
   "llm-merge": (items, config, ctx) =>
