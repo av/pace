@@ -1,4 +1,4 @@
-import { fetchWithTimeout } from "./fetch";
+import { fetchJson } from "./fetch";
 import { stripHtml } from "./html";
 import { dedupeByKey, fetchAndConcat, sliceToLimit, sortByCreatedAtDesc } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -95,8 +95,11 @@ function warnLookupAccountFailed(
   instance: string,
   detail: unknown,
 ): void {
+  const msg = errorMessage(detail);
   console.warn(
-    `mastodon: account lookup ${username}@${instance}: ${errorMessage(detail)}`,
+    msg.startsWith("mastodon:")
+      ? msg
+      : `mastodon: account lookup ${username}@${instance}: ${msg}`,
   );
 }
 
@@ -105,30 +108,16 @@ async function lookupAccount(
   username: string,
 ): Promise<MastodonAccount | null> {
   try {
-    const res = await fetchWithTimeout(
+    return await fetchJson<MastodonAccount>(
+      "mastodon",
       `https://${instance}/api/v1/accounts/lookup?acct=${encodeURIComponent(username)}`,
+      `account lookup ${username}@${instance}`,
       { timeoutMs: 10_000 },
     );
-    if (!res.ok) {
-      warnLookupAccountFailed(username, instance, `HTTP ${res.status}`);
-      return null;
-    }
-    return await res.json();
   } catch (err) {
     warnLookupAccountFailed(username, instance, err);
     return null;
   }
-}
-
-async function fetchMastodonStatuses(
-  url: string,
-  context: string,
-): Promise<MastodonStatus[]> {
-  const res = await fetchWithTimeout(url);
-  if (!res.ok) {
-    throw new Error(`mastodon: failed to fetch ${context}: ${errorMessage({ message: String(res.status) })}`);
-  }
-  return await res.json();
 }
 
 async function fetchPublicTimeline(
@@ -138,7 +127,7 @@ async function fetchPublicTimeline(
 ): Promise<MastodonStatus[]> {
   let url = `https://${instance}/api/v1/timelines/public?limit=${limit}`;
   if (onlyMedia) url += "&only_media=true";
-  return fetchMastodonStatuses(url, `public timeline from ${instance}`);
+  return fetchJson<MastodonStatus[]>("mastodon", url, `public timeline from ${instance}`);
 }
 
 async function fetchHashtagTimeline(
@@ -150,7 +139,7 @@ async function fetchHashtagTimeline(
   const tag = hashtag.replace(/^#/, ""); // strip leading # if present
   let url = `https://${instance}/api/v1/timelines/tag/${encodeURIComponent(tag)}?limit=${limit}`;
   if (onlyMedia) url += "&only_media=true";
-  return fetchMastodonStatuses(url, `hashtag #${tag} from ${instance}`);
+  return fetchJson<MastodonStatus[]>("mastodon", url, `hashtag #${tag} from ${instance}`);
 }
 
 async function fetchAccountStatuses(
@@ -161,7 +150,11 @@ async function fetchAccountStatuses(
 ): Promise<MastodonStatus[]> {
   let url = `https://${instance}/api/v1/accounts/${accountId}/statuses?limit=${limit}&exclude_replies=true&exclude_reblogs=true`;
   if (onlyMedia) url += "&only_media=true";
-  return fetchMastodonStatuses(url, `account ${accountId} statuses from ${instance}`);
+  return fetchJson<MastodonStatus[]>(
+    "mastodon",
+    url,
+    `account ${accountId} statuses from ${instance}`,
+  );
 }
 
 function parseAccountHandle(handle: string): { username: string; instance: string } | null {
@@ -243,7 +236,7 @@ const adapter: Adapter = {
         body: buildBody(status, instance),
       }));
     } catch (err) {
-      if (err instanceof Error && err.message.startsWith("mastodon: failed to fetch")) {
+      if (err instanceof Error && err.message.startsWith("mastodon:")) {
         throw err;
       }
       throw new Error(`mastodon: error fetching from ${instance}: ${errorMessage(err)}`);

@@ -162,7 +162,7 @@ describe("mastodon", () => {
     try {
       await expect(
         adapter.fetch(mastodonCfg({ instance: "bad.com" })),
-      ).rejects.toThrow(/mastodon:.*failed to fetch.*bad\.com.*500/);
+      ).rejects.toThrow(/mastodon: failed to fetch public timeline from bad\.com: HTTP error 500/);
     } finally {
       globalThis.fetch = orig;
     }
@@ -176,7 +176,9 @@ describe("mastodon", () => {
     try {
       await expect(
         adapter.fetch(mastodonCfg({ instance: "example.invalid" })),
-      ).rejects.toThrow(/mastodon: error fetching from example.invalid/);
+      ).rejects.toThrow(
+        /mastodon: error fetching public timeline from example\.invalid/,
+      );
     } finally {
       globalThis.fetch = orig;
     }
@@ -199,7 +201,7 @@ describe("mastodon", () => {
       expect(items).toHaveLength(0);
       expect(warnSpy).toHaveBeenCalledTimes(1);
       expect(warnSpy).toHaveBeenCalledWith(
-        "mastodon: account lookup missing@ex.com: HTTP 404",
+        "mastodon: failed to fetch account lookup missing@ex.com: HTTP error 404",
       );
     } finally {
       warnSpy.mockRestore();
@@ -224,7 +226,7 @@ describe("mastodon", () => {
       expect(items).toHaveLength(0);
       expect(warnSpy).toHaveBeenCalledTimes(1);
       expect(warnSpy).toHaveBeenCalledWith(
-        "mastodon: account lookup user@ex.com: lookup connection refused",
+        "mastodon: error fetching account lookup user@ex.com: lookup connection refused",
       );
     } finally {
       warnSpy.mockRestore();
