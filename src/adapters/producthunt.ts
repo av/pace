@@ -272,6 +272,9 @@ async function fetchProductHuntFeed(): Promise<
       };
     });
   } catch (err) {
+    if (err instanceof Error && err.message.startsWith("producthunt: failed to fetch")) {
+      throw err;
+    }
     throw new Error(`producthunt: error fetching feed: ${errorMessage(err)}`);
   }
 }
@@ -284,7 +287,6 @@ const adapter: Adapter = {
     const enrich = (config.params?.enrich as boolean) ?? false;
 
     let items = await fetchProductHuntFeed();
-    if (items.length === 0) return [];
 
     // Apply limit before enriching (enrichment is expensive)
     items = sliceToLimit(items, limit);
