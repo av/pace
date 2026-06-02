@@ -55,6 +55,43 @@ describe("stackexchange", () => {
     expect(calledUrl).not.toContain("tagged=");
   });
 
+  test("blank-only site uses default stackoverflow", async () => {
+    const q = makeQuestion();
+    mocks.fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({ items: [q], has_more: false, quota_remaining: 100 }),
+        { status: 200 },
+      ),
+    );
+
+    const items = await stackexchangeAdapter.fetch(seCfg({ site: "   " }));
+
+    expect(items).toHaveLength(1);
+    expect(items[0].id).toBe("se:stackoverflow:123");
+    expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
+    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    expect(calledUrl).toContain("site=stackoverflow");
+  });
+
+  test("trims whitespace from configured site", async () => {
+    const q = makeQuestion({ question_id: 88 });
+    mocks.fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({ items: [q], has_more: false, quota_remaining: 100 }),
+        { status: 200 },
+      ),
+    );
+
+    const items = await stackexchangeAdapter.fetch(
+      seCfg({ site: "  ru.stackoverflow.com  " }),
+    );
+
+    expect(items).toHaveLength(1);
+    expect(items[0].id).toBe("se:ru.stackoverflow.com:88");
+    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    expect(calledUrl).toContain("site=ru.stackoverflow.com");
+  });
+
   test("blank-only tags behave like no tags configured", async () => {
     const q = makeQuestion();
     mocks.fetchMock.mockResolvedValue(

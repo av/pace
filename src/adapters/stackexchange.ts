@@ -9,7 +9,11 @@ import {
 import { parseUnixEpochSeconds } from "./dates";
 import { fetchJson } from "./fetch";
 import { decodeHtmlEntities } from "./html";
-import { normalizeStringList, sliceToLimit } from "../utils";
+import {
+  normalizeOptionalString,
+  normalizeStringList,
+  sliceToLimit,
+} from "../utils";
 import { dedupeByKey, fetchAndConcat } from "./merge";
 import { type Adapter, type AdapterConfig, type ContentItem } from "./types";
 
@@ -101,7 +105,9 @@ const adapter: Adapter = {
    * @param config.params.tags Multiple tags are OR: one API request per tag, merged and deduped by `question_id`.
    */
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const site = (config.params?.site as string) ?? "stackoverflow";
+    const site =
+      normalizeOptionalString(config.params?.site as string | undefined) ??
+      "stackoverflow";
     const tags = normalizeStringList((config.params?.tags as string[]) ?? []);
     const sort = (config.params?.sort as string) ?? "hot";
     const limit = Math.min((config.params?.limit as number) ?? 20, 100);
