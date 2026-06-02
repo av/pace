@@ -169,7 +169,7 @@ describe("scheduler", () => {
         startScheduler(baseConfig, adapters, basePanelMap, null);
         expect(pruneSpy).toHaveBeenCalledWith(30);
         expect(emSpy).toHaveBeenCalled();
-        expect(warnSpy).toHaveBeenCalledWith("scheduler: prune error: db prune fail");
+        expect(warnSpy).toHaveBeenCalledWith("scheduler: failed to prune: db prune fail");
       });
     } finally {
       pruneSpy.mockRestore();
