@@ -1,15 +1,10 @@
-import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import arxivAdapter from "./adapters/arxiv";
-import type { AdapterConfig } from "./adapters/types";
 import * as typesMod from "./adapters/types";
+import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
-const originalFetch = globalThis.fetch;
-
-const defaultCfg: AdapterConfig = { type: "arxiv" };
-
-function arxivCfg(params: Record<string, unknown> = {}): AdapterConfig {
-  return { ...defaultCfg, params };
-}
+const mocks = useFetchMockSuite({ restoreAllMocks: true });
+const arxivCfg = (params: Record<string, unknown> = {}) => adapterCfg("arxiv", params);
 
 function makeArxivFixture(title: string, arxivId: string, author = "Test Author", cat = "cs.AI"): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -30,35 +25,20 @@ function makeArxivFixture(title: string, arxivId: string, author = "Test Author"
 }
 
 describe("arxiv", () => {
-  let fetchMock: ReturnType<typeof mock>;
-  let warnSpy: ReturnType<typeof spyOn>;
-
   test("ngb contract", () => {
     expect(arxivAdapter.name).toBe("arxiv");
     expect(typeof arxivAdapter.fetch).toBe("function");
   });
 
-  beforeEach(() => {
-    fetchMock = mock();
-    globalThis.fetch = fetchMock as typeof fetch;
-    warnSpy = spyOn(console, "warn").mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
-    warnSpy.mockRestore();
-    mock.restore();
-  });
-
   test("warns and returns empty when no categories and no query configured", async () => {
     const items = await arxivAdapter.fetch(arxivCfg());
     expect(items).toEqual([]);
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("arxiv: no categories or query configured"));
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(mocks.warnSpy).toHaveBeenCalledWith(expect.stringContaining("arxiv: no categories or query configured"));
+    expect(mocks.fetchMock).not.toHaveBeenCalled();
   });
 
   test("fetches by single category and maps items with correct fields, source, body parts", async () => {
-    fetchMock.mockResolvedValue(
+    mocks.fetchMock.mockResolvedValue(
       new Response(makeArxivFixture("Attention Is All You Need", "1706.03762", "Ashish Vaswani", "cs.LG"), {
         status: 200,
         headers: { "content-type": "application/xml" },
@@ -67,7 +47,7 @@ describe("arxiv", () => {
 
     const items = await arxivAdapter.fetch(arxivCfg({ categories: ["cs.LG"] }));
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
     expect(items.length).toBe(1);
     expect(items[0].id).toBe("arxiv:1706.03762");
     expect(items[0].title).toBe("Attention Is All You Need");
@@ -81,7 +61,7 @@ describe("arxiv", () => {
   });
 
   test("fetches by keyword query and uses arxiv:search source label", async () => {
-    fetchMock.mockResolvedValue(
+    mocks.fetchMock.mockResolvedValue(
       new Response(makeArxivFixture("Quantum Paper", "2301.00001", "Alice", "quant-ph"), {
         status: 200,
       }),
@@ -89,8 +69,8 @@ describe("arxiv", () => {
 
     const items = await arxivAdapter.fetch(arxivCfg({ query: "quantum computing" }));
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const callUrl = String(fetchMock.mock.calls[0][0]);
+    expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
+    const callUrl = String(mocks.fetchMock.mock.calls[0][0]);
     expect(callUrl).toContain("all%3Aquantum%20computing");
     expect(items[0].source).toBe("arxiv:search");
     expect(items[0].id).toBe("arxiv:2301.00001");
@@ -98,7 +78,7 @@ describe("arxiv", () => {
 
   test("fetches combined categories + query, deduplicates overlapping ids, applies combined limit scaling", async () => {
     let call = 0;
-    fetchMock.mockImplementation(async () => {
+    mocks.fetchMock.mockImplementation(async () => {
       call++;
       if (call === 1) {
         return new Response(makeArxivFixture("Cat Paper", "2501.0001", "CatAuthor", "cs.AI"), { status: 200 });
@@ -113,7 +93,7 @@ describe("arxiv", () => {
 
     const items = await arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"], query: "test", limit: 10 }));
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(mocks.fetchMock).toHaveBeenCalledTimes(2);
     expect(items.length).toBe(2);
     const ids = items.map((i) => i.id);
     expect(ids).toContain("arxiv:2501.0001");
@@ -123,7 +103,7 @@ describe("arxiv", () => {
   });
 
   test("respects limit (per source scaling when multi)", async () => {
-    fetchMock.mockResolvedValue(
+    mocks.fetchMock.mockResolvedValue(
       new Response(
         `<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom" xmlns:arxiv="http://arxiv.org/schemas/atom">
@@ -141,7 +121,7 @@ describe("arxiv", () => {
   });
 
   test("throws on HTTP !ok (propagates with adapter prefix)", async () => {
-    fetchMock.mockResolvedValue(new Response("rate limit", { status: 429 }));
+    mocks.fetchMock.mockResolvedValue(new Response("rate limit", { status: 429 }));
 
     await expect(
       arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"] })),
@@ -149,7 +129,7 @@ describe("arxiv", () => {
   });
 
   test("throws on network/fetch reject (wrapped error)", async () => {
-    fetchMock.mockRejectedValue(new Error("DNS fail"));
+    mocks.fetchMock.mockRejectedValue(new Error("DNS fail"));
 
     await expect(
       arxivAdapter.fetch(arxivCfg({ query: "foo bar" })),
@@ -158,7 +138,7 @@ describe("arxiv", () => {
 
   test("fetches multiple categories (rate limit respected in impl, results merged+deduped)", async () => {
     let calls = 0;
-    fetchMock.mockImplementation(async (url) => {
+    mocks.fetchMock.mockImplementation(async (url) => {
       calls++;
       const u = String(url);
       const cat = u.includes("cs.AI") ? "cs.AI" : "cs.LG";
@@ -175,7 +155,7 @@ describe("arxiv", () => {
   test("errorMessage on !ok and network", async () => {
     const emSpy = spyOn(typesMod, "errorMessage");
     try {
-      fetchMock.mockResolvedValue(new Response("rate limit", { status: 429 }));
+      mocks.fetchMock.mockResolvedValue(new Response("rate limit", { status: 429 }));
       await expect(
         arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"] })),
       ).rejects.toThrow(/arxiv: failed to fetch query "cat:cs.AI":/);
@@ -183,7 +163,7 @@ describe("arxiv", () => {
 
       emSpy.mockClear();
 
-      fetchMock.mockRejectedValue(new Error("DNS fail"));
+      mocks.fetchMock.mockRejectedValue(new Error("DNS fail"));
       await expect(
         arxivAdapter.fetch(arxivCfg({ query: "foo bar" })),
       ).rejects.toThrow(/arxiv: error fetching query "all:foo bar":/);

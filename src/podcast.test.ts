@@ -1,15 +1,10 @@
-import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import podcastAdapter from "./adapters/podcast";
-import type { AdapterConfig } from "./adapters/types";
 import * as typesMod from "./adapters/types";
+import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
-const originalFetch = globalThis.fetch;
-
-const defaultCfg: AdapterConfig = { type: "podcast" };
-
-function podcastCfg(params: Record<string, unknown> = {}): AdapterConfig {
-  return { ...defaultCfg, params };
-}
+const mocks = useFetchMockSuite({ restoreAllMocks: true });
+const podcastCfg = (params: Record<string, unknown> = {}) => adapterCfg("podcast", params);
 
 function makeErrorResponse(status: number): Response {
   return new Response("", { status });
@@ -50,33 +45,19 @@ function makeNoChannelFixture(): string {
 }
 
 describe("podcast", () => {
-  let fetchMock: ReturnType<typeof mock>;
-  let warnSpy: ReturnType<typeof spyOn>;
-
   test("ngb contract", () => {
     expect(podcastAdapter.name).toBe("podcast");
     expect(typeof podcastAdapter.fetch).toBe("function");
   });
 
-  beforeEach(() => {
-    fetchMock = mock();
-    globalThis.fetch = fetchMock as typeof fetch;
-    warnSpy = spyOn(console, "warn").mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
-    mock.restore();
-  });
-
   test("returns empty when no feeds configured", async () => {
     const items = await podcastAdapter.fetch(podcastCfg());
     expect(items).toEqual([]);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(mocks.fetchMock).not.toHaveBeenCalled();
   });
 
   test("fetches single feed and maps episodes with correct id/source/timestamp/body (duration, show, ep, audio, desc)", async () => {
-    fetchMock.mockResolvedValue(
+    mocks.fetchMock.mockResolvedValue(
       new Response(makePodcastFeedFixture(), {
         status: 200,
         headers: { "content-type": "application/xml" },
@@ -87,8 +68,8 @@ describe("podcast", () => {
       podcastCfg({ feeds: ["https://example.com/feed.xml"] }),
     );
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const callUrl = String(fetchMock.mock.calls[0][0]);
+    expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
+    const callUrl = String(mocks.fetchMock.mock.calls[0][0]);
     expect(callUrl).toBe("https://example.com/feed.xml");
     // headers check optional but UA present in impl
     expect(items.length).toBe(3); // 3 items (bad one has title so included, url may be empty)
@@ -106,7 +87,7 @@ describe("podcast", () => {
   });
 
   test("respects limit param (caps per-feed)", async () => {
-    fetchMock.mockResolvedValue(
+    mocks.fetchMock.mockResolvedValue(
       new Response(makePodcastFeedFixture(), { status: 200 }),
     );
 
@@ -119,7 +100,7 @@ describe("podcast", () => {
   });
 
   test("fetches multiple feeds and dedupes episodes by url", async () => {
-    fetchMock.mockImplementation(async () =>
+    mocks.fetchMock.mockImplementation(async () =>
       new Response(makePodcastFeedFixture(), { status: 200 }),
     );
 
@@ -127,7 +108,7 @@ describe("podcast", () => {
       podcastCfg({ feeds: ["https://a.com/1.xml", "https://b.com/2.xml"] }),
     );
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(mocks.fetchMock).toHaveBeenCalledTimes(2);
     expect(items.length).toBe(3);
     expect(items.map((i) => i.url)).toEqual([
       "https://example.com/ep1",
@@ -137,7 +118,7 @@ describe("podcast", () => {
   });
 
   test("throws on HTTP !ok from feed (contract; no swallow)", async () => {
-    fetchMock.mockResolvedValue(
+    mocks.fetchMock.mockResolvedValue(
       new Response("not found", { status: 404, statusText: "Not Found" }),
     );
 
@@ -147,7 +128,7 @@ describe("podcast", () => {
   });
 
   test("warns and returns [] when no channel found in feed XML", async () => {
-    fetchMock.mockResolvedValue(
+    mocks.fetchMock.mockResolvedValue(
       new Response(makeNoChannelFixture(), { status: 200 }),
     );
 
@@ -156,13 +137,13 @@ describe("podcast", () => {
     );
 
     expect(items).toEqual([]);
-    expect(warnSpy).toHaveBeenCalledWith(
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
       expect.stringContaining("podcast: no channel found in feed https://ex.com/nochan.xml"),
     );
   });
 
   test("throws on network/fetch reject error (contract; no swallow)", async () => {
-    fetchMock.mockRejectedValue(new Error("connection refused"));
+    mocks.fetchMock.mockRejectedValue(new Error("connection refused"));
 
     await expect(
       podcastAdapter.fetch(podcastCfg({ feeds: ["https://netfail.com/f.xml"] })),
@@ -171,7 +152,7 @@ describe("podcast", () => {
 
   test("errorMessage on !ok", async () => {
     const emSpy = spyOn(typesMod, "errorMessage");
-    fetchMock.mockResolvedValue(makeErrorResponse(404));
+    mocks.fetchMock.mockResolvedValue(makeErrorResponse(404));
 
     await expect(
       podcastAdapter.fetch(podcastCfg({ feeds: ["https://example.com/podcast.xml"] })),
