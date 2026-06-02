@@ -179,6 +179,26 @@ describe("mastodon", () => {
     expect(fetchUrls().some((u) => u.includes("/timelines/tag/foo"))).toBe(true);
   });
 
+  test("treats blank-only hashtags as public timeline", async () => {
+    const items = await adapter.fetch(mastodonCfg({ instance: "ex.com", hashtags: ["", "  "] }));
+
+    expect(items.length).toBeGreaterThan(0);
+    expect(items[0].source).toBe("mastodon:ex.com");
+    expect(fetchUrls().some((u) => u.includes("/timelines/public"))).toBe(true);
+    expect(fetchUrls().some((u) => u.includes("/timelines/tag/"))).toBe(false);
+  });
+
+  test("trims whitespace from configured hashtag names", async () => {
+    const items = await adapter.fetch(
+      mastodonCfg({ instance: "ex.com", hashtags: ["  foo  ", ""] }),
+    );
+
+    expect(items.length).toBe(2);
+    expect(items[0].source).toBe("mastodon:ex.com:#foo");
+    expect(fetchUrls().some((u) => u.includes("/timelines/tag/foo"))).toBe(true);
+    expect(fetchUrls().filter((u) => u.includes("/timelines/tag/")).length).toBe(1);
+  });
+
   test("fetches from account mode (lookup + statuses) and uses :accounts source", async () => {
     const items = await adapter.fetch(mastodonCfg({ accounts: ["test@ex.com"] }));
     expect(items.length).toBeGreaterThan(0);
