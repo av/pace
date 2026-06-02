@@ -176,6 +176,55 @@ describe("devto", () => {
     expect(calls.filter((c) => c.url.includes("tag=react")).length).toBe(1);
   });
 
+  test.each([NaN, "10", Infinity, -5] as unknown[])(
+    "invalid min_reactions (%s) treated as 0 (no reactions filter)",
+    async (min_reactions) => {
+      mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("tag=typescript")) {
+          return new Response(
+            JSON.stringify([
+              {
+                id: 601,
+                title: "Low Reactions",
+                url: "https://dev.to/low",
+                description: "",
+                published_at: "2024-01-20T00:00:00Z",
+                reading_time_minutes: 1,
+                positive_reactions_count: 5,
+                comments_count: 0,
+                user: { username: "low", name: "Low" },
+                tag_list: ["typescript"],
+                cover_image: null,
+              },
+              {
+                id: 602,
+                title: "High Reactions",
+                url: "https://dev.to/high",
+                description: "",
+                published_at: "2024-01-21T00:00:00Z",
+                reading_time_minutes: 1,
+                positive_reactions_count: 100,
+                comments_count: 0,
+                user: { username: "high", name: "High" },
+                tag_list: ["typescript"],
+                cover_image: null,
+              },
+            ]),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+        return new Response("[]", { status: 200 });
+      });
+
+      const items = await devtoAdapter.fetch(
+        devtoCfg({ tags: ["typescript"], min_reactions, limit: 10 }),
+      );
+
+      expect(items).toHaveLength(2);
+    },
+  );
+
   test("fetch respects limit after filtering/sorting", async () => {
     const items = await devtoAdapter.fetch(devtoCfg({ tags: ["typescript", "react"], limit: 1 }));
     expect(items.length).toBe(1);

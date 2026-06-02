@@ -199,6 +199,23 @@ describe("lobsters", () => {
     expect(results[0].id).toBe("lobsters:mid"); // first qualifying after filter (order preserved, no sort for standard)
   });
 
+  test.each([NaN, "50", Infinity, -5] as unknown[])(
+    "invalid min_score (%s) treated as 0 (no score filter)",
+    async (min_score) => {
+      const items = [
+        makeItem({ short_id: "low", score: 3 }),
+        makeItem({ short_id: "high", score: 50 }),
+      ];
+      mocks.fetchMock.mockResolvedValue(makeJsonResponse(items));
+
+      const results = await lobstersAdapter.fetch(
+        lobstersCfg({ min_score, limit: 10 }),
+      );
+
+      expect(results).toHaveLength(2);
+    },
+  );
+
   test("throws on HTTP !ok for standard feed (contract; no swallow)", async () => {
     mocks.fetchMock.mockResolvedValue(makeJsonResponse([], 404));
 
