@@ -1,12 +1,41 @@
 import { beforeEach, afterEach, describe, expect, test } from "bun:test";
 
 import adapter from "./adapters/mastodon";
+import type { AdapterConfig } from "./adapters/types";
+
+const defaultCfg: AdapterConfig = { type: "mastodon" };
+
+function mastodonCfg(params: Record<string, unknown> = {}): AdapterConfig {
+  return { ...defaultCfg, params };
+}
+
+interface MastodonStatusFixture {
+  id: string;
+  uri: string;
+  url: string;
+  content: string;
+  created_at: string;
+  reblogs_count: number;
+  favourites_count: number;
+  replies_count: number;
+  account: {
+    id: string;
+    username: string;
+    acct: string;
+    display_name: string;
+    url: string;
+  };
+  media_attachments: [];
+  tags: [];
+  spoiler_text: string;
+  reblog: null;
+}
 
 describe("mastodon adapter", () => {
   let originalFetch: typeof globalThis.fetch;
-  let fetchCalls: Array<{ url: string; init: any }>;
+  let fetchCalls: Array<{ url: string; init?: RequestInit }>;
 
-  function makeStatus(id: string, content: string, created: string): any {
+  function makeStatus(id: string, content: string, created: string): MastodonStatusFixture {
     return {
       id,
       uri: `https://ex.com/status/${id}`,
@@ -33,7 +62,7 @@ describe("mastodon adapter", () => {
   beforeEach(() => {
     originalFetch = globalThis.fetch;
     fetchCalls = [];
-    globalThis.fetch = async (input: any, init?: any) => {
+    globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       const urlStr = typeof input === "string" ? input : input.toString();
       fetchCalls.push({ url: urlStr, init });
 
@@ -84,7 +113,7 @@ describe("mastodon adapter", () => {
   });
 
   test("fetches from public timeline (default) and maps items", async () => {
-    const items = await adapter.fetch({ params: { instance: "ex.com" } } as any);
+    const items = await adapter.fetch(mastodonCfg({ instance: "ex.com" }));
     expect(items.length).toBeGreaterThan(0);
     expect(items.map((i) => i.title).join(" ")).toContain("hello");
     expect(items[0].source).toBe("mastodon:ex.com");
@@ -93,14 +122,14 @@ describe("mastodon adapter", () => {
   });
 
   test("fetches from hashtag timeline and builds source label", async () => {
-    const items = await adapter.fetch({ params: { instance: "ex.com", hashtags: ["foo"] } } as any);
+    const items = await adapter.fetch(mastodonCfg({ instance: "ex.com", hashtags: ["foo"] }));
     expect(items.length).toBe(2);
     expect(items[0].source).toBe("mastodon:ex.com:#foo");
     expect(fetchCalls.some((c) => c.url.includes("/timelines/tag/foo"))).toBe(true);
   });
 
   test("fetches from account mode (lookup + statuses) and uses :accounts source", async () => {
-    const items = await adapter.fetch({ params: { accounts: ["test@ex.com"] } } as any);
+    const items = await adapter.fetch(mastodonCfg({ accounts: ["test@ex.com"] }));
     expect(items.length).toBeGreaterThan(0);
     expect(items[0].source).toBe("mastodon:mastodon.social:accounts"); // config default instance used for label
     expect(fetchCalls.some((c) => c.url.includes("/accounts/lookup"))).toBe(true);
@@ -108,17 +137,17 @@ describe("mastodon adapter", () => {
   });
 
   test("respects limit param (capped)", async () => {
-    const items = await adapter.fetch({ params: { limit: 1 } } as any);
+    const items = await adapter.fetch(mastodonCfg({ limit: 1 }));
     expect(items).toHaveLength(1);
   });
 
   test("passes only_media query when configured", async () => {
-    await adapter.fetch({ params: { only_media: true } } as any);
+    await adapter.fetch(mastodonCfg({ only_media: true }));
     expect(fetchCalls.some((c) => c.url.includes("only_media=true"))).toBe(true);
   });
 
   test("merges multiple hashtags and deduplicates by status id", async () => {
-    const items = await adapter.fetch({ params: { hashtags: ["foo", "bar"] } } as any);
+    const items = await adapter.fetch(mastodonCfg({ hashtags: ["foo", "bar"] }));
     // foo gives 1+2, bar gives 2+3 -> dedup to 3 unique, sorted newest first
     expect(items).toHaveLength(3);
     const ids = items.map((i) => i.id);
@@ -132,7 +161,7 @@ describe("mastodon adapter", () => {
     globalThis.fetch = async () => new Response(null, { status: 500 });
     try {
       await expect(
-        adapter.fetch({ params: { instance: "bad.com" } } as any),
+        adapter.fetch(mastodonCfg({ instance: "bad.com" })),
       ).rejects.toThrow(/mastodon:.*failed to fetch.*bad\.com.*500/);
     } finally {
       globalThis.fetch = orig;
@@ -146,7 +175,7 @@ describe("mastodon adapter", () => {
     };
     try {
       await expect(
-        adapter.fetch({ params: { instance: "example.invalid" } } as any),
+        adapter.fetch(mastodonCfg({ instance: "example.invalid" })),
       ).rejects.toThrow(/mastodon: error fetching from example.invalid/);
     } finally {
       globalThis.fetch = orig;
