@@ -1,4 +1,4 @@
-import { beforeEach, afterEach, describe, expect, test } from "bun:test";
+import { beforeEach, afterEach, describe, expect, test, spyOn } from "bun:test";
 
 import adapter from "./adapters/mastodon";
 import type { AdapterConfig } from "./adapters/types";
@@ -178,6 +178,56 @@ describe("mastodon adapter", () => {
         adapter.fetch(mastodonCfg({ instance: "example.invalid" })),
       ).rejects.toThrow(/mastodon: error fetching from example.invalid/);
     } finally {
+      globalThis.fetch = orig;
+    }
+  });
+
+  test("warns on account lookup HTTP failure and returns no items", async () => {
+    const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+    const orig = globalThis.fetch;
+    globalThis.fetch = async (input: RequestInfo | URL) => {
+      const urlStr = typeof input === "string" ? input : input.toString();
+      if (urlStr.includes("/accounts/lookup")) {
+        return new Response(null, { status: 404 });
+      }
+      return new Response(JSON.stringify([]), { status: 200 });
+    };
+    try {
+      const items = await adapter.fetch(
+        mastodonCfg({ accounts: ["missing@ex.com"] }),
+      );
+      expect(items).toHaveLength(0);
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(warnSpy).toHaveBeenCalledWith(
+        "mastodon: account lookup missing@ex.com: HTTP 404",
+      );
+    } finally {
+      warnSpy.mockRestore();
+      globalThis.fetch = orig;
+    }
+  });
+
+  test("warns on account lookup network failure and returns no items", async () => {
+    const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+    const orig = globalThis.fetch;
+    globalThis.fetch = async (input: RequestInfo | URL) => {
+      const urlStr = typeof input === "string" ? input : input.toString();
+      if (urlStr.includes("/accounts/lookup")) {
+        throw new Error("lookup connection refused");
+      }
+      return new Response(JSON.stringify([]), { status: 200 });
+    };
+    try {
+      const items = await adapter.fetch(
+        mastodonCfg({ accounts: ["user@ex.com"] }),
+      );
+      expect(items).toHaveLength(0);
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(warnSpy).toHaveBeenCalledWith(
+        "mastodon: account lookup user@ex.com: lookup connection refused",
+      );
+    } finally {
+      warnSpy.mockRestore();
       globalThis.fetch = orig;
     }
   });
