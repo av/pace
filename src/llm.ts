@@ -17,7 +17,6 @@ function isKnownProvider(provider: string): provider is KnownProvider {
   return KNOWN_PROVIDERS.has(provider);
 }
 
-// Map provider names to their env var for the API key
 const PROVIDER_ENV_KEYS: Record<string, string> = {
   openai: "OPENAI_API_KEY",
   anthropic: "ANTHROPIC_API_KEY",
@@ -63,21 +62,12 @@ export function createModel(config: LlmConfig): Model<Api> | null {
   return customModel as Model<Api>;
 }
 
-/**
- * Strip markdown code fences (```json ... ``` or ``` ... ```) from LLM text responses
- * prior to JSON.parse. Handles optional language tag and surrounding whitespace.
- * This centralizes the repeated fence-stripping logic used by merge/filter/lens wrappers.
- */
+/** Strip markdown code fences before JSON.parse. */
 export function stripJsonCodeFences(text: string): string {
   return text.replace(/```json?\s*/g, "").replace(/```/g, "").trim();
 }
 
-/**
- * Safe LLM complete + text extraction with centralized error handling.
- * Returns extracted text or null on any failure (complete reject, bad response, etc).
- * This eliminates the duplicated try/await complete/extractText/catch-return-null
- * (and catch-return-fallback after) pattern across the four wrapper fns.
- */
+/** complete() + text blocks; null on failure. */
 export async function safeComplete(
   model: Model<Api>,
   context: Context
@@ -95,23 +85,12 @@ export async function safeComplete(
   }
 }
 
-/**
- * Formats a ContentItem as a compact single-line string for inclusion in LLM prompts.
- * Includes id, title, source; optionally a truncated body snippet when maxBodyLen > 0.
- * Used by mergeItems/filterItemsByLlm (with body) and lensItems (no body) to eliminate
- * near-duplicate .map formatting + join logic.
- */
+/** One-line item summary for batch LLM prompts. */
 export function formatContentItemForLlm(item: ContentItem, maxBodyLen = 0): string {
   const snippet = maxBodyLen > 0 && item.body ? item.body.slice(0, maxBodyLen) : "";
   return `- id: "${item.id}" | title: "${item.title}" | source: ${item.source}${snippet ? ` | body: ${snippet}` : ""}`;
 }
 
-/**
- * Safely parses a JSON response from an LLM after stripping any markdown code fences.
- * Returns the parsed value (cast to T) or null on null input, strip failure, or JSON.parse error.
- * Centralizes the repeated await-safeComplete + null-guard + strip + parse pattern
- * previously duplicated in mergeItems, filterItemsByLlm, and lensItems.
- */
 function parseLlmJsonResponse<T>(text: string | null): T | null {
   if (text == null) return null;
   try {
@@ -123,11 +102,6 @@ function parseLlmJsonResponse<T>(text: string | null): T | null {
   }
 }
 
-/**
- * Single source of truth for the repeated "format item list + build Context with user message + safeComplete + parseLlmJsonResponse"
- * boilerplate duplicated in mergeItems / filterItemsByLlm / lensItems (the 3 batch LLM JSON item processors).
- * Centralizes the query pattern (summarizeItem uses a different per-item prompt, not included).
- */
 async function queryLlmForJson<T>(
   model: Model<Api>,
   systemPrompt: string,
@@ -145,9 +119,7 @@ async function queryLlmForJson<T>(
   return parseLlmJsonResponse<T>(text);
 }
 
-/**
- * Summarize a single content item. Returns a 2-3 sentence summary, or null on error.
- */
+/** 2–3 sentence summary, or null on error. */
 export async function summarizeItem(
   model: Model<Api> | null,
   item: ContentItem
@@ -168,11 +140,7 @@ export async function summarizeItem(
   return text;
 }
 
-/**
- * LLM-based merge: groups/merges items based on a prompt.
- * Returns structured output: [{merged_ids, title, summary}].
- * Merged items replace originals; unmerged pass through.
- */
+/** LLM merge by prompt; unchanged items pass through on failure. */
 export async function mergeItems(
   model: Model<Api> | null,
   items: ContentItem[],
@@ -221,9 +189,7 @@ Every item ID must appear exactly once. Return ONLY the JSON array.`;
   return result;
 }
 
-/**
- * LLM-based filter: keep only items matching criteria.
- */
+/** LLM filter by criteria string; unchanged on failure. */
 export async function filterItemsByLlm(
   model: Model<Api> | null,
   items: ContentItem[],
@@ -240,11 +206,7 @@ export async function filterItemsByLlm(
   return items.filter((item) => keepSet.has(item.id));
 }
 
-/**
- * Lens/rank items by relevance to user interests via LLM scoring.
- * Returns items sorted by relevance score (descending).
- * On error, returns items unchanged (graceful degradation).
- */
+/** Rank by LLM relevance scores; unchanged on failure. */
 export async function lensItems(
   model: Model<Api> | null,
   items: ContentItem[],
@@ -260,13 +222,11 @@ export async function lensItems(
     return items;
   }
 
-  // Build a score map
   const scoreMap = new Map<string, number>();
   for (const { id, score } of scores) {
     scoreMap.set(id, score);
   }
 
-  // Sort items by score descending, unscored items go to the end
   return [...items].sort((a, b) => {
     const sa = scoreMap.get(a.id) ?? -1;
     const sb = scoreMap.get(b.id) ?? -1;
