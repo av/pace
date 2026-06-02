@@ -136,6 +136,27 @@ describe("reddit", () => {
     expect(items[1].title).toBe("Med");
   });
 
+  test("blank-only sort uses default hot", async () => {
+    const posts = [makePost("blank1")];
+    mocks.fetchMock.mockResolvedValue(makeListingResponse(posts));
+
+    await redditAdapter.fetch(redditCfg({ subreddits: ["x"], sort: "   " }));
+
+    const url = mocks.fetchMock.mock.calls[0][0] as string;
+    expect(url).toContain("/hot.json?limit=25&raw_json=1");
+    expect(url).not.toContain("&t=");
+  });
+
+  test("trims whitespace from configured sort", async () => {
+    const posts = [makePost("trim1")];
+    mocks.fetchMock.mockResolvedValue(makeListingResponse(posts));
+
+    await redditAdapter.fetch(redditCfg({ subreddits: ["x"], sort: "  new  " }));
+
+    const url = mocks.fetchMock.mock.calls[0][0] as string;
+    expect(url).toContain("/new.json?limit=25&raw_json=1");
+  });
+
   test("defaults invalid sort and timePeriod to hot/day and omits t param unless top", async () => {
     const posts = [makePost("1")];
     mocks.fetchMock.mockResolvedValue(makeListingResponse(posts));
