@@ -22,9 +22,9 @@ Open http://localhost:7453 — the default config ships with Hacker News, Lobste
 
 ### With a preset
 
-Use the exact Quick start `docker run` command shown above and append `--preset tech-news` (or `-P ml-ai` etc. locally). See `pace --list-presets` for the list of bundled presets.
+Use the exact Quick start `docker run` command shown above and append a preset flag (See the "## Presets" section below, or `pace --list-presets` locally).
 
-Or locally: `pace --preset tech-news` (or `pace -P ml-ai`).
+Or locally: `pace --preset <name>` (or `pace -P <name>`).
 
 ### Custom config
 
