@@ -1,6 +1,7 @@
 import { sliceToLimit } from "./dates";
 import { fetchWithTimeout } from "./fetch";
 import { stripHtml } from "./html";
+import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 
@@ -147,31 +148,80 @@ function extractNews(data: WikiFeaturedResponse, limit: number): ContentItem[] {
   });
 }
 
+function normalizeModeToken(raw: string): string {
+  return raw.trim().toLowerCase().replace(/-/g, "_");
+}
+
+function parseModeToken(token: string): Mode | null {
+  const normalized = normalizeModeToken(token);
+  return VALID_MODES.has(normalized as Mode) ? (normalized as Mode) : null;
+}
+
+/** Single `mode` string, comma-separated `mode`, or `modes` array. Invalid tokens skipped; empty → most_read. */
+function resolveModes(config: AdapterConfig): Mode[] {
+  const modesParam = config.params?.modes;
+  const tokens: string[] = [];
+
+  if (Array.isArray(modesParam)) {
+    for (const entry of modesParam) {
+      if (typeof entry === "string") tokens.push(entry);
+    }
+  } else {
+    const modeParam = (config.params?.mode as string) ?? "most_read";
+    tokens.push(
+      ...modeParam.split(",").map((part) => part.trim()).filter(Boolean),
+    );
+  }
+
+  const resolved = tokens
+    .map(parseModeToken)
+    .filter((mode): mode is Mode => mode !== null);
+
+  return resolved.length > 0 ? resolved : ["most_read"];
+}
+
+function extractForMode(data: WikiFeaturedResponse, mode: Mode, limit: number): ContentItem[] {
+  switch (mode) {
+    case "most_read":
+      return extractMostRead(data, limit);
+    case "featured":
+      return extractFeatured(data);
+    case "on_this_day":
+      return extractOnThisDay(data, limit);
+    case "news":
+      return extractNews(data, limit);
+  }
+}
+
 const adapter: Adapter = {
   name: "wikipedia",
+  /**
+   * @param config.params.mode One mode, or comma-separated modes (e.g. `most_read,news`).
+   * @param config.params.modes Alternative: array of modes; merged and deduped by article URL.
+   */
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const modeParam = (config.params?.mode as string) ?? "most_read";
     const languageRaw = (config.params?.language as string) ?? "en";
     const language = isValidLanguage(languageRaw) ? languageRaw : "en";
     const limit = Math.min((config.params?.limit as number) ?? 20, 50);
 
-    const mode: Mode = VALID_MODES.has(modeParam as Mode)
-      ? (modeParam as Mode)
-      : "most_read";
+    const modes = resolveModes(config);
 
     const { year, month, day } = todayParts();
     const data = await fetchFeaturedFeed(language, year, month, day);
 
-    switch (mode) {
-      case "most_read":
-        return extractMostRead(data, limit);
-      case "featured":
-        return extractFeatured(data);
-      case "on_this_day":
-        return extractOnThisDay(data, limit);
-      case "news":
-        return extractNews(data, limit);
+    if (modes.length === 1) {
+      return extractForMode(data, modes[0], limit);
     }
+
+    const merged: ContentItem[] = [];
+    for (const mode of modes) {
+      merged.push(...extractForMode(data, mode, limit));
+    }
+
+    return sliceToLimit(
+      dedupeByKey(merged, (item) => item.url),
+      limit,
+    );
   },
 };
 

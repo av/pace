@@ -186,6 +186,61 @@ describe("wikipedia adapter", () => {
     expect(items[0].source).toBe("wikipedia:most_read");
   });
 
+  test("merges comma-separated modes from one featured feed", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
+    );
+
+    const items = await wikipediaAdapter.fetch({
+      type: "wikipedia",
+      params: { mode: "featured,news" },
+    });
+
+    expect(items).toHaveLength(2);
+    expect(items.map((i) => i.source)).toEqual(["wikipedia:featured", "wikipedia:news"]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("dedupes by URL when the same article appears in multiple modes", async () => {
+    const sharedPage = "https://en.wikipedia.org/wiki/Test_Article";
+    const secondPage = "https://en.wikipedia.org/wiki/Second_Article";
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify(
+          makeFeaturedResponse({
+            mostread: {
+              articles: [
+                makeMostReadArticle(),
+                makeMostReadArticle({
+                  title: "Second_Article",
+                  views: 30000,
+                  rank: 2,
+                  content_urls: { desktop: { page: secondPage } },
+                }),
+              ],
+            },
+            tfa: {
+              title: "Test_Article",
+              extract: "Also featured today.",
+              description: "Featured blurb",
+              content_urls: { desktop: { page: sharedPage } },
+            },
+          }),
+        ),
+        { status: 200 },
+      ),
+    );
+
+    const items = await wikipediaAdapter.fetch({
+      type: "wikipedia",
+      params: { mode: "most_read,featured", limit: 10 },
+    });
+
+    expect(items).toHaveLength(2);
+    expect(items.filter((i) => i.url === sharedPage)).toHaveLength(1);
+    expect(items[0].source).toBe("wikipedia:most_read");
+  });
+
   test("throws on HTTP error with adapter prefix", async () => {
     fetchMock.mockResolvedValue(new Response("Not Found", { status: 404 }));
 
