@@ -516,6 +516,9 @@ function validatePipelineConfig(
   if (!isRecord(pipeline)) {
     throw new Error(`config: ${path} must be an object`);
   }
+  validateAllowedKeys(pipeline, ["name", "sources", "transforms", "refresh_interval"], (key) =>
+    `${path}.${key} is not a valid pipeline field`,
+  );
   validateNonEmptyString(pipeline.name, `${path}.name`);
   validateNonEmptyArray(pipeline.sources, `${path}.sources`);
 

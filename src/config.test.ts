@@ -212,6 +212,24 @@ layout:
     );
   });
 
+  test("rejects unknown pipeline field", () => {
+    const yaml = `
+pipelines:
+  - name: pl
+    typo_field: true
+    sources: ["s1"]
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: pipelines\[0\].typo_field is not a valid pipeline field/,
+    );
+  });
+
   test("rejects empty pipeline name", () => {
     const yaml = `
 pipelines:
