@@ -12,7 +12,7 @@ import {
 } from "./atom";
 import { parseFeedDate } from "./dates";
 import { fetchText } from "./fetch";
-import { FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
+import { decodeHtmlEntities, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
 import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
@@ -54,7 +54,7 @@ function extractFeedTitle(parsed: RssFeedParsed, url: string): string {
     parsed?.rss?.channel?.title,
     parsed?.feed?.title,
   );
-  if (title) return title;
+  if (title) return decodeHtmlEntities(title, { numeric: true });
   try {
     return new URL(url).hostname;
   } catch (err) {

@@ -155,6 +155,47 @@ describe("rss", () => {
     expect(items[0].body).toBe("First item body text");
   });
 
+  test("decodes HTML entities in RSS channel and Atom feed titles (source)", async () => {
+    const entityFixture = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Chan &amp; Co &#8364;</title>
+    <item>
+      <title>RSS Item</title>
+      <link>https://example.com/entity</link>
+      <pubDate>2024-01-08T00:00:00Z</pubDate>
+      <description>body</description>
+    </item>
+  </channel>
+</rss>`;
+    const atomEntityFixture = `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Atom &amp; Feed &#8364;</title>
+  <entry>
+    <title>Atom Entity Item</title>
+    <link href="https://example.com/atom-entity" rel="alternate" />
+    <updated>2024-01-09T00:00:00Z</updated>
+    <summary>atom body</summary>
+  </entry>
+</feed>`;
+    mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("atom-entity")) {
+        return makeResponse(atomEntityFixture);
+      }
+      if (url.includes("entity")) {
+        return makeResponse(entityFixture);
+      }
+      return defaultFetchImpl(input);
+    });
+
+    const rssItems = await rssAdapter.fetch(rssCfg({ urls: ["https://ex.com/entity"] }));
+    expect(rssItems[0].source).toBe("Chan & Co €");
+
+    const atomItems = await rssAdapter.fetch(rssCfg({ urls: ["https://ex.com/atom-entity"] }));
+    expect(atomItems[0].source).toBe("Atom & Feed €");
+  });
+
   test("strips HTML from description and content:encoded bodies", async () => {
     const htmlBodyFixture = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
