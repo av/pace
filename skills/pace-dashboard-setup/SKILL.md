@@ -35,29 +35,11 @@ bun run dev
 
 The server starts at http://localhost:7453 by default.
 
-### CLI flags
+### CLI flags and environment variable overrides
 
-```
-pace [serve] [options]
+See `pace --help` (the canonical source of truth, defined in the HELP string and parseArgs in src/cli.ts) for the full current list of options/flags (includes -c/--config, -p/--port, -P/--preset, --list-presets, -C/--chdir, -h/--help, -v/--version; `serve` is the default command).
 
-  -c, --config <path>   Config file path (default: ./config.yaml)
-  -p, --port <number>   Server port (default: 7453, or $PORT)
-  -P, --preset <name>   Use a bundled preset (tech-news, ml-ai, etc.)
-      --list-presets    List available bundled presets
-  -h, --help            Show help
-  -v, --version         Show version
-```
-
-`serve` is the default command — running bare `pace` starts the server.
-
-### Environment variable overrides
-
-| Variable | Purpose | Default |
-|---|---|---|
-| `PACE_CONFIG` | Path to config file | `./config.yaml` |
-| `PORT` | Server port | `7453` |
-
-CLI flags take precedence over environment variables.
+Environment variables `PACE_CONFIG` (config file path) and `PORT` (server port) provide overrides; CLI flags take precedence over environment variables.
 
 ### Global install
 
