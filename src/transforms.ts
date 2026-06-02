@@ -9,6 +9,7 @@ import {
   extractScore,
   type DedupeStrategy,
 } from "./dedupe";
+import { errorMessage } from "./utils";
 
 export interface TransformContext {
   llmModel: Model<Api> | null;
@@ -632,7 +633,8 @@ const transforms: Record<string, TransformFn> = {
         const u = new URL(url);
         // Strip www. prefix and return hostname
         return u.hostname.replace(/^www\./, "");
-      } catch {
+      } catch (err) {
+        console.warn(`transforms: extractDomain failed for "${url}": ${errorMessage(err)}`);
         return "";
       }
     }
