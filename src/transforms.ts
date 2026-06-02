@@ -697,18 +697,10 @@ async function applyLlmRank(
   if (effectiveInterests.length === 0) return items;
   const ranked = await lensItems(model, toContentItems(items), effectiveInterests);
   const rowById = new Map(items.map((r) => [r.id, r]));
-  const order: ContentItemRow[] = [];
-  const seen = new Set<string>();
-  for (const item of ranked) {
+  const order = ranked.flatMap((item) => {
     const row = rowById.get(item.id);
-    if (row) {
-      order.push(row);
-      seen.add(row.id);
-    }
-  }
-  for (const row of items) {
-    if (!seen.has(row.id)) order.push(row);
-  }
+    return row ? [row] : [];
+  });
   return sortRowsByInputOrder(items, order);
 }
 
