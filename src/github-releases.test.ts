@@ -49,6 +49,76 @@ describe("github-releases", () => {
     expect(items[0].body).toBe("Release notes here");
   });
 
+  test("decodes HTML entities in release names from API", async () => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
+      const u = String(url);
+      if (u.includes("/releases?")) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: 2,
+              tag_name: "v2.0.0",
+              name: "A &amp; B &#8364; C",
+              html_url: "https://github.com/o/r/releases/tag/v2.0.0",
+              body: null,
+              published_at: "2024-02-01T00:00:00Z",
+            },
+          ]),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      if (u.includes("api.github.com/repos/o/r")) {
+        return new Response(JSON.stringify({ description: null }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" } },
+        );
+      }
+      throw new Error(`unexpected url: ${u}`);
+    });
+
+    const items = await githubReleasesAdapter.fetch(
+      githubReleasesCfg({ repos: ["o/r"] }),
+    );
+
+    expect(items).toHaveLength(1);
+    expect(items[0].title).toBe("o/r: A & B € C");
+  });
+
+  test("decodes HTML entities in tag_name when name is null", async () => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
+      const u = String(url);
+      if (u.includes("/releases?")) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: 3,
+              tag_name: "v&amp;3",
+              name: null,
+              html_url: "https://github.com/o/r/releases/tag/v%263",
+              body: null,
+              published_at: "2024-03-01T00:00:00Z",
+            },
+          ]),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      if (u.includes("api.github.com/repos/o/r")) {
+        return new Response(JSON.stringify({ description: null }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" } },
+        );
+      }
+      throw new Error(`unexpected url: ${u}`);
+    });
+
+    const items = await githubReleasesAdapter.fetch(
+      githubReleasesCfg({ repos: ["o/r"] }),
+    );
+
+    expect(items).toHaveLength(1);
+    expect(items[0].title).toBe("o/r: v&3");
+  });
+
   test("errorMessage on !ok", async () => {
     const emSpy = spyOn(typesMod, "errorMessage");
     const callsBefore = emSpy.mock.calls.length;

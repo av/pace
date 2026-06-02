@@ -1,5 +1,6 @@
 import { fetchJson } from "./fetch";
 import { fetchRepoTagline } from "./github-repo-meta";
+import { decodeHtmlEntities } from "./html";
 import { titleWithTagline } from "./title";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
@@ -14,6 +15,10 @@ interface GitHubRelease {
 
 const ADAPTER_NAME = "github-releases";
 const RELEASES_PER_PAGE = 5;
+
+function decodeReleaseName(name: string): string {
+  return decodeHtmlEntities(name, { numeric: true });
+}
 
 async function fetchRepoReleases(
   repo: string,
@@ -30,7 +35,7 @@ async function fetchRepoReleases(
   const releases = await fetchJson<GitHubRelease[]>(ADAPTER_NAME, url, repo, { headers });
   const tagline = await fetchRepoTagline(repo, ADAPTER_NAME, token);
   return releases.map((r) => {
-    const releaseName = r.name ?? r.tag_name;
+    const releaseName = decodeReleaseName(r.name ?? r.tag_name);
     const title = titleWithTagline(`${repo}: ${releaseName}`, tagline);
     return {
       id: `github:${repo}:${r.id}`,
