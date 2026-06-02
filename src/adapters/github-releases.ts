@@ -41,6 +41,9 @@ async function fetchRepoReleases(
       body: r.body ?? undefined,
     }));
   } catch (err) {
+    if (err instanceof Error && err.message.startsWith(`${ADAPTER_NAME}: failed to fetch`)) {
+      throw err;
+    }
     throw new Error(`${ADAPTER_NAME}: error fetching ${repo}: ${errorMessage(err)}`);
   }
 }

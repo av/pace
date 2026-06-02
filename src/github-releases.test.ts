@@ -31,7 +31,7 @@ describe("github-releases adapter", () => {
       githubReleasesAdapter.fetch({ params: { repos: ["missing/repo"] } } as any),
     ).rejects.toThrow("github-releases: failed to fetch missing/repo: 404");
 
-    expect(emSpy.mock.calls.length - callsBefore).toBe(2);
+    expect(emSpy.mock.calls.length - callsBefore).toBe(1);
     emSpy.mockRestore();
   });
 });
