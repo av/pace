@@ -91,6 +91,16 @@ function buildTitle(status: MastodonStatus): string {
   return content || "(empty post)";
 }
 
+function warnLookupAccountFailed(
+  username: string,
+  instance: string,
+  detail: unknown,
+): void {
+  console.warn(
+    `mastodon: account lookup ${username}@${instance}: ${errorMessage(detail)}`,
+  );
+}
+
 async function lookupAccount(
   instance: string,
   username: string,
@@ -101,16 +111,12 @@ async function lookupAccount(
       { timeoutMs: 10_000 },
     );
     if (!res.ok) {
-      console.warn(
-        `mastodon: account lookup ${username}@${instance}: HTTP ${res.status}`,
-      );
+      warnLookupAccountFailed(username, instance, `HTTP ${res.status}`);
       return null;
     }
     return await res.json();
   } catch (err) {
-    console.warn(
-      `mastodon: account lookup ${username}@${instance}: ${errorMessage(err)}`,
-    );
+    warnLookupAccountFailed(username, instance, err);
     return null;
   }
 }
