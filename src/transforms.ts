@@ -191,6 +191,51 @@ function makeKeywordPredicate(
   return (item) => matchesAnyKeyword(item, lowerKeywords, checkFields);
 }
 
+type KeywordMatchConfig = Extract<TransformConfig, { type: "filter" } | { type: "exclude" }>;
+
+function filterByKeywordMatch(
+  items: ContentItemRow[],
+  { keywords, fields }: Pick<KeywordMatchConfig, "keywords" | "fields">,
+  keepMatches: boolean
+): ContentItemRow[] {
+  const predicate = makeKeywordPredicate(keywords, fields);
+  return items.filter((item) => keepMatches === predicate(item));
+}
+
+function topMapEntry<T>(counts: Map<T, number>): [T, number] | undefined {
+  if (counts.size === 0) return undefined;
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
+}
+
+function incrementCount(counts: Map<string, number>, key: string): void {
+  counts.set(key, (counts.get(key) ?? 0) + 1);
+}
+
+function sortRowsByInputOrder(rows: ContentItemRow[], order: ContentItemRow[]): ContentItemRow[] {
+  const orderMap = new Map<string, number>();
+  order.forEach((item, i) => {
+    if (!orderMap.has(item.id)) orderMap.set(item.id, i);
+  });
+  return [...rows].sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
+}
+
+function unionFind(n: number): { find: (x: number) => number; union: (x: number, y: number) => void } {
+  const parent = Array.from({ length: n }, (_, i) => i);
+  function find(x: number): number {
+    while (parent[x] !== x) {
+      parent[x] = parent[parent[x]];
+      x = parent[x];
+    }
+    return x;
+  }
+  function union(x: number, y: number): void {
+    const rx = find(x);
+    const ry = find(y);
+    if (rx !== ry) parent[rx] = ry;
+  }
+  return { find, union };
+}
+
 function withLlmModel<T extends ContentItemRow>(
   ctx: TransformContext,
   items: T[],
@@ -214,14 +259,12 @@ const transforms: Record<string, TransformFn> = {
 
   filter: async (items, config) => {
     const { keywords, fields } = config as Extract<TransformConfig, { type: "filter" }>;
-    const predicate = makeKeywordPredicate(keywords, fields);
-    return items.filter(predicate);
+    return filterByKeywordMatch(items, { keywords, fields }, true);
   },
 
   exclude: async (items, config) => {
     const { keywords, fields } = config as Extract<TransformConfig, { type: "exclude" }>;
-    const predicate = makeKeywordPredicate(keywords, fields);
-    return items.filter((item) => !predicate(item));
+    return filterByKeywordMatch(items, { keywords, fields }, false);
   },
 
   sort: async (items, config) => {
@@ -302,9 +345,7 @@ const transforms: Record<string, TransformFn> = {
         }
       }
       maybeLogRemoved("domain-normalized", removed);
-      const orderMap = new Map<string, number>();
-      items.forEach((item, i) => { if (!orderMap.has(item.id)) orderMap.set(item.id, i); });
-      return result.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
+      return sortRowsByInputOrder(result, items);
     }
 
     if (strategy === "title-similarity") {
@@ -536,14 +577,7 @@ const transforms: Record<string, TransformFn> = {
   },
 
   cluster: async (items, config) => {
-    const cfg = config as {
-      type: "cluster";
-      strategy?: "domain" | "keywords" | "source" | "auto";
-      min_cluster_size?: number;
-      max_clusters?: number;
-      similarity_threshold?: number;
-      annotate?: boolean;
-    };
+    const cfg = config as Extract<TransformConfig, { type: "cluster" }>;
 
     const strategy = cfg.strategy ?? "auto";
     const minClusterSize = cfg.min_cluster_size ?? 2;
@@ -647,8 +681,7 @@ const transforms: Record<string, TransformFn> = {
     }
 
     function sourceSimilarity(a: ItemSignals, b: ItemSignals): number {
-      if (!a.source || !b.source) return 0;
-      return a.source === b.source ? 1.0 : 0;
+      return !a.source || !b.source ? 0 : a.source === b.source ? 1.0 : 0;
     }
 
     function computeSimilarity(a: ItemSignals, b: ItemSignals): number {
@@ -669,8 +702,6 @@ const transforms: Record<string, TransformFn> = {
       }
     }
 
-    const clusterAssignment = items.map((_, i) => i);
-
     const similarities: Array<{ i: number; j: number; sim: number }> = [];
     for (let i = 0; i < items.length; i++) {
       for (let j = i + 1; j < items.length; j++) {
@@ -683,20 +714,7 @@ const transforms: Record<string, TransformFn> = {
 
     similarities.sort((a, b) => b.sim - a.sim);
 
-    function find(x: number): number {
-      while (clusterAssignment[x] !== x) {
-        clusterAssignment[x] = clusterAssignment[clusterAssignment[x]];
-        x = clusterAssignment[x];
-      }
-      return x;
-    }
-
-    function union(x: number, y: number): void {
-      const rx = find(x);
-      const ry = find(y);
-      if (rx !== ry) clusterAssignment[rx] = ry;
-    }
-
+    const { find, union } = unionFind(items.length);
     for (const { i, j } of similarities) {
       union(i, j);
     }
@@ -728,21 +746,12 @@ const transforms: Record<string, TransformFn> = {
       clusters.splice(maxClusters);
     }
 
-    function getTopByCount<T>(counts: Map<T, number>): [T, number] | undefined {
-      if (counts.size === 0) return undefined;
-      return [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
-    }
-
-    function increment(counts: Map<string, number>, key: string): void {
-      counts.set(key, (counts.get(key) ?? 0) + 1);
-    }
-
     function getMajorityLabel<T extends string>(
       counts: Map<T, number>,
       total: number,
       format?: (key: T) => string
     ): string | undefined {
-      const top = getTopByCount(counts);
+      const top = topMapEntry(counts);
       if (top && top[1] >= total * 0.6) {
         const key = top[0];
         return format ? format(key) : key;
@@ -757,16 +766,14 @@ const transforms: Record<string, TransformFn> = {
     ): void {
       for (const idx of indices) {
         const key = getKey(signals[idx]);
-        if (key) {
-          increment(counts, key);
-        }
+        if (key) incrementCount(counts, key);
       }
     }
 
     function tallyKeywords(counts: Map<string, number>, indices: number[]): void {
       for (const idx of indices) {
         for (const kw of signals[idx].keywords) {
-          increment(counts, kw);
+          incrementCount(counts, kw);
         }
       }
     }
@@ -828,13 +835,10 @@ const transforms: Record<string, TransformFn> = {
     const result: ContentItemRow[] = [];
 
     for (const cluster of clusters) {
-      for (let pos = 0; pos < cluster.indices.length; pos++) {
-        const idx = cluster.indices[pos];
+      for (const idx of cluster.indices) {
         const item = items[idx];
         if (annotate) {
-          const prefix = `[${cluster.label}] `;
-          const body = item.body ?? "";
-          result.push({ ...item, body: prefix + body });
+          result.push({ ...item, body: `[${cluster.label}] ${item.body ?? ""}` });
         } else {
           result.push(item);
         }
@@ -915,13 +919,13 @@ export async function runPipeline(
   ctx: TransformContext
 ): Promise<ContentItemRow[]> {
   let result = items;
-  for (const config of pipeline) {
-    const fn = transforms[config.type];
+  for (const step of pipeline) {
+    const fn = transforms[step.type];
     if (!fn) {
-      console.warn(`transforms: unknown transform type "${config.type}", skipping`);
+      console.warn(`transforms: unknown transform type "${step.type}", skipping`);
       continue;
     }
-    result = await fn(result, config, ctx);
+    result = await fn(result, step, ctx);
   }
   return result;
 }
