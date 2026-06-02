@@ -2,7 +2,6 @@ import type { Model, Api } from "@mariozechner/pi-ai";
 import type {
   TransformConfig,
   LlmConfig,
-  KeywordScoreEntry,
   KeywordField,
   DedupeStrategy,
   DedupeKeep,
