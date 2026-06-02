@@ -1,5 +1,6 @@
-import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from "bun:test";
-import adapter from "./arxiv";
+import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
+import arxivAdapter from "./adapters/arxiv";
+import * as typesMod from "./adapters/types";
 
 const originalFetch = globalThis.fetch;
 
@@ -21,23 +22,29 @@ function makeArxivFixture(title: string, arxivId: string, author = "Test Author"
 </feed>`;
 }
 
-describe("arxiv adapter (DRY quality + test coverage)", () => {
+describe("arxiv adapter", () => {
   let fetchMock: ReturnType<typeof mock>;
   let warnSpy: ReturnType<typeof spyOn>;
 
+  test("satisfies ngb contract: default export has .name and .fetch", () => {
+    expect(arxivAdapter.name).toBe("arxiv");
+    expect(typeof arxivAdapter.fetch).toBe("function");
+  });
+
   beforeEach(() => {
     fetchMock = mock();
-    globalThis.fetch = fetchMock as any;
+    globalThis.fetch = fetchMock as typeof fetch;
     warnSpy = spyOn(console, "warn").mockImplementation(() => {});
   });
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
+    warnSpy.mockRestore();
     mock.restore();
   });
 
   test("warns and returns empty when no categories and no query configured", async () => {
-    const items = await adapter.fetch({ params: {} } as any);
+    const items = await arxivAdapter.fetch({ params: {} } as any);
     expect(items).toEqual([]);
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("arxiv: no categories or query configured"));
     expect(fetchMock).not.toHaveBeenCalled();
@@ -51,7 +58,7 @@ describe("arxiv adapter (DRY quality + test coverage)", () => {
       }),
     );
 
-    const items = await adapter.fetch({ params: { categories: ["cs.LG"] } } as any);
+    const items = await arxivAdapter.fetch({ params: { categories: ["cs.LG"] } } as any);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(items.length).toBe(1);
@@ -73,7 +80,7 @@ describe("arxiv adapter (DRY quality + test coverage)", () => {
       }),
     );
 
-    const items = await adapter.fetch({ params: { query: "quantum computing" } } as any);
+    const items = await arxivAdapter.fetch({ params: { query: "quantum computing" } } as any);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const callUrl = String(fetchMock.mock.calls[0][0]);
@@ -83,16 +90,12 @@ describe("arxiv adapter (DRY quality + test coverage)", () => {
   });
 
   test("fetches combined categories + query, deduplicates overlapping ids, applies combined limit scaling", async () => {
-    // First call (cat cs.AI) returns idA
-    // Second call (query) returns idA (overlap) + idB
     let call = 0;
-    fetchMock.mockImplementation(async (url: any) => {
+    fetchMock.mockImplementation(async () => {
       call++;
       if (call === 1) {
-        // cat branch response
         return new Response(makeArxivFixture("Cat Paper", "2501.0001", "CatAuthor", "cs.AI"), { status: 200 });
       }
-      // query branch: 2 entries, one overlaps id 2501.0001 for dedup test, one new
       const queryXml = `<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom" xmlns:arxiv="http://arxiv.org/schemas/atom">
   <entry><id>http://arxiv.org/abs/2501.0001v1</id><title>Overlap</title><summary>s</summary><published>2024-01-01</published><author><name>A</name></author><arxiv:primary_category term="cs.AI" /><category term="cs.AI" /><link href="http://arxiv.org/abs/2501.0001v1" /></entry>
@@ -101,16 +104,13 @@ describe("arxiv adapter (DRY quality + test coverage)", () => {
       return new Response(queryXml, { status: 200 });
     });
 
-    const items = await adapter.fetch({ params: { categories: ["cs.AI"], query: "test", limit: 10 } } as any);
+    const items = await arxivAdapter.fetch({ params: { categories: ["cs.AI"], query: "test", limit: 10 } } as any);
 
-    // 1 cat fetch + 1 query fetch = 2 calls (plus internal sleeps not affecting mocks)
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    // dedup: only 2 unique even though overlap on first id
     expect(items.length).toBe(2);
     const ids = items.map((i) => i.id);
     expect(ids).toContain("arxiv:2501.0001");
     expect(ids).toContain("arxiv:2501.0002");
-    // sources mixed
     expect(items.some((i) => i.source === "arxiv:cs.AI")).toBe(true);
     expect(items.some((i) => i.source === "arxiv:search")).toBe(true);
   });
@@ -128,7 +128,7 @@ describe("arxiv adapter (DRY quality + test coverage)", () => {
       ),
     );
 
-    const items = await adapter.fetch({ params: { categories: ["cs.AI"], limit: 2 } } as any);
+    const items = await arxivAdapter.fetch({ params: { categories: ["cs.AI"], limit: 2 } } as any);
 
     expect(items.length).toBeLessThanOrEqual(2);
   });
@@ -137,39 +137,52 @@ describe("arxiv adapter (DRY quality + test coverage)", () => {
     fetchMock.mockResolvedValue(new Response("rate limit", { status: 429 }));
 
     await expect(
-      adapter.fetch({ params: { categories: ["cs.AI"] } } as any),
-    ).rejects.toThrow(/arxiv: failed to fetch query "cat:cs.AI": .*429/);
+      arxivAdapter.fetch({ params: { categories: ["cs.AI"] } } as any),
+    ).rejects.toThrow(/arxiv: failed to fetch query "cat:cs.AI": HTTP error 429/);
   });
 
   test("throws on network/fetch reject (wrapped error)", async () => {
     fetchMock.mockRejectedValue(new Error("DNS fail"));
 
     await expect(
-      adapter.fetch({ params: { query: "foo bar" } } as any),
+      arxivAdapter.fetch({ params: { query: "foo bar" } } as any),
     ).rejects.toThrow(/arxiv: error fetching query "all:foo bar": DNS fail/);
   });
 
   test("fetches multiple categories (rate limit respected in impl, results merged+deduped)", async () => {
     let calls = 0;
-    fetchMock.mockImplementation(async (url: any) => {
+    fetchMock.mockImplementation(async (url) => {
       calls++;
       const u = String(url);
       const cat = u.includes("cs.AI") ? "cs.AI" : "cs.LG";
       return new Response(makeArxivFixture(`${cat} Paper`, `id-${cat}`, "Multi", cat), { status: 200 });
     });
 
-    const items = await adapter.fetch({ params: { categories: ["cs.AI", "cs.LG"], limit: 5 } } as any);
+    const items = await arxivAdapter.fetch({ params: { categories: ["cs.AI", "cs.LG"], limit: 5 } } as any);
 
     expect(calls).toBe(2);
     expect(items.length).toBe(2);
     expect(items.map((i) => i.source)).toEqual(expect.arrayContaining(["arxiv:cs.AI", "arxiv:cs.LG"]));
   });
 
-  test("throws on HTTP !ok using errorMessage helper for the cause (mmu error contract coverage for arxiv error path)", async () => {
-    fetchMock.mockResolvedValue(new Response("rate limit", { status: 429 }));
+  test("uses errorMessage helper in !ok and network error paths", async () => {
+    const emSpy = spyOn(typesMod, "errorMessage");
+    try {
+      fetchMock.mockResolvedValue(new Response("rate limit", { status: 429 }));
+      await expect(
+        arxivAdapter.fetch({ params: { categories: ["cs.AI"] } } as any),
+      ).rejects.toThrow(/arxiv: failed to fetch query "cat:cs.AI":/);
+      expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 429" });
 
-    await expect(
-      adapter.fetch({ params: { categories: ["cs.AI"] } } as any),
-    ).rejects.toThrow(/arxiv: failed to fetch query "cat:cs.AI": HTTP error 429/);
+      emSpy.mockClear();
+
+      fetchMock.mockRejectedValue(new Error("DNS fail"));
+      await expect(
+        arxivAdapter.fetch({ params: { query: "foo bar" } } as any),
+      ).rejects.toThrow(/arxiv: error fetching query "all:foo bar":/);
+      expect(emSpy).toHaveBeenCalled();
+    } finally {
+      emSpy.mockRestore();
+    }
   });
 });
