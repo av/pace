@@ -14,7 +14,10 @@ import {
   getLastFetchedAt,
   getLastFetchedAtAll,
   pruneOldItems,
+  type ContentItemRow,
 } from "./db";
+
+type ContentItemUpsertRow = Pick<ContentItemRow, "id" | "panel_id" | "title" | "url" | "fetched_at">;
 
 let tempDir: string;
 let dbPath: string;
@@ -179,7 +182,9 @@ test("saveItems upsert by id updates panel_id (and all fields) from last save ev
   const second = makeItem({ id: "upsert1", url: "https://ex.com/upsert/b", timestamp: new Date("2020-01-02"), title: "second" });
   saveItems("panelB", [second]);
   const dbh = getDb();
-  const row = dbh.prepare("SELECT id, panel_id, title, url, fetched_at FROM content_items WHERE id = ?").get("upsert1") as any;
+  const row = dbh
+    .prepare("SELECT id, panel_id, title, url, fetched_at FROM content_items WHERE id = ?")
+    .get("upsert1") as ContentItemUpsertRow | undefined;
   expect(row).toBeTruthy();
   expect(row.panel_id).toBe("panelB"); // fails pre-edit: UPDATE misses panel_id=excluded
   expect(row.title).toBe("second");

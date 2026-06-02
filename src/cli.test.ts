@@ -73,6 +73,15 @@ describe("cli.ts (argument handling, validation, early exits, error surfacing)",
     expect(res.stdout).toBe("");
   });
 
+  test("unknown --preset prints error, Available presets from listPresets, exits 1", () => {
+    const res = runCli(["--preset", "not-a-real-preset"]);
+    expect(res.status).toBe(1);
+    expect(res.stderr).toContain("Unknown preset: not-a-real-preset");
+    expect(res.stderr).toContain("Available:");
+    expect(res.stderr).toContain("tech-news");
+    expect(res.stdout).toBe("");
+  });
+
   test("bad config file (parse error) is surfaced cleanly as config: prefixed error + exit 1", () => {
     const badCfg = join(tmpDir, "bad.yaml");
     writeFileSync(badCfg, "not: valid: yaml: [");
@@ -129,8 +138,14 @@ describe("server (integration via bg CLI spawn: /health m15, /styles cache m15, 
       proc.stderr?.on("data", (d: Buffer) => { buf += d.toString(); });
     });
     const base = `http://localhost:${port}`;
+    function requestSignal(): AbortSignal | undefined {
+      if (typeof AbortSignal.timeout === "function") {
+        return AbortSignal.timeout(2500);
+      }
+      return undefined;
+    }
     async function req(url: string, method = "GET") {
-      const r = await fetch(url, { method, signal: (AbortSignal as any).timeout ? (AbortSignal as any).timeout(2500) : undefined });
+      const r = await fetch(url, { method, signal: requestSignal() });
       const status = r.status;
       const hd: Record<string, string> = {};
       r.headers.forEach((v, k) => { hd[k.toLowerCase()] = v; });

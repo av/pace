@@ -10,8 +10,8 @@ describe("dedupe utils (DRY quality + test coverage)", () => {
   describe("normalizeUrl", () => {
     test("returns empty string for falsy/empty input", () => {
       expect(normalizeUrl("")).toBe("");
-      expect(normalizeUrl(null as any)).toBe("");
-      expect(normalizeUrl(undefined as any)).toBe("");
+      expect(normalizeUrl(null as unknown as string)).toBe("");
+      expect(normalizeUrl(undefined as unknown as string)).toBe("");
     });
 
     test("strips common tracking/analytics params (utm_*, fbclid, gclid, ref, source, etc) while preserving others", () => {

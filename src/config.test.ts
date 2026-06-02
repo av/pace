@@ -115,7 +115,11 @@ layout:
     expect(cfg.adapters).toEqual([]);
     expect(cfg.pipelines).toBeUndefined();
     expect(cfg.layout).toBeTruthy();
-    expect((cfg.layout as any).children[0].panel).toBe("testpanel");
+    const firstChild = cfg.layout.children[0];
+    expect(isPanel(firstChild)).toBe(true);
+    if (isPanel(firstChild)) {
+      expect(firstChild.panel).toBe("testpanel");
+    }
   });
 
   test("rejects panel with empty panel name (validateLayoutNode)", () => {
@@ -484,7 +488,7 @@ layout:
 `;
       setConfig(yaml);
       const cfg = loadConfig();
-      expect((cfg.adapters[0] as any)?.params?.chained).toBe("prexzypost");
+      expect(cfg.adapters[0]?.params?.chained).toBe("prexzypost");
     } finally {
       if (origOuter === undefined) { delete process.env[outerKey]; } else { process.env[outerKey] = origOuter; }
       if (origInner === undefined) { delete process.env[innerKey]; } else { process.env[innerKey] = origInner; }

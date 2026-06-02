@@ -111,21 +111,26 @@ describe("domain ContentItem fidelity (per .facts)", () => {
     if (layout.gap !== undefined) {
       expect(typeof layout.gap).toBe("string");
     }
-    const leaf = layout.children[0] as any;
-    expect(leaf).toHaveProperty("panel");
-    expect(typeof leaf.panel).toBe("string");
-    expect(leaf).toHaveProperty("source");
-    if (leaf.limit !== undefined) {
-      expect(typeof leaf.limit).toBe("number");
+    const leaf = layout.children[0];
+    expect("panel" in leaf).toBe(true);
+    if ("panel" in leaf) {
+      expect(typeof leaf.panel).toBe("string");
+      expect(leaf).toHaveProperty("source");
+      if (leaf.limit !== undefined) {
+        expect(typeof leaf.limit).toBe("number");
+      }
+      if (leaf.flex !== undefined) {
+        expect(typeof leaf.flex).toBe("number");
+      }
     }
-    if (leaf.flex !== undefined) {
-      expect(typeof leaf.flex).toBe("number");
-    }
-    const container = layout.children[1] as any;
-    expect(container).toHaveProperty("direction");
-    expect(Array.isArray(container.children)).toBe(true);
-    if (container.gap !== undefined) {
-      expect(typeof container.gap).toBe("string");
+    const container = layout.children[1];
+    expect("direction" in container).toBe(true);
+    if ("direction" in container) {
+      expect(typeof container.direction).toBe("string");
+      expect(Array.isArray(container.children)).toBe(true);
+      if (container.gap !== undefined) {
+        expect(typeof container.gap).toBe("string");
+      }
     }
     // recursive LayoutNodeConfig per frg + config.ts types (FlexContainer | PanelConfig); source string subset of SourceValue; pure test no imports per scope
   });
