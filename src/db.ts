@@ -1,7 +1,7 @@
 import { Database } from "bun:sqlite";
 import { join, dirname } from "node:path";
 import * as fs from "node:fs";
-import type { ContentItem } from "./adapters/types";
+import type { ContentItem, ContentItemFields } from "./adapters/types";
 import { errorMessage } from "./utils";
 
 let db: Database | null = null;
@@ -226,12 +226,8 @@ export function pruneOldItems(days: number = 30): number {
   return (res.changes as number) ?? 0;
 }
 
-export interface ContentItemRow {
-  id: string;
+export interface ContentItemRow extends ContentItemFields {
   panel_id: string;
-  title: string;
-  url: string;
-  source: string;
   body: string | null;
   timestamp: string;
   fetched_at: string;

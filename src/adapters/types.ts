@@ -1,8 +1,12 @@
-export interface ContentItem {
+/** Shared identity fields for adapter output and persisted rows (`ContentItemRow` in db.ts). */
+export interface ContentItemFields {
   id: string;
   title: string;
   url: string;
   source: string;
+}
+
+export interface ContentItem extends ContentItemFields {
   timestamp: Date;
   body?: string;
 }
