@@ -129,6 +129,39 @@ describe("wikipedia", () => {
     expect(items[0].source).toBe("wikipedia:news");
   });
 
+  test.each([NaN, "20", Infinity, -5, 0] as unknown[])(
+    "invalid limit (%s) uses default slice of 20 for most_read",
+    async (limit) => {
+      const articles = Array.from({ length: 30 }, (_, i) =>
+        makeMostReadArticle({ title: `Article_${i}`, views: 1000 * (30 - i), rank: i + 1 }),
+      );
+      mocks.fetchMock.mockResolvedValue(
+        new Response(JSON.stringify(makeFeaturedResponse({ mostread: { articles } })), {
+          status: 200,
+        }),
+      );
+
+      const items = await wikipediaAdapter.fetch(wikiCfg({ limit }));
+
+      expect(items).toHaveLength(20);
+    },
+  );
+
+  test("floors fractional limit for most_read", async () => {
+    const articles = Array.from({ length: 10 }, (_, i) =>
+      makeMostReadArticle({ title: `Article_${i}`, views: 1000 * (10 - i), rank: i + 1 }),
+    );
+    mocks.fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makeFeaturedResponse({ mostread: { articles } })), {
+        status: 200,
+      }),
+    );
+
+    const items = await wikipediaAdapter.fetch(wikiCfg({ limit: 7.9 }));
+
+    expect(items).toHaveLength(7);
+  });
+
   test("respects limit parameter for most_read", async () => {
     const articles = Array.from({ length: 10 }, (_, i) =>
       makeMostReadArticle({ title: `Article_${i}`, views: 1000 * (10 - i), rank: i + 1 }),

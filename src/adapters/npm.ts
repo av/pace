@@ -1,7 +1,11 @@
 import { formatBy, formatPercent, formatTags, joinBodyParts } from "./engagement";
 import { fetchJson } from "./fetch";
 import { decodeHtmlEntities } from "./html";
-import { normalizeOptionalString, normalizeStringList } from "../utils";
+import {
+  normalizeOptionalString,
+  normalizePositiveInteger,
+  normalizeStringList,
+} from "../utils";
 import { titleWithTagline } from "./title";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
@@ -119,7 +123,7 @@ const adapter: Adapter = {
     const scope = normalizeOptionalString(
       config.params?.scope as string | undefined,
     );
-    const limit = Math.min((config.params?.limit as number) ?? 20, 50);
+    const limit = Math.min(normalizePositiveInteger(config.params?.limit, 20), 50);
     const sortParam = (config.params?.sort as string) ?? "optimal";
 
     const sortBy: SortBy = VALID_SORTS.has(sortParam as SortBy)

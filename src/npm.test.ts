@@ -197,6 +197,37 @@ describe("npm", () => {
     expect(calledUrl).not.toContain("maintenance=");
   });
 
+  test.each([NaN, "20", Infinity, -5, 0] as unknown[])(
+    "invalid limit (%s) uses default size=20 in API URL",
+    async (limit) => {
+      mocks.fetchMock.mockResolvedValue(
+        new Response(JSON.stringify(makeSearchResponse([])), { status: 200 }),
+      );
+
+      await npmAdapter.fetch({
+        type: "npm",
+        params: { keywords: ["test"], limit },
+      });
+
+      const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+      expect(calledUrl).toContain("size=20");
+    },
+  );
+
+  test("floors fractional limit in API URL", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makeSearchResponse([])), { status: 200 }),
+    );
+
+    await npmAdapter.fetch({
+      type: "npm",
+      params: { keywords: ["test"], limit: 7.9 },
+    });
+
+    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    expect(calledUrl).toContain("size=7");
+  });
+
   test("respects limit parameter", async () => {
     mocks.fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makeSearchResponse([])), { status: 200 }),

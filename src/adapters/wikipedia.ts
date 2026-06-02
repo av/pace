@@ -1,7 +1,12 @@
 import { formatViews, joinBodyParts } from "./engagement";
 import { fetchJson } from "./fetch";
 import { decodeHtmlEntities, stripHtml } from "./html";
-import { normalizeOptionalString, normalizeStringList, sliceToLimit } from "../utils";
+import {
+  normalizeOptionalString,
+  normalizePositiveInteger,
+  normalizeStringList,
+  sliceToLimit,
+} from "../utils";
 import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
@@ -199,7 +204,7 @@ const adapter: Adapter = {
       normalizeOptionalString(config.params?.language as string | undefined) ??
       "en";
     const language = isValidLanguage(languageRaw) ? languageRaw : "en";
-    const limit = Math.min((config.params?.limit as number) ?? 20, 50);
+    const limit = Math.min(normalizePositiveInteger(config.params?.limit, 20), 50);
 
     const modes = resolveModes(config);
 
