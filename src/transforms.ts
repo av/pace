@@ -557,9 +557,6 @@ const transforms: Record<string, TransformFn> = {
 
     if (items.length < 2) return items;
 
-    // --- Signal extraction ---
-
-    // Stop words that don't contribute to topic clustering
     const STOP_WORDS = new Set([
       "a", "an", "the", "and", "or", "but", "in", "on", "at", "to", "for",
       "of", "with", "by", "from", "is", "it", "its", "this", "that", "are",
@@ -587,7 +584,6 @@ const transforms: Record<string, TransformFn> = {
     function extractDomain(url: string): string {
       try {
         const u = new URL(url);
-        // Strip www. prefix and return hostname
         return u.hostname.replace(/^www\./, "");
       } catch (err) {
         console.warn(`transforms: extractDomain failed for "${url}": ${errorMessage(err)}`);
@@ -596,7 +592,6 @@ const transforms: Record<string, TransformFn> = {
     }
 
     function extractKeywords(text: string): string[] {
-      // Extract significant words (3+ chars, not stop words, not numbers)
       return text
         .toLowerCase()
         .replace(/[^a-z0-9\s-]/g, " ")
@@ -610,7 +605,6 @@ const transforms: Record<string, TransformFn> = {
       source: string;
     }
 
-    // Extract signals for each item
     const signals: ItemSignals[] = items.map((item) => {
       const titleKeywords = extractKeywords(item.title ?? "");
       // For body, extract only descriptive keywords:
@@ -625,8 +619,6 @@ const transforms: Record<string, TransformFn> = {
         .replace(/\bdiscuss:/gi, "") // remove "discuss:"
         .replace(/[|]/g, " "); // pipe to space
       const bodyKeywords = extractKeywords(bodyClean.slice(0, 150));
-      // Title keywords are most important — give them double weight by including them
-      // Body keywords supplement but title is the primary signal
       const allKeywords = new Set([...titleKeywords, ...bodyKeywords]);
 
       return {
@@ -636,13 +628,9 @@ const transforms: Record<string, TransformFn> = {
       };
     });
 
-    // --- Similarity computation ---
-
     function domainSimilarity(a: ItemSignals, b: ItemSignals): number {
       if (!a.domain || !b.domain) return 0;
-      // Exact domain match
       if (a.domain === b.domain) return 1.0;
-      // Check if one is subdomain of the other (e.g., blog.github.com vs github.com)
       const aParts = a.domain.split(".");
       const bParts = b.domain.split(".");
       const aBase = aParts.slice(-2).join(".");
@@ -653,7 +641,6 @@ const transforms: Record<string, TransformFn> = {
 
     function keywordSimilarity(a: ItemSignals, b: ItemSignals): number {
       if (a.keywords.size === 0 || b.keywords.size === 0) return 0;
-      // Jaccard similarity: |intersection| / |union|
       let intersection = 0;
       for (const kw of a.keywords) {
         if (b.keywords.has(kw)) intersection++;
@@ -678,10 +665,6 @@ const transforms: Record<string, TransformFn> = {
           return sourceSimilarity(a, b);
         case "auto":
         default: {
-          // Weighted combination of all signals
-          // Domain is strongest signal (same site = strongly related)
-          // Keywords catch topical overlap across different sources
-          // Source is a weak signal (same feed doesn't mean same topic)
           const domain = domainSimilarity(a, b) * 0.5;
           const keywords = keywordSimilarity(a, b) * 0.45;
           const source = sourceSimilarity(a, b) * 0.05;
@@ -690,13 +673,8 @@ const transforms: Record<string, TransformFn> = {
       }
     }
 
-    // --- Clustering via greedy agglomerative approach ---
-    // Assign each item to a cluster. Start with each item in its own cluster.
-    // Merge clusters greedily based on average pairwise similarity.
+    const clusterAssignment = items.map((_, i) => i);
 
-    const clusterAssignment = items.map((_, i) => i); // each item starts in its own cluster
-
-    // Compute pairwise similarities (only upper triangle)
     const similarities: Array<{ i: number; j: number; sim: number }> = [];
     for (let i = 0; i < items.length; i++) {
       for (let j = i + 1; j < items.length; j++) {
@@ -707,13 +685,11 @@ const transforms: Record<string, TransformFn> = {
       }
     }
 
-    // Sort by similarity descending
     similarities.sort((a, b) => b.sim - a.sim);
 
-    // Union-Find for cluster merging
     function find(x: number): number {
       while (clusterAssignment[x] !== x) {
-        clusterAssignment[x] = clusterAssignment[clusterAssignment[x]]; // path compression
+        clusterAssignment[x] = clusterAssignment[clusterAssignment[x]];
         x = clusterAssignment[x];
       }
       return x;
@@ -725,13 +701,11 @@ const transforms: Record<string, TransformFn> = {
       if (rx !== ry) clusterAssignment[rx] = ry;
     }
 
-    // Merge pairs above threshold
     for (const { i, j } of similarities) {
       union(i, j);
     }
 
-    // Collect clusters
-    const clusterMap = new Map<number, number[]>(); // root -> item indices
+    const clusterMap = new Map<number, number[]>();
     for (let i = 0; i < items.length; i++) {
       const root = find(i);
       const group = clusterMap.get(root) ?? [];
@@ -739,7 +713,6 @@ const transforms: Record<string, TransformFn> = {
       clusterMap.set(root, group);
     }
 
-    // Separate significant clusters from singletons
     const clusters: Array<{ indices: number[]; label: string }> = [];
     const unclustered: number[] = [];
 
@@ -751,10 +724,8 @@ const transforms: Record<string, TransformFn> = {
       }
     }
 
-    // Sort clusters by size descending, limit to max_clusters
     clusters.sort((a, b) => b.indices.length - a.indices.length);
     if (clusters.length > maxClusters) {
-      // Move excess clusters to unclustered
       for (let i = maxClusters; i < clusters.length; i++) {
         unclustered.push(...clusters[i].indices);
       }
@@ -874,7 +845,6 @@ const transforms: Record<string, TransformFn> = {
       }
     }
 
-    // Add unclustered items at the end, sorted by timestamp (newest first)
     unclustered.sort((a, b) => {
       const tA = new Date(items[a].timestamp).getTime();
       const tB = new Date(items[b].timestamp).getTime();
@@ -884,7 +854,6 @@ const transforms: Record<string, TransformFn> = {
       result.push(items[idx]);
     }
 
-    // Log summary
     const clusterSummary = clusters
       .map((c) => `"${c.label}" (${c.indices.length} items)`)
       .join(", ");
