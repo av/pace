@@ -24,7 +24,7 @@ function makeRow(overrides: Partial<ContentItemRow> = {}): ContentItemRow {
 
 const ctx: TransformContext = { llmModel: null };
 
-describe("transforms - filter and exclude (DRY quality)", () => {
+describe("transforms - filter and exclude", () => {
   let items: ContentItemRow[];
 
   beforeEach(() => {
@@ -105,7 +105,7 @@ describe("transforms - runPipeline basics", () => {
   });
 });
 
-describe("transforms - dedupe strategies (logging DRY quality)", () => {
+describe("transforms - dedupe strategies", () => {
   let logSpy: ReturnType<typeof spyOn>;
 
   beforeEach(() => {
@@ -208,7 +208,7 @@ describe("transforms - dedupe strategies (logging DRY quality)", () => {
   });
 });
 
-describe("extractEngagementScore (pure helper, exported + DRYed for iter26)", () => {
+describe("extractEngagementScore", () => {
   test("returns 0 for null, empty, or whitespace-only body", () => {
     expect(extractEngagementScore(null)).toBe(0);
     expect(extractEngagementScore("")).toBe(0);
@@ -254,7 +254,7 @@ describe("extractEngagementScore (pure helper, exported + DRYed for iter26)", ()
   });
 });
 
-describe("keyword-score and time-decay transforms (TDD guard tests iter28)", () => {
+describe("keyword-score and time-decay", () => {
   let logSpy: ReturnType<typeof spyOn>;
   let warnSpy: ReturnType<typeof spyOn>;
 
@@ -347,7 +347,7 @@ describe("keyword-score and time-decay transforms (TDD guard tests iter28)", () 
   });
 });
 
-describe("transforms - cluster (coverage + future DRY)", () => {
+describe("transforms - cluster", () => {
   let logSpy: ReturnType<typeof spyOn>;
 
   beforeEach(() => {

@@ -49,7 +49,7 @@ function makeNoChannelFixture(): string {
   return `<?xml version="1.0"?><rss><foo>no channel</foo></rss>`;
 }
 
-describe("podcast adapter (DRY quality + test coverage)", () => {
+describe("podcast adapter", () => {
   let fetchMock: ReturnType<typeof mock>;
   let warnSpy: ReturnType<typeof spyOn>;
 

@@ -6,7 +6,7 @@ import {
   extractScore,
 } from "./dedupe";
 
-describe("dedupe utils (DRY quality + test coverage)", () => {
+describe("dedupe utils", () => {
   describe("normalizeUrl", () => {
     test("returns empty string for falsy/empty input", () => {
       expect(normalizeUrl("")).toBe("");

@@ -1,7 +1,7 @@
 import { test, expect, describe } from "bun:test";
 import { errorMessage, parsePort, isValidPort, getAdapterName } from "./adapters/types";
 
-describe("errorMessage (shared DRY helper for runtime/CLI)", () => {
+describe("errorMessage", () => {
   test("returns .message for Error and Error subclasses", () => {
     expect(errorMessage(new Error("boom"))).toBe("boom");
     expect(errorMessage(new TypeError("type fail"))).toBe("type fail");
@@ -55,7 +55,7 @@ describe("errorMessage (shared DRY helper for runtime/CLI)", () => {
   });
 });
 
-describe("parsePort / isValidPort (shared port helpers DRYed across cli+index)", () => {
+describe("parsePort / isValidPort", () => {
   test("isValidPort accepts 1, 80, 3000, 65535 and rejects NaN, 0, negatives, 65536+", () => {
     expect(isValidPort(1)).toBe(true);
     expect(isValidPort(80)).toBe(true);
@@ -92,7 +92,7 @@ describe("parsePort / isValidPort (shared port helpers DRYed across cli+index)",
   });
 });
 
-describe("getAdapterName (shared adapter config name fallback DRYed from index/scheduler/config)", () => {
+describe("getAdapterName", () => {
   test("returns explicit name when present (prefers alias over type)", () => {
     expect(getAdapterName({ name: "myhn", type: "hackernews" })).toBe("myhn");
     expect(getAdapterName({ name: "devto-favs", type: "devto" })).toBe("devto-favs");

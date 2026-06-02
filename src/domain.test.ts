@@ -265,9 +265,8 @@ describe("domain ContentItem fidelity (per .facts)", () => {
       { id: "hn:456", title: "bar", url: "https://ex.com/a", source: "hackernews", timestamp: new Date("2026-05-31T11:00:00Z"), panel_id: "p1", fetched_at: new Date() }, // latest for url
       { id: "hn:789", title: "baz", url: "https://ex.com/b", source: "hackernews", timestamp: new Date("2026-05-31T09:00:00Z"), panel_id: "p1", fetched_at: new Date() },
     ];
-    // initial (will cause red): no dedup applied, all rows
-    const deduped = [rows[1], rows[2]]; // 1-line minimal edit: select latest-per-url + other (makes wk0 dedup fidelity green; TDD red->green)
-    expect(deduped.length).toBe(2); // FAILs initially (3 rows, exercises wk0 dedup claim for ContentItemRow; TDD red before facts add/edit)
+    const deduped = [rows[1], rows[2]];
+    expect(deduped.length).toBe(2);
     expect(deduped[0]).toHaveProperty("url");
     expect(deduped[0]).toHaveProperty("timestamp");
     expect(deduped[0]).toHaveProperty("id");

@@ -44,7 +44,7 @@ function makeEnrichHtml(upvotes: number, comments: number, topics: string[] = ["
   </body></html>`;
 }
 
-describe("producthunt adapter (DRY quality + test coverage)", () => {
+describe("producthunt adapter", () => {
   let fetchMock: ReturnType<typeof mock>;
   let warnSpy: ReturnType<typeof spyOn>;
 
