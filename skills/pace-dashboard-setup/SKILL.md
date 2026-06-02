@@ -131,12 +131,7 @@ The repo includes pre-built configs for common use cases:
 | `config.academic-papers.yaml` | Academic paper feeds |
 | `config.video-podcast.yaml` | Video and podcast content |
 
-Copy any of these as your starting `config.yaml`:
-
-```bash
-cp config.ml-ai.yaml config.yaml
-bun run dev
-```
+Copy any of these as your starting `config.yaml` (see the `cp` + `bun run dev` steps in the Bun (development) section above).
 
 ## Common issues
 
