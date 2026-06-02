@@ -1,5 +1,11 @@
 import { XMLParser } from "fast-xml-parser";
-import { extractAtomLink, extractXmlText, normalizeXmlList, type XmlTextField } from "./atom";
+import {
+  extractAtomLink,
+  extractXmlText,
+  FEED_XML_PARSER_OPTIONS,
+  normalizeXmlList,
+  type XmlTextField,
+} from "./atom";
 import { parseFeedDate } from "./dates";
 import { formatBy, joinBodyParts } from "./engagement";
 import { fetchText } from "./fetch";
@@ -7,10 +13,7 @@ import { sliceToLimit } from "../utils";
 import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
-const parser = new XMLParser({
-  ignoreAttributes: false,
-  attributeNamePrefix: "@_",
-});
+const parser = new XMLParser(FEED_XML_PARSER_OPTIONS);
 
 interface YTEntry {
   "yt:videoId"?: string;

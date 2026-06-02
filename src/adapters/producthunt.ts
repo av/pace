@@ -2,6 +2,7 @@ import { XMLParser } from "fast-xml-parser";
 import {
   extractAtomLink,
   extractXmlText,
+  FEED_XML_PARSER_OPTIONS,
   normalizeXmlList,
   type AtomLinkField,
   type XmlTextField,
@@ -39,10 +40,7 @@ const RE_ENRICH_PROFILE = /href="\/@([a-zA-Z0-9_]{2,30})"/gi;
 
 const EXCLUDED_MAKER_HANDLES = new Set(["producthunt", "product_hunt"]);
 
-const parser = new XMLParser({
-  ignoreAttributes: false,
-  attributeNamePrefix: "@_",
-});
+const parser = new XMLParser(FEED_XML_PARSER_OPTIONS);
 
 interface PHEntry {
   id?: string;
