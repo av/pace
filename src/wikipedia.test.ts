@@ -1,16 +1,28 @@
-import { beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
-import adapter from "./wikipedia";
-import * as typesMod from "./types";
+import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
+import wikipediaAdapter from "./adapters/wikipedia";
+import * as typesMod from "./adapters/types";
+
+const originalFetch = globalThis.fetch;
 
 describe("wikipedia adapter", () => {
   let fetchMock: ReturnType<typeof mock>;
 
-  beforeEach(() => {
-    fetchMock = mock();
-    globalThis.fetch = fetchMock as any;
+  test("satisfies ngb contract: default export has .name and .fetch", () => {
+    expect(wikipediaAdapter.name).toBe("wikipedia");
+    expect(typeof wikipediaAdapter.fetch).toBe("function");
   });
 
-  function makeMostReadArticle(overrides: Partial<any> = {}) {
+  beforeEach(() => {
+    fetchMock = mock();
+    globalThis.fetch = fetchMock as typeof fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    mock.restore();
+  });
+
+  function makeMostReadArticle(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       title: "Test_Article",
       extract: "This is a test article about something interesting.",
@@ -22,7 +34,7 @@ describe("wikipedia adapter", () => {
     };
   }
 
-  function makeFeaturedResponse(overrides: Partial<any> = {}) {
+  function makeFeaturedResponse(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       tfa: {
         title: "Featured_Article",
@@ -65,12 +77,12 @@ describe("wikipedia adapter", () => {
     };
   }
 
-  it("fetches most_read articles by default", async () => {
+  test("fetches most_read articles by default", async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
     );
 
-    const items = await adapter.fetch({ type: "wikipedia", params: {} });
+    const items = await wikipediaAdapter.fetch({ type: "wikipedia", params: {} });
 
     expect(items).toHaveLength(2);
     expect(items[0]).toMatchObject({
@@ -83,12 +95,12 @@ describe("wikipedia adapter", () => {
     expect(items[0].body).toContain("A test article");
   });
 
-  it("fetches featured article of the day", async () => {
+  test("fetches featured article of the day", async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
     );
 
-    const items = await adapter.fetch({ type: "wikipedia", params: { mode: "featured" } });
+    const items = await wikipediaAdapter.fetch({ type: "wikipedia", params: { mode: "featured" } });
 
     expect(items).toHaveLength(1);
     expect(items[0]).toMatchObject({
@@ -100,12 +112,12 @@ describe("wikipedia adapter", () => {
     expect(items[0].body).toContain("A featured article");
   });
 
-  it("fetches on_this_day events with HTML stripped", async () => {
+  test("fetches on_this_day events with HTML stripped", async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
     );
 
-    const items = await adapter.fetch({ type: "wikipedia", params: { mode: "on_this_day" } });
+    const items = await wikipediaAdapter.fetch({ type: "wikipedia", params: { mode: "on_this_day" } });
 
     expect(items).toHaveLength(1);
     expect(items[0].title).toBe("1969: Something important happened.");
@@ -114,12 +126,12 @@ describe("wikipedia adapter", () => {
     expect(items[0].body).toBe("The Apollo 11 mission");
   });
 
-  it("fetches news items with HTML stripped", async () => {
+  test("fetches news items with HTML stripped", async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
     );
 
-    const items = await adapter.fetch({ type: "wikipedia", params: { mode: "news" } });
+    const items = await wikipediaAdapter.fetch({ type: "wikipedia", params: { mode: "news" } });
 
     expect(items).toHaveLength(1);
     expect(items[0].title).toBe("A major event occurred today.");
@@ -127,7 +139,7 @@ describe("wikipedia adapter", () => {
     expect(items[0].source).toBe("wikipedia:news");
   });
 
-  it("respects limit parameter for most_read", async () => {
+  test("respects limit parameter for most_read", async () => {
     const articles = Array.from({ length: 10 }, (_, i) =>
       makeMostReadArticle({ title: `Article_${i}`, views: 1000 * (10 - i), rank: i + 1 }),
     );
@@ -135,82 +147,82 @@ describe("wikipedia adapter", () => {
       new Response(JSON.stringify(makeFeaturedResponse({ mostread: { articles } })), { status: 200 }),
     );
 
-    const items = await adapter.fetch({ type: "wikipedia", params: { limit: 3 } });
+    const items = await wikipediaAdapter.fetch({ type: "wikipedia", params: { limit: 3 } });
 
     expect(items).toHaveLength(3);
   });
 
-  it("uses language parameter in API URL", async () => {
+  test("uses language parameter in API URL", async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
     );
 
-    await adapter.fetch({ type: "wikipedia", params: { language: "de" } });
+    await wikipediaAdapter.fetch({ type: "wikipedia", params: { language: "de" } });
 
     const calledUrl = String(fetchMock.mock.calls[0][0]);
     expect(calledUrl).toContain("de.wikipedia.org");
   });
 
-  it("rejects malicious language values and falls back to en", async () => {
+  test("rejects malicious language values and falls back to en", async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
     );
 
-    await adapter.fetch({ type: "wikipedia", params: { language: "evil.com/hack#" } });
+    await wikipediaAdapter.fetch({ type: "wikipedia", params: { language: "evil.com/hack#" } });
 
     const calledUrl = String(fetchMock.mock.calls[0][0]);
     expect(calledUrl).toContain("en.wikipedia.org");
     expect(calledUrl).not.toContain("evil");
   });
 
-  it("defaults to most_read for invalid mode", async () => {
+  test("defaults to most_read for invalid mode", async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
     );
 
-    const items = await adapter.fetch({ type: "wikipedia", params: { mode: "invalid" } });
+    const items = await wikipediaAdapter.fetch({ type: "wikipedia", params: { mode: "invalid" } });
 
     expect(items).toHaveLength(2);
     expect(items[0].source).toBe("wikipedia:most_read");
   });
 
-  it("throws on HTTP error with adapter prefix", async () => {
+  test("throws on HTTP error with adapter prefix", async () => {
     fetchMock.mockResolvedValue(new Response("Not Found", { status: 404 }));
 
     await expect(
-      adapter.fetch({ type: "wikipedia", params: {} }),
+      wikipediaAdapter.fetch({ type: "wikipedia", params: {} }),
     ).rejects.toThrow("wikipedia:");
   });
 
-  it("throws on network error with adapter prefix", async () => {
+  test("throws on network error with adapter prefix", async () => {
     fetchMock.mockRejectedValue(new Error("DNS resolution failed"));
 
     await expect(
-      adapter.fetch({ type: "wikipedia", params: {} }),
+      wikipediaAdapter.fetch({ type: "wikipedia", params: {} }),
     ).rejects.toThrow("wikipedia:");
   });
 
-  it("returns empty for featured when tfa is missing", async () => {
+  test("returns empty for featured when tfa is missing", async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makeFeaturedResponse({ tfa: undefined })), { status: 200 }),
     );
 
-    const items = await adapter.fetch({ type: "wikipedia", params: { mode: "featured" } });
+    const items = await wikipediaAdapter.fetch({ type: "wikipedia", params: { mode: "featured" } });
 
     expect(items).toEqual([]);
   });
 
-  it("returns empty for most_read when mostread section is missing", async () => {
+  test("returns empty for most_read when mostread section is missing", async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makeFeaturedResponse({ mostread: undefined })), { status: 200 }),
     );
 
-    const items = await adapter.fetch({ type: "wikipedia", params: { mode: "most_read" } });
+    const items = await wikipediaAdapter.fetch({ type: "wikipedia", params: { mode: "most_read" } });
 
     expect(items).toEqual([]);
   });
 
-  it("formats view counts correctly", async () => {
+  test("formats view counts correctly", async () => {
     const articles = [
       makeMostReadArticle({ title: "Million", views: 1_500_000 }),
       makeMostReadArticle({ title: "Thousand", views: 42_500 }),
@@ -220,41 +232,40 @@ describe("wikipedia adapter", () => {
       new Response(JSON.stringify(makeFeaturedResponse({ mostread: { articles } })), { status: 200 }),
     );
 
-    const items = await adapter.fetch({ type: "wikipedia", params: {} });
+    const items = await wikipediaAdapter.fetch({ type: "wikipedia", params: {} });
 
     expect(items[0].body).toContain("1.5m views");
     expect(items[1].body).toContain("42.5k views");
     expect(items[2].body).toContain("500 views");
   });
 
-  it("replaces underscores with spaces in titles", async () => {
+  test("replaces underscores with spaces in titles", async () => {
     const articles = [makeMostReadArticle({ title: "United_States_of_America" })];
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makeFeaturedResponse({ mostread: { articles } })), { status: 200 }),
     );
 
-    const items = await adapter.fetch({ type: "wikipedia", params: {} });
+    const items = await wikipediaAdapter.fetch({ type: "wikipedia", params: {} });
 
     expect(items[0].title).toBe("United States of America");
   });
 
-  it("uses errorMessage helper in !ok and network error paths per mmu/sh1", async () => {
+  test("uses errorMessage helper in !ok and network error paths", async () => {
     const emSpy = spyOn(typesMod, "errorMessage");
+    try {
+      fetchMock.mockResolvedValue(new Response("Not Found", { status: 404 }));
+      await expect(
+        wikipediaAdapter.fetch({ type: "wikipedia", params: {} }),
+      ).rejects.toThrow("wikipedia:");
+      expect(emSpy).toHaveBeenCalledWith({ message: "404" });
 
-    // HTTP !ok path (raw status in template before quality edit)
-    fetchMock.mockResolvedValue(new Response("Not Found", { status: 404 }));
-
-    await expect(
-      adapter.fetch({ type: "wikipedia", params: {} }),
-    ).rejects.toThrow("wikipedia:");
-    expect(emSpy).toHaveBeenCalledWith({ message: "404" });
-
-    // network error path
-    fetchMock.mockRejectedValue(new Error("DNS resolution failed"));
-
-    await expect(
-      adapter.fetch({ type: "wikipedia", params: {} }),
-    ).rejects.toThrow("wikipedia:");
-    expect(emSpy).toHaveBeenCalled();
+      fetchMock.mockRejectedValue(new Error("DNS resolution failed"));
+      await expect(
+        wikipediaAdapter.fetch({ type: "wikipedia", params: {} }),
+      ).rejects.toThrow("wikipedia:");
+      expect(emSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
+    } finally {
+      emSpy.mockRestore();
+    }
   });
 });
