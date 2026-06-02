@@ -493,6 +493,9 @@ function validateAdapterConfig(adapter: unknown, index: number): asserts adapter
   if (!isRecord(adapter)) {
     throw new Error(`config: ${path} must be an object`);
   }
+  validateAllowedKeys(adapter, ["type", "name", "params", "refresh_interval", "transforms"], (key) =>
+    `${path}.${key} is not a valid adapter field`,
+  );
   validateNonEmptyString(adapter.type, `${path}.type`);
   validateOptionalNonEmptyString(adapter.name, `${path}.name`);
   if (adapter.params !== undefined && !isRecord(adapter.params)) {

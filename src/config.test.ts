@@ -195,6 +195,23 @@ layout:
     expect(() => loadConfig()).toThrow(/config: adapters\[0\].name must be a non-empty string/);
   });
 
+  test("rejects unknown adapter field", () => {
+    const yaml = `
+adapters:
+  - type: rss
+    typo_field: true
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: adapters\[0\].typo_field is not a valid adapter field/,
+    );
+  });
+
   test("rejects empty pipeline name", () => {
     const yaml = `
 pipelines:
