@@ -1,6 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import { extractAtomLink } from "./atom";
-import { parseFeedDate } from "./dates";
+import { parseFeedDate, sliceToLimit } from "./dates";
 import { fetchWithTimeout } from "./fetch";
 import { stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -77,7 +77,7 @@ async function fetchReleasesFeed(repo: string, limit: number): Promise<ContentIt
 
   const items: ContentItem[] = [];
 
-  for (const entry of entries.slice(0, limit)) {
+  for (const entry of sliceToLimit(entries, limit)) {
     const title = extractTextContent(entry.title) || "(untitled release)";
     const link = extractAtomLink(entry.link);
     const timestamp = parseFeedDate(entry.updated ?? entry.published ?? "");
@@ -190,7 +190,7 @@ async function fetchTrending(
     monthly: "this month",
   };
 
-  return repos.slice(0, limit).map((repo) => {
+  return sliceToLimit(repos, limit).map((repo) => {
     const bodyParts: string[] = [];
     if (repo.description) bodyParts.push(repo.description);
     if (repo.language) bodyParts.push(`language: ${repo.language}`);
@@ -243,7 +243,7 @@ const adapter: Adapter = {
     const allItems = results.flat();
     allItems.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
-    return allItems.slice(0, limit * repos.length);
+    return sliceToLimit(allItems, limit * repos.length);
   },
 };
 

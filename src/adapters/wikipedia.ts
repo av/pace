@@ -1,3 +1,4 @@
+import { sliceToLimit } from "./dates";
 import { fetchWithTimeout } from "./fetch";
 import { stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -75,7 +76,7 @@ async function fetchFeaturedFeed(
 
 function extractMostRead(data: WikiFeaturedResponse, limit: number): ContentItem[] {
   const articles = data.mostread?.articles ?? [];
-  return articles.slice(0, limit).map((article) => ({
+  return sliceToLimit(articles, limit).map((article) => ({
     id: `wikipedia:mostread:${article.title}`,
     title: article.title.replace(/_/g, " "),
     url: article.content_urls.desktop.page,
@@ -107,7 +108,7 @@ function extractFeatured(data: WikiFeaturedResponse): ContentItem[] {
 
 function extractOnThisDay(data: WikiFeaturedResponse, limit: number): ContentItem[] {
   const events = data.onthisday ?? [];
-  return events.slice(0, limit).map((event) => {
+  return sliceToLimit(events, limit).map((event) => {
     const page = event.pages?.[0];
     const url = page?.content_urls?.desktop?.page ?? `https://en.wikipedia.org/wiki/Portal:Current_events`;
     return {
@@ -123,7 +124,7 @@ function extractOnThisDay(data: WikiFeaturedResponse, limit: number): ContentIte
 
 function extractNews(data: WikiFeaturedResponse, limit: number): ContentItem[] {
   const items = data.news ?? [];
-  return items.slice(0, limit).map((item, i) => {
+  return sliceToLimit(items, limit).map((item, i) => {
     const link = item.links?.[0];
     const url = link?.content_urls?.desktop?.page ?? "https://en.wikipedia.org/wiki/Portal:Current_events";
     return {

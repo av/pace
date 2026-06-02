@@ -1,6 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import { extractAtomLink } from "./atom";
-import { parseFeedDate } from "./dates";
+import { parseFeedDate, sliceToLimit } from "./dates";
 import { fetchWithTimeout } from "./fetch";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
@@ -77,7 +77,7 @@ async function fetchYoutubeFeed(
     const parsed = parser.parse(xml);
     const channelTitle = extractChannelTitle(parsed);
     const entries = extractEntries(parsed);
-    return entries.slice(0, limit).map((entry) => parseEntry(entry, channelTitle));
+    return sliceToLimit(entries, limit).map((entry) => parseEntry(entry, channelTitle));
   } catch (err) {
     throw new Error(`youtube: error fetching ${label} ${id}: ${errorMessage(err)}`);
   }

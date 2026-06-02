@@ -1,5 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
-import { parseFeedDate } from "./dates";
+import { parseFeedDate, sliceToLimit } from "./dates";
 import { fetchWithTimeout } from "./fetch";
 import { decodeHtmlEntities, stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -283,7 +283,7 @@ async function fetchPodcastFeed(
     if (!Array.isArray(items)) items = [items];
 
     const episodes: ContentItem[] = [];
-    for (const item of items.slice(0, limit)) {
+    for (const item of sliceToLimit(items, limit)) {
       const ep = parseEpisode(item, showName, channelLink);
       if (ep) {
         episodes.push(episodeToContentItem(ep));

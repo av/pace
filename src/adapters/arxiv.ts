@@ -1,5 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
-import { parseFeedDate } from "./dates";
+import { parseFeedDate, sliceToLimit } from "./dates";
 import { fetchText } from "./fetch";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
@@ -213,7 +213,7 @@ const adapter: Adapter = {
       ? limit * (categories.length + (query ? 1 : 0))
       : limit;
 
-    return allItems.slice(0, totalLimit);
+    return sliceToLimit(allItems, totalLimit);
   },
 };
 
