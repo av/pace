@@ -1,5 +1,6 @@
 import { test, expect, describe } from "bun:test";
-import { errorMessage, parsePort, isValidPort, getAdapterName } from "./adapters/types";
+import { errorMessage } from "./adapters/types";
+import { parsePort, isValidPort, getAdapterName } from "./utils";
 
 describe("errorMessage", () => {
   test("returns .message for Error and Error subclasses", () => {

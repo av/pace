@@ -13,10 +13,8 @@ export interface AdapterConfig {
   refresh_interval?: number;
 }
 
-// Re-export shared helpers from neutral location (src/utils.ts) so that:
-// - core non-adapter modules (cli, config, index, scheduler) can import without crossing into adapters/ layer
-// - this module's exports remain stable for adapters/*.ts and errorMessage.test.ts (no behavior change)
-export { errorMessage, parsePort, isValidPort, getAdapterName } from "../utils";
+// Re-export for adapters/*.ts only; core modules import errorMessage from ../utils directly.
+export { errorMessage } from "../utils";
 
 export interface Adapter {
   name: string;
