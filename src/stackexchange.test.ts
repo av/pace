@@ -182,7 +182,7 @@ describe("stackexchange", () => {
 
     await expect(
       stackexchangeAdapter.fetch({ type: "stackexchange", params: { site: "meta.stackexchange.com" } }),
-    ).rejects.toThrow(/stackexchange: failed to fetch from meta.stackexchange.com: 429 Too Many Requests/);
+    ).rejects.toThrow(/stackexchange: failed to fetch from meta.stackexchange.com: HTTP error 429/);
   });
 
   test("low quota warns", async () => {
@@ -236,7 +236,7 @@ describe("stackexchange", () => {
       ).rejects.toThrow(/connection refused/);
 
       expect(emSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
-      expect(emSpy).toHaveBeenCalledWith({ message: "429 Too Many Requests" });
+      expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 429" });
     } finally {
       emSpy.mockRestore();
     }

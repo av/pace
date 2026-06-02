@@ -1,7 +1,7 @@
 import { parseUnixEpochSeconds } from "./dates";
-import { fetchWithTimeout } from "./fetch";
+import { fetchJson } from "./fetch";
 import { dedupeByKey, fetchAndConcat, sliceToLimit } from "./merge";
-import { type Adapter, type AdapterConfig, type ContentItem, errorMessage } from "./types";
+import { type Adapter, type AdapterConfig, type ContentItem } from "./types";
 
 const SE_API = "https://api.stackexchange.com/2.3";
 
@@ -85,34 +85,19 @@ async function fetchQuestions(
 
   const url = `${SE_API}/questions?${params.toString()}`;
 
-  try {
-    const res = await fetchWithTimeout(url, {
-      headers: {
-        "Accept-Encoding": "gzip",
-      },
-    });
+  const json = await fetchJson<SEResponse>("stackexchange", url, `from ${site}`, {
+    headers: {
+      "Accept-Encoding": "gzip",
+    },
+  });
 
-    if (!res.ok) {
-      throw new Error(
-        `stackexchange: failed to fetch from ${site}: ${errorMessage({ message: `${res.status} ${res.statusText}` })}`,
-      );
-    }
-
-    const json: SEResponse = await res.json();
-
-    if (json.quota_remaining !== undefined && json.quota_remaining < 10) {
-      console.warn(
-        `stackexchange: API quota low (${json.quota_remaining} remaining)`,
-      );
-    }
-
-    return json.items ?? [];
-  } catch (err) {
-    if (err instanceof Error && err.message.startsWith("stackexchange: failed to fetch")) {
-      throw err;
-    }
-    throw new Error(`stackexchange: error fetching from ${site}: ${errorMessage(err)}`);
+  if (json.quota_remaining !== undefined && json.quota_remaining < 10) {
+    console.warn(
+      `stackexchange: API quota low (${json.quota_remaining} remaining)`,
+    );
   }
+
+  return json.items ?? [];
 }
 
 const adapter: Adapter = {
