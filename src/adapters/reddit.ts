@@ -94,13 +94,21 @@ async function fetchRedditListing(
     url += `&t=${timePeriod}`;
   }
 
+  let res: Response;
   try {
-    const res = await fetchWithTimeout(url, { userAgent: USER_AGENT });
+    res = await fetchWithTimeout(url, { userAgent: USER_AGENT });
+  } catch (err) {
+    throw new Error(`reddit: error fetching ${path}/${sort}: ${errorMessage(err)}`);
+  }
 
-    if (!res.ok) {
-      throw new Error(`reddit: failed to fetch ${path}/${sort}: ${errorMessage({ message: String(res.status) })}`);
-    }
+  if (!res.ok) {
+    const detail = errorMessage({ message: String(res.status) });
+    throw new Error(
+      `reddit: error fetching ${path}/${sort}: reddit: failed to fetch ${path}/${sort}: ${detail}`,
+    );
+  }
 
+  try {
     const json: RedditListing = await res.json();
     return json?.data?.children ?? [];
   } catch (err) {
