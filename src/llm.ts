@@ -1,6 +1,7 @@
 import { getModel, complete, type Model, type Api, type Context } from "@mariozechner/pi-ai";
 import type { LlmConfig } from "./config";
 import type { ContentItem } from "./adapters/types";
+import { errorMessage } from "./utils";
 
 // Map provider names to their env var for the API key
 const PROVIDER_ENV_KEYS: Record<string, string> = {
@@ -76,7 +77,8 @@ export async function safeComplete(
       .map((b) => b.text)
       .join("");
     return text || null;
-  } catch {
+  } catch (err) {
+    console.warn(`llm: complete failed: ${errorMessage(err)}`);
     return null;
   }
 }
@@ -103,7 +105,8 @@ function parseLlmJsonResponse<T>(text: string | null): T | null {
   try {
     const jsonStr = stripJsonCodeFences(text);
     return JSON.parse(jsonStr) as T;
-  } catch {
+  } catch (err) {
+    console.warn(`llm: JSON parse failed: ${errorMessage(err)}`);
     return null;
   }
 }
