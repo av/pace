@@ -84,6 +84,10 @@ function computeRefreshInterval(refreshInterval?: number): { intervalMin: number
   return { intervalMin, intervalMs };
 }
 
+function logScheduledRefresh(label: string, intervalMin: number): void {
+  console.log(`scheduler: ${label} — every ${intervalMin}m`);
+}
+
 function panelIdsForSource(sourceName: string, panelMap: SourcePanelMap): string[] {
   return panelMap.sourceToPanels.get(sourceName) ?? [sourceName];
 }
@@ -173,7 +177,7 @@ export function startScheduler(
     entry.timer = setInterval(() => runAdapter(entry), intervalMs);
     adapterEntries.push(entry);
 
-    console.log(`scheduler: ${name} — every ${intervalMin}m`);
+    logScheduledRefresh(name, intervalMin);
   }
 
   if (config.pipelines) {
@@ -202,7 +206,7 @@ export function startScheduler(
       }, PIPELINE_INITIAL_DELAY_MS);
 
       pipelineEntries.push(entry);
-      console.log(`scheduler: pipeline "${pipelineCfg.name}" — every ${intervalMin}m`);
+      logScheduledRefresh(`pipeline "${pipelineCfg.name}"`, intervalMin);
     }
   }
 
