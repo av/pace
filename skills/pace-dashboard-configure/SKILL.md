@@ -94,6 +94,7 @@ Dedicated release tracker (alternative to github mode: releases).
 - type: github-releases
   params:
     repos: [denoland/deno, oven-sh/bun]
+    limit: 5                 # optional, default 5, max 30 (per_page per repo)
     token: ${GITHUB_TOKEN}  # optional
 ```
 

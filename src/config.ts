@@ -689,7 +689,7 @@ const ADAPTER_PARAM_KEYS: Readonly<Record<string, readonly string[]>> = {
   rss: ["urls"],
   reddit: ["subreddits", "sort", "limit", "min_score", "time"],
   github: ["mode", "language", "since", "limit", "repos", "token"],
-  "github-releases": ["repos", "token"],
+  "github-releases": ["repos", "token", "limit"],
   devto: ["tags", "username", "limit", "per_page", "min_reactions", "top"],
   mastodon: ["instance", "hashtags", "accounts", "limit", "min_favourites", "only_media"],
   youtube: ["channels", "playlists", "limit"],

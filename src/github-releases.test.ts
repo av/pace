@@ -217,6 +217,91 @@ describe("github-releases", () => {
     }
   });
 
+  function mockReleasesAndRepoMeta() {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
+      const u = String(url);
+      if (u.includes("/releases?")) {
+        return new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      if (u.includes("api.github.com/repos/")) {
+        return new Response(JSON.stringify({ description: null }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      throw new Error(`unexpected url: ${u}`);
+    });
+  }
+
+  test("default per_page=5 in releases API URL", async () => {
+    mockReleasesAndRepoMeta();
+
+    await githubReleasesAdapter.fetch(githubReleasesCfg({ repos: ["o/r"] }));
+
+    const releasesUrl = String(
+      mocks.fetchMock.mock.calls.find((c) => String(c[0]).includes("/releases?"))?.[0],
+    );
+    expect(releasesUrl).toContain("per_page=5");
+  });
+
+  test.each([NaN, "10", Infinity, -5, 0] as unknown[])(
+    "invalid limit (%s) uses default per_page=5 in API URL",
+    async (limit) => {
+      mockReleasesAndRepoMeta();
+
+      await githubReleasesAdapter.fetch(
+        githubReleasesCfg({ repos: ["o/r"], limit }),
+      );
+
+      const releasesUrl = String(
+        mocks.fetchMock.mock.calls.find((c) => String(c[0]).includes("/releases?"))?.[0],
+      );
+      expect(releasesUrl).toContain("per_page=5");
+    },
+  );
+
+  test("floors fractional limit in per_page query param", async () => {
+    mockReleasesAndRepoMeta();
+
+    await githubReleasesAdapter.fetch(
+      githubReleasesCfg({ repos: ["o/r"], limit: 7.9 }),
+    );
+
+    const releasesUrl = String(
+      mocks.fetchMock.mock.calls.find((c) => String(c[0]).includes("/releases?"))?.[0],
+    );
+    expect(releasesUrl).toContain("per_page=7");
+  });
+
+  test("respects limit parameter in per_page query param", async () => {
+    mockReleasesAndRepoMeta();
+
+    await githubReleasesAdapter.fetch(
+      githubReleasesCfg({ repos: ["o/r"], limit: 12 }),
+    );
+
+    const releasesUrl = String(
+      mocks.fetchMock.mock.calls.find((c) => String(c[0]).includes("/releases?"))?.[0],
+    );
+    expect(releasesUrl).toContain("per_page=12");
+  });
+
+  test("caps limit at 30 in per_page query param", async () => {
+    mockReleasesAndRepoMeta();
+
+    await githubReleasesAdapter.fetch(
+      githubReleasesCfg({ repos: ["o/r"], limit: 200 }),
+    );
+
+    const releasesUrl = String(
+      mocks.fetchMock.mock.calls.find((c) => String(c[0]).includes("/releases?"))?.[0],
+    );
+    expect(releasesUrl).toContain("per_page=30");
+  });
+
   test("errorMessage on !ok", async () => {
     const emSpy = spyOn(typesMod, "errorMessage");
     const callsBefore = emSpy.mock.calls.length;

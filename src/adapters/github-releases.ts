@@ -1,4 +1,8 @@
-import { normalizeOptionalString, normalizeStringList } from "../utils";
+import {
+  normalizeOptionalString,
+  normalizePositiveInteger,
+  normalizeStringList,
+} from "../utils";
 import { buildGitHubApiHeaders, fetchJson } from "./fetch";
 import { fetchRepoTagline } from "./github-repo-meta";
 import { decodeHtmlEntities } from "./html";
@@ -15,7 +19,8 @@ interface GitHubRelease {
 }
 
 const ADAPTER_NAME = "github-releases";
-const RELEASES_PER_PAGE = 5;
+const DEFAULT_RELEASES_PER_PAGE = 5;
+const MAX_RELEASES_PER_PAGE = 30;
 
 function decodeReleaseName(name: string): string {
   return decodeHtmlEntities(name, { numeric: true });
@@ -23,9 +28,10 @@ function decodeReleaseName(name: string): string {
 
 async function fetchRepoReleases(
   repo: string,
+  perPage: number,
   token?: string,
 ): Promise<ContentItem[]> {
-  const url = `https://api.github.com/repos/${repo}/releases?per_page=${RELEASES_PER_PAGE}`;
+  const url = `https://api.github.com/repos/${repo}/releases?per_page=${perPage}`;
   const releases = await fetchJson<GitHubRelease[]>(ADAPTER_NAME, url, repo, {
     headers: buildGitHubApiHeaders(token),
   });
@@ -56,8 +62,13 @@ const adapter: Adapter = {
       return [];
     }
 
+    const perPage = Math.min(
+      normalizePositiveInteger(config.params?.limit, DEFAULT_RELEASES_PER_PAGE),
+      MAX_RELEASES_PER_PAGE,
+    );
+
     const results = await Promise.all(
-      repos.map((repo) => fetchRepoReleases(repo, token)),
+      repos.map((repo) => fetchRepoReleases(repo, perPage, token)),
     );
     return results.flat();
   },
