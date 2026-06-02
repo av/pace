@@ -97,13 +97,7 @@ docker run -d \
 
 ### Using the prebuilt image
 
-```bash
-docker run -d \
-  -p 7453:7453 \
-  -v ./config.yaml:/app/config.yaml:ro \
-  -v pace-data:/app/data \
-  ghcr.io/av/pace:latest
-```
+The `docker run -d` invocation (including `-p` and volume mounts) is identical to the one under "Using Docker directly" above; simply replace the final image argument `pace` with `ghcr.io/av/pace:latest` (no `docker build` step is required).
 
 The `/app/data` volume persists the SQLite database across container restarts.
 
