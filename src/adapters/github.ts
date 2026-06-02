@@ -72,6 +72,9 @@ async function fetchGithubResource(
 
     return await res.text();
   } catch (err) {
+    if (err instanceof Error && err.message.startsWith("github: failed to fetch")) {
+      throw err;
+    }
     throw new Error(`github: error fetching ${context}: ${errorMessage(err)}`);
   }
 }

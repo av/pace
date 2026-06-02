@@ -117,6 +117,9 @@ const adapter: Adapter = {
         body: buildBody(item),
       }));
     } catch (err) {
+      if (err instanceof Error && err.message.startsWith("lobsters: failed to fetch")) {
+        throw err;
+      }
       throw new Error(`lobsters: error fetching stories: ${errorMessage(err)}`);
     }
   },
