@@ -1,5 +1,6 @@
 import { parseUnixEpochSeconds, sliceToLimit } from "./dates";
 import { fetchWithTimeout } from "./fetch";
+import { dedupeByKey, fetchAndConcat } from "./merge";
 import { type Adapter, type AdapterConfig, type ContentItem, errorMessage } from "./types";
 
 const SE_API = "https://api.stackexchange.com/2.3";
@@ -131,7 +132,15 @@ const adapter: Adapter = {
       ? (sortLower as SortType)
       : "hot";
 
-    const questions = await fetchQuestions(site, effectiveSort, tags, limit);
+    let questions: SEQuestion[];
+    if (tags.length > 1) {
+      questions = await fetchAndConcat(tags, (tag) =>
+        fetchQuestions(site, effectiveSort, [tag], limit),
+      );
+      questions = dedupeByKey(questions, (q) => q.question_id);
+    } else {
+      questions = await fetchQuestions(site, effectiveSort, tags, limit);
+    }
 
     // Apply minimum score filter
     const filtered =

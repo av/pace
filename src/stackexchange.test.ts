@@ -68,15 +68,22 @@ describe("stackexchange adapter", () => {
     expect(calledUrl).not.toContain("tagged=");
   });
 
-  test("fetches with tags (semicolon joined), custom site, sort, limit", async () => {
-    const q1 = makeQuestion({ question_id: 1, tags: ["ts"] });
+  test("fetches one tag per request when multiple tags configured", async () => {
+    const q1 = makeQuestion({ question_id: 1, tags: ["typescript"] });
     const q2 = makeQuestion({ question_id: 2, tags: ["bun"] });
-    fetchMock.mockResolvedValue(
-      new Response(
-        JSON.stringify({ items: [q1, q2], has_more: false, quota_remaining: 50 }),
-        { status: 200 },
-      ),
-    );
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ items: [q1], has_more: false, quota_remaining: 50 }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ items: [q2], has_more: false, quota_remaining: 49 }),
+          { status: 200 },
+        ),
+      );
 
     const items = await stackexchangeAdapter.fetch({
       type: "stackexchange",
@@ -89,10 +96,42 @@ describe("stackexchange adapter", () => {
     });
 
     expect(items).toHaveLength(2);
-    const url = String(fetchMock.mock.calls[0][0]);
-    expect(url).toContain("tagged=typescript%3Bbun");
-    expect(url).toContain("sort=votes");
-    expect(url).toContain("pagesize=5");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const url0 = String(fetchMock.mock.calls[0][0]);
+    const url1 = String(fetchMock.mock.calls[1][0]);
+    expect(url0).toContain("tagged=typescript");
+    expect(url0).not.toContain("tagged=typescript%3Bbun");
+    expect(url1).toContain("tagged=bun");
+    expect(url0).toContain("sort=votes");
+    expect(url0).toContain("pagesize=5");
+  });
+
+  test("deduplicates questions that appear in multiple tag fetches", async () => {
+    const shared = makeQuestion({ question_id: 99, title: "Shared question" });
+    const onlyTs = makeQuestion({ question_id: 1, title: "TS only" });
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ items: [shared, onlyTs], has_more: false, quota_remaining: 50 }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ items: [shared], has_more: false, quota_remaining: 49 }),
+          { status: 200 },
+        ),
+      );
+
+    const items = await stackexchangeAdapter.fetch({
+      type: "stackexchange",
+      params: { tags: ["typescript", "bun"], limit: 10 },
+    });
+
+    expect(items).toHaveLength(2);
+    expect(items.map((i) => i.id)).toEqual(
+      expect.arrayContaining(["se:stackoverflow:99", "se:stackoverflow:1"]),
+    );
   });
 
   test("applies min_score filter and limit after fetch", async () => {
