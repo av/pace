@@ -135,6 +135,88 @@ describe("github-releases", () => {
     expect(items[0].title).toBe("o/r: v&3");
   });
 
+  test("omits Authorization when token is blank or whitespace-only", async () => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
+      const u = String(url);
+      if (u.includes("/releases?")) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: 1,
+              tag_name: "v1.0.0",
+              name: "One",
+              html_url: "https://github.com/o/r/releases/tag/v1.0.0",
+              body: null,
+              published_at: "2024-01-01T00:00:00Z",
+            },
+          ]),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      if (u.includes("api.github.com/repos/o/r")) {
+        return new Response(JSON.stringify({ description: null }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      throw new Error(`unexpected url: ${u}`);
+    });
+
+    await githubReleasesAdapter.fetch(
+      githubReleasesCfg({ repos: ["o/r"], token: "   " }),
+    );
+
+    const apiCalls = mocks.fetchMock.mock.calls.filter((c) =>
+      String(c[0]).includes("api.github.com"),
+    );
+    expect(apiCalls.length).toBeGreaterThan(0);
+    for (const [, init] of apiCalls) {
+      const headers = (init as RequestInit).headers as Record<string, string>;
+      expect(headers.Authorization).toBeUndefined();
+    }
+  });
+
+  test("trims configured token for GitHub API Authorization header", async () => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
+      const u = String(url);
+      if (u.includes("/releases?")) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: 1,
+              tag_name: "v1.0.0",
+              name: "One",
+              html_url: "https://github.com/o/r/releases/tag/v1.0.0",
+              body: null,
+              published_at: "2024-01-01T00:00:00Z",
+            },
+          ]),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      if (u.includes("api.github.com/repos/o/r")) {
+        return new Response(JSON.stringify({ description: null }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      throw new Error(`unexpected url: ${u}`);
+    });
+
+    await githubReleasesAdapter.fetch(
+      githubReleasesCfg({ repos: ["o/r"], token: "  ghp_test  " }),
+    );
+
+    const apiCalls = mocks.fetchMock.mock.calls.filter((c) =>
+      String(c[0]).includes("api.github.com"),
+    );
+    expect(apiCalls.length).toBeGreaterThan(0);
+    for (const [, init] of apiCalls) {
+      const headers = (init as RequestInit).headers as Record<string, string>;
+      expect(headers.Authorization).toBe("Bearer ghp_test");
+    }
+  });
+
   test("errorMessage on !ok", async () => {
     const emSpy = spyOn(typesMod, "errorMessage");
     const callsBefore = emSpy.mock.calls.length;

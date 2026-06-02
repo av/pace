@@ -110,6 +110,62 @@ describe("github", () => {
     expect(mocks.warnSpy).toHaveBeenCalledWith("github: no repos found on trending page");
   });
 
+  test("omits Authorization on repo meta when token is whitespace-only", async () => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).includes("releases.atom")) {
+        return makeTextResponse(releasesXml);
+      }
+      if (String(url).includes("api.github.com/repos/")) {
+        return new Response(JSON.stringify({ description: "" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      throw new Error("unexpected url in test");
+    });
+
+    await adapter.fetch(
+      githubCfg({ mode: "releases", repos: ["facebook/react"], token: "  " }),
+    );
+
+    const metaCalls = mocks.fetchMock.mock.calls.filter((c) =>
+      String(c[0]).includes("api.github.com"),
+    );
+    expect(metaCalls.length).toBe(1);
+    const headers = (metaCalls[0][1] as RequestInit).headers as Record<string, string>;
+    expect(headers.Authorization).toBeUndefined();
+  });
+
+  test("trims configured token for repo meta Authorization header", async () => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).includes("releases.atom")) {
+        return makeTextResponse(releasesXml);
+      }
+      if (String(url).includes("api.github.com/repos/")) {
+        return new Response(JSON.stringify({ description: "" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      throw new Error("unexpected url in test");
+    });
+
+    await adapter.fetch(
+      githubCfg({
+        mode: "releases",
+        repos: ["facebook/react"],
+        token: "  ghp_test  ",
+      }),
+    );
+
+    const metaCalls = mocks.fetchMock.mock.calls.filter((c) =>
+      String(c[0]).includes("api.github.com"),
+    );
+    expect(metaCalls.length).toBe(1);
+    const headers = (metaCalls[0][1] as RequestInit).headers as Record<string, string>;
+    expect(headers.Authorization).toBe("Bearer ghp_test");
+  });
+
   test("fetches releases for repos, parses atom, maps items with correct fields, id, source, body stripped, timestamp", async () => {
     mocks.fetchMock.mockImplementation(async (url: string) => {
       if (String(url).includes("releases.atom")) {

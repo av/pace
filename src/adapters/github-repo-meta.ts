@@ -1,3 +1,4 @@
+import { normalizeOptionalString } from "../utils";
 import { buildGitHubApiHeaders, fetchJson } from "./fetch";
 import { errorMessage } from "./types";
 
@@ -10,6 +11,7 @@ export async function fetchRepoTagline(
   adapterName: string,
   token?: string,
 ): Promise<string> {
+  const authToken = normalizeOptionalString(token);
   const url = `https://api.github.com/repos/${repo}`;
 
   try {
@@ -17,7 +19,7 @@ export async function fetchRepoTagline(
       adapterName,
       url,
       repo,
-      { headers: buildGitHubApiHeaders(token) },
+      { headers: buildGitHubApiHeaders(authToken) },
     );
     return (data.description ?? "").trim();
   } catch (err) {

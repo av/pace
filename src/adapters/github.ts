@@ -13,7 +13,7 @@ import {
 import { parseFeedDate } from "./dates";
 import { formatLanguage, formatStars, joinBodyParts } from "./engagement";
 import { FEED_FETCH_TIMEOUT_MS, fetchText } from "./fetch";
-import { normalizeStringList, sliceToLimit } from "../utils";
+import { normalizeOptionalString, normalizeStringList, sliceToLimit } from "../utils";
 import { dedupeByKey } from "./merge";
 import { decodeHtmlEntities, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
 import { fetchRepoTagline } from "./github-repo-meta";
@@ -231,7 +231,9 @@ const adapter: Adapter = {
       return [];
     }
 
-    const token = config.params?.token as string | undefined;
+    const token = normalizeOptionalString(
+      config.params?.token as string | undefined,
+    );
     const results = await Promise.all(
       repos.map((repo) => fetchReleasesFeed(repo, limit, token)),
     );

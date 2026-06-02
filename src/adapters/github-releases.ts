@@ -1,4 +1,4 @@
-import { normalizeStringList } from "../utils";
+import { normalizeOptionalString, normalizeStringList } from "../utils";
 import { buildGitHubApiHeaders, fetchJson } from "./fetch";
 import { fetchRepoTagline } from "./github-repo-meta";
 import { decodeHtmlEntities } from "./html";
@@ -48,7 +48,9 @@ const adapter: Adapter = {
   name: ADAPTER_NAME,
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
     const repos = normalizeStringList((config.params?.repos as string[]) ?? []);
-    const token = config.params?.token as string | undefined;
+    const token = normalizeOptionalString(
+      config.params?.token as string | undefined,
+    );
     if (repos.length === 0) {
       console.warn("github-releases: no repos configured");
       return [];
