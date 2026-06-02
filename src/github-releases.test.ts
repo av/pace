@@ -20,6 +20,15 @@ describe("github-releases", () => {
     expect(mocks.warnSpy).toHaveBeenCalledWith("github-releases: no repos configured");
   });
 
+  test("returns [] and no fetch when repos are only blank strings", async () => {
+    const items = await githubReleasesAdapter.fetch(
+      githubReleasesCfg({ repos: ["", "  "] }),
+    );
+    expect(items).toEqual([]);
+    expect(mocks.fetchMock).not.toHaveBeenCalled();
+    expect(mocks.warnSpy).toHaveBeenCalledWith("github-releases: no repos configured");
+  });
+
   test("includes repo tagline in release title from api.github.com/repos", async () => {
     mocks.fetchMock.mockImplementation(async (url: string) => {
       const u = String(url);

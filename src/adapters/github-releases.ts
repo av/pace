@@ -16,6 +16,10 @@ interface GitHubRelease {
 const ADAPTER_NAME = "github-releases";
 const RELEASES_PER_PAGE = 5;
 
+function normalizeConfiguredRepos(repos: string[]): string[] {
+  return repos.map((repo) => repo.trim()).filter(Boolean);
+}
+
 function decodeReleaseName(name: string): string {
   return decodeHtmlEntities(name, { numeric: true });
 }
@@ -46,7 +50,7 @@ async function fetchRepoReleases(
 const adapter: Adapter = {
   name: ADAPTER_NAME,
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const repos = (config.params?.repos as string[]) ?? [];
+    const repos = normalizeConfiguredRepos((config.params?.repos as string[]) ?? []);
     const token = config.params?.token as string | undefined;
     if (repos.length === 0) {
       console.warn("github-releases: no repos configured");
