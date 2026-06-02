@@ -1,4 +1,4 @@
-import { test, expect, beforeEach, afterEach } from "bun:test";
+import { test, expect, beforeEach, afterEach, spyOn } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -16,6 +16,7 @@ import {
   pruneOldItems,
   type ContentItemRow,
 } from "./db";
+import * as utilsMod from "./utils";
 
 type ContentItemUpsertRow = Pick<ContentItemRow, "id" | "panel_id" | "title" | "url" | "fetched_at">;
 
@@ -186,8 +187,68 @@ test("saveItems upsert by id updates panel_id (and all fields) from last save ev
     .prepare("SELECT id, panel_id, title, url, fetched_at FROM content_items WHERE id = ?")
     .get("upsert1") as ContentItemUpsertRow | undefined;
   expect(row).toBeTruthy();
-  expect(row.panel_id).toBe("panelB"); // fails pre-edit: UPDATE misses panel_id=excluded
+  expect(row.panel_id).toBe("panelB");
   expect(row.title).toBe("second");
   expect(row.url).toBe("https://ex.com/upsert/b");
   expect(row.fetched_at).toBeTruthy();
+});
+
+test("initDb failure uses errorMessage in thrown message", () => {
+  initDb();
+  const database = getDb();
+  const emSpy = spyOn(utilsMod, "errorMessage");
+  const execSpy = spyOn(database, "exec").mockImplementation(() => {
+    throw new Error("schema exec fail");
+  });
+  try {
+    expect(() => initDb()).toThrow(/db: init failed.*schema exec fail/);
+    expect(emSpy).toHaveBeenCalled();
+  } finally {
+    execSpy.mockRestore();
+    emSpy.mockRestore();
+  }
+});
+
+test("saveItems per-item failure uses errorMessage in thrown message", () => {
+  initDb();
+  const database = getDb();
+  const emSpy = spyOn(utilsMod, "errorMessage");
+  const realPrepare = database.prepare.bind(database);
+  const prepareSpy = spyOn(database, "prepare").mockImplementation((sql: unknown) => {
+    const stmt = realPrepare(sql as string);
+    if (typeof sql === "string" && sql.includes("INSERT INTO content_items")) {
+      spyOn(stmt, "run").mockImplementation(() => {
+        throw new Error("insert fail");
+      });
+    }
+    return stmt;
+  });
+  try {
+    expect(() => saveItems("perr", [makeItem({ id: "bad1" })])).toThrow(
+      /db: failed to save item id=bad1 for panel=perr: insert fail/,
+    );
+    expect(emSpy).toHaveBeenCalled();
+  } finally {
+    prepareSpy.mockRestore();
+    emSpy.mockRestore();
+  }
+});
+
+test("closeDb warns with errorMessage when db.close throws", () => {
+  initDb();
+  const database = getDb();
+  const warnSpy = spyOn(console, "warn");
+  const emSpy = spyOn(utilsMod, "errorMessage");
+  const closeSpy = spyOn(database, "close").mockImplementation(() => {
+    throw new Error("close fail");
+  });
+  try {
+    closeDb();
+    expect(warnSpy).toHaveBeenCalledWith("db: close error: close fail");
+    expect(emSpy).toHaveBeenCalled();
+  } finally {
+    closeSpy.mockRestore();
+    emSpy.mockRestore();
+    warnSpy.mockRestore();
+  }
 });
