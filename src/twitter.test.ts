@@ -1,5 +1,5 @@
 import { describe, expect, it, test } from "bun:test";
-import adapter from "./adapters/twitter";
+import adapter, { decodeTweetTitle } from "./adapters/twitter";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
 const mocks = useFetchMockSuite();
@@ -9,6 +9,11 @@ describe("twitter", () => {
   test("ngb contract", () => {
     expect(adapter.name).toBe("twitter");
     expect(typeof adapter.fetch).toBe("function");
+  });
+
+  test("decodes HTML entities in tweet titles for API parity", () => {
+    expect(decodeTweetTitle("A &amp; B &#8364; C")).toBe("A & B € C");
+    expect(decodeTweetTitle()).toBe("(untitled)");
   });
 
   it("returns [] and warns configured message when lists provided", async () => {

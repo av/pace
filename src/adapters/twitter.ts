@@ -1,4 +1,27 @@
+import { decodeHtmlEntities } from "./html";
 import { type Adapter, type AdapterConfig, type ContentItem } from "./types";
+
+/** Twitter API v2 `text` → item title (parity with other adapters). */
+export function decodeTweetTitle(text?: string): string {
+  if (!text) return "(untitled)";
+  return decodeHtmlEntities(text, { numeric: true });
+}
+
+function buildTweetItem(
+  id: string,
+  text: string | undefined,
+  url: string,
+  source: string,
+  timestamp: Date,
+): ContentItem {
+  return {
+    id,
+    title: decodeTweetTitle(text),
+    url,
+    source,
+    timestamp,
+  };
+}
 
 function warnAndReturnEmpty(msg: string): ContentItem[] {
   console.warn(msg.startsWith("twitter:") ? msg : `twitter: ${msg}`);
