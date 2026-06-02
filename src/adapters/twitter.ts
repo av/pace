@@ -14,12 +14,11 @@ const adapter: Adapter = {
     const terms = lists ?? searches ?? [];
     if (terms.length > 0) {
       return warnAndReturnEmpty(
-        `adapter configured with ${terms.length} source(s), but Twitter API requires API credentials. ` +
-          "Set params.bearer_token to enable. Returning empty results.",
+        `adapter configured with ${terms.length} source(s); Twitter API requires params.bearer_token. Returning empty results.`,
       );
     }
     return warnAndReturnEmpty(
-      "no lists or searches configured, and Twitter API requires credentials. Returning empty results.",
+      "no lists or searches configured; Twitter API requires params.bearer_token. Returning empty results.",
     );
   },
 };

@@ -11,7 +11,7 @@ export function getDb(): Database {
   const desiredPath = process.env.PACE_DB_PATH || join(process.cwd(), "data", "pace.db");
   if (!db || currentDbPath !== desiredPath) {
     if (db) {
-      try { db.close(); } catch (err) { console.warn(`db: close error: ${errorMessage(err)}`); }
+      try { db.close(); } catch (err) { console.warn(`db: failed to close: ${errorMessage(err)}`); }
       db = null;
     }
     fs.mkdirSync(dirname(desiredPath), { recursive: true });
@@ -58,7 +58,7 @@ export function initDb(): void {
       ON content_items(timestamp DESC)
     `);
   } catch (e: unknown) {
-    throw new Error(`db: init failed for ${currentDbPath || 'default'}: ${errorMessage(e)}`);
+    throw new Error(`db: failed to init ${currentDbPath || "default"}: ${errorMessage(e)}`);
   }
 }
 
@@ -199,7 +199,7 @@ export function replacePanelItems(panelId: string, items: ContentItemRow[]): voi
 }
 
 export function closeDb(): void {
-  try { if (db) db.close(); } catch (err) { console.warn(`db: close error: ${errorMessage(err)}`); }
+  try { if (db) db.close(); } catch (err) { console.warn(`db: failed to close: ${errorMessage(err)}`); }
   db = null;
   currentDbPath = null;
 }

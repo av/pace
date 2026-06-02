@@ -16,7 +16,7 @@ describe("twitter", () => {
     expect(items).toEqual([]);
     expect(mocks.warnSpy).toHaveBeenCalledTimes(1);
     expect(mocks.warnSpy).toHaveBeenCalledWith(
-      'twitter: adapter configured with 2 source(s), but Twitter API requires API credentials. Set params.bearer_token to enable. Returning empty results.',
+      "twitter: adapter configured with 2 source(s); Twitter API requires params.bearer_token. Returning empty results.",
     );
   });
 
@@ -25,7 +25,7 @@ describe("twitter", () => {
     expect(items).toEqual([]);
     expect(mocks.warnSpy).toHaveBeenCalledTimes(1);
     expect(mocks.warnSpy).toHaveBeenCalledWith(
-      'twitter: adapter configured with 1 source(s), but Twitter API requires API credentials. Set params.bearer_token to enable. Returning empty results.',
+      "twitter: adapter configured with 1 source(s); Twitter API requires params.bearer_token. Returning empty results.",
     );
   });
 
@@ -34,7 +34,7 @@ describe("twitter", () => {
     expect(items).toEqual([]);
     expect(mocks.warnSpy).toHaveBeenCalledTimes(1);
     expect(mocks.warnSpy).toHaveBeenCalledWith(
-      "twitter: no lists or searches configured, and Twitter API requires credentials. Returning empty results.",
+      "twitter: no lists or searches configured; Twitter API requires params.bearer_token. Returning empty results.",
     );
   });
 
@@ -43,7 +43,7 @@ describe("twitter", () => {
     expect(items).toEqual([]);
     expect(mocks.warnSpy).toHaveBeenCalledTimes(1);
     expect(mocks.warnSpy).toHaveBeenCalledWith(
-      "twitter: no lists or searches configured, and Twitter API requires credentials. Returning empty results.",
+      "twitter: no lists or searches configured; Twitter API requires params.bearer_token. Returning empty results.",
     );
   });
 

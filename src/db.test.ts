@@ -201,7 +201,7 @@ test("initDb failure uses errorMessage in thrown message", () => {
     throw new Error("schema exec fail");
   });
   try {
-    expect(() => initDb()).toThrow(/db: init failed.*schema exec fail/);
+    expect(() => initDb()).toThrow(/db: failed to init.*schema exec fail/);
     expect(emSpy).toHaveBeenCalled();
   } finally {
     execSpy.mockRestore();
@@ -244,7 +244,7 @@ test("closeDb warns with errorMessage when db.close throws", () => {
   });
   try {
     closeDb();
-    expect(warnSpy).toHaveBeenCalledWith("db: close error: close fail");
+    expect(warnSpy).toHaveBeenCalledWith("db: failed to close: close fail");
     expect(emSpy).toHaveBeenCalled();
   } finally {
     closeSpy.mockRestore();
