@@ -152,7 +152,7 @@ describe("hackernews", () => {
 
     const cfg: AdapterConfig = { type: "hackernews", params: { feed: "top" } };
     await expect(hackernewsAdapter.fetch(cfg)).rejects.toThrow(
-      /hackernews: failed to fetch topstories: 500/,
+      /hackernews: failed to fetch topstories: HTTP error 500/,
     );
   });
 
@@ -203,9 +203,9 @@ describe("hackernews", () => {
     try {
       const cfg: AdapterConfig = { type: "hackernews", params: { feed: "top" } };
       await expect(hackernewsAdapter.fetch(cfg)).rejects.toThrow(
-        /hackernews: failed to fetch topstories: 500/,
+        /hackernews: failed to fetch topstories: HTTP error 500/,
       );
-      expect(emSpy).toHaveBeenCalledWith({ message: "500" });
+      expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 500" });
     } finally {
       emSpy.mockRestore();
     }

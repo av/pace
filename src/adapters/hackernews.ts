@@ -1,6 +1,6 @@
 import { parseUnixEpochSeconds } from "./dates";
+import { fetchJson } from "./fetch";
 import { sliceToLimit } from "./merge";
-import { fetchWithTimeout } from "./fetch";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 
@@ -30,12 +30,8 @@ const FEED_ENDPOINTS: Record<FeedType, string> = {
 };
 
 async function fetchHN<T>(subpath: string, timeout: number, errorContext?: string): Promise<T> {
-  const res = await fetchWithTimeout(`${HN_API}/${subpath}`, { timeoutMs: timeout });
-  if (!res.ok) {
-    const ctx = errorContext ?? subpath;
-    throw new Error(`hackernews: failed to fetch ${ctx}: ${errorMessage({ message: String(res.status) })}`);
-  }
-  return (await res.json()) as T;
+  const ctx = errorContext ?? subpath;
+  return fetchJson<T>("hackernews", `${HN_API}/${subpath}`, ctx, { timeoutMs: timeout });
 }
 
 async function fetchItem(id: number): Promise<HNItem | null> {
@@ -103,16 +99,16 @@ const adapter: Adapter = {
 
     let ids: number[];
     try {
-      const res = await fetchWithTimeout(`${HN_API}/${endpoint}.json`, { timeoutMs: 15000 });
-      if (!res.ok) {
-        throw new Error(
-          `hackernews: failed to fetch ${endpoint}: ${errorMessage({ message: String(res.status) })}`,
-        );
-      }
-      ids = (await res.json()) as number[];
+      ids = await fetchJson<number[]>("hackernews", `${HN_API}/${endpoint}.json`, endpoint, {
+        timeoutMs: 15000,
+      });
     } catch (err) {
       if (err instanceof Error && err.message.startsWith("hackernews: failed to fetch")) {
         throw err;
+      }
+      if (err instanceof Error && err.message.startsWith("hackernews: error fetching")) {
+        const detail = err.message.replace(/^hackernews: error fetching [^:]+: /, "");
+        throw new Error(`hackernews: error fetching stories: ${detail}`);
       }
       throw new Error(`hackernews: error fetching stories: ${errorMessage(err)}`);
     }
