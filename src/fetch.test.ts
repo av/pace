@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import {
   buildGitHubApiHeaders,
+  DEFAULT_FETCH_TIMEOUT_MS,
   fetchJson,
   fetchText,
   fetchWithTimeout,
@@ -29,6 +30,10 @@ describe("fetchWithTimeout", () => {
 
   test("PACE_USER_AGENT is exported for short overrides", () => {
     expect(PACE_USER_AGENT).toBe("pace/1.0");
+  });
+
+  test("DEFAULT_FETCH_TIMEOUT_MS is exported for adapters matching the default", () => {
+    expect(DEFAULT_FETCH_TIMEOUT_MS).toBe(15_000);
   });
 
   test("buildGitHubApiHeaders sets Accept and optional Bearer token", () => {

@@ -37,7 +37,8 @@ export function buildGitHubApiHeaders(token?: string): Record<string, string> {
   return headers;
 }
 
-const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
+/** Default AbortSignal.timeout for adapter HTTP (feed/API JSON and text). */
+export const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
 
 function buildFetchHeaders(options: FetchWithTimeoutOptions): Record<string, string> {
   const headers: Record<string, string> = {
