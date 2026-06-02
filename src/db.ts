@@ -2,6 +2,7 @@ import { Database } from "bun:sqlite";
 import { join, dirname } from "node:path";
 import * as fs from "node:fs";
 import type { ContentItem } from "./adapters/types";
+import { errorMessage } from "./utils";
 
 let db: Database | null = null;
 let currentDbPath: string | null = null;
@@ -10,7 +11,7 @@ export function getDb(): Database {
   const desiredPath = process.env.PACE_DB_PATH || join(process.cwd(), "data", "pace.db");
   if (!db || currentDbPath !== desiredPath) {
     if (db) {
-      try { db.close(); } catch {}
+      try { db.close(); } catch (err) { console.warn(`db: close error: ${errorMessage(err)}`); }
       db = null;
     }
     fs.mkdirSync(dirname(desiredPath), { recursive: true });
@@ -204,7 +205,7 @@ export function replacePanelItems(panelId: string, items: ContentItemRow[]): voi
 }
 
 export function closeDb(): void {
-  try { if (db) db.close(); } catch {}
+  try { if (db) db.close(); } catch (err) { console.warn(`db: close error: ${errorMessage(err)}`); }
   db = null;
   currentDbPath = null;
 }
