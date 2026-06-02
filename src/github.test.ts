@@ -74,6 +74,33 @@ describe("github", () => {
     expect(mocks.fetchMock).not.toHaveBeenCalled();
   });
 
+  test("trims whitespace from configured owner/repo strings in releases mode", async () => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).includes("releases.atom")) {
+        return makeTextResponse(releasesXml);
+      }
+      if (String(url).includes("api.github.com/repos/")) {
+        return new Response(JSON.stringify({ description: "" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      throw new Error("unexpected url in test");
+    });
+
+    await adapter.fetch(
+      githubCfg({ mode: "releases", repos: ["  facebook/react  ", ""], limit: 10 }),
+    );
+
+    const atomCalls = mocks.fetchMock.mock.calls.filter((c) =>
+      String(c[0]).includes("releases.atom"),
+    );
+    expect(atomCalls.length).toBe(1);
+    expect(String(atomCalls[0][0])).toBe(
+      "https://github.com/facebook/react/releases.atom",
+    );
+  });
+
   test("warns and returns [] when trending page has no parseable repos", async () => {
     mocks.fetchMock.mockImplementation(async () => makeTextResponse("<html></html>"));
 
