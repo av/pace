@@ -66,10 +66,6 @@ interface EnrichedData {
   makers?: string[];
 }
 
-function extractTitle(entry: PHEntry): string {
-  return extractXmlText(entry.title) ?? "(untitled)";
-}
-
 function extractContent(entry: PHEntry): { tagline: string; productLink: string } {
   const raw = extractXmlText(entry.content) ?? "";
   if (!raw) return { tagline: "", productLink: "" };
@@ -226,7 +222,7 @@ async function fetchProductHuntFeed(): Promise<
   }
 
   return entries.map((entry) => {
-    const title = extractTitle(entry);
+    const title = extractXmlText(entry.title) ?? "(untitled)";
     const url = extractAtomLink(entry.link);
     const { tagline, productLink } = extractContent(entry);
     const author = entry.author?.name ?? "";
