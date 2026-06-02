@@ -1,5 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
-import { extractAtomLink } from "./atom";
+import { extractAtomLink, type AtomLinkField } from "./atom";
 import { parseFeedDate, sliceToLimit } from "./dates";
 import { fetchWithTimeout } from "./fetch";
 import { stripHtml } from "./html";
@@ -19,19 +19,35 @@ const parser = new XMLParser({
 // --- Releases mode ---
 // Uses GitHub's public Atom feeds: https://github.com/{owner}/{repo}/releases.atom
 
-interface AtomEntry {
+/** Parsed text node from fast-xml-parser. */
+type XmlTextField = string | { "#text"?: string };
+
+interface GHAtomEntry {
   id?: string;
-  title?: string | { "#text": string };
-  link?: { "@_href"?: string } | Array<{ "@_href"?: string; "@_rel"?: string }>;
+  title?: XmlTextField;
+  link?: AtomLinkField;
   updated?: string;
   published?: string;
-  content?: string | { "#text": string };
+  content?: XmlTextField;
 }
 
-function extractTextContent(val: string | { "#text": string } | undefined): string {
+/** Parsed Atom feed root from fast-xml-parser (attributeNamePrefix "@_"). */
+interface GHAtomFeedParsed {
+  feed?: {
+    entry?: GHAtomEntry | GHAtomEntry[];
+  };
+}
+
+function extractTextContent(val: XmlTextField | undefined): string {
   if (!val) return "";
   if (typeof val === "string") return val;
   return val["#text"] ?? "";
+}
+
+function extractEntries(parsed: GHAtomFeedParsed): GHAtomEntry[] {
+  const entries = parsed?.feed?.entry;
+  if (!entries) return [];
+  return Array.isArray(entries) ? entries : [entries];
 }
 
 /**
@@ -67,13 +83,8 @@ async function fetchReleasesFeed(repo: string, limit: number): Promise<ContentIt
   const xml = await fetchGithubResource(url, `releases for ${repo}`, { timeoutMs: 15000 });
   if (!xml) return [];
 
-  const parsed = parser.parse(xml);
-
-  const entries: AtomEntry[] = (() => {
-    const e = parsed?.feed?.entry;
-    if (!e) return [];
-    return Array.isArray(e) ? e : [e];
-  })();
+  const parsed = parser.parse(xml) as GHAtomFeedParsed;
+  const entries = extractEntries(parsed);
 
   const items: ContentItem[] = [];
 
