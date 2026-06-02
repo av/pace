@@ -136,6 +136,23 @@ describe("reddit", () => {
     expect(items[1].title).toBe("Med");
   });
 
+  test.each([NaN, "10", Infinity, -5] as unknown[])(
+    "invalid min_score (%s) treated as 0 (no score filter)",
+    async (min_score) => {
+      const posts = [
+        makePost("low", "Low", false, 5),
+        makePost("high", "High", false, 200),
+      ];
+      mocks.fetchMock.mockResolvedValue(makeListingResponse(posts));
+
+      const items = await redditAdapter.fetch(
+        redditCfg({ subreddits: ["test"], min_score }),
+      );
+
+      expect(items).toHaveLength(2);
+    },
+  );
+
   test("blank-only sort uses default hot", async () => {
     const posts = [makePost("blank1")];
     mocks.fetchMock.mockResolvedValue(makeListingResponse(posts));

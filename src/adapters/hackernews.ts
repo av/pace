@@ -8,7 +8,11 @@ import {
 import { parseUnixEpochSeconds } from "./dates";
 import { fetchJson, HN_ITEM_FETCH_TIMEOUT_MS } from "./fetch";
 import { decodeHtmlEntities } from "./html";
-import { normalizeOptionalString, sliceToLimit } from "../utils";
+import {
+  normalizeNonNegativeNumber,
+  normalizeOptionalString,
+  sliceToLimit,
+} from "../utils";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 
@@ -95,7 +99,7 @@ const adapter: Adapter = {
         ? normalizeOptionalString(feedRaw)
         : undefined) ?? "top";
     const limit = Math.min((config.params?.limit as number) ?? 30, 200);
-    const minScore = (config.params?.min_score as number) ?? 0;
+    const minScore = normalizeNonNegativeNumber(config.params?.min_score);
 
     let feedType: FeedType;
     const feedLower = feed.toLowerCase();

@@ -160,6 +160,26 @@ describe("hackernews", () => {
     expect(results.every((r) => (r.body.match(/(\d+) points/)?.[1] ?? 0) >= 50)).toBe(true);
   });
 
+  test.each([NaN, "50", Infinity, -5] as unknown[])(
+    "invalid min_score (%s) treated as 0 (no score filter)",
+    async (min_score) => {
+      const ids = [1, 2];
+      mocks.fetchMock.mockImplementation(async (url: string) => {
+        if (url.includes("topstories.json")) return makeIdsResponse(ids);
+        const match = url.match(/item\/(\d+)\.json/);
+        if (match) {
+          const id = parseInt(match[1], 10);
+          return makeItemResponse(makeHNItem(id, { score: id === 1 ? 5 : 100 }));
+        }
+        return makeItemResponse(null);
+      });
+
+      const results = await hackernewsAdapter.fetch(hnCfg({ min_score, limit: 10 }));
+
+      expect(results).toHaveLength(2);
+    },
+  );
+
   test("respects limit after score filter", async () => {
     const ids = [1, 2, 3];
     mocks.fetchMock.mockImplementation(async (url: string) => {

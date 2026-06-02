@@ -9,7 +9,12 @@ import {
 import { parseUnixEpochSeconds } from "./dates";
 import { fetchJson } from "./fetch";
 import { decodeHtmlEntities } from "./html";
-import { normalizeOptionalString, normalizeStringList, sliceToLimit } from "../utils";
+import {
+  normalizeNonNegativeNumber,
+  normalizeOptionalString,
+  normalizeStringList,
+  sliceToLimit,
+} from "../utils";
 import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
@@ -112,7 +117,7 @@ const adapter: Adapter = {
         ? normalizeOptionalString(sortRaw)
         : undefined) ?? "hot";
     const limit = Math.min((config.params?.limit as number) ?? 25, 100);
-    const minScore = (config.params?.min_score as number) ?? 0;
+    const minScore = normalizeNonNegativeNumber(config.params?.min_score);
     const timeRaw = config.params?.time;
     const timePeriod =
       (typeof timeRaw === "string"

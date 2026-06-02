@@ -255,6 +255,25 @@ describe("stackexchange", () => {
     expect(items[0].id).toBe("se:stackoverflow:20");
   });
 
+  test.each([NaN, "10", Infinity, -5] as unknown[])(
+    "invalid min_score (%s) treated as 0 (no score filter)",
+    async (min_score) => {
+      const questions = [
+        makeQuestion({ question_id: 10, score: 5 }),
+        makeQuestion({ question_id: 20, score: 100 }),
+      ];
+      mocks.fetchMock.mockResolvedValue(
+        new Response(JSON.stringify({ items: questions, has_more: false, quota_remaining: 100 }), {
+          status: 200,
+        }),
+      );
+
+      const items = await stackexchangeAdapter.fetch(seCfg({ min_score }));
+
+      expect(items).toHaveLength(2);
+    },
+  );
+
   test("decodes HTML entities in question titles from API", async () => {
     const q = makeQuestion({ title: "A &amp; B &#8364; C" });
     mocks.fetchMock.mockResolvedValue(

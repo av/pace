@@ -249,6 +249,23 @@ describe("lemmy", () => {
     expect(items[1].id).toBe("lemmy:lemmy.ml:3");
   });
 
+  test.each([NaN, "10", Infinity, -5] as unknown[])(
+    "invalid min_score (%s) treated as 0 (no score filter)",
+    async (min_score) => {
+      const posts = [
+        makePostView({ post: { id: 1 }, counts: { score: 5 } }),
+        makePostView({ post: { id: 2 }, counts: { score: 100 } }),
+      ];
+      mocks.fetchMock.mockResolvedValue(
+        new Response(JSON.stringify(makePostListResponse(posts)), { status: 200 }),
+      );
+
+      const items = await lemmyAdapter.fetch(lemmyCfg({ min_score }));
+
+      expect(items).toHaveLength(2);
+    },
+  );
+
   test("applies limit after filtering", async () => {
     const posts = Array.from({ length: 10 }, (_, i) =>
       makePostView({ post: { id: i + 1 }, counts: { score: 100 - i * 10 } }),

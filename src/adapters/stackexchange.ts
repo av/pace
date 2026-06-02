@@ -10,6 +10,7 @@ import { parseUnixEpochSeconds } from "./dates";
 import { fetchJson } from "./fetch";
 import { decodeHtmlEntities } from "./html";
 import {
+  normalizeNonNegativeNumber,
   normalizeOptionalString,
   normalizeStringList,
   sliceToLimit,
@@ -115,7 +116,7 @@ const adapter: Adapter = {
         ? normalizeOptionalString(sortRaw)
         : undefined) ?? "hot";
     const limit = Math.min((config.params?.limit as number) ?? 20, 100);
-    const minScore = (config.params?.min_score as number) ?? 0;
+    const minScore = normalizeNonNegativeNumber(config.params?.min_score);
 
     const sortLower = sort.toLowerCase();
     const effectiveSort: SortType = VALID_SORTS.has(sortLower as SortType)
