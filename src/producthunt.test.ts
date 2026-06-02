@@ -88,6 +88,34 @@ describe("producthunt", () => {
     expect(items[0].body).not.toContain("upvotes");
   });
 
+  test("decodes HTML entities in Atom feed title for source", async () => {
+    const entityFeedTitleFixture = `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Product &amp; Hunt &#8364;</title>
+  <entry>
+    <id>tag:www.producthunt.com,2005:Post/555002</id>
+    <title>Feed Title Product</title>
+    <content>&lt;p&gt;Tagline&lt;/p&gt;</content>
+    <link rel="alternate" href="https://www.producthunt.com/posts/feed-title-product-555002" />
+    <published>2024-05-24T10:00:00Z</published>
+    <author><name>Pat Lee</name></author>
+  </entry>
+</feed>`;
+    mocks.fetchMock.mockResolvedValue(
+      new Response(entityFeedTitleFixture, {
+        status: 200,
+        headers: { "content-type": "application/atom+xml" },
+      }),
+    );
+
+    const items = await producthuntAdapter.fetch(producthuntCfg());
+
+    expect(items.length).toBe(1);
+    expect(items[0].source).toBe("Product & Hunt €");
+    expect(items[0].source).not.toContain("&amp;");
+    expect(items[0].source).not.toContain("&#8364;");
+  });
+
   test("decodes HTML entities in feed entry title", async () => {
     const entityTitleFeed = `<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">

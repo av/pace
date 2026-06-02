@@ -3,6 +3,7 @@ import {
   extractAtomLink,
   extractFeedEntryTitle,
   extractFeedItemBody,
+  extractFeedRootTitle,
   FEED_XML_PARSER_OPTIONS,
   normalizeXmlList,
   type AtomLinkField,
@@ -60,6 +61,7 @@ interface PHEntry extends FeedItemBodyFields {
 /** Parsed Atom feed root from fast-xml-parser (attributeNamePrefix "@_"). */
 interface PHAtomFeedParsed {
   feed?: {
+    title?: XmlTextField;
     entry?: PHEntry | PHEntry[];
   };
 }
@@ -209,8 +211,16 @@ function buildBody(
   );
 }
 
-async function fetchProductHuntFeed(): Promise<
-  Array<{
+function extractFeedTitle(parsed: PHAtomFeedParsed): string {
+  return decodeHtmlEntities(
+    extractFeedRootTitle(undefined, parsed.feed?.title) ?? "producthunt",
+    { numeric: true },
+  );
+}
+
+async function fetchProductHuntFeed(): Promise<{
+  feedTitle: string;
+  items: Array<{
     id: string;
     title: string;
     tagline: string;
@@ -218,22 +228,23 @@ async function fetchProductHuntFeed(): Promise<
     productLink: string;
     author: string;
     timestamp: Date;
-  }>
-> {
+  }>;
+}> {
   const xml = await fetchText("producthunt", PH_FEED_URL, "feed", {
     userAgent: "pace:feed-aggregator/1.0",
     accept: "application/atom+xml, application/xml, text/xml",
   });
 
   const parsed = parser.parse(xml) as PHAtomFeedParsed;
+  const feedTitle = extractFeedTitle(parsed);
   const entries = normalizeXmlList(parsed.feed?.entry);
 
   if (entries.length === 0) {
     console.warn("producthunt: no entries found in feed");
-    return [];
+    return { feedTitle, items: [] };
   }
 
-  return entries.map((entry) => {
+  const items = entries.map((entry) => {
     const title = decodeHtmlEntities(extractFeedEntryTitle(entry.title), {
       numeric: true,
     });
@@ -252,6 +263,7 @@ async function fetchProductHuntFeed(): Promise<
       timestamp,
     };
   });
+  return { feedTitle, items };
 }
 
 const adapter: Adapter = {
@@ -261,10 +273,10 @@ const adapter: Adapter = {
     const minUpvotes = (config.params?.min_upvotes as number) ?? 0;
     const enrich = (config.params?.enrich as boolean) ?? false;
 
-    let items = await fetchProductHuntFeed();
+    const { feedTitle, items: feedItems } = await fetchProductHuntFeed();
 
     // Apply limit before enriching (enrichment is expensive)
-    items = sliceToLimit(items, limit);
+    let items = sliceToLimit(feedItems, limit);
 
     // Optionally enrich with page scraping for upvotes/topics
     let enrichedMap = new Map<string, EnrichedData | null>();
@@ -303,7 +315,7 @@ const adapter: Adapter = {
         id: `ph:${item.id}`,
         title: titleWithTagline(item.title, item.tagline, 0),
         url: item.url,
-        source: "producthunt",
+        source: feedTitle,
         timestamp: item.timestamp,
         body: buildBody(item.tagline, item.author, item.productLink, enriched),
       };
