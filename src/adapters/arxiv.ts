@@ -1,8 +1,9 @@
 import { XMLParser } from "fast-xml-parser";
 import { parseFeedDate, sliceToLimit } from "./dates";
-import { fetchText } from "./fetch";
+import { fetchWithTimeout } from "./fetch";
 import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
+import { errorMessage } from "./types";
 
 const ARXIV_API = "http://export.arxiv.org/api/query";
 const RATE_LIMIT_DELAY = 3000; // ArXiv requests 3-second delay between requests
@@ -112,8 +113,24 @@ async function fetchArxivQuery(
   limit: number,
 ): Promise<ArxivEntry[]> {
   const url = `${ARXIV_API}?search_query=${encodeURIComponent(queryStr)}&sortBy=submittedDate&sortOrder=descending&max_results=${limit}`;
+  const context = `query "${queryStr}"`;
 
-  const xml = await fetchText("arxiv", url, `query "${queryStr}"`, { timeoutMs: 30_000 });
+  let xml: string;
+  try {
+    const res = await fetchWithTimeout(url, { timeoutMs: 30_000 });
+    if (!res.ok) {
+      throw new Error(
+        `arxiv: failed to fetch ${context}: ${errorMessage({ message: `HTTP error ${res.status}` })}`,
+      );
+    }
+    xml = await res.text();
+  } catch (err) {
+    if (err instanceof Error && err.message.startsWith("arxiv: failed to fetch")) {
+      throw err;
+    }
+    throw new Error(`arxiv: error fetching ${context}: ${errorMessage(err)}`);
+  }
+
   const parsed = parser.parse(xml) as ArxivAtomFeedParsed;
   return extractEntries(parsed);
 }
