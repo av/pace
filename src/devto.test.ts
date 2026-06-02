@@ -194,7 +194,7 @@ describe("devto adapter", () => {
       devtoAdapter.fetch(devtoCfg({ tags: ["javascript"] })),
     ).rejects.toThrow('devto: failed to fetch tag "javascript": 403');
 
-    expect(emSpy.mock.calls.length - callsBefore).toBe(2);
+    expect(emSpy.mock.calls.length - callsBefore).toBe(1);
     emSpy.mockRestore();
   });
 });
