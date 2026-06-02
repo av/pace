@@ -69,7 +69,7 @@ async function executeWithRunningGuard(
     return { kind, name, status: "ok" };
   } catch (err) {
     const msg = errorMessage(err);
-    console.warn(`scheduler: ${name} — error: ${msg}`);
+    console.warn(`scheduler: failed to refresh ${name}: ${msg}`);
     entry.lastError = msg;
     return { kind, name, status: "failed", error: msg };
   } finally {

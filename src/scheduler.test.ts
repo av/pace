@@ -152,7 +152,7 @@ describe("scheduler", () => {
       expect(results[0].status).toBe("failed");
       expect(results[0].error).toContain("simulated fail");
       const warned = warnSpy.mock.calls.some((c) =>
-        String(c[0]).includes("scheduler: errsrc — error:")
+        String(c[0]).includes("scheduler: failed to refresh errsrc:")
       );
       expect(warned).toBe(true);
     });
