@@ -95,17 +95,7 @@ curl -X POST http://localhost:7453/refresh/hackernews
 
 ## Themed example configs
 
-The repo includes pre-built configs for common use cases:
-
-| File | Focus |
-|---|---|
-| `config.example.yaml` | Minimal starter (HN + RSS) |
-| `config.tech-news.yaml` | Tech news aggregation |
-| `config.ml-ai.yaml` | AI/ML research |
-| `config.product-launches.yaml` | Product launches and demos |
-| `config.release-tracker.yaml` | Software release tracking |
-| `config.academic-papers.yaml` | Academic paper feeds |
-| `config.video-podcast.yaml` | Video and podcast content |
+See the "Presets" section in README.md for the list of pre-built `config.*.yaml` files and their focuses (themed starter configs for common use cases).
 
 Copy any of these as your starting `config.yaml` (see the `cp` + `bun run dev` steps in the Bun (development) section above).
 
