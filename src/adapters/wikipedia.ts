@@ -1,7 +1,7 @@
 import { formatViews, joinBodyParts } from "./engagement";
 import { fetchJson } from "./fetch";
 import { decodeHtmlEntities, stripHtml } from "./html";
-import { sliceToLimit } from "../utils";
+import { normalizeStringList, sliceToLimit } from "../utils";
 import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
@@ -152,9 +152,7 @@ function resolveModes(config: AdapterConfig): Mode[] {
   const tokens: string[] = [];
 
   if (Array.isArray(modesParam)) {
-    for (const entry of modesParam) {
-      if (typeof entry === "string") tokens.push(entry);
-    }
+    tokens.push(...normalizeStringList(modesParam as string[]));
   } else {
     const modeParam = (config.params?.mode as string) ?? "most_read";
     tokens.push(

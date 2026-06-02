@@ -188,6 +188,32 @@ describe("wikipedia", () => {
     expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  test("merges modes array param from one featured feed", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
+    );
+
+    const items = await wikipediaAdapter.fetch(
+      wikiCfg({ modes: [" featured ", "news", ""] }),
+    );
+
+    expect(items).toHaveLength(2);
+    expect(items.map((i) => i.source)).toEqual(["wikipedia:featured", "wikipedia:news"]);
+    expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("blank-only modes array falls back to most_read", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
+    );
+
+    const items = await wikipediaAdapter.fetch(wikiCfg({ modes: ["", "  "] }));
+
+    expect(items).toHaveLength(2);
+    expect(items[0].source).toBe("wikipedia:most_read");
+    expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   test("dedupes by URL when the same article appears in multiple modes", async () => {
     const sharedPage = "https://en.wikipedia.org/wiki/Test_Article";
     const secondPage = "https://en.wikipedia.org/wiki/Second_Article";
