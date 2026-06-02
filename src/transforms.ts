@@ -54,30 +54,43 @@ function pickByTimestamp(group: ContentItemRow[], direction: "asc" | "desc"): Co
   );
 }
 
-function pickWinner(
-  group: ContentItemRow[],
-  keep: "highest-score" | "earliest" | "latest"
-): ContentItemRow {
+type DedupeKeep = "highest-score" | "earliest" | "latest";
+
+function pickWinner(group: ContentItemRow[], keep: DedupeKeep): ContentItemRow {
   if (group.length === 1) return group[0];
-  if (keep === "earliest") {
-    return pickByTimestamp(group, "asc");
+  if (keep === "earliest" || keep === "latest") {
+    return pickByTimestamp(group, keep === "earliest" ? "asc" : "desc");
   }
-  if (keep === "latest") {
-    return pickByTimestamp(group, "desc");
-  }
-  let best = group[0];
-  let bestScore = extractScore(best.body);
-  for (let i = 1; i < group.length; i++) {
-    const score = extractScore(group[i].body);
-    if (score > bestScore) {
-      best = group[i];
-      bestScore = score;
-    }
-  }
-  if (bestScore === 0) {
-    return pickByTimestamp(group, "asc");
-  }
-  return best;
+  const best = group.reduce((a, b) =>
+    extractScore(b.body) > extractScore(a.body) ? b : a
+  );
+  return extractScore(best.body) === 0 ? pickByTimestamp(group, "asc") : best;
+}
+
+function titleSimilarity(
+  a: string | null | undefined,
+  b: string | null | undefined
+): number | null {
+  const ta = a?.trim();
+  const tb = b?.trim();
+  if (!ta || !tb) return null;
+  return levenshteinSimilarity(ta.toLowerCase(), tb.toLowerCase());
+}
+
+function pushToGroup<K>(groups: Map<K, ContentItemRow[]>, key: K, item: ContentItemRow): void {
+  const group = groups.get(key);
+  if (group) group.push(item);
+  else groups.set(key, [item]);
+}
+
+function collectLosers(
+  group: ContentItemRow[],
+  winner: ContentItemRow,
+  format: (loser: ContentItemRow, winner: ContentItemRow) => string
+): string[] {
+  return group
+    .filter((item) => item !== winner)
+    .map((item) => format(item, winner));
 }
 
 function parseHalfLife(str: string): number {
@@ -306,21 +319,18 @@ const transforms: Record<string, TransformFn> = {
     if (strategy === "domain-normalized") {
       const groups = new Map<string, ContentItemRow[]>();
       for (const item of items) {
-        const key = normalizeUrl(item.url);
-        const group = groups.get(key) ?? [];
-        group.push(item);
-        groups.set(key, group);
+        pushToGroup(groups, normalizeUrl(item.url), item);
       }
       const result: ContentItemRow[] = [];
       const removed: string[] = [];
       for (const [, group] of groups) {
         const winner = pickWinner(group, keep);
         result.push(winner);
-        for (const item of group) {
-          if (item !== winner) {
-            removed.push(`"${item.title}" (${item.url}) -> kept "${winner.title}"`);
-          }
-        }
+        removed.push(
+          ...collectLosers(group, winner, (item, w) =>
+            `"${item.title}" (${item.url}) -> kept "${w.title}"`
+          )
+        );
       }
       maybeLogRemoved("domain-normalized", removed);
       return sortRowsByInputOrder(result, items);
@@ -332,14 +342,8 @@ const transforms: Record<string, TransformFn> = {
       for (const item of items) {
         let isDuplicate = false;
         for (const existing of kept) {
-          if (!item.title || !existing.title || item.title.trim() === "" || existing.title.trim() === "") {
-            continue; // title-sim only applies to non-blank titles (prevents sim=1 collapse of distinct blank-title items)
-          }
-          const similarity = levenshteinSimilarity(
-            item.title.toLowerCase(),
-            existing.title.toLowerCase()
-          );
-          if (similarity >= threshold) {
+          const similarity = titleSimilarity(item.title, existing.title);
+          if (similarity !== null && similarity >= threshold) {
             const winner = pickWinner([existing, item], keep);
             if (winner === item) {
               const idx = kept.indexOf(existing);
@@ -805,21 +809,15 @@ const transforms: Record<string, TransformFn> = {
       return `Cluster ${clusters.length + 1}`;
     }
 
+    const result: ContentItemRow[] = [];
     for (const cluster of clusters) {
       cluster.label = generateLabel(cluster.indices);
       sortByScoreDesc(cluster.indices, (idx) => extractEngagementScore(items[idx].body));
-    }
-
-    const result: ContentItemRow[] = [];
-
-    for (const cluster of clusters) {
       for (const idx of cluster.indices) {
         const item = items[idx];
-        if (annotate) {
-          result.push({ ...item, body: `[${cluster.label}] ${item.body ?? ""}` });
-        } else {
-          result.push(item);
-        }
+        result.push(
+          annotate ? { ...item, body: `[${cluster.label}] ${item.body ?? ""}` } : item
+        );
       }
     }
 
