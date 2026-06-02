@@ -9,6 +9,7 @@ import {
   formatPercent,
   formatPoints,
   formatReactions,
+  formatCover,
   formatReadingTime,
   formatAnswers,
   formatCategories,
@@ -42,9 +43,14 @@ describe("engagement format helpers", () => {
     expect(formatAnswers(3)).toBe("3 answers");
   });
 
-  test("formatReadingTime for devto-style bodies", () => {
+  test("formatReadingTime and formatCover for devto-style bodies", () => {
     expect(formatReadingTime(5)).toBe("5 min read");
     expect(formatReadingTime(1)).toBe("1 min read");
+    expect(formatCover("https://example.com/cover.jpg")).toBe(
+      "cover: https://example.com/cover.jpg",
+    );
+    expect(formatCover(null)).toBeUndefined();
+    expect(formatCover("")).toBeUndefined();
   });
 
   test("formatPercent for npm registry fractional scores", () => {

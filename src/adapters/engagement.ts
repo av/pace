@@ -116,6 +116,12 @@ export function formatReadingTime(minutes: number): string {
   return `${minutes} min read`;
 }
 
+/** Dev.to cover_image URL in body metadata (omitted when absent). */
+export function formatCover(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  return `cover: ${url}`;
+}
+
 /** Mastodon account handle in body metadata (@user@instance or remote @user@host). */
 export function formatMastodonAcct(acct: string, instance: string): string {
   if (acct.includes("@")) {

@@ -1,6 +1,7 @@
 import {
   formatBy,
   formatComments,
+  formatCover,
   formatReactions,
   formatReadingTime,
   formatTags,
@@ -36,7 +37,7 @@ function buildBody(article: DevToArticle): string {
     formatReadingTime(article.reading_time_minutes),
     formatBy(`@${article.user.username}`),
     formatTags(article.tag_list),
-    article.cover_image ? `cover: ${article.cover_image}` : undefined,
+    formatCover(article.cover_image),
   );
 }
 
