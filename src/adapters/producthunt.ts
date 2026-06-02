@@ -5,6 +5,7 @@ import { fetchWithTimeout } from "./fetch";
 import { stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
+import { titleWithTagline } from "./title";
 
 const PH_ENRICH_USER_AGENT =
   "Mozilla/5.0 (compatible; pace/1.0; +https://github.com/nickvdyck/pace)";
@@ -329,7 +330,7 @@ const adapter: Adapter = {
 
       return {
         id: `ph:${item.id}`,
-        title: item.title,
+        title: titleWithTagline(item.title, item.tagline, 0),
         url: item.url,
         source: "producthunt",
         timestamp: item.timestamp,

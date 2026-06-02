@@ -1,6 +1,6 @@
 import { fetchJson } from "./fetch";
 import { fetchRepoTagline } from "./github-repo-meta";
-import { joinTitle, truncateForTitle } from "./title";
+import { titleWithTagline } from "./title";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 interface GitHubRelease {
@@ -31,9 +31,7 @@ async function fetchRepoReleases(
   const tagline = await fetchRepoTagline(repo, ADAPTER_NAME, token);
   return releases.map((r) => {
     const releaseName = r.name ?? r.tag_name;
-    const title = tagline
-      ? joinTitle(`${repo}: ${releaseName}`, truncateForTitle(tagline))
-      : `${repo}: ${releaseName}`;
+    const title = titleWithTagline(`${repo}: ${releaseName}`, tagline);
     return {
       id: `github:${repo}:${r.id}`,
       title,

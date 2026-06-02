@@ -1,4 +1,5 @@
 import { fetchJson } from "./fetch";
+import { titleWithTagline } from "./title";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 const NPM_REGISTRY = "https://registry.npmjs.org";
@@ -144,9 +145,7 @@ const adapter: Adapter = {
 
     return results.map((result) => ({
       id: `npm:${result.package.name}@${result.package.version}`,
-      title: result.package.description
-        ? `${result.package.name} | ${result.package.description}`
-        : result.package.name,
+      title: titleWithTagline(result.package.name, result.package.description),
       url: result.package.links.npm,
       source: scope ? `npm:@${scope}` : `npm:${sortBy}`,
       timestamp: new Date(result.package.date),

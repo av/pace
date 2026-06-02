@@ -5,7 +5,7 @@ import { fetchText } from "./fetch";
 import { dedupeByKey, sliceToLimit } from "./merge";
 import { stripHtml } from "./html";
 import { fetchRepoTagline } from "./github-repo-meta";
-import { joinTitle, truncateForTitle } from "./title";
+import { joinTitle, titleWithTagline, truncateForTitle } from "./title";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 type TrendingPeriod = "daily" | "weekly" | "monthly";
@@ -79,9 +79,7 @@ async function fetchReleasesFeed(
       : tag
         ? `${repo}: ${tag}`
         : `${repo}: ${title}`;
-    const displayTitle = tagline
-      ? joinTitle(releaseTitle, truncateForTitle(tagline))
-      : releaseTitle;
+    const displayTitle = titleWithTagline(releaseTitle, tagline);
 
     items.push({
       id: `github:${repo}:${tag || title}`,
