@@ -1,7 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, spyOn, test } from "bun:test";
 import adapter from "./adapters/twitter";
 
 describe("twitter adapter", () => {
+  test("satisfies ngb contract: default export has .name and .fetch", () => {
+    expect(adapter.name).toBe("twitter");
+    expect(typeof adapter.fetch).toBe("function");
+  });
+
   let logSpy: ReturnType<typeof spyOn>;
 
   beforeEach(() => {
