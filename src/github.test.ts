@@ -414,6 +414,62 @@ describe("github", () => {
     expect(items[0].source).toBe("github:trending");
   });
 
+  test("trims whitespace from configured trending language", async () => {
+    mocks.fetchMock.mockImplementation(async () => makeTextResponse(trendingHtml));
+
+    await adapter.fetch(
+      githubCfg({ mode: "trending", language: "  typescript  ", limit: 1 }),
+    );
+
+    const url = String(mocks.fetchMock.mock.calls[0][0]);
+    expect(url).toContain("/trending/typescript?");
+    expect(url).toContain("since=daily");
+  });
+
+  test("whitespace-only trending language omits language path", async () => {
+    mocks.fetchMock.mockImplementation(async () => makeTextResponse(trendingHtml));
+
+    const items = await adapter.fetch(
+      githubCfg({ mode: "trending", language: "   ", limit: 1 }),
+    );
+
+    const url = String(mocks.fetchMock.mock.calls[0][0]);
+    expect(url).toContain("/trending?");
+    expect(url).not.toMatch(/\/trending\/[^?]/);
+    expect(items[0].source).toBe("github:trending");
+  });
+
+  test("trims whitespace from configured since", async () => {
+    mocks.fetchMock.mockImplementation(async () => makeTextResponse(trendingHtml));
+
+    await adapter.fetch(
+      githubCfg({ mode: "trending", since: "  weekly  ", limit: 1 }),
+    );
+
+    const url = String(mocks.fetchMock.mock.calls[0][0]);
+    expect(url).toContain("since=weekly");
+  });
+
+  test("whitespace-only since defaults to daily", async () => {
+    mocks.fetchMock.mockImplementation(async () => makeTextResponse(trendingHtml));
+
+    await adapter.fetch(githubCfg({ mode: "trending", since: "   ", limit: 1 }));
+
+    const url = String(mocks.fetchMock.mock.calls[0][0]);
+    expect(url).toContain("since=daily");
+  });
+
+  test("invalid since defaults to daily", async () => {
+    mocks.fetchMock.mockImplementation(async () => makeTextResponse(trendingHtml));
+
+    await adapter.fetch(
+      githubCfg({ mode: "trending", since: "INVALID", limit: 1 }),
+    );
+
+    const url = String(mocks.fetchMock.mock.calls[0][0]);
+    expect(url).toContain("since=daily");
+  });
+
   test("throws on !ok for releases feed (contract; no swallow)", async () => {
     mocks.fetchMock.mockImplementation(async () => makeErrorResponse(404));
 

@@ -220,8 +220,16 @@ const adapter: Adapter = {
     const limit = Math.min((config.params?.limit as number) ?? 10, 50);
 
     if (mode === "trending") {
-      const language = (config.params?.language as string) ?? "";
-      const sinceParam = (config.params?.since as string) ?? "daily";
+      const languageRaw = config.params?.language;
+      const language =
+        (typeof languageRaw === "string"
+          ? normalizeOptionalString(languageRaw)
+          : undefined) ?? "";
+      const sinceRaw = config.params?.since;
+      const sinceParam =
+        (typeof sinceRaw === "string"
+          ? normalizeOptionalString(sinceRaw)
+          : undefined) ?? "daily";
       const since: TrendingPeriod = VALID_PERIODS.has(sinceParam as TrendingPeriod)
         ? (sinceParam as TrendingPeriod)
         : "daily";
