@@ -12,6 +12,7 @@ import { decodeHtmlEntities } from "./html";
 import {
   normalizeNonNegativeNumber,
   normalizeOptionalString,
+  normalizePositiveInteger,
   normalizeStringList,
   sliceToLimit,
 } from "../utils";
@@ -116,7 +117,7 @@ const adapter: Adapter = {
       (typeof sortRaw === "string"
         ? normalizeOptionalString(sortRaw)
         : undefined) ?? "hot";
-    const limit = Math.min((config.params?.limit as number) ?? 25, 100);
+    const limit = Math.min(normalizePositiveInteger(config.params?.limit, 25), 100);
     const minScore = normalizeNonNegativeNumber(config.params?.min_score);
     const timeRaw = config.params?.time;
     const timePeriod =

@@ -115,6 +115,36 @@ describe("reddit", () => {
     expect(items[0].timestamp instanceof Date).toBe(true);
   });
 
+  test.each([NaN, "25", Infinity, -5, 0] as unknown[])(
+    "invalid limit (%s) uses default limit=25 in API URL",
+    async (limit) => {
+      mocks.fetchMock.mockResolvedValue(makeListingResponse([]));
+
+      await redditAdapter.fetch(redditCfg({ subreddits: ["x"], limit }));
+
+      const url = mocks.fetchMock.mock.calls[0][0] as string;
+      expect(url).toContain("limit=25");
+    },
+  );
+
+  test("caps limit at 100 in API URL", async () => {
+    mocks.fetchMock.mockResolvedValue(makeListingResponse([]));
+
+    await redditAdapter.fetch(redditCfg({ subreddits: ["x"], limit: 500 }));
+
+    const url = mocks.fetchMock.mock.calls[0][0] as string;
+    expect(url).toContain("limit=100");
+  });
+
+  test("floors fractional limit in API URL", async () => {
+    mocks.fetchMock.mockResolvedValue(makeListingResponse([]));
+
+    await redditAdapter.fetch(redditCfg({ subreddits: ["x"], limit: 7.9 }));
+
+    const url = mocks.fetchMock.mock.calls[0][0] as string;
+    expect(url).toContain("limit=7");
+  });
+
   test("uses provided sort, limit, min_score and filters/sorts by score", async () => {
     const posts = [
       makePost("low", "Low", false, 5),

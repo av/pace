@@ -180,6 +180,48 @@ describe("hackernews", () => {
     },
   );
 
+  test.each([NaN, "30", Infinity, -5, 0] as unknown[])(
+    "invalid limit (%s) uses default fetch slice of 30",
+    async (limit) => {
+      const ids = Array.from({ length: 40 }, (_, i) => i + 1);
+      mocks.fetchMock.mockImplementation(async (url: string) => {
+        if (url.includes("topstories.json")) return makeIdsResponse(ids);
+        const m = url.match(/item\/(\d+)\.json/);
+        if (m) return makeItemResponse(makeHNItem(parseInt(m[1], 10)));
+        return makeItemResponse(null);
+      });
+
+      const results = await hackernewsAdapter.fetch(hnCfg({ limit }));
+      expect(results).toHaveLength(30);
+    },
+  );
+
+  test("caps limit at 200", async () => {
+    const ids = Array.from({ length: 250 }, (_, i) => i + 1);
+    mocks.fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes("topstories.json")) return makeIdsResponse(ids);
+      const m = url.match(/item\/(\d+)\.json/);
+      if (m) return makeItemResponse(makeHNItem(parseInt(m[1], 10)));
+      return makeItemResponse(null);
+    });
+
+    const results = await hackernewsAdapter.fetch(hnCfg({ limit: 500 }));
+    expect(results).toHaveLength(200);
+  });
+
+  test("floors fractional limit", async () => {
+    const ids = Array.from({ length: 10 }, (_, i) => i + 1);
+    mocks.fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes("topstories.json")) return makeIdsResponse(ids);
+      const m = url.match(/item\/(\d+)\.json/);
+      if (m) return makeItemResponse(makeHNItem(parseInt(m[1], 10)));
+      return makeItemResponse(null);
+    });
+
+    const results = await hackernewsAdapter.fetch(hnCfg({ limit: 7.9 }));
+    expect(results).toHaveLength(7);
+  });
+
   test("respects limit after score filter", async () => {
     const ids = [1, 2, 3];
     mocks.fetchMock.mockImplementation(async (url: string) => {
