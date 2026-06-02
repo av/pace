@@ -16,7 +16,7 @@ import {
   FEED_BODY_STRIP_OPTIONS,
   stripHtml,
 } from "./html";
-import { sliceToLimit } from "../utils";
+import { normalizeStringList, sliceToLimit } from "../utils";
 import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
@@ -98,8 +98,12 @@ async function fetchYoutubeFeed(
 const adapter: Adapter = {
   name: "youtube",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const channels = (config.params?.channels as string[]) ?? [];
-    const playlists = (config.params?.playlists as string[]) ?? [];
+    const channels = normalizeStringList(
+      (config.params?.channels as string[]) ?? [],
+    );
+    const playlists = normalizeStringList(
+      (config.params?.playlists as string[]) ?? [],
+    );
     const limit = Math.min((config.params?.limit as number) ?? 15, 50);
 
     if (channels.length === 0 && playlists.length === 0) {

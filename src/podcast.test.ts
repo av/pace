@@ -57,6 +57,15 @@ describe("podcast", () => {
     expect(mocks.warnSpy).toHaveBeenCalledWith("podcast: no feeds configured");
   });
 
+  test("returns [] and no fetch when feeds are only blank strings", async () => {
+    const items = await podcastAdapter.fetch(
+      podcastCfg({ feeds: ["", "  "] }),
+    );
+    expect(items).toEqual([]);
+    expect(mocks.fetchMock).not.toHaveBeenCalled();
+    expect(mocks.warnSpy).toHaveBeenCalledWith("podcast: no feeds configured");
+  });
+
   test("fetches single feed and maps episodes with correct id/source/timestamp/body (duration, show, ep, audio, desc)", async () => {
     mocks.fetchMock.mockResolvedValue(
       new Response(makePodcastFeedFixture(), {

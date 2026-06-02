@@ -14,7 +14,7 @@ import {
 import { parseFeedDate } from "./dates";
 import { joinBodyParts } from "./engagement";
 import { FEED_FETCH_TIMEOUT_MS, fetchText, PACE_USER_AGENT } from "./fetch";
-import { sliceToLimit } from "../utils";
+import { normalizeStringList, sliceToLimit } from "../utils";
 import { dedupeByKey } from "./merge";
 import {
   decodeHtmlEntities,
@@ -301,7 +301,7 @@ async function fetchPodcastFeed(
 const adapter: Adapter = {
   name: "podcast",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const feeds = (config.params?.feeds as string[]) ?? [];
+    const feeds = normalizeStringList((config.params?.feeds as string[]) ?? []);
     const limit = Math.min((config.params?.limit as number) ?? 10, 50);
 
     if (feeds.length === 0) {
