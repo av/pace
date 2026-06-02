@@ -198,3 +198,6 @@
 - label: skills/pace-dashboard-configure/SKILL.md Transform reference contains no verbosity-inflating restating per-transform comments (the '# Keep the N most recent items' before obvious 'type: latest' and '# Add LLM-generated summaries' before 'type: llm-summarize' have been removed; type: key + example params + section prose are self-documenting); verifiable by: ! grep -q '^ # Keep the N most recent items' skills/pace-dashboard-configure/SKILL.md && ! grep -q '^ # Add LLM-generated summaries' skills/pace-dashboard-configure/SKILL.md
   command:  ! grep -q "^  # Keep the N most recent items" skills/pace-dashboard-configure/SKILL.md && ! grep -q "^  # Add LLM-generated summaries" skills/pace-dashboard-configure/SKILL.md 
   tags: [implemented]
+- label: skills/pace-dashboard-configure/SKILL.md frontmatter contains no 'compatibility:' key (Cargo-Cult unreferenced/parsed frontmatter field present only in the 2 SKILL.md files themselves and nowhere referenced/parsed in project code, docs, configs or skill consumers; rotate after verbosity nwf in same file) (verifiable by: ! grep -q '^compatibility:' skills/pace-dashboard-configure/SKILL.md && grep -c '^compatibility:' skills/pace-dashboard-*.SKILL.md | grep -q ':1$')
+  command: ! grep -q '^compatibility:' skills/pace-dashboard-configure/SKILL.md
+  tags: [implemented]

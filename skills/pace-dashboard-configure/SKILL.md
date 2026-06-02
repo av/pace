@@ -6,7 +6,6 @@ description: >
   GitHub, arXiv, YouTube, Mastodon, etc.), composes transform pipelines, designs flexbox
   layouts, and optionally wires up LLM-powered summarization and ranking. Use when asked
   to configure, set up feeds for, or customize a pace dashboard.
-compatibility: Requires the pace project (github.com/av/pace) checked out locally.
 ---
 
 # Configure a pace dashboard
