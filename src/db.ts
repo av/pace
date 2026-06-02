@@ -57,8 +57,8 @@ export function initDb(): void {
       CREATE INDEX IF NOT EXISTS idx_content_items_timestamp
       ON content_items(timestamp DESC)
     `);
-  } catch (e: any) {
-    throw new Error(`db: init failed for ${currentDbPath || 'default'}: ${e.message || e}`);
+  } catch (e: unknown) {
+    throw new Error(`db: init failed for ${currentDbPath || 'default'}: ${errorMessage(e)}`);
   }
 }
 
@@ -89,17 +89,17 @@ export function saveItems(panelId: string, items: ContentItem[]): void {
           item.body ?? null,
           item.timestamp.toISOString()
         );
-      } catch (e: any) {
-        throw new Error(`db: failed to save item id=${item.id} for panel=${panelId}: ${e.message || e}`);
+      } catch (e: unknown) {
+        throw new Error(`db: failed to save item id=${item.id} for panel=${panelId}: ${errorMessage(e)}`);
       }
     }
   });
 
   try {
     tx();
-  } catch (e: any) {
-    if (e.message && e.message.startsWith('db:')) throw e;
-    throw new Error(`db: failed to save ${items.length} items for panel ${panelId}: ${e.message || e}`);
+  } catch (e: unknown) {
+    if (e instanceof Error && e.message.startsWith("db:")) throw e;
+    throw new Error(`db: failed to save ${items.length} items for panel ${panelId}: ${errorMessage(e)}`);
   }
 }
 
