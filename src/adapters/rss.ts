@@ -1,10 +1,38 @@
 import { XMLParser } from "fast-xml-parser";
-import { extractAtomLink } from "./atom";
+import { extractAtomLink, type AtomLinkField } from "./atom";
 import { parseFeedDate } from "./dates";
 import { fetchText } from "./fetch";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
-// from "./types" errorMessage helper (verifier s7s for bugbash-iter11)
+
+/** Parsed text node from fast-xml-parser. */
+type XmlTextField = string | { "#text"?: string };
+
+interface RssFeedItem {
+  title?: XmlTextField;
+  link?: AtomLinkField;
+  pubDate?: string;
+  updated?: string;
+  published?: string;
+  description?: XmlTextField;
+  summary?: XmlTextField;
+  content?: XmlTextField;
+  "content:encoded"?: XmlTextField;
+}
+
+/** Parsed RSS 2.0 / Atom feed root from fast-xml-parser (attributeNamePrefix "@_"). */
+interface RssFeedParsed {
+  rss?: {
+    channel?: {
+      title?: string;
+      item?: RssFeedItem | RssFeedItem[];
+    };
+  };
+  feed?: {
+    title?: XmlTextField;
+    entry?: RssFeedItem | RssFeedItem[];
+  };
+}
 
 function simpleHash(str: string): string {
   let h = 0;
@@ -19,14 +47,11 @@ function simpleHash(str: string): string {
  * Fields may be a raw string or an object like { "#text": "value", ...attrs }.
  * Used to DRY the repeated typeof + ["#text"] access patterns.
  */
-function extractText(raw: any): string | undefined {
+function extractText(raw: XmlTextField | undefined): string | undefined {
   if (raw == null) return undefined;
   if (typeof raw === "string") return raw;
-  if (typeof raw === "object" && "#text" in raw) {
-    const val = raw["#text"];
-    return typeof val === "string" ? val : undefined;
-  }
-  return undefined;
+  const val = raw["#text"];
+  return typeof val === "string" ? val : undefined;
 }
 
 const parser = new XMLParser({
@@ -34,7 +59,7 @@ const parser = new XMLParser({
   attributeNamePrefix: "@_",
 });
 
-function extractItems(parsed: any): any[] {
+function extractItems(parsed: RssFeedParsed): RssFeedItem[] {
   // RSS 2.0
   if (parsed?.rss?.channel?.item) {
     const items = parsed.rss.channel.item;
@@ -48,7 +73,7 @@ function extractItems(parsed: any): any[] {
   return [];
 }
 
-function extractFeedTitle(parsed: any, url: string): string {
+function extractFeedTitle(parsed: RssFeedParsed, url: string): string {
   if (parsed?.rss?.channel?.title) return parsed.rss.channel.title;
   if (parsed?.feed?.title) {
     const t = parsed.feed.title;
@@ -62,7 +87,7 @@ function extractFeedTitle(parsed: any, url: string): string {
   }
 }
 
-function parseItem(raw: any, source: string): ContentItem {
+function parseItem(raw: RssFeedItem, source: string): ContentItem {
   // title
   const title = extractText(raw.title) ?? "(untitled)";
 
@@ -99,9 +124,9 @@ function parseItem(raw: any, source: string): ContentItem {
 async function fetchFeed(url: string): Promise<ContentItem[]> {
   const xml = await fetchText("rss", url);
 
-  let parsed: any;
+  let parsed: RssFeedParsed;
   try {
-    parsed = parser.parse(xml);
+    parsed = parser.parse(xml) as RssFeedParsed;
   } catch (err) {
     throw new Error(`rss: error parsing xml from ${url}: ${errorMessage(err)}`);
   }
