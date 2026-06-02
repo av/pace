@@ -7,6 +7,7 @@ import {
   joinBodyParts,
 } from "./engagement";
 import { fetchJson } from "./fetch";
+import { decodeHtmlEntities } from "./html";
 import { sliceToLimit } from "../utils";
 import { dedupeByKey, fetchAndConcat, sortByCreatedAtDesc } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -29,6 +30,11 @@ interface LobstersItem {
   created_at: string;
   tags: string[];
   description?: string;
+}
+
+function decodeItemTitle(title?: string): string {
+  if (!title) return "(untitled)";
+  return decodeHtmlEntities(title, { numeric: true });
 }
 
 function buildBody(item: LobstersItem): string {
@@ -93,7 +99,7 @@ const adapter: Adapter = {
 
     return limited.map((item) => ({
       id: `lobsters:${item.short_id}`,
-      title: item.title,
+      title: decodeItemTitle(item.title),
       url: item.url || item.comments_url,
       source: tags.length > 0 ? `lobsters:${tags.join("+")}` : `lobsters:${feedType}`,
       timestamp: new Date(item.created_at),

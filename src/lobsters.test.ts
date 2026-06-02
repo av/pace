@@ -154,6 +154,14 @@ describe("lobsters", () => {
     ).rejects.toThrow(/lobsters:.*failed to fetch tag bad.*503/);
   });
 
+  test("decodes HTML entities in item titles", async () => {
+    const item = makeItem({ title: "A &amp; B &#8364; C" });
+    mocks.fetchMock.mockResolvedValue(makeJsonResponse([item]));
+
+    const results = await lobstersAdapter.fetch(lobstersCfg());
+    expect(results[0].title).toBe("A & B € C");
+  });
+
   test("throws on network error (fetch reject) with adapter prefix", async () => {
     mocks.fetchMock.mockRejectedValue(new Error("connection refused"));
 
