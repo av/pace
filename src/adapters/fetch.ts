@@ -19,10 +19,10 @@
  */
 import { errorMessage } from "./types";
 
-export const PACE_USER_AGENT = "pace/1.0";
-export const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
+const PACE_USER_AGENT = "pace/1.0";
+const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
 
-export type FetchWithTimeoutOptions = {
+type FetchWithTimeoutOptions = {
   timeoutMs?: number;
   userAgent?: string;
   headers?: Record<string, string>;

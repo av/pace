@@ -1,6 +1,6 @@
-export type StripHtmlWhitespace = "preserve" | "collapse-newlines" | "collapse-all";
+type StripHtmlWhitespace = "preserve" | "collapse-newlines" | "collapse-all";
 
-export interface StripHtmlOptions {
+interface StripHtmlOptions {
   /** Convert &lt;br&gt; and &lt;/p&gt; to newlines before stripping tags (Mastodon). */
   blockBreaks?: boolean;
   /** Whitespace normalization after entity decode. Default: collapse-newlines. */
