@@ -1,6 +1,7 @@
 import { XMLParser } from "fast-xml-parser";
 import { extractAtomLink, type AtomLinkField } from "./atom";
 import { parseFeedDate } from "./dates";
+import { joinBodyParts } from "./engagement";
 import { fetchText } from "./fetch";
 import { dedupeByKey, sliceToLimit } from "./merge";
 import { decodeHtmlEntities, stripHtml } from "./html";
@@ -231,36 +232,29 @@ function parseEpisode(
   };
 }
 
-function buildBody(ep: PodcastEpisode): string {
-  const parts: string[] = [];
-
-  if (ep.duration) {
-    parts.push(`Duration: ${ep.duration}`);
-  }
-
-  parts.push(`Show: ${ep.showName}`);
-
+function podcastSeasonEpisode(ep: PodcastEpisode): string | undefined {
   if (ep.season && ep.episode) {
-    parts.push(`S${ep.season.padStart(2, "0")}E${ep.episode.padStart(2, "0")}`);
-  } else if (ep.episode) {
-    parts.push(`Ep ${ep.episode}`);
-  } else if (ep.season) {
-    parts.push(`Season ${ep.season}`);
+    return `S${ep.season.padStart(2, "0")}E${ep.episode.padStart(2, "0")}`;
   }
+  if (ep.episode) return `Ep ${ep.episode}`;
+  if (ep.season) return `Season ${ep.season}`;
+  return undefined;
+}
 
-  if (ep.description) {
-    const truncated =
-      ep.description.length > 200
-        ? ep.description.slice(0, 200) + "..."
-        : ep.description;
-    parts.push(`Description: ${truncated}`);
-  }
+function buildBody(ep: PodcastEpisode): string {
+  const description = ep.description
+    ? ep.description.length > 200
+      ? ep.description.slice(0, 200) + "..."
+      : ep.description
+    : undefined;
 
-  if (ep.audioUrl) {
-    parts.push(`Audio: ${ep.audioUrl}`);
-  }
-
-  return parts.join(" | ");
+  return joinBodyParts(
+    ep.duration ? `Duration: ${ep.duration}` : undefined,
+    `Show: ${ep.showName}`,
+    podcastSeasonEpisode(ep),
+    description ? `Description: ${description}` : undefined,
+    ep.audioUrl ? `Audio: ${ep.audioUrl}` : undefined,
+  );
 }
 
 function episodeToContentItem(ep: PodcastEpisode): ContentItem {

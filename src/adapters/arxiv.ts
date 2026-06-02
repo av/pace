@@ -1,5 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import { parseFeedDate } from "./dates";
+import { joinBodyParts } from "./engagement";
 import { fetchText } from "./fetch";
 import { dedupeByKey, sliceToLimit } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -118,23 +119,19 @@ async function fetchArxivQuery(
 }
 
 function buildBody(entry: ArxivEntry): string {
-  const parts: string[] = [];
-
   const authors = extractAuthors(entry.author);
-  if (authors) parts.push(`Authors: ${authors}`);
-
   const categories = extractCategories(entry);
-  if (categories.length > 0) parts.push(`Categories: ${categories.join(", ")}`);
-
   const abstract = cleanText(entry.summary);
-  if (abstract) parts.push(`Abstract: ${truncate(abstract, 300)}`);
-
   const pdfLink = extractPdfLink(entry.link);
   const arxivId = extractArxivId(entry.id);
   const pdfUrl = pdfLink || (arxivId ? `https://arxiv.org/pdf/${arxivId}` : "");
-  if (pdfUrl) parts.push(`PDF: ${pdfUrl}`);
 
-  return parts.join(" | ");
+  return joinBodyParts(
+    authors ? `Authors: ${authors}` : undefined,
+    categories.length > 0 ? `Categories: ${categories.join(", ")}` : undefined,
+    abstract ? `Abstract: ${truncate(abstract, 300)}` : undefined,
+    pdfUrl ? `PDF: ${pdfUrl}` : undefined,
+  );
 }
 
 function entryToItem(entry: ArxivEntry, sourceLabel: string): ContentItem {
