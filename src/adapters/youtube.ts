@@ -1,8 +1,8 @@
 import { XMLParser } from "fast-xml-parser";
 import {
   extractAtomLink,
+  extractFeedEntryTitle,
   extractFeedRootTitle,
-  extractXmlText,
   FEED_XML_PARSER_OPTIONS,
   normalizeXmlList,
   type AtomLinkField,
@@ -49,7 +49,7 @@ function buildBody(entry: YTEntry): string | undefined {
 
 function parseEntry(entry: YTEntry, channelTitle: string): ContentItem {
   const videoId = entry["yt:videoId"] ?? "";
-  const title = extractXmlText(entry.title) ?? "(untitled)";
+  const title = extractFeedEntryTitle(entry.title);
 
   const link = videoId
     ? `https://www.youtube.com/watch?v=${videoId}`

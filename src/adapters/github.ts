@@ -1,8 +1,8 @@
 import { XMLParser } from "fast-xml-parser";
 import {
   extractAtomLink,
+  extractFeedEntryTitle,
   extractFeedItemBody,
-  extractXmlText,
   FEED_XML_PARSER_OPTIONS,
   normalizeXmlList,
   type AtomLinkField,
@@ -56,7 +56,7 @@ async function fetchReleasesFeed(
   const items: ContentItem[] = [];
 
   for (const entry of sliceToLimit(entries, limit)) {
-    const title = (extractXmlText(entry.title) ?? "") || "(untitled release)";
+    const title = extractFeedEntryTitle(entry.title, "(untitled release)");
     const link = extractAtomLink(entry.link);
     const timestamp = parseFeedDate(entry.updated ?? entry.published ?? "");
 

@@ -1,10 +1,10 @@
 import { XMLParser } from "fast-xml-parser";
 import {
   extractAtomLink,
+  extractFeedEntryTitle,
   extractFeedItemBody,
   extractFeedRootTitle,
   extractRssAtomItems,
-  extractXmlText,
   FEED_XML_PARSER_OPTIONS,
   type AtomLinkField,
   type FeedItemBodyFields,
@@ -63,7 +63,7 @@ function extractFeedTitle(parsed: RssFeedParsed, url: string): string {
 }
 
 function parseItem(raw: RssFeedItem, source: string): ContentItem {
-  const title = extractXmlText(raw.title) ?? "(untitled)";
+  const title = extractFeedEntryTitle(raw.title);
 
   const link = extractAtomLink(raw.link);
 
