@@ -99,9 +99,17 @@ async function lookupAccount(
       `https://${instance}/api/v1/accounts/lookup?acct=${encodeURIComponent(username)}`,
       { timeoutMs: 10_000 },
     );
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn(
+        `mastodon: account lookup ${username}@${instance}: HTTP ${res.status}`,
+      );
+      return null;
+    }
     return await res.json();
-  } catch {
+  } catch (err) {
+    console.warn(
+      `mastodon: account lookup ${username}@${instance}: ${errorMessage(err)}`,
+    );
     return null;
   }
 }
@@ -199,10 +207,7 @@ const adapter: Adapter = {
           }
           // Look up the account on their home instance
           const account = await lookupAccount(parsed.instance, parsed.username);
-          if (!account) {
-            console.warn(`mastodon: could not find account ${handle}`);
-            continue;
-          }
+          if (!account) continue;
           const statuses = await fetchAccountStatuses(
             parsed.instance,
             account.id,
