@@ -1,7 +1,7 @@
 import { XMLParser } from "fast-xml-parser";
 import { extractAtomLink, extractXmlText, type AtomLinkField, type XmlTextField } from "./atom";
 import { parseFeedDate } from "./dates";
-import { formatStars, joinBodyParts } from "./engagement";
+import { formatLanguage, formatStars, joinBodyParts } from "./engagement";
 import { fetchText } from "./fetch";
 import { dedupeByKey, sliceToLimit } from "./merge";
 import { stripHtml } from "./html";
@@ -158,7 +158,7 @@ async function fetchTrending(
 
   return sliceToLimit(repos, limit).map((repo) => {
     const body = joinBodyParts(
-      repo.language ? `language: ${repo.language}` : undefined,
+      repo.language ? formatLanguage(repo.language) : undefined,
       formatStars(repo.stars),
     );
 

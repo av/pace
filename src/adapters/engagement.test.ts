@@ -7,8 +7,11 @@ import {
   formatPercent,
   formatPoints,
   formatReactions,
+  formatLanguage,
   formatScore,
+  formatSite,
   formatStars,
+  formatTopics,
   joinBodyParts,
   parseFirstIntMatch,
   RE_POINTS_OR_UPVOTES,
@@ -33,6 +36,12 @@ describe("engagement format helpers", () => {
   test("formatStars for github trending bodies", () => {
     expect(formatStars(123456)).toBe("123,456 stars");
     expect(extractEngagementScore(formatStars(99))).toBe(99);
+  });
+
+  test("formatLanguage, formatTopics, formatSite for adapter metadata", () => {
+    expect(formatLanguage("TypeScript")).toBe("language: TypeScript");
+    expect(formatTopics(["Ai", "Devtools"])).toBe("topics: Ai, Devtools");
+    expect(formatSite("https://example.com/p")).toBe("site: https://example.com/p");
   });
 
   test("joinBodyParts matches adapter metadata layout", () => {

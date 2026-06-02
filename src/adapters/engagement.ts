@@ -101,5 +101,17 @@ export function formatStars(count: number): string {
   return `${count.toLocaleString()} stars`;
 }
 
+export function formatLanguage(language: string): string {
+  return `language: ${language}`;
+}
+
+export function formatTopics(topics: string[]): string {
+  return `topics: ${topics.join(", ")}`;
+}
+
+export function formatSite(url: string): string {
+  return `site: ${url}`;
+}
+
 /** Join adapter body segments with " | ". */
 export const joinBodyParts = joinTitle;

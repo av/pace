@@ -9,6 +9,8 @@ import {
   RE_POINTS_OR_UPVOTES,
   formatBy,
   formatComments,
+  formatSite,
+  formatTopics,
   formatUpvotes,
   joinBodyParts,
   parseFirstIntMatch,
@@ -221,9 +223,9 @@ function buildBody(
     tagline || undefined,
     enriched?.upvotes !== undefined ? formatUpvotes(enriched.upvotes) : undefined,
     enriched?.comments !== undefined ? formatComments(enriched.comments) : undefined,
-    enriched?.topics?.length ? `topics: ${enriched.topics.join(", ")}` : undefined,
+    enriched?.topics?.length ? formatTopics(enriched.topics) : undefined,
     byAuthor,
-    productLink ? `site: ${productLink}` : undefined,
+    productLink ? formatSite(productLink) : undefined,
   );
 }
 
