@@ -45,7 +45,12 @@ async function fetchItem(id: number): Promise<HNItem | null> {
   try {
     return await fetchHN<HNItem>(`item/${id}.json`, 10000);
   } catch (err) {
-    console.warn(`hackernews: failed to fetch item ${id}: ${errorMessage(err)}`);
+    const msg = errorMessage(err);
+    console.warn(
+      msg.startsWith("hackernews:")
+        ? msg
+        : `hackernews: failed to fetch item ${id}: ${msg}`,
+    );
     return null;
   }
 }
