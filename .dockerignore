@@ -1,6 +1,6 @@
-node_modules
-.git
-data
+node_modules/
+.git/
+data/
 config.yaml
 *.db
 .dockerignore
