@@ -8,32 +8,31 @@
  *   wrap it again in an outer catch.
  * - **`error fetching`** — transport-layer failure before a definitive HTTP
  *   status: network errors, DNS, timeouts (`AbortSignal.timeout`), etc. Use in
- *   catch blocks around `fetchWithTimeout` / `res.text()`.
- * - **`error reading`** — `res.ok` but reading/parsing the body failed (`fetchText`,
- *   `fetchJson`).
+ *   catch blocks around `fetchWithTimeout` / body read.
+ * - **`error reading`** — `res.ok` but reading/parsing the body failed.
  *
  * Avoid double-wrapped messages (`error fetching … failed to fetch …`): in a
  * catch-all around fetch+parse, rethrow when
  * `err.message.startsWith(\`${prefix}: failed to fetch\`)`; otherwise wrap as
- * `error fetching`. Hand-rolled JSON helpers (e.g. lemmy, wikipedia) follow the
- * same pattern for adapters not yet on `fetchJson`. See `Adapter.fetch` in
- * `types.ts` for throw vs warn+[] contract.
+ * `error fetching`. See `Adapter.fetch` in `types.ts` for throw vs warn+[] contract.
  */
 import { errorMessage } from "./types";
 
 const PACE_USER_AGENT = "pace/1.0";
 const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
 
-type FetchWithTimeoutOptions = {
+export type FetchWithTimeoutOptions = {
   timeoutMs?: number;
   userAgent?: string;
   headers?: Record<string, string>;
   accept?: string;
 };
 
+type FetchBodyReader<T> = (res: Response) => Promise<T>;
+
 /**
  * HTTP fetch with default User-Agent and AbortSignal.timeout.
- * Does not check res.ok — callers handle status or use fetchText.
+ * Does not check res.ok — callers handle status or use fetchText/fetchJson.
  */
 export async function fetchWithTimeout(
   url: string,
@@ -53,13 +52,12 @@ export async function fetchWithTimeout(
   });
 }
 
-/** Fetch URL as text; applies the module error-prefix conventions above. */
-export async function fetchText(
+async function fetchOkResponse(
   prefix: string,
   url: string,
-  context: string = url,
-  options: FetchWithTimeoutOptions = {},
-): Promise<string> {
+  context: string,
+  options: FetchWithTimeoutOptions,
+): Promise<Response> {
   let res: Response;
   try {
     res = await fetchWithTimeout(url, options);
@@ -73,11 +71,32 @@ export async function fetchText(
     );
   }
 
+  return res;
+}
+
+async function fetchBody<T>(
+  prefix: string,
+  url: string,
+  context: string,
+  options: FetchWithTimeoutOptions,
+  read: FetchBodyReader<T>,
+): Promise<T> {
+  const res = await fetchOkResponse(prefix, url, context, options);
   try {
-    return await res.text();
+    return await read(res);
   } catch (err) {
     throw new Error(`${prefix}: error reading ${context}: ${errorMessage(err)}`);
   }
+}
+
+/** Fetch URL as text; applies the module error-prefix conventions above. */
+export async function fetchText(
+  prefix: string,
+  url: string,
+  context: string = url,
+  options: FetchWithTimeoutOptions = {},
+): Promise<string> {
+  return fetchBody(prefix, url, context, options, (res) => res.text());
 }
 
 /** Fetch URL as JSON; applies the module error-prefix conventions above. */
@@ -87,22 +106,5 @@ export async function fetchJson<T>(
   context: string = url,
   options: FetchWithTimeoutOptions = {},
 ): Promise<T> {
-  let res: Response;
-  try {
-    res = await fetchWithTimeout(url, options);
-  } catch (err) {
-    throw new Error(`${prefix}: error fetching ${context}: ${errorMessage(err)}`);
-  }
-
-  if (!res.ok) {
-    throw new Error(
-      `${prefix}: failed to fetch ${context}: ${errorMessage({ message: `HTTP error ${res.status}` })}`,
-    );
-  }
-
-  try {
-    return (await res.json()) as T;
-  } catch (err) {
-    throw new Error(`${prefix}: error reading ${context}: ${errorMessage(err)}`);
-  }
+  return fetchBody(prefix, url, context, options, async (res) => (await res.json()) as T);
 }
