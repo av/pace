@@ -14,6 +14,7 @@ import { parseFeedDate } from "./dates";
 import { fetchText } from "./fetch";
 import { decodeHtmlEntities, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
 import { dedupeByKey } from "./merge";
+import { normalizeStringList } from "../utils";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 
@@ -109,7 +110,7 @@ async function fetchFeed(url: string): Promise<ContentItem[]> {
 const adapter: Adapter = {
   name: "rss",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const urls = (config.params?.urls as string[]) ?? [];
+    const urls = normalizeStringList((config.params?.urls as string[]) ?? []);
     if (urls.length === 0) {
       console.warn("rss: no urls configured");
       return [];
