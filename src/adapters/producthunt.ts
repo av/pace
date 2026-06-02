@@ -30,6 +30,13 @@ interface PHEntry {
   author?: { name?: string };
 }
 
+/** Parsed Atom feed root from fast-xml-parser (attributeNamePrefix "@_"). */
+interface PHAtomFeedParsed {
+  feed?: {
+    entry?: PHEntry | PHEntry[];
+  };
+}
+
 interface EnrichedData {
   upvotes?: number;
   comments?: number;
@@ -38,7 +45,7 @@ interface EnrichedData {
   website?: string;
 }
 
-function extractEntries(parsed: any): PHEntry[] {
+function extractEntries(parsed: PHAtomFeedParsed): PHEntry[] {
   const entries = parsed?.feed?.entry;
   if (!entries) return [];
   return Array.isArray(entries) ? entries : [entries];
@@ -238,7 +245,7 @@ async function fetchProductHuntFeed(): Promise<
     }
 
     const xml = await res.text();
-    const parsed = parser.parse(xml);
+    const parsed = parser.parse(xml) as PHAtomFeedParsed;
     const entries = extractEntries(parsed);
 
     if (entries.length === 0) {
