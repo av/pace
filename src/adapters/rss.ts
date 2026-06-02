@@ -2,6 +2,7 @@ import { XMLParser } from "fast-xml-parser";
 import { extractAtomLink, type AtomLinkField } from "./atom";
 import { parseFeedDate } from "./dates";
 import { fetchText } from "./fetch";
+import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 
@@ -142,7 +143,7 @@ const adapter: Adapter = {
     if (urls.length === 0) return [];
 
     const results = await Promise.all(urls.map(fetchFeed));
-    return results.flat();
+    return dedupeByKey(results.flat(), (item) => item.url || item.id);
   },
 };
 

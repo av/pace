@@ -111,6 +111,21 @@ describe("github adapter", () => {
     expect(items.length).toBeLessThanOrEqual(2);
   });
 
+  test("dedupes duplicate release urls when the same repo is listed twice", async () => {
+    fetchMock.mockImplementation(async () => makeTextResponse(releasesXml));
+
+    const items = await adapter.fetch(
+      githubCfg({ mode: "releases", repos: ["facebook/react", "facebook/react"], limit: 10 }),
+    );
+
+    expect(fetchMock.mock.calls.length).toBe(2);
+    expect(items.length).toBe(2);
+    expect(items.map((i) => i.url)).toEqual([
+      "https://github.com/facebook/react/releases/tag/v19.0.0",
+      "https://github.com/facebook/react/releases/tag/v18.3.0",
+    ]);
+  });
+
   test("fetches trending with language and since, parses html, maps stars/gained/desc", async () => {
     fetchMock.mockImplementation(async (url: string) => {
       if (String(url).includes("trending")) {

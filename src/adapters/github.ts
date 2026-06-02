@@ -2,6 +2,7 @@ import { XMLParser } from "fast-xml-parser";
 import { extractAtomLink, type AtomLinkField } from "./atom";
 import { parseFeedDate, sliceToLimit } from "./dates";
 import { fetchWithTimeout } from "./fetch";
+import { dedupeByKey } from "./merge";
 import { stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
@@ -228,10 +229,10 @@ const adapter: Adapter = {
       repos.map((repo) => fetchReleasesFeed(repo, limit)),
     );
 
-    const allItems = results.flat();
-    allItems.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    const deduped = dedupeByKey(results.flat(), (item) => item.url || item.id);
+    deduped.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
-    return sliceToLimit(allItems, limit * repos.length);
+    return sliceToLimit(deduped, limit * repos.length);
   },
 };
 

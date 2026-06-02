@@ -124,11 +124,45 @@ describe("rss adapter", () => {
     });
   });
 
-  test("merges multiple urls (RSS + Atom) with flat results", async () => {
+  test("merges multiple urls (RSS + Atom)", async () => {
     const cfg: AdapterConfig = { type: "rss", params: { urls: ["https://ex.com/rss", "https://ex.com/atom"] } };
     const items = await rssAdapter.fetch(cfg);
     expect(fetchCalls.length).toBe(2);
     expect(items.length).toBe(3);
+  });
+
+  test("dedupes the same item link across multiple feeds", async () => {
+    const overlapFixture = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Overlap Feed</title>
+    <item>
+      <title>Item One Duplicate</title>
+      <link>https://example.com/one</link>
+      <pubDate>2024-01-05T00:00:00Z</pubDate>
+      <description>from second feed</description>
+    </item>
+  </channel>
+</rss>`;
+    globalThis.fetch = (async (input: string | URL) => {
+      const url = String(input);
+      fetchCalls.push(url);
+      if (url.includes("overlap")) {
+        return makeResponse(overlapFixture);
+      }
+      return makeResponse(rssFixture);
+    }) as typeof fetch;
+
+    const cfg: AdapterConfig = {
+      type: "rss",
+      params: { urls: ["https://ex.com/rss", "https://ex.com/overlap"] },
+    };
+    const items = await rssAdapter.fetch(cfg);
+    expect(fetchCalls.length).toBe(2);
+    expect(items.length).toBe(2);
+    expect(items.filter((i) => i.url === "https://example.com/one")).toHaveLength(1);
+    expect(items[0].title).toBe("Item One");
+    expect(items[0].body).toBe("First item body text");
   });
 
   test("handles link array form in parse (prefers alternate href)", async () => {
