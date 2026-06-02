@@ -236,7 +236,6 @@ transforms:
     field: timestamp        # timestamp, title, source
     direction: desc         # asc, desc
 
-  # Deduplicate items
   - type: dedupe
     strategy: url           # url, domain-normalized, title-similarity
     threshold: 0.85         # for title-similarity (0-1)
@@ -259,7 +258,6 @@ transforms:
         regex: true
     min_score: 0
 
-  # Group related items (no LLM)
   - type: cluster
     strategy: auto          # domain, keywords, source, auto
 
