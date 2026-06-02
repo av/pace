@@ -10,7 +10,11 @@ import {
 import { parseFeedDate } from "./dates";
 import { formatCategories, joinBodyParts } from "./engagement";
 import { fetchText } from "./fetch";
-import { FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
+import {
+  decodeHtmlEntities,
+  FEED_BODY_STRIP_OPTIONS,
+  stripHtml,
+} from "./html";
 import { sliceToLimit } from "../utils";
 import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -134,9 +138,9 @@ function buildBody(entry: ArxivEntry): string {
 
 function entryToItem(entry: ArxivEntry, sourceLabel: string): ContentItem {
   const arxivId = extractArxivId(entry.id);
-  const title = stripHtml(
-    extractFeedEntryTitle(entry.title),
-    FEED_BODY_STRIP_OPTIONS,
+  const title = decodeHtmlEntities(
+    stripHtml(extractFeedEntryTitle(entry.title), FEED_BODY_STRIP_OPTIONS),
+    { numeric: true },
   );
   const url = entry.id ?? `https://arxiv.org/abs/${arxivId}`;
   const timestamp = parseFeedDate(entry.published ?? entry.updated ?? "");

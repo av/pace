@@ -37,6 +37,20 @@ describe("arxiv", () => {
     expect(mocks.fetchMock).not.toHaveBeenCalled();
   });
 
+  test("decodes HTML entities in entry title after stripHtml", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      new Response(
+        makeArxivFixture("Rock &amp; Roll &#8364;", "2401.00002", "Test Author", "cs.AI"),
+        { status: 200 },
+      ),
+    );
+
+    const items = await arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"] }));
+
+    expect(items.length).toBe(1);
+    expect(items[0].title).toBe("Rock & Roll €");
+  });
+
   test("title and summary use FEED_BODY_STRIP_OPTIONS (tags, links, entities)", async () => {
     const htmlXml = `<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom" xmlns:arxiv="http://arxiv.org/schemas/atom">
