@@ -22,13 +22,9 @@ Open http://localhost:7453 — the default config ships with Hacker News, Lobste
 
 ### With a preset
 
-```bash
-docker run -d -p 7453:7453 \
-  -v pace-data:/app/data \
-  ghcr.io/av/pace:latest --preset tech-news
-```
+Use the exact Quick start `docker run` command shown above and append `--preset tech-news` (or `-P ml-ai` etc. locally). See `pace --list-presets` for the list of bundled presets.
 
-Or locally: `pace --preset tech-news` (or `pace -P ml-ai`). See `pace --list-presets`.
+Or locally: `pace --preset tech-news` (or `pace -P ml-ai`).
 
 ### Custom config
 
@@ -36,12 +32,13 @@ Or locally: `pace --preset tech-news` (or `pace -P ml-ai`). See `pace --list-pre
 curl -O https://raw.githubusercontent.com/av/pace/main/config.example.yaml
 mv config.example.yaml config.yaml
 # edit config.yaml with your feeds
-
-docker run -d -p 7453:7453 \
-  -v ./config.yaml:/app/config.yaml:ro \
-  -v pace-data:/app/data \
-  ghcr.io/av/pace:latest
 ```
+
+Use the Quick start `docker run` command shown above, inserting a read-only mount for your config file before the image name:
+
+  -v ./config.yaml:/app/config.yaml:ro \
+
+(keep the data volume and image from the canonical Quick start command).
 
 ### From source
 
