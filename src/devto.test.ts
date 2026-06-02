@@ -91,6 +91,36 @@ describe("devto", () => {
     mocks.fetchMock.mockImplementation(devtoDefaultFetchMock);
   });
 
+  test.each([NaN, "20", Infinity, -5, 0] as unknown[])(
+    "invalid limit (%s) sends per_page=20 to API",
+    async (limit) => {
+      await devtoAdapter.fetch(devtoCfg({ tags: ["typescript"], limit }));
+      const call = devtoFetchCalls().find((c) => c.url.includes("tag=typescript"));
+      expect(call?.url ?? "").toContain("per_page=20");
+    },
+  );
+
+  test("caps per_page at 30 in API query", async () => {
+    await devtoAdapter.fetch(devtoCfg({ tags: ["typescript"], limit: 500 }));
+    const call = devtoFetchCalls().find((c) => c.url.includes("tag=typescript"));
+    expect(call?.url ?? "").toContain("per_page=30");
+  });
+
+  test("floors fractional limit in per_page query param", async () => {
+    await devtoAdapter.fetch(devtoCfg({ tags: ["typescript"], limit: 7.9 }));
+    const call = devtoFetchCalls().find((c) => c.url.includes("tag=typescript"));
+    expect(call?.url ?? "").toContain("per_page=7");
+  });
+
+  test("per_page param takes precedence over limit for API per_page", async () => {
+    await devtoAdapter.fetch(
+      devtoCfg({ tags: ["typescript"], limit: 5, per_page: 12 }),
+    );
+    const call = devtoFetchCalls().find((c) => c.url.includes("tag=typescript"));
+    expect(call?.url ?? "").toContain("per_page=12");
+    expect(call?.url ?? "").not.toContain("per_page=5");
+  });
+
   test("resolvePeriod maps aliases (month->30, day->1 etc) into query param sent to fetchDevToArticles", async () => {
     await devtoAdapter.fetch(devtoCfg({ tags: ["typescript"], top: "month", limit: 5 }));
     const tsCall = devtoFetchCalls().find((c) => c.url.includes("tag=typescript"));

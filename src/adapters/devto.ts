@@ -12,6 +12,7 @@ import { decodeHtmlEntities } from "./html";
 import {
   normalizeNonNegativeNumber,
   normalizeOptionalString,
+  normalizePositiveInteger,
   normalizeStringList,
   sliceToLimit,
 } from "../utils";
@@ -58,6 +59,11 @@ async function fetchDevToArticles(
 ): Promise<DevToArticle[]> {
   const params = new URLSearchParams();
   for (const [k, v] of Object.entries(query)) {
+    if (v === undefined) continue;
+    if (k === "per_page") {
+      params.set(k, String(normalizePositiveInteger(v, 20)));
+      continue;
+    }
     params.set(k, String(v));
   }
   const url = `${DEVTO_API}?${params.toString()}`;
@@ -93,7 +99,13 @@ const adapter: Adapter = {
     const username = normalizeOptionalString(
       config.params?.username as string | undefined,
     );
-    const limit = Math.min((config.params?.limit as number) ?? 20, 30);
+    const perPage = Math.min(
+      normalizePositiveInteger(
+        config.params?.per_page ?? config.params?.limit,
+        20,
+      ),
+      30,
+    );
     const minReactions = normalizeNonNegativeNumber(config.params?.min_reactions);
     const top = resolvePeriod(config.params?.top);
 
@@ -106,7 +118,7 @@ const adapter: Adapter = {
 
     if (username) {
       const articles = await fetchDevToArticles(
-        { username, per_page: limit },
+        { username, per_page: perPage },
         `user "${username}"`,
       );
       allArticles.push(...articles);
@@ -116,7 +128,7 @@ const adapter: Adapter = {
       allArticles.push(
         ...(await fetchAndConcat(tags, (tag) =>
           fetchDevToArticles(
-            { tag, top: String(top), per_page: limit },
+            { tag, top: String(top), per_page: perPage },
             `tag "${tag}"`,
           ),
         )),
@@ -136,7 +148,7 @@ const adapter: Adapter = {
       (a, b) => b.positive_reactions_count - a.positive_reactions_count,
     );
 
-    const limited = sliceToLimit(filtered, limit);
+    const limited = sliceToLimit(filtered, perPage);
 
     let sourceLabel: string;
     if (username) {
