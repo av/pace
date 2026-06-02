@@ -1,7 +1,7 @@
 import { XMLParser } from "fast-xml-parser";
 import { parseFeedDate } from "./dates";
 import { sliceToLimit } from "./merge";
-import { fetchText, fetchWithTimeout } from "./fetch";
+import { fetchText } from "./fetch";
 import { stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
@@ -111,6 +111,22 @@ function warnEnrichFailed(url: string, detail: unknown): void {
   console.warn(`producthunt: enrich failed for ${url}: ${errorMessage(detail)}`);
 }
 
+/** Map fetchText errors to short enrich warn details (status code or inner message). */
+function enrichFailureDetail(err: unknown): string {
+  const msg = errorMessage(err);
+  const httpMatch = msg.match(/HTTP error (\d+)/);
+  if (httpMatch) return httpMatch[1];
+  for (const prefix of [
+    "producthunt: error fetching ",
+    "producthunt: error reading ",
+  ]) {
+    if (!msg.startsWith(prefix)) continue;
+    const sep = msg.indexOf(": ", prefix.length);
+    if (sep >= 0) return msg.slice(sep + 2);
+  }
+  return msg;
+}
+
 function matchCaptures(html: string, re: RegExp): string[] {
   return [...html.matchAll(re)].map((m) => m[1]).filter(Boolean);
 }
@@ -168,19 +184,14 @@ function extractId(entry: PHEntry): string {
 
 async function enrichProduct(url: string): Promise<EnrichedData | null> {
   try {
-    const res = await fetchWithTimeout(url, {
+    const html = await fetchText("producthunt", url, url, {
       timeoutMs: ENRICH_FETCH_TIMEOUT_MS,
       userAgent: PH_ENRICH_USER_AGENT,
       accept: "text/html",
     });
-    if (!res.ok) {
-      warnEnrichFailed(url, { message: String(res.status) });
-      return null;
-    }
-    const html = await res.text();
     return parseEnrichedData(html);
   } catch (err) {
-    warnEnrichFailed(url, err);
+    warnEnrichFailed(url, enrichFailureDetail(err));
     return null;
   }
 }
