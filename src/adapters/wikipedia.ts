@@ -1,6 +1,6 @@
 import { formatViews, joinBodyParts } from "./engagement";
 import { fetchJson } from "./fetch";
-import { stripHtml } from "./html";
+import { decodeHtmlEntities, stripHtml } from "./html";
 import { sliceToLimit } from "../utils";
 import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -40,6 +40,10 @@ interface WikiNewsItem {
   links: WikiArticle[];
 }
 
+function formatArticleTitle(title: string): string {
+  return decodeHtmlEntities(title.replace(/_/g, " "), { numeric: true });
+}
+
 function buildBody(article: WikiMostReadArticle): string {
   return joinBodyParts(
     formatViews(article.views),
@@ -76,7 +80,7 @@ function extractMostRead(data: WikiFeaturedResponse, limit: number): ContentItem
   const articles = data.mostread?.articles ?? [];
   return sliceToLimit(articles, limit).map((article) => ({
     id: `wikipedia:mostread:${article.title}`,
-    title: article.title.replace(/_/g, " "),
+    title: formatArticleTitle(article.title),
     url: article.content_urls.desktop.page,
     source: "wikipedia:most_read",
     timestamp: new Date(),
@@ -90,7 +94,7 @@ function extractFeatured(data: WikiFeaturedResponse): ContentItem[] {
   return [
     {
       id: `wikipedia:tfa:${tfa.title}`,
-      title: `Featured: ${tfa.title.replace(/_/g, " ")}`,
+      title: `Featured: ${formatArticleTitle(tfa.title)}`,
       url: tfa.content_urls.desktop.page,
       source: "wikipedia:featured",
       timestamp: new Date(),

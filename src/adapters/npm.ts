@@ -1,5 +1,6 @@
 import { formatBy, formatPercent, formatTags, joinBodyParts } from "./engagement";
 import { fetchJson } from "./fetch";
+import { decodeHtmlEntities } from "./html";
 import { titleWithTagline } from "./title";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
@@ -34,6 +35,10 @@ interface NpmPackageResult {
       maintenance: number;
     };
   };
+}
+
+function decodePackageTitle(text: string): string {
+  return decodeHtmlEntities(text, { numeric: true });
 }
 
 function buildBody(result: NpmPackageResult): string {
@@ -131,7 +136,12 @@ const adapter: Adapter = {
 
     return results.map((result) => ({
       id: `npm:${result.package.name}@${result.package.version}`,
-      title: titleWithTagline(result.package.name, result.package.description),
+      title: titleWithTagline(
+        decodePackageTitle(result.package.name),
+        result.package.description
+          ? decodePackageTitle(result.package.description)
+          : undefined,
+      ),
       url: result.package.links.npm,
       source: scope ? `npm:@${scope}` : `npm:${sortBy}`,
       timestamp: new Date(result.package.date),

@@ -223,6 +223,27 @@ describe("npm", () => {
     expect(items[0].body).toContain("repo: https://github.com/x/x");
   });
 
+  test("decodes HTML entities in package titles from API", async () => {
+    const pkg = makePackageResult({
+      package: {
+        name: "pkg&amp;name",
+        description: "A &amp; B &#8364; toolkit",
+      },
+    });
+    mocks.fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makeSearchResponse([pkg])), { status: 200 }),
+    );
+
+    const items = await npmAdapter.fetch({
+      type: "npm",
+      params: { keywords: ["test"] },
+    });
+
+    expect(items[0].title).toBe("pkg&name | A & B € toolkit");
+    expect(items[0].title).not.toContain("&amp;");
+    expect(items[0].title).not.toContain("&#8364;");
+  });
+
   test("handles missing optional fields gracefully", async () => {
     const pkg = makePackageResult({
       package: {

@@ -274,6 +274,21 @@ describe("wikipedia", () => {
     expect(items[2].body).toContain("500 views");
   });
 
+  test("decodes HTML entities in article titles from API", async () => {
+    const articles = [
+      makeMostReadArticle({ title: "Rock_&amp;_Roll_&#8364;" }),
+    ];
+    mocks.fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makeFeaturedResponse({ mostread: { articles } })), { status: 200 }),
+    );
+
+    const items = await wikipediaAdapter.fetch(wikiCfg());
+
+    expect(items[0].title).toBe("Rock & Roll €");
+    expect(items[0].title).not.toContain("&amp;");
+    expect(items[0].title).not.toContain("&#8364;");
+  });
+
   test("replaces underscores with spaces in titles", async () => {
     const articles = [makeMostReadArticle({ title: "United_States_of_America" })];
     mocks.fetchMock.mockResolvedValue(
