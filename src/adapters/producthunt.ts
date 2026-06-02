@@ -40,8 +40,9 @@ const ENRICH_BATCH_SIZE = 5;
 const ENRICH_DELAY_MS = 500;
 
 const RE_ENRICH_COMMENTS = /commentsCount":\s*(\d+)/;
-const RE_ENRICH_TOPIC_LABEL = /data-test="topic[^"]*"[^>]*>([^<]+)</gi;
-const RE_ENRICH_TOPIC_SLUG = /href="\/topics\/([^"]+)"/gi;
+/** Prefer data-test topic labels; else capture /topics/{slug} hrefs. */
+const RE_ENRICH_TOPIC =
+  /data-test="topic[^"]*"[^>]*>([^<]+)<|href="\/topics\/([^"]+)"/gi;
 const RE_ENRICH_PROFILE = /href="\/@([a-zA-Z0-9_]{2,30})"/gi;
 
 const EXCLUDED_MAKER_HANDLES = new Set(["producthunt", "product_hunt"]);
@@ -122,13 +123,14 @@ function decodeTopicLabel(label: string): string {
 }
 
 function extractTopics(html: string): string[] {
-  const labels = matchCaptures(html, RE_ENRICH_TOPIC_LABEL)
-    .map(decodeTopicLabel)
-    .filter(Boolean);
-  if (labels.length > 0) return labels;
-
-  const slugs = [...new Set(matchCaptures(html, RE_ENRICH_TOPIC_SLUG))];
-  return slugs.map(topicLabelFromSlug).filter(Boolean);
+  const labels: string[] = [];
+  const slugs: string[] = [];
+  for (const m of html.matchAll(RE_ENRICH_TOPIC)) {
+    if (m[1]) labels.push(decodeTopicLabel(m[1]));
+    else if (m[2]) slugs.push(m[2]);
+  }
+  if (labels.length > 0) return labels.filter(Boolean);
+  return [...new Set(slugs)].map(topicLabelFromSlug).filter(Boolean);
 }
 
 function extractMakers(html: string): string[] {
