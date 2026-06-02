@@ -1,6 +1,7 @@
 import { XMLParser } from "fast-xml-parser";
 import {
   extractAtomLink,
+  extractFeedEntryTitle,
   extractFeedItemBody,
   extractXmlText,
   FEED_XML_PARSER_OPTIONS,
@@ -144,7 +145,7 @@ function parseEpisode(
   showName: string,
   channelLink: string = "",
 ): PodcastEpisode | null {
-  const title = decodeHtmlEntities(extractXmlText(item.title) ?? "", {
+  const title = decodeHtmlEntities(extractFeedEntryTitle(item.title, ""), {
     numeric: true,
   });
   if (!title) return null;
