@@ -1,8 +1,19 @@
 import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from "bun:test";
 import podcastAdapter from "./adapters/podcast";
+import type { AdapterConfig } from "./adapters/types";
 import * as typesMod from "./adapters/types";
 
 const originalFetch = globalThis.fetch;
+
+const defaultCfg: AdapterConfig = { type: "podcast" };
+
+function podcastCfg(params: Record<string, unknown> = {}): AdapterConfig {
+  return { ...defaultCfg, params };
+}
+
+function makeErrorResponse(status: number): Response {
+  return new Response("", { status });
+}
 
 function makePodcastFeedFixture(): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -49,7 +60,7 @@ describe("podcast adapter (DRY quality + test coverage)", () => {
 
   beforeEach(() => {
     fetchMock = mock();
-    globalThis.fetch = fetchMock as any;
+    globalThis.fetch = fetchMock as typeof fetch;
     warnSpy = spyOn(console, "warn").mockImplementation(() => {});
   });
 
@@ -59,7 +70,7 @@ describe("podcast adapter (DRY quality + test coverage)", () => {
   });
 
   test("returns empty when no feeds configured", async () => {
-    const items = await podcastAdapter.fetch({ params: {} } as any);
+    const items = await podcastAdapter.fetch(podcastCfg());
     expect(items).toEqual([]);
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -72,7 +83,9 @@ describe("podcast adapter (DRY quality + test coverage)", () => {
       }),
     );
 
-    const items = await podcastAdapter.fetch({ params: { feeds: ["https://example.com/feed.xml"] } } as any);
+    const items = await podcastAdapter.fetch(
+      podcastCfg({ feeds: ["https://example.com/feed.xml"] }),
+    );
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const callUrl = String(fetchMock.mock.calls[0][0]);
@@ -97,7 +110,9 @@ describe("podcast adapter (DRY quality + test coverage)", () => {
       new Response(makePodcastFeedFixture(), { status: 200 }),
     );
 
-    const items = await podcastAdapter.fetch({ params: { feeds: ["https://ex.com/f.xml"], limit: 1 } } as any);
+    const items = await podcastAdapter.fetch(
+      podcastCfg({ feeds: ["https://ex.com/f.xml"], limit: 1 }),
+    );
 
     expect(items.length).toBe(1);
     expect(items[0].title).toBe("Episode One Title");
@@ -108,9 +123,9 @@ describe("podcast adapter (DRY quality + test coverage)", () => {
       new Response(makePodcastFeedFixture(), { status: 200 }),
     );
 
-    const items = await podcastAdapter.fetch({
-      params: { feeds: ["https://a.com/1.xml", "https://b.com/2.xml"] },
-    } as any);
+    const items = await podcastAdapter.fetch(
+      podcastCfg({ feeds: ["https://a.com/1.xml", "https://b.com/2.xml"] }),
+    );
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(items.length).toBe(6); // 3 items per feed x 2 feeds (flat)
@@ -122,7 +137,7 @@ describe("podcast adapter (DRY quality + test coverage)", () => {
     );
 
     await expect(
-      podcastAdapter.fetch({ params: { feeds: ["https://bad.com/404.xml"] } } as any),
+      podcastAdapter.fetch(podcastCfg({ feeds: ["https://bad.com/404.xml"] })),
     ).rejects.toThrow(/podcast:.*failed to fetch https:\/\/bad\.com\/404\.xml.*404/);
   });
 
@@ -131,7 +146,9 @@ describe("podcast adapter (DRY quality + test coverage)", () => {
       new Response(makeNoChannelFixture(), { status: 200 }),
     );
 
-    const items = await podcastAdapter.fetch({ params: { feeds: ["https://ex.com/nochan.xml"] } } as any);
+    const items = await podcastAdapter.fetch(
+      podcastCfg({ feeds: ["https://ex.com/nochan.xml"] }),
+    );
 
     expect(items).toEqual([]);
     expect(warnSpy).toHaveBeenCalledWith(
@@ -143,19 +160,16 @@ describe("podcast adapter (DRY quality + test coverage)", () => {
     fetchMock.mockRejectedValue(new Error("connection refused"));
 
     await expect(
-      podcastAdapter.fetch({ params: { feeds: ["https://netfail.com/f.xml"] } } as any),
+      podcastAdapter.fetch(podcastCfg({ feeds: ["https://netfail.com/f.xml"] })),
     ).rejects.toThrow(/podcast: error fetching https:\/\/netfail\.com\/f\.xml.*connection refused/);
   });
 
   test("uses errorMessage helper in fetch !ok error path", async () => {
     const errorMessageSpy = spyOn(typesMod, "errorMessage");
-    fetchMock.mockResolvedValue({
-      ok: false,
-      status: 404,
-    } as any);
+    fetchMock.mockResolvedValue(makeErrorResponse(404));
 
     await expect(
-      podcastAdapter.fetch({ params: { feeds: ["https://example.com/podcast.xml"] } } as any),
+      podcastAdapter.fetch(podcastCfg({ feeds: ["https://example.com/podcast.xml"] })),
     ).rejects.toThrow(/podcast: failed to fetch .*404/);
 
     expect(errorMessageSpy.mock.calls.length).toBeGreaterThanOrEqual(1);
