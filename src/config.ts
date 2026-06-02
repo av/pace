@@ -245,11 +245,8 @@ function validatePanelIds(node: LayoutNodeConfig): void {
   }
 }
 
-function validateRefreshInterval(value: unknown, path: string): void {
-  if (
-    value !== undefined &&
-    (typeof value !== "number" || !Number.isFinite(value) || value <= 0)
-  ) {
+function validatePositiveNumber(value: unknown, path: string): void {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
     throw new Error(`config: ${path} must be a positive number`);
   }
 }
@@ -270,6 +267,10 @@ function validateOptional(value: unknown, path: string, validator: (v: unknown, 
   if (value !== undefined) {
     validator(value, path);
   }
+}
+
+function validateOptionalPositiveNumber(value: unknown, path: string): void {
+  validateOptional(value, path, validatePositiveNumber);
 }
 
 function validateOptionalPositiveInteger(value: unknown, path: string): void {
@@ -497,7 +498,7 @@ function validateAdapterConfig(adapter: unknown, index: number): asserts adapter
   if (adapter.params !== undefined && !isRecord(adapter.params)) {
     throw new Error(`config: ${path}.params must be an object`);
   }
-  validateRefreshInterval(adapter.refresh_interval, `${path}.refresh_interval`);
+  validateOptionalPositiveNumber(adapter.refresh_interval, `${path}.refresh_interval`);
   if (adapter.transforms !== undefined) {
     validateTransforms(adapter.transforms, `${path}.transforms`);
   }
@@ -529,7 +530,7 @@ function validatePipelineConfig(
   });
 
   validateTransforms(pipeline.transforms, `${path}.transforms`);
-  validateRefreshInterval(pipeline.refresh_interval, `${path}.refresh_interval`);
+  validateOptionalPositiveNumber(pipeline.refresh_interval, `${path}.refresh_interval`);
 }
 
 export function tryReadRegularFile(path: string): string | null {
