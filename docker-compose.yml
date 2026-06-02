@@ -1,10 +1,12 @@
+x-data-volume: &data-volume
+  - pace-data:/app/data
+
 services:
   pace:
     build: .
     ports:
       - "7453:7453"
-    volumes:
-      - pace-data:/app/data
+    volumes: *data-volume
     restart: unless-stopped
 
 volumes:
