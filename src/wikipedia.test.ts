@@ -153,6 +153,28 @@ describe("wikipedia", () => {
     expect(calledUrl).toContain("de.wikipedia.org");
   });
 
+  test("trims whitespace from configured language", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
+    );
+
+    await wikipediaAdapter.fetch(wikiCfg({ language: "  de  " }));
+
+    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    expect(calledUrl).toContain("de.wikipedia.org");
+  });
+
+  test("whitespace-only language defaults to en", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
+    );
+
+    await wikipediaAdapter.fetch(wikiCfg({ language: "   " }));
+
+    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    expect(calledUrl).toContain("en.wikipedia.org");
+  });
+
   test("rejects malicious language values and falls back to en", async () => {
     mocks.fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
