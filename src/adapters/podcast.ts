@@ -54,7 +54,6 @@ interface PodcastFeedParsed {
 const parser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "@_",
-  // Preserve CDATA content
   cdataPropName: "__cdata",
   trimValues: true,
 });
@@ -156,23 +155,18 @@ function parseEpisode(
   showName: string,
   channelLink: string = "",
 ): PodcastEpisode | null {
-  // Title
   const title = decodeHtmlEntities(extractText(item.title), { numeric: true });
   if (!title) return null;
 
-  // Link / URL
   let url = extractAtomLink(item.link);
 
-  // Audio URL from enclosure
   let audioUrl = "";
   if (item.enclosure) {
     const enc = Array.isArray(item.enclosure) ? item.enclosure[0] : item.enclosure;
     audioUrl = enc?.["@_url"] ?? "";
-    // If no link, use enclosure URL as the episode URL
     if (!url) url = audioUrl;
   }
 
-  // GUID — unique identifier for the episode
   let guid = "";
   let guidIsPermaLink = false;
   const rawGuid = item.guid;
@@ -193,18 +187,14 @@ function parseEpisode(
     url = guid;
   }
 
-  // If the link is the same as the channel homepage (not episode-specific),
-  // use the audio enclosure URL instead so episodes have unique URLs
   if (url && channelLink && url === channelLink && audioUrl) {
     url = audioUrl;
   }
 
-  // Publish date — try multiple date fields and formats
   const dateStr =
     item.pubDate ?? item.published ?? item.updated ?? item["dc:date"] ?? "";
   const publishDate = parseFeedDate(dateStr ? String(dateStr) : "");
 
-  // Description — try multiple fields, strip HTML
   const rawDesc =
     extractText(item.description) ||
     extractText(item["itunes:summary"]) ||
@@ -217,14 +207,11 @@ function parseEpisode(
     numericEntities: true,
   });
 
-  // Duration from itunes:duration
   const duration = parseDuration(item["itunes:duration"]);
 
-  // Episode and season numbers
   const episode = item["itunes:episode"] != null ? String(item["itunes:episode"]) : null;
   const season = item["itunes:season"] != null ? String(item["itunes:season"]) : null;
 
-  // Author
   const author =
     extractText(item["itunes:author"]) ||
     extractText(item.author) ||
@@ -254,7 +241,6 @@ function buildBody(ep: PodcastEpisode): string {
 
   parts.push(`Show: ${ep.showName}`);
 
-  // Episode/season notation
   if (ep.season && ep.episode) {
     parts.push(`S${ep.season.padStart(2, "0")}E${ep.episode.padStart(2, "0")}`);
   } else if (ep.episode) {
@@ -263,7 +249,6 @@ function buildBody(ep: PodcastEpisode): string {
     parts.push(`Season ${ep.season}`);
   }
 
-  // Truncated description
   if (ep.description) {
     const truncated =
       ep.description.length > 200
@@ -281,7 +266,6 @@ function buildBody(ep: PodcastEpisode): string {
 
 function episodeToContentItem(ep: PodcastEpisode): ContentItem {
   const slug = slugify(ep.showName);
-  // Use guid (most unique), then audioUrl, then url, then title for ID uniqueness
   const uniqueId = ep.guid || ep.audioUrl || ep.url || ep.title;
   return {
     id: `podcast:${slug}:${uniqueId}`,
@@ -309,7 +293,6 @@ async function fetchPodcastFeed(
     const xml = await res.text();
     const parsed = parser.parse(xml) as PodcastFeedParsed;
 
-    // Extract channel info (RSS 2.0 structure)
     const channel = parsed.rss?.channel;
     if (!channel) {
       console.warn(`podcast: no channel found in feed ${feedUrl}`);
@@ -317,10 +300,8 @@ async function fetchPodcastFeed(
     }
 
     const showName = extractChannelTitle(channel);
-    // Channel-level link (podcast homepage)
     const channelLink = typeof channel.link === "string" ? channel.link : "";
 
-    // Extract items
     let items = channel.item;
     if (!items) return [];
     if (!Array.isArray(items)) items = [items];

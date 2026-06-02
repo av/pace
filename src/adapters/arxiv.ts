@@ -89,7 +89,6 @@ function extractPdfLink(link: ArxivEntry["link"]): string {
 
 function extractArxivId(idUrl: string | undefined): string {
   if (!idUrl) return "";
-  // ID format: http://arxiv.org/abs/2401.12345v1
   const match = idUrl.match(/abs\/(.+?)(?:v\d+)?$/);
   return match ? match[1] : idUrl;
 }
@@ -185,13 +184,11 @@ const adapter: Adapter = {
 
     const allItems: ContentItem[] = [];
 
-    // Fetch by categories
     for (let i = 0; i < categories.length; i++) {
       const cat = categories[i];
       const queryStr = `cat:${cat}`;
 
       if (i > 0) {
-        // Respect ArXiv's rate limiting between requests
         await sleep(RATE_LIMIT_DELAY);
       }
 
@@ -203,7 +200,6 @@ const adapter: Adapter = {
       }
     }
 
-    // Fetch by keyword query
     if (query) {
       if (categories.length > 0) {
         await sleep(RATE_LIMIT_DELAY);
@@ -219,10 +215,8 @@ const adapter: Adapter = {
 
     const deduped = dedupeByKey(allItems, (item) => item.id);
 
-    // Sort by timestamp descending and limit
     deduped.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
-    // If fetching from multiple categories, limit total results
     const totalLimit = categories.length > 1 || (categories.length > 0 && query)
       ? limit * (categories.length + (query ? 1 : 0))
       : limit;

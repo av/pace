@@ -15,9 +15,6 @@ const parser = new XMLParser({
   attributeNamePrefix: "@_",
 });
 
-// --- Releases mode ---
-// Uses GitHub's public Atom feeds: https://github.com/{owner}/{repo}/releases.atom
-
 /** Parsed text node from fast-xml-parser. */
 type XmlTextField = string | { "#text"?: string };
 
@@ -49,12 +46,6 @@ function extractEntries(parsed: GHAtomFeedParsed): GHAtomEntry[] {
   return Array.isArray(entries) ? entries : [entries];
 }
 
-/**
- * Shared fetch helper for GitHub resources (Atom releases feeds and trending HTML pages).
- * Centralizes User-Agent, timeout, optional Accept header, !ok handling and error logging
- * so the two call sites no longer duplicate the boilerplate.
- * `context` is interpolated into the exact original warn strings for full behavior match.
- */
 async function fetchGithubResource(
   url: string,
   context: string,
@@ -95,15 +86,12 @@ async function fetchReleasesFeed(repo: string, limit: number): Promise<ContentIt
     const link = extractAtomLink(entry.link);
     const timestamp = parseFeedDate(entry.updated ?? entry.published ?? "");
 
-    // Extract version tag from the link URL (e.g., /facebook/react/releases/tag/v19.0.0)
     const tagMatch = link.match(/\/releases\/tag\/(.+)$/);
     const tag = tagMatch ? tagMatch[1] : "";
 
-    // Content is the release body (HTML)
     const rawContent = extractTextContent(entry.content);
     const body = rawContent ? stripHtml(rawContent).slice(0, 500) : undefined;
 
-    // Build display title: "repo: tag — title" or just "repo: title"
     const displayTitle = tag && title !== tag
       ? `${repo}: ${tag} — ${title}`
       : tag
@@ -123,9 +111,6 @@ async function fetchReleasesFeed(repo: string, limit: number): Promise<ContentIt
   return items;
 }
 
-// --- Trending mode ---
-// Scrapes https://github.com/trending/{language}?since={period}
-
 interface TrendingRepo {
   name: string;        // "owner/repo"
   description: string;
@@ -138,33 +123,27 @@ interface TrendingRepo {
 function parseTrendingHtml(html: string): TrendingRepo[] {
   const repos: TrendingRepo[] = [];
 
-  // Each trending repo is in an <article class="Box-row">
   const articleRegex = /<article[^>]*class="[^"]*Box-row[^"]*"[^>]*>([\s\S]*?)<\/article>/g;
   let match: RegExpExecArray | null;
 
   while ((match = articleRegex.exec(html)) !== null) {
     const article = match[1];
 
-    // Extract repo name from h2 > a href="/owner/repo"
     const nameMatch = article.match(/<h2[^>]*>[\s\S]*?<a[^>]*href="\/([^"]+)"[\s\S]*?<\/h2>/);
     if (!nameMatch) continue;
     const name = nameMatch[1].trim().replace(/\s+/g, "");
 
-    // Extract description from <p class="...">
     const descMatch = article.match(/<p[^>]*class="[^"]*col-9[^"]*"[^>]*>([\s\S]*?)<\/p>/);
     const description = descMatch
       ? descMatch[1].replace(/<[^>]+>/g, "").trim()
       : "";
 
-    // Extract language from span with itemprop="programmingLanguage"
     const langMatch = article.match(/itemprop="programmingLanguage"[^>]*>([\s\S]*?)<\/span>/);
     const language = langMatch ? langMatch[1].trim() : "";
 
-    // Extract total stars — look for SVG with octicon-star followed by number
     const starsMatch = article.match(/octicon-star[\s\S]*?<\/svg>\s*([\d,]+)/);
     const stars = starsMatch ? parseInt(starsMatch[1].replace(/,/g, ""), 10) : 0;
 
-    // Extract stars gained in period — "N stars today/this week/this month"
     const gainedMatch = article.match(/([\d,]+)\s+stars\s+(today|this week|this month)/);
     const starsGained = gainedMatch ? parseInt(gainedMatch[1].replace(/,/g, ""), 10) : 0;
 
@@ -223,8 +202,6 @@ async function fetchTrending(
   });
 }
 
-// --- Unified adapter ---
-
 const adapter: Adapter = {
   name: "github",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
@@ -241,7 +218,6 @@ const adapter: Adapter = {
       return fetchTrending(language, since, limit);
     }
 
-    // Default: releases mode
     const repos = (config.params?.repos as string[]) ?? [];
     if (repos.length === 0) {
       console.warn("github: no repos configured for releases mode");
@@ -252,7 +228,6 @@ const adapter: Adapter = {
       repos.map((repo) => fetchReleasesFeed(repo, limit)),
     );
 
-    // Flatten and sort by timestamp descending
     const allItems = results.flat();
     allItems.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
