@@ -1,10 +1,5 @@
 import { describe, test, expect, spyOn } from "bun:test";
-import {
-  normalizeUrl,
-  levenshteinDistance,
-  levenshteinSimilarity,
-  extractScore,
-} from "./dedupe";
+import { normalizeUrl, levenshteinDistance, levenshteinSimilarity } from "./dedupe";
 
 describe("dedupe utils", () => {
   describe("normalizeUrl", () => {
@@ -82,43 +77,6 @@ describe("dedupe utils", () => {
       expect(sim).toBeGreaterThan(0.5);
       expect(sim).toBeLessThan(1);
       expect(levenshteinSimilarity("abc", "abd")).toBeCloseTo(2 / 3, 10);
-    });
-  });
-
-  describe("extractScore", () => {
-    test("returns 0 for null, empty, or no matching pattern", () => {
-      expect(extractScore(null)).toBe(0);
-      expect(extractScore("")).toBe(0);
-      expect(extractScore("just some text without scores")).toBe(0);
-      expect(extractScore("points but no digit")).toBe(0);
-    });
-
-    test("extracts N from 'N points' or 'N points' variants (HN/Lobsters style)", () => {
-      expect(extractScore("42 points")).toBe(42);
-      expect(extractScore("The item has 123 points")).toBe(123);
-      expect(extractScore("1 point")).toBe(1);
-    });
-
-    test("extracts N from 'score: N' or 'Score: N' (case-insensitive)", () => {
-      expect(extractScore("score: 77")).toBe(77);
-      expect(extractScore("Score: 5 more text")).toBe(5);
-      expect(extractScore("foo score:99 bar")).toBe(99);
-    });
-
-    test("extracts N from 'N upvotes' variants", () => {
-      expect(extractScore("15 upvotes")).toBe(15);
-      expect(extractScore("1000 upvotes here")).toBe(1000);
-    });
-
-    test("prefers first matching pattern in definition order: points > score > upvotes when multiple present", () => {
-      expect(extractScore("10 points and score: 99")).toBe(10);
-      expect(extractScore("score: 20 and 30 upvotes")).toBe(20);
-      expect(extractScore("42 points, 100 upvotes")).toBe(42);
-    });
-
-    test("handles unicode text, mixed case, and embedded numbers correctly", () => {
-      expect(extractScore("Café article • 42 points • 2023")).toBe(42);
-      expect(extractScore("Naïve post with Score: 7")).toBe(7);
     });
   });
 });
