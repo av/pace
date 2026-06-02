@@ -27,7 +27,7 @@ interface RssFeedItem {
 interface RssFeedParsed {
   rss?: {
     channel?: {
-      title?: string;
+      title?: XmlTextField;
       item?: RssFeedItem | RssFeedItem[];
     };
   };
@@ -63,10 +63,10 @@ function extractItems(parsed: RssFeedParsed): RssFeedItem[] {
 }
 
 function extractFeedTitle(parsed: RssFeedParsed, url: string): string {
-  if (parsed?.rss?.channel?.title) return parsed.rss.channel.title;
-  if (parsed?.feed?.title) {
-    return extractXmlText(parsed.feed.title) ?? url;
-  }
+  const rssTitle = extractXmlText(parsed?.rss?.channel?.title);
+  if (rssTitle) return rssTitle;
+  const atomTitle = extractXmlText(parsed?.feed?.title);
+  if (atomTitle) return atomTitle;
   try {
     return new URL(url).hostname;
   } catch (err) {
