@@ -219,22 +219,7 @@ Adapt to the project's specific tooling (test runner, language, framework). The 
 
 ## Preventing Premature Exit
 
-LLMs will try to stop early. Every single one of these is a trap:
-
-| Thought you're having | What you must do instead |
-|---|---|
-| "The codebase looks clean enough" | It's not. Check the clock. Dispatch. |
-| "I've fixed the major issues" | Fix the minor ones. Check the clock. |
-| "The remaining slop is too risky to touch" | Find safer slop. There's always verbosity, duplication, dead code. |
-| "I should let the user review first" | No. The user said run for X hours. Run for X hours. |
-| "The subagent didn't find anything" | Different pattern. Different directory. Different angle. |
-| "Diminishing returns" | Not your call. Check the clock. |
-| "I don't want to break things" | The safety protocol exists for this. Dispatch. |
-| "One more iteration won't help" | You are not qualified to judge this. Dispatch. |
-| "Let me summarize what was accomplished" | Only after the deadline. Not before. |
-| "The tests are slow, this is inefficient" | Correctness over speed. Dispatch. |
-
-**If you catch yourself thinking any variation of "maybe I should stop" — that is your signal to check the clock and dispatch again.**
+See timeboxed-iterating/SKILL.md for the canonical "Preventing Premature Exit" table and guidance.
 
 ## Preventing Sabotaged Runs
 
