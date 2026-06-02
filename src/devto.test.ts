@@ -196,6 +196,23 @@ describe("devto", () => {
     expect(mocks.fetchMock).not.toHaveBeenCalled();
   });
 
+  test("whitespace-only username is treated as unconfigured", async () => {
+    const items = await devtoAdapter.fetch(devtoCfg({ username: "   " }));
+    expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith("devto: no tags or username configured");
+    expect(mocks.fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("trims whitespace from configured username", async () => {
+    const items = await devtoAdapter.fetch(devtoCfg({ username: "  testuser  ", limit: 20 }));
+    expect(items).toHaveLength(1);
+    expect(items[0].source).toBe("devto:testuser");
+    expect(devtoFetchCalls().some((c) => c.url.includes("username=testuser"))).toBe(true);
+    expect(devtoFetchCalls().every((c) => !c.url.includes("username=") || c.url.includes("username=testuser"))).toBe(
+      true,
+    );
+  });
+
   test("trims whitespace from configured tag names", async () => {
     mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
       const url = String(input);
