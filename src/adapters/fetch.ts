@@ -1,3 +1,22 @@
+/**
+ * Shared HTTP helpers for adapters (`fetchWithTimeout`, `fetchText`).
+ *
+ * Error message prefixes (use `${adapterName}:` consistently):
+ *
+ * - **`failed to fetch`** — the request completed but the response is unusable:
+ *   non-2xx HTTP (`!res.ok`). Throw this directly after status check; do not
+ *   wrap it again in an outer catch.
+ * - **`error fetching`** — transport-layer failure before a definitive HTTP
+ *   status: network errors, DNS, timeouts (`AbortSignal.timeout`), etc. Use in
+ *   catch blocks around `fetchWithTimeout` / `res.text()`.
+ * - **`error reading`** — `res.ok` but reading the body failed (`fetchText` only).
+ *
+ * Avoid double-wrapped messages (`error fetching … failed to fetch …`): in a
+ * catch-all around fetch+parse, rethrow when
+ * `err.message.startsWith(\`${prefix}: failed to fetch\`)`; otherwise wrap as
+ * `error fetching`. Hand-rolled helpers (e.g. `fetchGithubResource`) follow the
+ * same pattern. See `Adapter.fetch` in `types.ts` for throw vs warn+[] contract.
+ */
 import { errorMessage } from "./types";
 
 export const PACE_USER_AGENT = "pace/1.0";
@@ -32,10 +51,7 @@ export async function fetchWithTimeout(
   });
 }
 
-/**
- * Fetch URL as text with timeout, User-Agent, and adapter-prefixed errors.
- * Matches rss-style messages: error fetching / failed to fetch / error reading.
- */
+/** Fetch URL as text; applies the module error-prefix conventions above. */
 export async function fetchText(
   prefix: string,
   url: string,
