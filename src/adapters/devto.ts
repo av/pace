@@ -1,7 +1,6 @@
-import { fetchWithTimeout } from "./fetch";
+import { fetchJson } from "./fetch";
 import { dedupeByKey, fetchAndConcat, sliceToLimit } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
-import { errorMessage } from "./types";
 
 const DEVTO_API = "https://dev.to/api/articles";
 
@@ -51,23 +50,10 @@ async function fetchDevToArticles(
   }
   const url = `${DEVTO_API}?${params.toString()}`;
 
-  try {
-    const res = await fetchWithTimeout(url, {
-      userAgent: "pace:feed-aggregator/1.0",
-      accept: "application/json",
-    });
-
-    if (!res.ok) {
-      throw new Error(`devto: failed to fetch ${context}: ${errorMessage({ message: String(res.status) })}`);
-    }
-
-    return await res.json();
-  } catch (err) {
-    if (err instanceof Error && err.message.startsWith("devto: failed to fetch")) {
-      throw err;
-    }
-    throw new Error(`devto: error fetching ${context}: ${errorMessage(err)}`);
-  }
+  return fetchJson<DevToArticle[]>("devto", url, context, {
+    userAgent: "pace:feed-aggregator/1.0",
+    accept: "application/json",
+  });
 }
 
 function resolvePeriod(top: unknown): number {
