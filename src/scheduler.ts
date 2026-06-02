@@ -1,8 +1,8 @@
-import type { Adapter } from "./adapters/types";
+import type { Adapter, ContentItem } from "./adapters/types";
 import { compareIsoTimestamp, errorMessage, getAdapterName } from "./utils";
 import type { Model, Api } from "@mariozechner/pi-ai";
 import { saveItems, getAllItemsByPanel, replacePanelItems, pruneOldItems as dbPruneOldItems } from "./db";
-import type { AppConfig, IngestAdapterConfig, PipelineConfig } from "./config";
+import type { AppConfig, IngestAdapterConfig, PipelineConfig, TransformConfig } from "./config";
 import { runPipeline, type TransformContext } from "./transforms";
 import type { ContentItemRow } from "./db";
 
@@ -84,6 +84,47 @@ function computeRefreshInterval(refreshInterval?: number): { intervalMin: number
   return { intervalMin, intervalMs };
 }
 
+function panelIdsForSource(sourceName: string, panelMap: SourcePanelMap): string[] {
+  return panelMap.sourceToPanels.get(sourceName) ?? [sourceName];
+}
+
+function saveItemsToPanels(panelIds: string[], items: ContentItem[]): void {
+  for (const pid of panelIds) saveItems(pid, items);
+}
+
+function replaceItemsOnPanels(panelIds: string[], items: ContentItemRow[]): void {
+  for (const pid of panelIds) replacePanelItems(pid, items);
+}
+
+/** Concatenate source panels, newest first; equal timestamps keep concat order (stable sort). */
+function gatherPipelineInputItems(
+  sources: string[],
+  readKeys: Map<string, string>,
+): ContentItemRow[] {
+  let items: ContentItemRow[] = [];
+  for (const source of sources) {
+    const readKey = readKeys.get(source) ?? source;
+    items = items.concat(getAllItemsByPanel(readKey));
+  }
+  items.sort((a, b) => compareIsoTimestamp(a.timestamp, b.timestamp, "desc"));
+  return items;
+}
+
+async function applyTransformsOnPanels(
+  panelIds: string[],
+  transforms: TransformConfig[],
+  logName: string,
+): Promise<void> {
+  for (const pid of panelIds) {
+    const allItems = getAllItemsByPanel(pid);
+    const transformed = await runPipeline(allItems, transforms, transformCtx);
+    replacePanelItems(pid, transformed);
+    if (allItems.length !== transformed.length) {
+      console.log(`scheduler: ${logName} — transforms: ${allItems.length} → ${transformed.length} items`);
+    }
+  }
+}
+
 export function startScheduler(
   config: AppConfig,
   adapters: Map<string, Adapter>,
@@ -115,7 +156,7 @@ export function startScheduler(
     if (!adapter) continue;
 
     const name = getAdapterName(adapterCfg);
-    const panelIds = panelMap.sourceToPanels.get(name) ?? [name];
+    const panelIds = panelIdsForSource(name, panelMap);
     const { intervalMin, intervalMs } = computeRefreshInterval(adapterCfg.refresh_interval);
 
     const entry: AdapterEntry = {
@@ -137,7 +178,7 @@ export function startScheduler(
 
   if (config.pipelines) {
     for (const pipelineCfg of config.pipelines) {
-      const panelIds = panelMap.sourceToPanels.get(pipelineCfg.name) ?? [pipelineCfg.name];
+      const panelIds = panelIdsForSource(pipelineCfg.name, panelMap);
       const readKeys = new Map<string, string>();
       for (const source of pipelineCfg.sources) {
         const key = panelMap.sourceToReadKey.get(source);
@@ -174,19 +215,13 @@ async function runAdapter(entry: AdapterEntry): Promise<RefreshResult> {
   return executeWithRunningGuard(entry, name, "adapter", async () => {
     const items = await adapter.fetch(adapterConfig);
     if (items.length > 0) {
-      for (const pid of panelIds) saveItems(pid, items);
+      saveItemsToPanels(panelIds, items);
       console.log(`scheduler: ${name} — fetched ${items.length} items`);
     }
 
-    if (adapterConfig.transforms && adapterConfig.transforms.length > 0) {
-      for (const pid of panelIds) {
-        const allItems = getAllItemsByPanel(pid);
-        const transformed = await runPipeline(allItems, adapterConfig.transforms, transformCtx);
-        replacePanelItems(pid, transformed);
-        if (allItems.length !== transformed.length) {
-          console.log(`scheduler: ${name} — transforms: ${allItems.length} → ${transformed.length} items`);
-        }
-      }
+    const transforms = adapterConfig.transforms;
+    if (transforms && transforms.length > 0) {
+      await applyTransformsOnPanels(panelIds, transforms, name);
     }
   });
 }
@@ -195,20 +230,13 @@ async function runPipelineJob(entry: PipelineEntry): Promise<RefreshResult> {
   const { config, panelIds, readKeys } = entry;
   const name = config.name;
   return executeWithRunningGuard(entry, name, "pipeline", async () => {
-    let items: ContentItemRow[] = [];
-    for (const source of config.sources) {
-      const readKey = readKeys.get(source) ?? source;
-      items = items.concat(getAllItemsByPanel(readKey));
-    }
-    // Newest first; equal timestamps keep concat order (stable sort).
-    items.sort((a, b) => compareIsoTimestamp(a.timestamp, b.timestamp, "desc"));
-
+    const items = gatherPipelineInputItems(config.sources, readKeys);
     const transformed = await runPipeline(items, config.transforms, transformCtx);
     const namespaced = transformed.map((item) => ({
       ...item,
       id: `pipeline:${config.name}:${item.id}`,
     }));
-    for (const pid of panelIds) replacePanelItems(pid, namespaced);
+    replaceItemsOnPanels(panelIds, namespaced);
     console.log(`scheduler: pipeline "${config.name}" — ${items.length} → ${transformed.length} items`);
   });
 }
