@@ -53,6 +53,14 @@ export function extractFeedItemBody(
   );
 }
 
+/** Atom/RSS entry title; uses fallback when field is missing or empty. */
+export function extractFeedEntryTitle(
+  title: XmlTextField | undefined,
+  fallback = "(untitled)",
+): string {
+  return extractXmlText(title) ?? fallback;
+}
+
 /** Channel/feed title from RSS 2.0 or Atom root, whichever is present. */
 export function extractFeedRootTitle(
   rssTitle: XmlTextField | undefined,

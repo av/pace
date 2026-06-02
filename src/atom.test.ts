@@ -1,6 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import {
   extractAtomLink,
+  extractFeedEntryTitle,
   extractFeedItemBody,
   extractFeedRootTitle,
   extractRssAtomItems,
@@ -67,6 +68,19 @@ describe("extractFeedItemBody", () => {
         "content:encoded": "full html",
       }),
     ).toBe("teaser");
+  });
+});
+
+describe("extractFeedEntryTitle", () => {
+  test("uses fallback when title is missing or empty", () => {
+    expect(extractFeedEntryTitle(undefined)).toBe("(untitled)");
+    expect(extractFeedEntryTitle("")).toBe("(untitled)");
+    expect(extractFeedEntryTitle(undefined, "no title")).toBe("no title");
+  });
+
+  test("reads plain strings and #text nodes", () => {
+    expect(extractFeedEntryTitle("Launch")).toBe("Launch");
+    expect(extractFeedEntryTitle({ "#text": "From node" })).toBe("From node");
   });
 });
 

@@ -1,6 +1,7 @@
 import { XMLParser } from "fast-xml-parser";
 import {
   extractAtomLink,
+  extractFeedEntryTitle,
   extractXmlText,
   FEED_XML_PARSER_OPTIONS,
   normalizeXmlList,
@@ -222,7 +223,7 @@ async function fetchProductHuntFeed(): Promise<
   }
 
   return entries.map((entry) => {
-    const title = extractXmlText(entry.title) ?? "(untitled)";
+    const title = extractFeedEntryTitle(entry.title);
     const url = extractAtomLink(entry.link);
     const { tagline, productLink } = extractContent(entry);
     const author = entry.author?.name ?? "";
