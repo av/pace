@@ -1,9 +1,10 @@
-import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
+import { beforeEach, describe, expect, spyOn, test } from "bun:test";
 import rssAdapter from "./adapters/rss";
-import type { AdapterConfig } from "./adapters/types";
 import * as typesMod from "./adapters/types";
+import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
-const originalFetch = globalThis.fetch;
+const mocks = useFetchMockSuite({ restoreAllMocks: true });
+const rssCfg = (params: Record<string, unknown> = {}) => adapterCfg("rss", params);
 
 function makeResponse(body: string, ok = true, status = 200): Response {
   return new Response(body, {
@@ -56,50 +57,42 @@ const mixedLinkFixture = `<?xml version="1.0"?>
   </channel>
 </rss>`;
 
-describe("rss", () => {
-  let fetchCalls: string[] = [];
+function defaultFetchImpl(input: RequestInfo | URL): Promise<Response> {
+  const url = String(input);
+  if (url.includes("atom")) {
+    return Promise.resolve(makeResponse(atomFixture));
+  }
+  if (url.includes("mixed")) {
+    return Promise.resolve(makeResponse(mixedLinkFixture));
+  }
+  if (url.includes("badstatus")) {
+    return Promise.resolve(makeResponse("", false, 404));
+  }
+  if (url.includes("badparse")) {
+    return Promise.resolve(makeResponse("<?xml><invalid>not closed"));
+  }
+  return Promise.resolve(makeResponse(rssFixture));
+}
 
+describe("rss", () => {
   test("ngb contract", () => {
     expect(rssAdapter.name).toBe("rss");
     expect(typeof rssAdapter.fetch).toBe("function");
   });
 
   beforeEach(() => {
-    fetchCalls = [];
-    globalThis.fetch = (async (input: string | URL) => {
-      const url = String(input);
-      fetchCalls.push(url);
-      if (url.includes("atom")) {
-        return makeResponse(atomFixture);
-      }
-      if (url.includes("mixed")) {
-        return makeResponse(mixedLinkFixture);
-      }
-      if (url.includes("badstatus")) {
-        return makeResponse("", false, 404);
-      }
-      if (url.includes("badparse")) {
-        return makeResponse("<?xml><invalid>not closed");
-      }
-      return makeResponse(rssFixture);
-    }) as typeof fetch;
-  });
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
+    mocks.fetchMock.mockImplementation(defaultFetchImpl);
   });
 
   test("returns [] and no fetch when no urls configured", async () => {
-    const cfg: AdapterConfig = { type: "rss", params: { urls: [] } };
-    const items = await rssAdapter.fetch(cfg);
+    const items = await rssAdapter.fetch(rssCfg({ urls: [] }));
     expect(items).toEqual([]);
-    expect(fetchCalls.length).toBe(0);
+    expect(mocks.fetchMock).not.toHaveBeenCalled();
   });
 
   test("fetches single RSS 2.0 feed and maps fields correctly (string titles/links)", async () => {
-    const cfg: AdapterConfig = { type: "rss", params: { urls: ["https://ex.com/rss"] } };
-    const items = await rssAdapter.fetch(cfg);
-    expect(fetchCalls.length).toBe(1);
+    const items = await rssAdapter.fetch(rssCfg({ urls: ["https://ex.com/rss"] }));
+    expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
     expect(items.length).toBe(2);
     expect(items[0]).toMatchObject({
       title: "Item One",
@@ -113,8 +106,7 @@ describe("rss", () => {
   });
 
   test("fetches and parses Atom feed (uses feed.entry + link[@href] + summary)", async () => {
-    const cfg: AdapterConfig = { type: "rss", params: { urls: ["https://ex.com/atom"] } };
-    const items = await rssAdapter.fetch(cfg);
+    const items = await rssAdapter.fetch(rssCfg({ urls: ["https://ex.com/atom"] }));
     expect(items.length).toBe(1);
     expect(items[0]).toMatchObject({
       title: "Atom Item",
@@ -125,9 +117,10 @@ describe("rss", () => {
   });
 
   test("merges multiple urls (RSS + Atom)", async () => {
-    const cfg: AdapterConfig = { type: "rss", params: { urls: ["https://ex.com/rss", "https://ex.com/atom"] } };
-    const items = await rssAdapter.fetch(cfg);
-    expect(fetchCalls.length).toBe(2);
+    const items = await rssAdapter.fetch(
+      rssCfg({ urls: ["https://ex.com/rss", "https://ex.com/atom"] }),
+    );
+    expect(mocks.fetchMock).toHaveBeenCalledTimes(2);
     expect(items.length).toBe(3);
   });
 
@@ -144,21 +137,18 @@ describe("rss", () => {
     </item>
   </channel>
 </rss>`;
-    globalThis.fetch = (async (input: string | URL) => {
+    mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
       const url = String(input);
-      fetchCalls.push(url);
       if (url.includes("overlap")) {
         return makeResponse(overlapFixture);
       }
       return makeResponse(rssFixture);
-    }) as typeof fetch;
+    });
 
-    const cfg: AdapterConfig = {
-      type: "rss",
-      params: { urls: ["https://ex.com/rss", "https://ex.com/overlap"] },
-    };
-    const items = await rssAdapter.fetch(cfg);
-    expect(fetchCalls.length).toBe(2);
+    const items = await rssAdapter.fetch(
+      rssCfg({ urls: ["https://ex.com/rss", "https://ex.com/overlap"] }),
+    );
+    expect(mocks.fetchMock).toHaveBeenCalledTimes(2);
     expect(items.length).toBe(2);
     expect(items.filter((i) => i.url === "https://example.com/one")).toHaveLength(1);
     expect(items[0].title).toBe("Item One");
@@ -166,33 +156,27 @@ describe("rss", () => {
   });
 
   test("handles link array form in parse (prefers alternate href)", async () => {
-    const cfg: AdapterConfig = { type: "rss", params: { urls: ["https://ex.com/mixed"] } };
-    const items = await rssAdapter.fetch(cfg);
+    const items = await rssAdapter.fetch(rssCfg({ urls: ["https://ex.com/mixed"] }));
     expect(items.length).toBe(1);
     expect(items[0].url).toBe("https://example.com/real");
     expect(items[0].body).toBe("body for link array");
   });
 
   test("throws wrapped error on network/reject with 'rss: error fetching ...' prefix", async () => {
-    globalThis.fetch = (async () => {
-      throw new Error("connection refused");
-    }) as typeof fetch;
-    const cfg: AdapterConfig = { type: "rss", params: { urls: ["https://ex.com/neterr"] } };
-    await expect(rssAdapter.fetch(cfg)).rejects.toThrow(
+    mocks.fetchMock.mockRejectedValue(new Error("connection refused"));
+    await expect(rssAdapter.fetch(rssCfg({ urls: ["https://ex.com/neterr"] }))).rejects.toThrow(
       /rss: error fetching https:\/\/ex.com\/neterr: connection refused/,
     );
   });
 
   test("throws on non-ok response with 'rss: failed to fetch ...' prefix", async () => {
-    const cfg: AdapterConfig = { type: "rss", params: { urls: ["https://ex.com/badstatus"] } };
-    await expect(rssAdapter.fetch(cfg)).rejects.toThrow(
+    await expect(rssAdapter.fetch(rssCfg({ urls: ["https://ex.com/badstatus"] }))).rejects.toThrow(
       /rss: failed to fetch https:\/\/ex.com\/badstatus: HTTP error 404/,
     );
   });
 
   test("throws on XML parse failure with 'rss: error parsing xml from ...' prefix", async () => {
-    const cfg: AdapterConfig = { type: "rss", params: { urls: ["https://ex.com/badparse"] } };
-    await expect(rssAdapter.fetch(cfg)).rejects.toThrow(
+    await expect(rssAdapter.fetch(rssCfg({ urls: ["https://ex.com/badparse"] }))).rejects.toThrow(
       /rss: error parsing xml from https:\/\/ex.com\/badparse/,
     );
   });
@@ -210,40 +194,31 @@ describe("rss", () => {
   </channel>
 </rss>`;
     const badUrl = "not-a-valid-url";
-    globalThis.fetch = (async () => makeResponse(noTitleFixture)) as typeof fetch;
+    mocks.fetchMock.mockResolvedValue(makeResponse(noTitleFixture));
 
-    const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
-    try {
-      const cfg: AdapterConfig = { type: "rss", params: { urls: [badUrl] } };
-      const items = await rssAdapter.fetch(cfg);
-      expect(items.length).toBe(1);
-      expect(items[0].source).toBe(badUrl);
-      expect(warnSpy).toHaveBeenCalledTimes(1);
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringMatching(/^rss: extractFeedTitle could not parse url "not-a-valid-url": /),
-      );
-    } finally {
-      warnSpy.mockRestore();
-    }
+    const items = await rssAdapter.fetch(rssCfg({ urls: [badUrl] }));
+    expect(items.length).toBe(1);
+    expect(items[0].source).toBe(badUrl);
+    expect(mocks.warnSpy).toHaveBeenCalledTimes(1);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      expect.stringMatching(/^rss: extractFeedTitle could not parse url "not-a-valid-url": /),
+    );
   });
 
   test("errorMessage on !ok and network", async () => {
     const emSpy = spyOn(typesMod, "errorMessage");
-    try {
-      const cfg404: AdapterConfig = { type: "rss", params: { urls: ["https://ex.com/badstatus"] } };
-      await expect(rssAdapter.fetch(cfg404)).rejects.toThrow(/rss: failed to fetch/);
-      expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 404" });
+    await expect(rssAdapter.fetch(rssCfg({ urls: ["https://ex.com/badstatus"] }))).rejects.toThrow(
+      /rss: failed to fetch/,
+    );
+    expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 404" });
 
-      emSpy.mockClear();
+    emSpy.mockClear();
 
-      globalThis.fetch = (async () => {
-        throw new Error("connection refused");
-      }) as typeof fetch;
-      const cfgNet: AdapterConfig = { type: "rss", params: { urls: ["https://ex.com/neterr"] } };
-      await expect(rssAdapter.fetch(cfgNet)).rejects.toThrow(/rss: error fetching/);
-      expect(emSpy).toHaveBeenCalled();
-    } finally {
-      emSpy.mockRestore();
-    }
+    mocks.fetchMock.mockRejectedValue(new Error("connection refused"));
+    await expect(rssAdapter.fetch(rssCfg({ urls: ["https://ex.com/neterr"] }))).rejects.toThrow(
+      /rss: error fetching/,
+    );
+    expect(emSpy).toHaveBeenCalled();
+    emSpy.mockRestore();
   });
 });

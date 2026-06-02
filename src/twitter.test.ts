@@ -1,12 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it, spyOn, test } from "bun:test";
+import { describe, expect, it, test } from "bun:test";
 import adapter from "./adapters/twitter";
-import type { AdapterConfig } from "./adapters/types";
+import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
-const defaultCfg: AdapterConfig = { type: "twitter" };
-
-function twitterCfg(params?: Record<string, unknown>): AdapterConfig {
-  return params === undefined ? defaultCfg : { ...defaultCfg, params };
-}
+const mocks = useFetchMockSuite();
+const twitterCfg = (params: Record<string, unknown> = {}) => adapterCfg("twitter", params);
 
 describe("twitter", () => {
   test("ngb contract", () => {
@@ -14,21 +11,11 @@ describe("twitter", () => {
     expect(typeof adapter.fetch).toBe("function");
   });
 
-  let logSpy: ReturnType<typeof spyOn>;
-
-  beforeEach(() => {
-    logSpy = spyOn(console, "warn").mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    logSpy.mockRestore();
-  });
-
   it("returns [] and warns configured message when lists provided", async () => {
     const items = await adapter.fetch(twitterCfg({ lists: ["u1", "u2"] }));
     expect(items).toEqual([]);
-    expect(logSpy).toHaveBeenCalledTimes(1);
-    expect(logSpy).toHaveBeenCalledWith(
+    expect(mocks.warnSpy).toHaveBeenCalledTimes(1);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
       'twitter: adapter configured with 2 source(s), but Twitter API requires API credentials. Set params.bearer_token to enable. Returning empty results.',
     );
   });
@@ -36,8 +23,8 @@ describe("twitter", () => {
   it("returns [] and warns configured message when searches provided", async () => {
     const items = await adapter.fetch(twitterCfg({ searches: ["foo"] }));
     expect(items).toEqual([]);
-    expect(logSpy).toHaveBeenCalledTimes(1);
-    expect(logSpy).toHaveBeenCalledWith(
+    expect(mocks.warnSpy).toHaveBeenCalledTimes(1);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
       'twitter: adapter configured with 1 source(s), but Twitter API requires API credentials. Set params.bearer_token to enable. Returning empty results.',
     );
   });
@@ -45,17 +32,17 @@ describe("twitter", () => {
   it("returns [] and warns no-config message when neither lists nor searches", async () => {
     const items = await adapter.fetch(twitterCfg({}));
     expect(items).toEqual([]);
-    expect(logSpy).toHaveBeenCalledTimes(1);
-    expect(logSpy).toHaveBeenCalledWith(
+    expect(mocks.warnSpy).toHaveBeenCalledTimes(1);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
       "twitter: no lists or searches configured, and Twitter API requires credentials. Returning empty results.",
     );
   });
 
   it("returns [] and warns no-config message when no params at all", async () => {
-    const items = await adapter.fetch(defaultCfg);
+    const items = await adapter.fetch(adapterCfg("twitter"));
     expect(items).toEqual([]);
-    expect(logSpy).toHaveBeenCalledTimes(1);
-    expect(logSpy).toHaveBeenCalledWith(
+    expect(mocks.warnSpy).toHaveBeenCalledTimes(1);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
       "twitter: no lists or searches configured, and Twitter API requires credentials. Returning empty results.",
     );
   });
@@ -63,7 +50,7 @@ describe("twitter", () => {
   it("prefers lists over searches when both present", async () => {
     const items = await adapter.fetch(twitterCfg({ lists: ["l"], searches: ["s"] }));
     expect(items).toEqual([]);
-    expect(logSpy).toHaveBeenCalledTimes(1);
-    expect(logSpy.mock.calls[0][0]).toContain("configured with 1 source(s)");
+    expect(mocks.warnSpy).toHaveBeenCalledTimes(1);
+    expect(mocks.warnSpy.mock.calls[0][0]).toContain("configured with 1 source(s)");
   });
 });
