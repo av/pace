@@ -5,6 +5,7 @@ import {
   isValidPort,
   getAdapterName,
   sliceToLimit,
+  compareIsoTimestamp,
 } from "./utils";
 
 describe("errorMessage", () => {
@@ -95,6 +96,29 @@ describe("parsePort / isValidPort", () => {
   test("parsePort handles string from env/CLI and number-like edge cases", () => {
     expect(parsePort("1")).toBe(1);
     expect(parsePort("65535", 7453)).toBe(65535);
+  });
+});
+
+describe("compareIsoTimestamp", () => {
+  const older = "2024-01-01T00:00:00.000Z";
+  const newer = "2024-06-15T12:00:00.000Z";
+
+  test("desc (default): newer b sorts before older a (positive when b > a)", () => {
+    expect(compareIsoTimestamp(older, newer)).toBe(1);
+    expect(compareIsoTimestamp(older, newer, "desc")).toBe(1);
+    expect(compareIsoTimestamp(newer, older)).toBe(-1);
+    expect(compareIsoTimestamp(newer, older, "desc")).toBe(-1);
+  });
+
+  test("asc: older a sorts before newer b (negative when b > a)", () => {
+    expect(compareIsoTimestamp(older, newer, "asc")).toBe(-1);
+    expect(compareIsoTimestamp(newer, older, "asc")).toBe(1);
+  });
+
+  test("returns 0 for equal timestamps (stable sort preserves prior order)", () => {
+    expect(compareIsoTimestamp(newer, newer)).toBe(0);
+    expect(compareIsoTimestamp(newer, newer, "desc")).toBe(0);
+    expect(compareIsoTimestamp(newer, newer, "asc")).toBe(0);
   });
 });
 

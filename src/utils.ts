@@ -37,7 +37,8 @@ export function compareIsoTimestamp(
   direction: "asc" | "desc" = "desc",
 ): number {
   const descCmp = b > a ? 1 : b < a ? -1 : 0;
-  return direction === "asc" ? -descCmp : descCmp;
+  const cmp = direction === "asc" ? -descCmp : descCmp;
+  return cmp === 0 ? 0 : cmp;
 }
 
 /** Return at most `limit` items from the start of the array. */
