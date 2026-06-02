@@ -1,6 +1,5 @@
-import { fetchWithTimeout } from "./fetch";
+import { fetchJson } from "./fetch";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
-import { errorMessage } from "./types";
 
 const NPM_REGISTRY = "https://registry.npmjs.org";
 
@@ -72,22 +71,11 @@ async function searchNpm(
   const params = new URLSearchParams(query);
   const url = `${NPM_REGISTRY}/-/v1/search?${params.toString()}`;
 
-  try {
-    const res = await fetchWithTimeout(url, {
-      userAgent: "pace:feed-aggregator/1.0 (github.com/everlier/pace)",
-      accept: "application/json",
-    });
-    if (!res.ok) {
-      throw new Error(`npm: failed to search ${context}: ${errorMessage({ message: `${res.status}` })}`);
-    }
-    const json: NpmSearchResult = await res.json();
-    return json.objects ?? [];
-  } catch (err) {
-    if (err instanceof Error && err.message.startsWith("npm: failed to search")) {
-      throw err;
-    }
-    throw new Error(`npm: error searching ${context}: ${errorMessage(err)}`);
-  }
+  const json = await fetchJson<NpmSearchResult>("npm", url, context, {
+    userAgent: "pace:feed-aggregator/1.0 (github.com/everlier/pace)",
+    accept: "application/json",
+  });
+  return json.objects ?? [];
 }
 
 type SortBy = "optimal" | "quality" | "popularity" | "maintenance";
@@ -156,7 +144,9 @@ const adapter: Adapter = {
 
     return results.map((result) => ({
       id: `npm:${result.package.name}@${result.package.version}`,
-      title: `${result.package.name} — ${result.package.description ?? ""}`,
+      title: result.package.description
+        ? `${result.package.name} | ${result.package.description}`
+        : result.package.name,
       url: result.package.links.npm,
       source: scope ? `npm:@${scope}` : `npm:${sortBy}`,
       timestamp: new Date(result.package.date),

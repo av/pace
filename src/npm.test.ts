@@ -80,7 +80,7 @@ describe("npm", () => {
     expect(items).toHaveLength(1);
     expect(items[0]).toMatchObject({
       id: "npm:test-package@1.2.3",
-      title: "test-package — A test package for testing",
+      title: "test-package | A test package for testing",
       url: "https://www.npmjs.com/package/test-package",
       source: "npm:optimal",
     });
@@ -256,7 +256,7 @@ describe("npm", () => {
     });
 
     expect(items).toHaveLength(1);
-    expect(items[0].title).toBe("test-package — ");
+    expect(items[0].title).toBe("test-package");
     expect(items[0].body).not.toContain("by ");
     expect(items[0].body).not.toContain("tags:");
     expect(items[0].body).not.toContain("repo:");
@@ -285,7 +285,7 @@ describe("npm", () => {
       await expect(
         npmAdapter.fetch({ type: "npm", params: { keywords: ["test"] } }),
       ).rejects.toThrow("npm:");
-      expect(emSpy).toHaveBeenCalledWith({ message: "429" });
+      expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 429" });
 
       emSpy.mockClear();
 
