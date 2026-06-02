@@ -155,6 +155,33 @@ describe("rss", () => {
     expect(items[0].body).toBe("First item body text");
   });
 
+  test("strips HTML from description and content:encoded bodies", async () => {
+    const htmlBodyFixture = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>HTML Body Feed</title>
+    <item>
+      <title>HTML Item</title>
+      <link>https://example.com/html</link>
+      <pubDate>2024-01-06T00:00:00Z</pubDate>
+      <description><![CDATA[<p>Hello &amp; <b>world</b></p>]]></description>
+    </item>
+    <item>
+      <title>Encoded Item</title>
+      <link>https://example.com/encoded</link>
+      <pubDate>2024-01-07T00:00:00Z</pubDate>
+      <content:encoded><![CDATA[<p>Line &#65; <em>one</em></p>]]></content:encoded>
+    </item>
+  </channel>
+</rss>`;
+    mocks.fetchMock.mockResolvedValue(makeResponse(htmlBodyFixture));
+
+    const items = await rssAdapter.fetch(rssCfg({ urls: ["https://ex.com/htmlbody"] }));
+    expect(items.length).toBe(2);
+    expect(items[0].body).toBe("Hello & world");
+    expect(items[1].body).toBe("Line A one");
+  });
+
   test("handles link array form in parse (prefers alternate href)", async () => {
     const items = await rssAdapter.fetch(rssCfg({ urls: ["https://ex.com/mixed"] }));
     expect(items.length).toBe(1);
