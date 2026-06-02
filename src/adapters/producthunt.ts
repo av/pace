@@ -272,6 +272,12 @@ const adapter: Adapter = {
     const minUpvotes = (config.params?.min_upvotes as number) ?? 0;
     const enrich = (config.params?.enrich as boolean) ?? false;
 
+    if (minUpvotes > 0 && !enrich) {
+      console.warn(
+        "producthunt: min_upvotes has no effect without enrich: true",
+      );
+    }
+
     const { feedTitle, items: feedItems } = await fetchProductHuntFeed();
 
     // Apply limit before enriching (enrichment is expensive)

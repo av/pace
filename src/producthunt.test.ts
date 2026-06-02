@@ -253,6 +253,21 @@ describe("producthunt", () => {
     expect(items[0].body).toContain("300 upvotes");
   });
 
+  test("warns when min_upvotes set without enrich (threshold ignored)", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      new Response(makePHFeedFixture(), { status: 200 }),
+    );
+
+    const items = await producthuntAdapter.fetch(
+      producthuntCfg({ min_upvotes: 100 }),
+    );
+
+    expect(items.length).toBe(2);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "producthunt: min_upvotes has no effect without enrich: true",
+    );
+  });
+
   test("warns and returns [] when feed has no entries", async () => {
     const emptyFeed = `<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"></feed>`;
     mocks.fetchMock.mockResolvedValue(new Response(emptyFeed, { status: 200 }));
