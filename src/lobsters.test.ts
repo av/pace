@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "bun:test";
 import lobstersAdapter from "./adapters/lobsters";
+import type { AdapterConfig } from "./adapters/types";
 
 interface LobstersFixture {
   short_id: string;
@@ -11,6 +12,12 @@ interface LobstersFixture {
   submitter_user: string;
   created_at: string;
   tags: string[];
+}
+
+const defaultCfg: AdapterConfig = { type: "lobsters" };
+
+function lobstersCfg(params: Record<string, unknown> = {}): AdapterConfig {
+  return { ...defaultCfg, params };
 }
 
 const makeItem = (overrides: Partial<LobstersFixture> = {}): LobstersFixture => ({
@@ -48,9 +55,9 @@ describe("lobsters adapter", () => {
   test("fetches standard hottest feed with defaults and maps fields", async () => {
     const item = makeItem({ short_id: "def456", title: "Hot Post", score: 99 });
     const fetchMock = vi.fn().mockResolvedValue(makeJsonResponse([item]));
-    globalThis.fetch = fetchMock as any;
+    globalThis.fetch = fetchMock as typeof fetch;
 
-    const results = await lobstersAdapter.fetch({ params: {} } as any);
+    const results = await lobstersAdapter.fetch(lobstersCfg());
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith(
@@ -71,11 +78,11 @@ describe("lobsters adapter", () => {
   test("resolves feed aliases (hot/front -> hottest, new/recent -> newest)", async () => {
     const item = makeItem();
     const fetchMock = vi.fn().mockImplementation(() => makeJsonResponse([item]));
-    globalThis.fetch = fetchMock as any;
+    globalThis.fetch = fetchMock as typeof fetch;
 
-    await lobstersAdapter.fetch({ params: { feed: "hot" } } as any);
-    await lobstersAdapter.fetch({ params: { feed: "new" } } as any);
-    await lobstersAdapter.fetch({ params: { feed: "active" } } as any);
+    await lobstersAdapter.fetch(lobstersCfg({ feed: "hot" }));
+    await lobstersAdapter.fetch(lobstersCfg({ feed: "new" }));
+    await lobstersAdapter.fetch(lobstersCfg({ feed: "active" }));
 
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(fetchMock).toHaveBeenLastCalledWith(
@@ -93,11 +100,11 @@ describe("lobsters adapter", () => {
       .fn()
       .mockResolvedValueOnce(makeJsonResponse([foo, dup]))
       .mockResolvedValueOnce(makeJsonResponse([bar]));
-    globalThis.fetch = fetchMock as any;
+    globalThis.fetch = fetchMock as typeof fetch;
 
-    const results = await lobstersAdapter.fetch({
-      params: { tags: ["foo", "bar"], feed: "hottest", limit: 10 },
-    } as any);
+    const results = await lobstersAdapter.fetch(
+      lobstersCfg({ tags: ["foo", "bar"], feed: "hottest", limit: 10 }),
+    );
 
     // called for each tag url
     expect(fetchMock).toHaveBeenCalledWith(
@@ -122,11 +129,11 @@ describe("lobsters adapter", () => {
       .fn()
       .mockResolvedValueOnce(makeJsonResponse([older]))
       .mockResolvedValueOnce(makeJsonResponse([newer]));
-    globalThis.fetch = fetchMock as any;
+    globalThis.fetch = fetchMock as typeof fetch;
 
-    const results = await lobstersAdapter.fetch({
-      params: { tags: ["x", "y"], feed: "newest" },
-    } as any);
+    const results = await lobstersAdapter.fetch(
+      lobstersCfg({ tags: ["x", "y"], feed: "newest" }),
+    );
 
     expect(results[0].id).toBe("lobsters:new"); // date desc
     expect(results[1].id).toBe("lobsters:old");
@@ -139,11 +146,11 @@ describe("lobsters adapter", () => {
       makeItem({ short_id: "high", score: 50 }),
     ];
     const fetchMock = vi.fn().mockResolvedValue(makeJsonResponse(items));
-    globalThis.fetch = fetchMock as any;
+    globalThis.fetch = fetchMock as typeof fetch;
 
-    const results = await lobstersAdapter.fetch({
-      params: { min_score: 10, limit: 1 },
-    } as any);
+    const results = await lobstersAdapter.fetch(
+      lobstersCfg({ min_score: 10, limit: 1 }),
+    );
 
     expect(results).toHaveLength(1);
     expect(results[0].id).toBe("lobsters:mid"); // first qualifying after filter (order preserved, no sort for standard)
@@ -151,10 +158,10 @@ describe("lobsters adapter", () => {
 
   test("throws on HTTP !ok for standard feed (contract; no swallow)", async () => {
     const fetchMock = vi.fn().mockResolvedValue(makeJsonResponse([], 404));
-    globalThis.fetch = fetchMock as any;
+    globalThis.fetch = fetchMock as typeof fetch;
 
     await expect(
-      lobstersAdapter.fetch({ params: { feed: "newest" } } as any),
+      lobstersAdapter.fetch(lobstersCfg({ feed: "newest" })),
     ).rejects.toThrow(/lobsters:.*failed to fetch newest.*404/);
   });
 
@@ -164,21 +171,19 @@ describe("lobsters adapter", () => {
       .fn()
       .mockResolvedValueOnce(makeJsonResponse([], 503))
       .mockResolvedValueOnce(makeJsonResponse([good]));
-    globalThis.fetch = fetchMock as any;
+    globalThis.fetch = fetchMock as typeof fetch;
 
     await expect(
-      lobstersAdapter.fetch({
-        params: { tags: ["bad", "good"] },
-      } as any),
+      lobstersAdapter.fetch(lobstersCfg({ tags: ["bad", "good"] })),
     ).rejects.toThrow(/lobsters:.*failed to fetch tag bad.*503/);
   });
 
   test("throws on network error (fetch reject) with adapter prefix", async () => {
     const fetchMock = vi.fn().mockRejectedValue(new Error("connection refused"));
-    globalThis.fetch = fetchMock as any;
+    globalThis.fetch = fetchMock as typeof fetch;
 
     await expect(
-      lobstersAdapter.fetch({ params: { feed: "active" } } as any),
+      lobstersAdapter.fetch(lobstersCfg({ feed: "active" })),
     ).rejects.toThrow(/lobsters: error fetching stories.*connection refused/);
   });
 });
