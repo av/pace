@@ -23,6 +23,7 @@ export type LayoutNodeConfig = FlexContainerConfig | PanelConfig;
 
 export type SourceValue = string | string[] | SourceConfig | SourceConfig[];
 
+/** Layout panel source; only `adapter` and `params` (refresh_interval belongs on adapters[]). */
 export interface SourceConfig {
   adapter: string;
   params?: Record<string, unknown>;
@@ -243,7 +244,7 @@ function validateSource(source: unknown, path: string): void {
     validateAdapterParams(source.adapter as string, source.params, path);
   }
   validateAllowedKeys(source, ["adapter", "params"], (key) =>
-    `${path}.${key} is not a valid source field (set refresh_interval on adapters[], not panel source)`,
+    `${path}.${key} is not a valid source field`,
   );
 }
 
