@@ -13,7 +13,6 @@ import type { ContentItem } from "./adapters/types";
 import type { Model, Api, Context } from "@mariozechner/pi-ai";
 import * as piAi from "@mariozechner/pi-ai";
 
-// Minimal fake model that will cause complete() to throw (exercises all catch paths)
 const fakeThrowingModel = { id: "fake" } as Model<Api>;
 
 function makeItem(overrides: Partial<ContentItem> = {}): ContentItem {
@@ -28,77 +27,77 @@ function makeItem(overrides: Partial<ContentItem> = {}): ContentItem {
   };
 }
 
-describe("llm utils (DRY quality + test coverage)", () => {
-  describe("stripJsonCodeFences (extracted shared helper)", () => {
-    test("strips ```json fenced blocks", () => {
+describe("llm", () => {
+  describe("stripJsonCodeFences", () => {
+    test("strips json fences", () => {
       const input = '```json\n[{"id":"1"}]\n```';
       expect(stripJsonCodeFences(input)).toBe('[{"id":"1"}]');
     });
 
-    test("strips plain ``` fenced blocks", () => {
+    test("strips plain fences", () => {
       const input = '```\n[{"id":"2"}]\n```';
       expect(stripJsonCodeFences(input)).toBe('[{"id":"2"}]');
     });
 
-    test("strips fences with surrounding whitespace and newlines", () => {
+    test("strips fences with surrounding whitespace", () => {
       const input = '\n\n```json  \n  {"foo":1}  \n```  \n';
       expect(stripJsonCodeFences(input)).toBe('{"foo":1}');
     });
 
-    test("returns unchanged text when no fences present", () => {
+    test("unchanged without fences", () => {
       const input = '[{"id":"3"}]';
       expect(stripJsonCodeFences(input)).toBe('[{"id":"3"}]');
     });
 
-    test("handles empty string and whitespace-only", () => {
+    test("empty and whitespace-only", () => {
       expect(stripJsonCodeFences("")).toBe("");
       expect(stripJsonCodeFences("   \n\t  ")).toBe("");
     });
 
-    test("strips multiple fence occurrences (defensive)", () => {
+    test("strips multiple fences", () => {
       const input = '```json\n1\n``` extra ```\n2\n```';
       expect(stripJsonCodeFences(input)).toBe("1\n extra \n2");
     });
   });
 
-  describe("summarizeItem (graceful on error)", () => {
-    test("returns null for empty body item (still calls LLM but we hit error path)", async () => {
+  describe("summarizeItem", () => {
+    test("empty body returns null", async () => {
       const item = makeItem({ body: "" });
       const res = await summarizeItem(fakeThrowingModel, item);
       expect(res).toBe(null);
     });
 
-    test("returns null on any LLM/complete error (fake model triggers catch)", async () => {
+    test("complete error returns null", async () => {
       const item = makeItem({ title: "Test", body: "Some content" });
       const res = await summarizeItem(fakeThrowingModel, item);
       expect(res).toBe(null);
     });
   });
 
-  describe("mergeItems / filterItemsByLlm / lensItems (graceful degradation)", () => {
-    test("mergeItems returns input unchanged for empty list", async () => {
+  describe("mergeItems filterItemsByLlm lensItems", () => {
+    test("mergeItems empty list", async () => {
       const res = await mergeItems(fakeThrowingModel, []);
       expect(res).toEqual([]);
     });
 
-    test("mergeItems returns original items on LLM error", async () => {
+    test("mergeItems passthrough on error", async () => {
       const items = [makeItem({ id: "a" }), makeItem({ id: "b" })];
       const res = await mergeItems(fakeThrowingModel, items);
       expect(res).toEqual(items);
     });
 
-    test("filterItemsByLlm returns input unchanged for empty list", async () => {
+    test("filterItemsByLlm empty list", async () => {
       const res = await filterItemsByLlm(fakeThrowingModel, [], "keep tech");
       expect(res).toEqual([]);
     });
 
-    test("filterItemsByLlm returns original items on LLM error", async () => {
+    test("filterItemsByLlm passthrough on error", async () => {
       const items = [makeItem({ id: "x" })];
       const res = await filterItemsByLlm(fakeThrowingModel, items, "some criteria");
       expect(res).toEqual(items);
     });
 
-    test("filterItemsByLlm warns on JSON parse failure and returns items unchanged", async () => {
+    test("filterItemsByLlm warns on JSON parse failure", async () => {
       const completeSpy = spyOn(piAi, "complete").mockResolvedValue({
         content: [{ type: "text", text: "not valid json {{{" }],
       } as Awaited<ReturnType<typeof piAi.complete>>);
@@ -117,21 +116,21 @@ describe("llm utils (DRY quality + test coverage)", () => {
       }
     });
 
-    test("lensItems returns input unchanged for empty items or interests", async () => {
+    test("lensItems empty inputs", async () => {
       const items = [makeItem()];
       expect(await lensItems(fakeThrowingModel, [], ["ai"])).toEqual([]);
       expect(await lensItems(fakeThrowingModel, items, [])).toEqual(items);
     });
 
-    test("lensItems returns original items on LLM error", async () => {
+    test("lensItems passthrough on error", async () => {
       const items = [makeItem({ id: "1", title: "one" }), makeItem({ id: "2", title: "two" })];
       const res = await lensItems(fakeThrowingModel, items, ["tech"]);
       expect(res).toEqual(items);
     });
   });
 
-  describe("safeComplete (extracted shared error/ctx wrapper)", () => {
-    test("returns null on LLM/complete error (via fakeThrowingModel)", async () => {
+  describe("safeComplete", () => {
+    test("complete error returns null", async () => {
       const ctx: Context = {
         systemPrompt: "test",
         messages: [{ role: "user", content: "hi", timestamp: Date.now() }],
@@ -140,7 +139,7 @@ describe("llm utils (DRY quality + test coverage)", () => {
       expect(res).toBe(null);
     });
 
-    test("warns with errorMessage on complete failure", async () => {
+    test("warns on complete failure", async () => {
       const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
       try {
         const ctx: Context = {
@@ -158,7 +157,7 @@ describe("llm utils (DRY quality + test coverage)", () => {
       }
     });
 
-    test("returns null for context with empty-ish prompt (still exercises path)", async () => {
+    test("empty context returns null", async () => {
       const ctx: Context = {
         systemPrompt: "",
         messages: [{ role: "user", content: "", timestamp: Date.now() }],
@@ -168,44 +167,42 @@ describe("llm utils (DRY quality + test coverage)", () => {
     });
   });
 
-  describe("formatContentItemForLlm (extracted shared formatting helper)", () => {
-    test("formats minimal item without body (default)", () => {
+  describe("formatContentItemForLlm", () => {
+    test("minimal item without body", () => {
       const item = makeItem({ id: "i1", title: "Hello", source: "testsrc" });
       expect(formatContentItemForLlm(item)).toBe('- id: "i1" | title: "Hello" | source: testsrc');
     });
 
-    test("includes truncated body when maxBodyLen > 0", () => {
+    test("truncates body when maxBodyLen > 0", () => {
       const item = makeItem({ id: "i2", title: "T", source: "s", body: "long body content here" });
       expect(formatContentItemForLlm(item, 10)).toBe('- id: "i2" | title: "T" | source: s | body: long body ');
     });
 
-    test("omits body part when maxBodyLen <= 0 or omitted", () => {
+    test("omits body when maxBodyLen <= 0", () => {
       const item = makeItem({ id: "i3", title: "X", source: "y", body: "zzz" });
       expect(formatContentItemForLlm(item, 0)).toBe('- id: "i3" | title: "X" | source: y');
       expect(formatContentItemForLlm(item)).toBe('- id: "i3" | title: "X" | source: y');
     });
 
-    test("handles empty body and special chars in fields", () => {
+    test("empty body and special chars", () => {
       const item = makeItem({ id: 'id"q', title: "ti|tle", source: "src", body: "" });
       expect(formatContentItemForLlm(item, 5)).toBe('- id: "id"q" | title: "ti|tle" | source: src');
     });
 
-    test("used by merge/filter/lens wrappers (integration via makeItem)", async () => {
-      // quick smoke that wrappers still invoke formatting path without crash
+    test("mergeItems uses formatting path", async () => {
       const items = [makeItem({ id: "m1", title: "m", body: "bb" })];
-      // merge/filter/lens call format internally now; just ensure no throw on valid
-      expect(await mergeItems(fakeThrowingModel, items)).toEqual(items); // errors to passthrough
+      expect(await mergeItems(fakeThrowingModel, items)).toEqual(items);
     });
   });
 
   describe("createModel", () => {
-    test("returns null when provider, model, or api_key is missing", () => {
+    test("incomplete config returns null", () => {
       expect(createModel({})).toBe(null);
       expect(createModel({ provider: "openai", model: "gpt-4" })).toBe(null);
       expect(createModel({ provider: "openai", api_key: "k" })).toBe(null);
     });
 
-    test("warns on unknown provider/model and returns OpenAI-compatible fallback", () => {
+    test("warns on unknown provider", () => {
       const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
       try {
         const model = createModel({
@@ -227,7 +224,7 @@ describe("llm utils (DRY quality + test coverage)", () => {
       }
     });
 
-    test("warns when known provider has no matching model id", () => {
+    test("warns on unknown model id", () => {
       const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
       try {
         const model = createModel({
@@ -246,8 +243,8 @@ describe("llm utils (DRY quality + test coverage)", () => {
     });
   });
 
-  describe("null model guard b89 (silent passthrough for llm-summarize/filter/rank/merge; uses spy mock on complete)", () => {
-    test("summarizeItem returns null and does not call complete when model=null (silent; pre-guard reaches via catch)", async () => {
+  describe("null model", () => {
+    test("summarizeItem skips complete", async () => {
       const completeSpy = spyOn(piAi, "complete");
       const item = makeItem({ title: "Null Model Test" });
       const res = await summarizeItem(null, item);
@@ -256,7 +253,7 @@ describe("llm utils (DRY quality + test coverage)", () => {
       completeSpy.mockRestore();
     });
 
-    test("mergeItems returns items unchanged and does not call complete when model=null (silent passthrough b89)", async () => {
+    test("mergeItems skips complete", async () => {
       const completeSpy = spyOn(piAi, "complete");
       const items = [makeItem({ id: "n1" }), makeItem({ id: "n2" })];
       const res = await mergeItems(null, items);
@@ -265,7 +262,7 @@ describe("llm utils (DRY quality + test coverage)", () => {
       completeSpy.mockRestore();
     });
 
-    test("filterItemsByLlm returns items unchanged and does not call complete when model=null (silent passthrough b89)", async () => {
+    test("filterItemsByLlm skips complete", async () => {
       const completeSpy = spyOn(piAi, "complete");
       const items = [makeItem({ id: "f1" })];
       const res = await filterItemsByLlm(null, items, "keep all");
@@ -274,7 +271,7 @@ describe("llm utils (DRY quality + test coverage)", () => {
       completeSpy.mockRestore();
     });
 
-    test("lensItems returns items unchanged and does not call complete when model=null (silent passthrough b89)", async () => {
+    test("lensItems skips complete", async () => {
       const completeSpy = spyOn(piAi, "complete");
       const items = [makeItem({ id: "l1" })];
       const res = await lensItems(null, items, ["interest"]);
