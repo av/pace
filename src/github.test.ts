@@ -1,15 +1,10 @@
-import { beforeEach, afterEach, describe, test, expect, mock, spyOn } from "bun:test";
+import { describe, test, expect, spyOn } from "bun:test";
 import adapter from "./adapters/github";
-import type { AdapterConfig } from "./adapters/types";
 import * as typesMod from "./adapters/types";
+import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
-const originalFetch = globalThis.fetch;
-
-const defaultCfg: AdapterConfig = { type: "github" };
-
-function githubCfg(params: Record<string, unknown> = {}): AdapterConfig {
-  return { ...defaultCfg, params };
-}
+const mocks = useFetchMockSuite();
+const githubCfg = (params: Record<string, unknown> = {}) => adapterCfg("github", params);
 
 function makeTextResponse(body: string, status = 200): Response {
   return new Response(body, {
@@ -57,29 +52,15 @@ const trendingHtml = `
 `;
 
 describe("github", () => {
-  let fetchMock: ReturnType<typeof mock>;
-  let warnSpy: ReturnType<typeof spyOn>;
-
-  beforeEach(() => {
-    fetchMock = mock();
-    globalThis.fetch = fetchMock as typeof fetch;
-    warnSpy = spyOn(console, "warn").mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
-    warnSpy.mockRestore();
-  });
-
   test("returns empty with warning when releases mode has no repos configured", async () => {
     const items = await adapter.fetch(githubCfg({ mode: "releases" }));
     expect(items).toEqual([]);
-    expect(warnSpy).toHaveBeenCalledWith("github: no repos configured for releases mode");
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(mocks.warnSpy).toHaveBeenCalledWith("github: no repos configured for releases mode");
+    expect(mocks.fetchMock).not.toHaveBeenCalled();
   });
 
   test("fetches releases for repos, parses atom, maps items with correct fields, id, source, body stripped, timestamp", async () => {
-    fetchMock.mockImplementation(async (url: string) => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
       if (String(url).includes("releases.atom")) {
         return makeTextResponse(releasesXml);
       }
@@ -96,7 +77,7 @@ describe("github", () => {
       githubCfg({ mode: "releases", repos: ["facebook/react"], limit: 10 }),
     );
 
-    expect(fetchMock.mock.calls.length).toBe(2);
+    expect(mocks.fetchMock.mock.calls.length).toBe(2);
     expect(items.length).toBe(2);
     expect(items[0].title).toContain("facebook/react: v19.0.0");
     expect(items[0].title).toContain("The library for web and native user interfaces");
@@ -110,7 +91,7 @@ describe("github", () => {
   });
 
   test("releases respects per-repo limit then outer cap", async () => {
-    fetchMock.mockImplementation(async (url: string) => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
       if (String(url).includes("api.github.com/repos/")) {
         return new Response(JSON.stringify({ description: "" }), {
           status: 200,
@@ -128,7 +109,7 @@ describe("github", () => {
   });
 
   test("releases without repo meta still return items when api.github.com fails", async () => {
-    fetchMock.mockImplementation(async (url: string) => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
       if (String(url).includes("releases.atom")) {
         return makeTextResponse(releasesXml);
       }
@@ -145,7 +126,7 @@ describe("github", () => {
   });
 
   test("dedupes duplicate release urls when the same repo is listed twice", async () => {
-    fetchMock.mockImplementation(async (url: string) => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
       if (String(url).includes("releases.atom")) {
         return makeTextResponse(releasesXml);
       }
@@ -162,7 +143,7 @@ describe("github", () => {
       githubCfg({ mode: "releases", repos: ["facebook/react", "facebook/react"], limit: 10 }),
     );
 
-    expect(fetchMock.mock.calls.length).toBe(4);
+    expect(mocks.fetchMock.mock.calls.length).toBe(4);
     expect(items.length).toBe(2);
     expect(items.map((i) => i.url)).toEqual([
       "https://github.com/facebook/react/releases/tag/v19.0.0",
@@ -171,7 +152,7 @@ describe("github", () => {
   });
 
   test("fetches trending with language and since, parses html, maps stars/gained/desc", async () => {
-    fetchMock.mockImplementation(async (url: string) => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
       if (String(url).includes("trending")) {
         return makeTextResponse(trendingHtml);
       }
@@ -193,7 +174,7 @@ describe("github", () => {
   });
 
   test("trending default (no lang, daily) works and respects limit", async () => {
-    fetchMock.mockImplementation(async () => makeTextResponse(trendingHtml));
+    mocks.fetchMock.mockImplementation(async () => makeTextResponse(trendingHtml));
 
     const items = await adapter.fetch(githubCfg({ mode: "trending", limit: 1 }));
 
@@ -202,7 +183,7 @@ describe("github", () => {
   });
 
   test("throws on !ok for releases feed (contract; no swallow)", async () => {
-    fetchMock.mockImplementation(async () => makeErrorResponse(404));
+    mocks.fetchMock.mockImplementation(async () => makeErrorResponse(404));
 
     await expect(
       adapter.fetch(githubCfg({ mode: "releases", repos: ["bad/repo"], limit: 10 })),
@@ -210,7 +191,7 @@ describe("github", () => {
   });
 
   test("throws on fetch error (reject) for trending (contract; no swallow)", async () => {
-    fetchMock.mockImplementation(async () => {
+    mocks.fetchMock.mockImplementation(async () => {
       throw new Error("network boom");
     });
 
@@ -222,14 +203,14 @@ describe("github", () => {
   test("errorMessage on !ok and network", async () => {
     const emSpy = spyOn(typesMod, "errorMessage");
     try {
-      fetchMock.mockImplementation(async () => makeErrorResponse(404));
+      mocks.fetchMock.mockImplementation(async () => makeErrorResponse(404));
 
       await expect(
         adapter.fetch(githubCfg({ mode: "releases", repos: ["bad/repo"], limit: 10 })),
       ).rejects.toThrow(/github:/);
       expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 404" });
 
-      fetchMock.mockImplementation(async () => {
+      mocks.fetchMock.mockImplementation(async () => {
         throw new Error("network boom");
       });
 

@@ -1,28 +1,14 @@
-import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import npmAdapter from "./adapters/npm";
 import * as typesMod from "./adapters/types";
+import { useFetchMockSuite } from "./test/adapter-mocks";
 
-const originalFetch = globalThis.fetch;
+const mocks = useFetchMockSuite({ restoreAllMocks: true });
 
 describe("npm", () => {
-  let fetchMock: ReturnType<typeof mock>;
-  let warnSpy: ReturnType<typeof spyOn>;
-
   test("ngb contract", () => {
     expect(npmAdapter.name).toBe("npm");
     expect(typeof npmAdapter.fetch).toBe("function");
-  });
-
-  beforeEach(() => {
-    fetchMock = mock();
-    globalThis.fetch = fetchMock as typeof fetch;
-    warnSpy = spyOn(console, "warn").mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
-    warnSpy.mockRestore();
-    mock.restore();
   });
 
   function makePackageResult(overrides: Partial<Record<string, unknown>> = {}): Record<string, unknown> {
@@ -62,13 +48,13 @@ describe("npm", () => {
     const items = await npmAdapter.fetch({ type: "npm", params: {} });
 
     expect(items).toEqual([]);
-    expect(warnSpy).toHaveBeenCalledWith("npm: no keywords or scope configured");
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(mocks.warnSpy).toHaveBeenCalledWith("npm: no keywords or scope configured");
+    expect(mocks.fetchMock).not.toHaveBeenCalled();
   });
 
   test("fetches packages by keywords", async () => {
     const pkg = makePackageResult();
-    fetchMock.mockResolvedValue(
+    mocks.fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makeSearchResponse([pkg])), { status: 200 }),
     );
 
@@ -90,12 +76,12 @@ describe("npm", () => {
     expect(items[0].body).toContain("popularity: 60%");
     expect(items[0].body).toContain("maintenance: 90%");
 
-    const calledUrl = String(fetchMock.mock.calls[0][0]);
+    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
     expect(calledUrl).toContain("text=typescript+cli");
   });
 
   test("searches with scope parameter", async () => {
-    fetchMock.mockResolvedValue(
+    mocks.fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makeSearchResponse([makePackageResult()])), { status: 200 }),
     );
 
@@ -104,12 +90,12 @@ describe("npm", () => {
       params: { scope: "types", keywords: ["react"] },
     });
 
-    const calledUrl = String(fetchMock.mock.calls[0][0]);
+    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
     expect(calledUrl).toContain("text=scope%3Atypes+react");
   });
 
   test("works with scope only (no keywords)", async () => {
-    fetchMock.mockResolvedValue(
+    mocks.fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makeSearchResponse([makePackageResult()])), { status: 200 }),
     );
 
@@ -123,7 +109,7 @@ describe("npm", () => {
   });
 
   test("applies sort=popularity by boosting popularity score weight", async () => {
-    fetchMock.mockResolvedValue(
+    mocks.fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makeSearchResponse([])), { status: 200 }),
     );
 
@@ -132,14 +118,14 @@ describe("npm", () => {
       params: { keywords: ["react"], sort: "popularity" },
     });
 
-    const calledUrl = String(fetchMock.mock.calls[0][0]);
+    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
     expect(calledUrl).toContain("popularity=1.0");
     expect(calledUrl).toContain("quality=0.0");
     expect(calledUrl).toContain("maintenance=0.0");
   });
 
   test("applies sort=quality by boosting quality score weight", async () => {
-    fetchMock.mockResolvedValue(
+    mocks.fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makeSearchResponse([])), { status: 200 }),
     );
 
@@ -148,13 +134,13 @@ describe("npm", () => {
       params: { keywords: ["react"], sort: "quality" },
     });
 
-    const calledUrl = String(fetchMock.mock.calls[0][0]);
+    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
     expect(calledUrl).toContain("quality=1.0");
     expect(calledUrl).toContain("popularity=0.0");
   });
 
   test("applies sort=maintenance by boosting maintenance score weight", async () => {
-    fetchMock.mockResolvedValue(
+    mocks.fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makeSearchResponse([])), { status: 200 }),
     );
 
@@ -163,14 +149,14 @@ describe("npm", () => {
       params: { keywords: ["react"], sort: "maintenance" },
     });
 
-    const calledUrl = String(fetchMock.mock.calls[0][0]);
+    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
     expect(calledUrl).toContain("maintenance=1.0");
     expect(calledUrl).toContain("popularity=0.0");
     expect(calledUrl).toContain("quality=0.0");
   });
 
   test("defaults to optimal sort (no weight params) for invalid sort", async () => {
-    fetchMock.mockResolvedValue(
+    mocks.fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makeSearchResponse([])), { status: 200 }),
     );
 
@@ -179,14 +165,14 @@ describe("npm", () => {
       params: { keywords: ["react"], sort: "invalid" },
     });
 
-    const calledUrl = String(fetchMock.mock.calls[0][0]);
+    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
     expect(calledUrl).not.toContain("quality=");
     expect(calledUrl).not.toContain("popularity=");
     expect(calledUrl).not.toContain("maintenance=");
   });
 
   test("respects limit parameter", async () => {
-    fetchMock.mockResolvedValue(
+    mocks.fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makeSearchResponse([])), { status: 200 }),
     );
 
@@ -195,12 +181,12 @@ describe("npm", () => {
       params: { keywords: ["test"], limit: 5 },
     });
 
-    const calledUrl = String(fetchMock.mock.calls[0][0]);
+    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
     expect(calledUrl).toContain("size=5");
   });
 
   test("caps limit at 50", async () => {
-    fetchMock.mockResolvedValue(
+    mocks.fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makeSearchResponse([])), { status: 200 }),
     );
 
@@ -209,7 +195,7 @@ describe("npm", () => {
       params: { keywords: ["test"], limit: 200 },
     });
 
-    const calledUrl = String(fetchMock.mock.calls[0][0]);
+    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
     expect(calledUrl).toContain("size=50");
   });
 
@@ -223,7 +209,7 @@ describe("npm", () => {
         },
       },
     });
-    fetchMock.mockResolvedValue(
+    mocks.fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makeSearchResponse([pkg])), { status: 200 }),
     );
 
@@ -246,7 +232,7 @@ describe("npm", () => {
         links: { npm: "https://npmjs.com/package/bare", repository: undefined },
       },
     });
-    fetchMock.mockResolvedValue(
+    mocks.fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makeSearchResponse([pkg])), { status: 200 }),
     );
 
@@ -263,7 +249,7 @@ describe("npm", () => {
   });
 
   test("throws on HTTP error with adapter prefix", async () => {
-    fetchMock.mockResolvedValue(new Response("Rate limited", { status: 429 }));
+    mocks.fetchMock.mockResolvedValue(new Response("Rate limited", { status: 429 }));
 
     await expect(
       npmAdapter.fetch({ type: "npm", params: { keywords: ["test"] } }),
@@ -271,7 +257,7 @@ describe("npm", () => {
   });
 
   test("throws on network error with adapter prefix", async () => {
-    fetchMock.mockRejectedValue(new Error("ECONNREFUSED"));
+    mocks.fetchMock.mockRejectedValue(new Error("ECONNREFUSED"));
 
     await expect(
       npmAdapter.fetch({ type: "npm", params: { keywords: ["test"] } }),
@@ -281,7 +267,7 @@ describe("npm", () => {
   test("errorMessage on !ok and network", async () => {
     const emSpy = spyOn(typesMod, "errorMessage");
     try {
-      fetchMock.mockResolvedValue(new Response("Rate limited", { status: 429 }));
+      mocks.fetchMock.mockResolvedValue(new Response("Rate limited", { status: 429 }));
       await expect(
         npmAdapter.fetch({ type: "npm", params: { keywords: ["test"] } }),
       ).rejects.toThrow("npm:");
@@ -289,7 +275,7 @@ describe("npm", () => {
 
       emSpy.mockClear();
 
-      fetchMock.mockRejectedValue(new Error("ECONNREFUSED"));
+      mocks.fetchMock.mockRejectedValue(new Error("ECONNREFUSED"));
       await expect(
         npmAdapter.fetch({ type: "npm", params: { keywords: ["test"] } }),
       ).rejects.toThrow("npm:");
