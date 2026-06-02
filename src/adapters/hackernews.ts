@@ -1,3 +1,10 @@
+import {
+  formatBy,
+  formatComments,
+  formatDiscuss,
+  formatPoints,
+  joinBodyParts,
+} from "./engagement";
 import { parseUnixEpochSeconds } from "./dates";
 import { fetchJson } from "./fetch";
 import { sliceToLimit } from "./merge";
@@ -56,18 +63,15 @@ async function fetchInBatches(ids: number[]): Promise<HNItem[]> {
 }
 
 function buildBody(item: HNItem): string {
-  const parts: string[] = [];
-  if (item.score !== undefined) parts.push(`${item.score} points`);
-  if (item.by) parts.push(`by ${item.by}`);
-  if (item.descendants !== undefined) parts.push(`${item.descendants} comments`);
-
   const hnLink = `https://news.ycombinator.com/item?id=${item.id}`;
-  // If the item links externally, include the discussion link
-  if (item.url && !item.url.includes("news.ycombinator.com")) {
-    parts.push(`discuss: ${hnLink}`);
-  }
-
-  return parts.join(" | ");
+  return joinBodyParts(
+    item.score !== undefined ? formatPoints(item.score) : undefined,
+    item.by ? formatBy(item.by) : undefined,
+    item.descendants !== undefined ? formatComments(item.descendants) : undefined,
+    item.url && !item.url.includes("news.ycombinator.com")
+      ? formatDiscuss(hnLink)
+      : undefined,
+  );
 }
 
 const adapter: Adapter = {

@@ -1,3 +1,10 @@
+import {
+  formatBy,
+  formatComments,
+  formatDiscuss,
+  formatPoints,
+  joinBodyParts,
+} from "./engagement";
 import { fetchJson } from "./fetch";
 import { dedupeByKey, sliceToLimit } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -37,17 +44,15 @@ interface LemmyPostListResponse {
 }
 
 function buildBody(view: LemmyPostView): string {
-  const parts: string[] = [];
-  parts.push(`${view.counts.score} points`);
-  parts.push(`by ${view.creator.name}`);
-  parts.push(`${view.counts.comments} comments`);
-  parts.push(`c/${view.community.name}`);
-
-  if (view.post.url && !view.post.url.includes(view.post.ap_id)) {
-    parts.push(`discuss: ${view.post.ap_id}`);
-  }
-
-  return parts.join(" | ");
+  return joinBodyParts(
+    formatPoints(view.counts.score),
+    formatBy(view.creator.name),
+    formatComments(view.counts.comments),
+    `c/${view.community.name}`,
+    view.post.url && !view.post.url.includes(view.post.ap_id)
+      ? formatDiscuss(view.post.ap_id)
+      : undefined,
+  );
 }
 
 function resolveSort(input: string | undefined): SortType {

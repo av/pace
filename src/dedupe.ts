@@ -94,17 +94,4 @@ export function levenshteinSimilarity(a: string, b: string): number {
   return 1 - distance / maxLen;
 }
 
-const SCORE_PATTERNS: RegExp[] = [
-  /(\d+)\s*points?/i,
-  /score:\s*(\d+)/i,
-  /(\d+)\s*upvotes?/i,
-];
-
-export function extractScore(body: string | null): number {
-  if (!body) return 0;
-  for (const re of SCORE_PATTERNS) {
-    const match = body.match(re);
-    if (match) return parseInt(match[1], 10);
-  }
-  return 0;
-}
+export { extractScore } from "./adapters/engagement";

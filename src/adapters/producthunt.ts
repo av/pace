@@ -5,6 +5,14 @@ import { fetchText } from "./fetch";
 import { stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
+import {
+  RE_POINTS_OR_UPVOTES,
+  formatBy,
+  formatComments,
+  formatUpvotes,
+  joinBodyParts,
+  parseFirstIntMatch,
+} from "./engagement";
 import { titleWithTagline } from "./title";
 
 const PH_ENRICH_USER_AGENT =
@@ -15,8 +23,6 @@ const PH_FEED_URL = "https://www.producthunt.com/feed";
 const ENRICH_BATCH_SIZE = 5;
 const ENRICH_DELAY_MS = 500;
 
-/** Enrich-page scrape patterns (global + capture group 1). */
-const RE_ENRICH_UPVOTES = /(\d+)\s*(?:points|upvotes?)/i;
 const RE_ENRICH_COMMENTS = /commentsCount":\s*(\d+)/;
 const RE_ENRICH_TOPIC_LABEL = /data-test="topic[^"]*"[^>]*>([^<]+)</gi;
 const RE_ENRICH_TOPIC_SLUG = /href="\/topics\/([^"]+)"/gi;
@@ -157,14 +163,14 @@ function extractMakers(html: string): string[] {
 function parseEnrichedData(html: string): EnrichedData {
   const data: EnrichedData = {};
 
-  const upvoteMatch = html.match(RE_ENRICH_UPVOTES);
-  if (upvoteMatch) data.upvotes = parseInt(upvoteMatch[1], 10);
+  const upvotes = parseFirstIntMatch(html, RE_POINTS_OR_UPVOTES);
+  if (upvotes !== undefined) data.upvotes = upvotes;
 
   const topics = extractTopics(html);
   if (topics.length > 0) data.topics = topics;
 
-  const commentMatch = html.match(RE_ENRICH_COMMENTS);
-  if (commentMatch) data.comments = parseInt(commentMatch[1], 10);
+  const comments = parseFirstIntMatch(html, RE_ENRICH_COMMENTS);
+  if (comments !== undefined) data.comments = comments;
 
   const makers = extractMakers(html);
   if (makers.length > 0) data.makers = makers;
@@ -206,26 +212,19 @@ function buildBody(
   productLink: string,
   enriched: EnrichedData | null,
 ): string {
-  const parts: string[] = [];
-  const push = (part: string | undefined) => {
-    if (part) parts.push(part);
-  };
-
-  push(tagline || undefined);
-  if (enriched?.upvotes !== undefined) push(`${enriched.upvotes} upvotes`);
-  if (enriched?.comments !== undefined) push(`${enriched.comments} comments`);
-  if (enriched?.topics?.length) push(`topics: ${enriched.topics.join(", ")}`);
-
-  const byLine = enriched?.makers?.length
-    ? `by ${enriched.makers.join(", ")}`
+  const byAuthor = enriched?.makers?.length
+    ? formatBy(enriched.makers.join(", "))
     : author
-      ? `by ${author}`
+      ? formatBy(author)
       : undefined;
-  push(byLine);
-
-  if (productLink) push(`site: ${productLink}`);
-
-  return parts.join(" | ");
+  return joinBodyParts(
+    tagline || undefined,
+    enriched?.upvotes !== undefined ? formatUpvotes(enriched.upvotes) : undefined,
+    enriched?.comments !== undefined ? formatComments(enriched.comments) : undefined,
+    enriched?.topics?.length ? `topics: ${enriched.topics.join(", ")}` : undefined,
+    byAuthor,
+    productLink ? `site: ${productLink}` : undefined,
+  );
 }
 
 async function fetchProductHuntFeed(): Promise<

@@ -1,3 +1,9 @@
+import {
+  formatBoosts,
+  formatFavorites,
+  formatReplies,
+  joinBodyParts,
+} from "./engagement";
 import { fetchJson } from "./fetch";
 import { stripHtml } from "./html";
 import { dedupeByKey, fetchAndConcat, sliceToLimit, sortByCreatedAtDesc } from "./merge";
@@ -59,24 +65,16 @@ function resolveAcct(account: MastodonStatus["account"], instance: string): stri
 }
 
 function buildBody(status: MastodonStatus, instance: string): string {
-  const parts: string[] = [];
-
-  parts.push(`${status.reblogs_count} boosts`);
-  parts.push(`${status.favourites_count} favorites`);
-
-  const fullAcct = resolveAcct(status.account, instance);
-  parts.push(fullAcct);
-
-  if (status.replies_count > 0) {
-    parts.push(`${status.replies_count} replies`);
-  }
-
-  if (status.media_attachments.length > 0) {
-    const mediaUrls = status.media_attachments.map((m) => m.url).join(" ");
-    parts.push(`media: ${mediaUrls}`);
-  }
-
-  return parts.join(" | ");
+  const mediaUrls = status.media_attachments.length > 0
+    ? status.media_attachments.map((m) => m.url).join(" ")
+    : undefined;
+  return joinBodyParts(
+    formatBoosts(status.reblogs_count),
+    formatFavorites(status.favourites_count),
+    resolveAcct(status.account, instance),
+    status.replies_count > 0 ? formatReplies(status.replies_count) : undefined,
+    mediaUrls ? `media: ${mediaUrls}` : undefined,
+  );
 }
 
 function buildTitle(status: MastodonStatus): string {

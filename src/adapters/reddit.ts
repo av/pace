@@ -1,3 +1,10 @@
+import {
+  formatBy,
+  formatComments,
+  formatDiscuss,
+  formatPoints,
+  joinBodyParts,
+} from "./engagement";
 import { parseUnixEpochSeconds } from "./dates";
 import { fetchJson } from "./fetch";
 import { dedupeByKey, sliceToLimit } from "./merge";
@@ -54,19 +61,14 @@ interface RedditListing {
 }
 
 function buildBody(post: RedditPostData): string {
-  const parts: string[] = [];
-
-  parts.push(`${post.score} points`);
-  parts.push(`by ${post.author}`);
-  parts.push(`${post.num_comments} comments`);
-  parts.push(`r/${post.subreddit}`);
-
   const discussLink = `https://reddit.com${post.permalink}`;
-  if (!post.is_self) {
-    parts.push(`discuss: ${discussLink}`);
-  }
-
-  return parts.join(" | ");
+  return joinBodyParts(
+    formatPoints(post.score),
+    formatBy(post.author),
+    formatComments(post.num_comments),
+    `r/${post.subreddit}`,
+    !post.is_self ? formatDiscuss(discussLink) : undefined,
+  );
 }
 
 function getItemUrl(post: RedditPostData): string {

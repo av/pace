@@ -3,12 +3,15 @@ import type { TransformConfig, LlmConfig, KeywordScoreEntry, KeywordField } from
 import type { ContentItemRow } from "./db";
 import type { ContentItem } from "./adapters/types";
 import { summarizeItem, lensItems, mergeItems, filterItemsByLlm } from "./llm";
+import { extractEngagementScore } from "./adapters/engagement";
 import {
   normalizeUrl,
   levenshteinSimilarity,
   extractScore,
   type DedupeStrategy,
 } from "./dedupe";
+
+export { extractEngagementScore };
 import { compareIsoTimestamp, errorMessage } from "./utils";
 
 export interface TransformContext {
@@ -105,31 +108,6 @@ function parseHalfLife(str: string): number {
     default:
       return value * MS_HOUR;
   }
-}
-
-const ENGAGEMENT_PATTERNS: Array<{ re: RegExp; weight: number }> = [
-  { re: /(\d+)\s*points?/i, weight: 1 }, // HN, Lobsters
-  { re: /score:\s*(\d+)/i, weight: 1 },
-  { re: /(\d+)\s*upvotes?/i, weight: 1 },
-  { re: /(\d+)\s*boosts?/i, weight: 1 }, // Mastodon/Fediverse
-  { re: /(\d+)\s*favou?rites?/i, weight: 1 }, // favorites/favourites spelling
-  { re: /(\d+)\s*stars?/i, weight: 1 }, // GitHub
-  { re: /(\d+)\s*likes?/i, weight: 1 },
-  { re: /(\d+)\s*comments?/i, weight: 0.5 }, // secondary, half value
-];
-
-/** Engagement signals parsed from body metadata (HN points, boosts, comments, etc.). */
-export function extractEngagementScore(body: string | null): number {
-  if (!body) return 0;
-  let total = 0;
-  for (const { re, weight } of ENGAGEMENT_PATTERNS) {
-    const m = body.match(re);
-    if (m) {
-      const n = parseInt(m[1], 10);
-      total += Math.floor(n * weight);
-    }
-  }
-  return total;
 }
 
 function filterByMinScore<T extends { score?: number; finalScore?: number }>(

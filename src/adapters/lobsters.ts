@@ -1,3 +1,10 @@
+import {
+  formatBy,
+  formatComments,
+  formatDiscuss,
+  formatPoints,
+  joinBodyParts,
+} from "./engagement";
 import { fetchJson } from "./fetch";
 import { dedupeByKey, fetchAndConcat, sliceToLimit, sortByCreatedAtDesc } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -23,20 +30,15 @@ interface LobstersItem {
 }
 
 function buildBody(item: LobstersItem): string {
-  const parts: string[] = [];
-  parts.push(`${item.score} points`);
-  parts.push(`by ${item.submitter_user}`);
-  parts.push(`${item.comment_count} comments`);
-
-  if (item.tags.length > 0) {
-    parts.push(`tags: ${item.tags.join(", ")}`);
-  }
-
-  if (item.url && !item.url.includes("lobste.rs")) {
-    parts.push(`discuss: ${item.comments_url}`);
-  }
-
-  return parts.join(" | ");
+  return joinBodyParts(
+    formatPoints(item.score),
+    formatBy(item.submitter_user),
+    formatComments(item.comment_count),
+    item.tags.length > 0 ? `tags: ${item.tags.join(", ")}` : undefined,
+    item.url && !item.url.includes("lobste.rs")
+      ? formatDiscuss(item.comments_url)
+      : undefined,
+  );
 }
 
 const adapter: Adapter = {
