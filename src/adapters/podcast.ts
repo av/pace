@@ -2,6 +2,8 @@ import { XMLParser } from "fast-xml-parser";
 import {
   extractAtomLink,
   extractXmlText,
+  FEED_XML_PARSER_OPTIONS,
+  normalizeXmlList,
   type AtomLinkField,
   type XmlTextField,
 } from "./atom";
@@ -55,8 +57,7 @@ interface PodcastFeedParsed {
 }
 
 const parser = new XMLParser({
-  ignoreAttributes: false,
-  attributeNamePrefix: "@_",
+  ...FEED_XML_PARSER_OPTIONS,
   cdataPropName: "__cdata",
   trimValues: true,
 });
@@ -282,9 +283,8 @@ async function fetchPodcastFeed(
   const showName = extractChannelTitle(channel);
   const channelLink = typeof channel.link === "string" ? channel.link : "";
 
-  let items = channel.item;
-  if (!items) return [];
-  if (!Array.isArray(items)) items = [items];
+  const items = normalizeXmlList(channel.item);
+  if (items.length === 0) return [];
 
   const episodes: ContentItem[] = [];
   for (const item of sliceToLimit(items, limit)) {
