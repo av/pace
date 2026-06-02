@@ -1,21 +1,9 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { spawnSync, spawn, type SpawnSyncReturns, type ChildProcess } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import os from "node:os";
-import { formatCliHelp } from "./cli-help";
-
-function expectedCliHelp(): string {
-  const pkg = JSON.parse(
-    readFileSync(join(import.meta.dir, "../package.json"), "utf-8"),
-  ) as { version: string };
-  return formatCliHelp(pkg.version);
-}
-
-/** stdout from `console.log(HELP)` — template newline plus log's trailing newline. */
-function expectedCliHelpStdout(): string {
-  return expectedCliHelp() + "\n";
-}
+import { formatCliHelpStdout } from "./cli-help";
 
 function runCli(args: string[]): SpawnSyncReturns<string> {
   return spawnSync(process.execPath, ["src/cli.ts", ...args], {
@@ -40,7 +28,7 @@ describe("cli", () => {
   });
 
   test("--help/-h prints usage", () => {
-    const help = expectedCliHelpStdout();
+    const help = formatCliHelpStdout();
     for (const flag of ["--help", "-h"]) {
       const res = runCli([flag]);
       expect(res.status).toBe(0);
@@ -61,14 +49,14 @@ describe("cli", () => {
     const res = runCli(["foo"]);
     expect(res.status).toBe(1);
     expect(res.stderr).toContain("Unknown command: foo");
-    expect(res.stdout).toBe(expectedCliHelpStdout());
+    expect(res.stdout).toBe(formatCliHelpStdout());
   });
 
   test("unknown options rejected with HELP", () => {
     const res = runCli(["--badflag", "--prt"]);
     expect(res.status).toBe(1);
     expect(res.stderr).toContain("Unknown option(s): --badflag, --prt");
-    expect(res.stdout).toBe(expectedCliHelpStdout());
+    expect(res.stdout).toBe(formatCliHelpStdout());
   });
 
   test("invalid --port rejected", () => {

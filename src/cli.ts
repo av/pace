@@ -1,12 +1,11 @@
 #!/usr/bin/env bun
-import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { errorMessage, isValidPort } from "./utils";
 import { tryReadRegularFile } from "./config";
-import { formatCliHelp } from "./cli-help";
+import { formatCliHelp, isCliKnownOption, readPackageVersion } from "./cli-help";
 
-const pkg = JSON.parse(readFileSync(join(import.meta.dir, "../package.json"), "utf-8"));
+const version = readPackageVersion();
 
 function cliDie(message: string): never {
   console.error(message);
@@ -16,7 +15,7 @@ function cliDie(message: string): never {
 const projectRoot = join(import.meta.dir, "..");
 process.chdir(projectRoot);
 
-const HELP = formatCliHelp(pkg.version);
+const HELP = formatCliHelp(version);
 
 const { values, positionals } = parseArgs({
   args: Bun.argv.slice(2),
@@ -50,7 +49,7 @@ if (values.help) {
 }
 
 if (values.version) {
-  console.log(pkg.version);
+  console.log(version);
   process.exit(0);
 }
 
@@ -80,8 +79,7 @@ if (command !== "serve") {
   process.exit(1);
 }
 
-const knownOptions = ["config", "port", "chdir", "preset", "listPresets", "list-presets", "help", "version"];
-const unexpected = Object.keys(values).filter((k) => !knownOptions.includes(k) && values[k] !== undefined);
+const unexpected = Object.keys(values).filter((k) => !isCliKnownOption(k) && values[k] !== undefined);
 if (unexpected.length > 0) {
   console.error(`Unknown option(s): ${unexpected.map((u) => "--" + u).join(", ")}\n`);
   console.log(HELP);
