@@ -437,9 +437,26 @@ const dedupeStrategyHandlers: Record<DedupeStrategy, DedupeStrategyHandler> = {
 };
 
 type LatestTransformConfig = Extract<TransformConfig, { type: "latest" }>;
+type SortTransformConfig = Extract<TransformConfig, { type: "sort" }>;
 
 function applyLatest(items: ContentItemRow[], { count }: LatestTransformConfig): ContentItemRow[] {
   return sliceToLimit(items, count);
+}
+
+function applySort(
+  items: ContentItemRow[],
+  { field, direction }: SortTransformConfig
+): ContentItemRow[] {
+  const dir = direction === "asc" ? 1 : -1;
+  const effectiveDirection = direction ?? "desc";
+  return [...items].sort((a, b) => {
+    const av = a[field] ?? "";
+    const bv = b[field] ?? "";
+    if (field === "timestamp") {
+      return compareIsoTimestamp(av, bv, effectiveDirection);
+    }
+    return av < bv ? -dir : av > bv ? dir : 0;
+  });
 }
 
 function sortRowsByInputOrder(rows: ContentItemRow[], order: ContentItemRow[]): ContentItemRow[] {
@@ -489,23 +506,7 @@ const transforms: Record<string, TransformFn> = {
 
   exclude: async (items, config) => applyExclude(items, config as ExcludeTransformConfig),
 
-  sort: async (items, config) => {
-    const { field, direction } = config as {
-      type: "sort";
-      field: "timestamp" | "title" | "source";
-      direction?: "asc" | "desc";
-    };
-    const dir = direction === "asc" ? 1 : -1;
-    const effectiveDirection = direction ?? "desc";
-    return [...items].sort((a, b) => {
-      const av = a[field] ?? "";
-      const bv = b[field] ?? "";
-      if (field === "timestamp") {
-        return compareIsoTimestamp(av, bv, effectiveDirection);
-      }
-      return av < bv ? -dir : av > bv ? dir : 0;
-    });
-  },
+  sort: async (items, config) => applySort(items, config as SortTransformConfig),
 
   dedupe: async (items, config) => {
     const opts = resolveDedupeOptions(config as Extract<TransformConfig, { type: "dedupe" }>);
