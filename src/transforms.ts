@@ -197,6 +197,8 @@ function makeKeywordPredicate(
 }
 
 type KeywordMatchConfig = Extract<TransformConfig, { type: "filter" } | { type: "exclude" }>;
+type FilterTransformConfig = Extract<TransformConfig, { type: "filter" }>;
+type ExcludeTransformConfig = Extract<TransformConfig, { type: "exclude" }>;
 
 function filterByKeywordMatch(
   items: ContentItemRow[],
@@ -205,6 +207,14 @@ function filterByKeywordMatch(
 ): ContentItemRow[] {
   const predicate = makeKeywordPredicate(keywords, fields);
   return items.filter((item) => keepMatches === predicate(item));
+}
+
+function applyFilter(items: ContentItemRow[], config: FilterTransformConfig): ContentItemRow[] {
+  return filterByKeywordMatch(items, config, true);
+}
+
+function applyExclude(items: ContentItemRow[], config: ExcludeTransformConfig): ContentItemRow[] {
+  return filterByKeywordMatch(items, config, false);
 }
 
 function topMapEntry<T>(counts: Map<T, number>): [T, number] | undefined {
@@ -475,15 +485,9 @@ type TransformFn = (
 const transforms: Record<string, TransformFn> = {
   latest: async (items, config) => applyLatest(items, config as LatestTransformConfig),
 
-  filter: async (items, config) => {
-    const { keywords, fields } = config as Extract<TransformConfig, { type: "filter" }>;
-    return filterByKeywordMatch(items, { keywords, fields }, true);
-  },
+  filter: async (items, config) => applyFilter(items, config as FilterTransformConfig),
 
-  exclude: async (items, config) => {
-    const { keywords, fields } = config as Extract<TransformConfig, { type: "exclude" }>;
-    return filterByKeywordMatch(items, { keywords, fields }, false);
-  },
+  exclude: async (items, config) => applyExclude(items, config as ExcludeTransformConfig),
 
   sort: async (items, config) => {
     const { field, direction } = config as {
