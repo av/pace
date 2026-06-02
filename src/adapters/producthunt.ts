@@ -115,24 +115,13 @@ function extractContent(entry: PHEntry): { tagline: string; productLink: string 
   return { tagline, productLink };
 }
 
-function warnEnrichFailed(url: string, detail: unknown): void {
-  console.warn(`producthunt: enrich failed for ${url}: ${errorMessage(detail)}`);
-}
-
-/** Map fetchText errors to short enrich warn details (status code or inner message). */
-function enrichFailureDetail(err: unknown): string {
+function warnEnrichFailed(url: string, err: unknown): void {
   const msg = errorMessage(err);
-  const httpMatch = msg.match(/HTTP error (\d+)/);
-  if (httpMatch) return httpMatch[1];
-  for (const prefix of [
-    "producthunt: error fetching ",
-    "producthunt: error reading ",
-  ]) {
-    if (!msg.startsWith(prefix)) continue;
-    const sep = msg.indexOf(": ", prefix.length);
-    if (sep >= 0) return msg.slice(sep + 2);
-  }
-  return msg;
+  console.warn(
+    msg.startsWith("producthunt:")
+      ? msg
+      : `producthunt: enrich failed for ${url}: ${msg}`,
+  );
 }
 
 function matchCaptures(html: string, re: RegExp): string[] {
@@ -199,7 +188,7 @@ async function enrichProduct(url: string): Promise<EnrichedData | null> {
     });
     return parseEnrichedData(html);
   } catch (err) {
-    warnEnrichFailed(url, enrichFailureDetail(err));
+    warnEnrichFailed(url, err);
     return null;
   }
 }

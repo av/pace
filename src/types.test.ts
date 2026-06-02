@@ -134,9 +134,12 @@ describe("types", () => {
         });
         expect(items.length).toBe(1);
         const enrichWarns = mocks.warnSpy.mock.calls.filter((c) =>
-          String(c[0]).startsWith("producthunt: enrich failed for"),
+          String(c[0]).startsWith("producthunt: failed to fetch"),
         );
         expect(enrichWarns).toHaveLength(1);
+        expect(enrichWarns[0][0]).toBe(
+          "producthunt: failed to fetch https://www.producthunt.com/posts/test-product-123456: HTTP error 404",
+        );
       });
     });
   });

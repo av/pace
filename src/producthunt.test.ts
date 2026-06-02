@@ -202,11 +202,11 @@ describe("producthunt", () => {
     expect(items.length).toBe(2);
     expect(items[0].body).not.toContain("upvotes");
     const enrichWarns = mocks.warnSpy.mock.calls.filter((call) =>
-      String(call[0]).startsWith("producthunt: enrich failed for"),
+      String(call[0]).startsWith("producthunt: failed to fetch"),
     );
     expect(enrichWarns).toHaveLength(2);
-    expect(enrichWarns[0][0]).toMatch(
-      /producthunt: enrich failed for https:\/\/www\.producthunt\.com\/posts\/test-product-123456: 404/,
+    expect(enrichWarns[0][0]).toBe(
+      "producthunt: failed to fetch https://www.producthunt.com/posts/test-product-123456: HTTP error 404",
     );
   });
 
@@ -223,11 +223,11 @@ describe("producthunt", () => {
 
     expect(items.length).toBe(2);
     const enrichWarns = mocks.warnSpy.mock.calls.filter((call) =>
-      String(call[0]).startsWith("producthunt: enrich failed for"),
+      String(call[0]).startsWith("producthunt: error fetching"),
     );
     expect(enrichWarns).toHaveLength(2);
     expect(enrichWarns[0][0]).toBe(
-      "producthunt: enrich failed for https://www.producthunt.com/posts/test-product-123456: enrich connection refused",
+      "producthunt: error fetching https://www.producthunt.com/posts/test-product-123456: enrich connection refused",
     );
   });
 });
