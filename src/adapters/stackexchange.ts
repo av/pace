@@ -108,6 +108,9 @@ async function fetchQuestions(
 
     return json.items ?? [];
   } catch (err) {
+    if (err instanceof Error && err.message.startsWith("stackexchange: failed to fetch")) {
+      throw err;
+    }
     throw new Error(`stackexchange: error fetching from ${site}: ${errorMessage(err)}`);
   }
 }
