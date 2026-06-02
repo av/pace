@@ -1,8 +1,37 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { spawnSync, spawn, type SpawnSyncReturns, type ChildProcess } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import os from "node:os";
+
+/** Mirrors `HELP` in cli.ts — locks usage text against accidental drift. */
+function expectedCliHelp(): string {
+  const pkg = JSON.parse(
+    readFileSync(join(import.meta.dir, "../package.json"), "utf-8"),
+  ) as { version: string };
+  return `pace v${pkg.version} — personal content dashboard
+
+Usage:
+  pace [command] [options]
+
+Commands:
+  serve     Start the dashboard server (default)
+
+Options:
+  -c, --config <path>   Path to config file (default: ./config.yaml)
+  -p, --port <number>   Server port (default: 7453, or $PORT)
+  -C, --chdir <dir>     Change to directory (for config/data loads; after bootstrap)
+  -P, --preset <name>   Use a bundled preset (tech-news, ml-ai, etc.)
+      --list-presets    List available bundled presets
+  -h, --help            Show this help
+  -v, --version         Show version
+`;
+}
+
+/** stdout from `console.log(HELP)` — template newline plus log's trailing newline. */
+function expectedCliHelpStdout(): string {
+  return expectedCliHelp() + "\n";
+}
 
 function runCli(args: string[]): SpawnSyncReturns<string> {
   return spawnSync(process.execPath, ["src/cli.ts", ...args], {
@@ -26,14 +55,14 @@ describe("cli.ts (argument handling, validation, early exits, error surfacing)",
     }
   });
 
-  test("--help prints usage and exits 0 without side effects", () => {
-    const res = runCli(["--help"]);
-    expect(res.status).toBe(0);
-    expect(res.stdout).toContain("pace v");
-    expect(res.stdout).toContain("Usage:");
-    expect(res.stdout).toContain("--config");
-    expect(res.stdout).toContain("--port");
-    expect(res.stderr).toBe("");
+  test("--help and -h print stable usage text and exit 0", () => {
+    const help = expectedCliHelpStdout();
+    for (const flag of ["--help", "-h"]) {
+      const res = runCli([flag]);
+      expect(res.status).toBe(0);
+      expect(res.stdout).toBe(help);
+      expect(res.stderr).toBe("");
+    }
   });
 
   test("--version prints version and exits 0", () => {
@@ -48,15 +77,14 @@ describe("cli.ts (argument handling, validation, early exits, error surfacing)",
     const res = runCli(["foo"]);
     expect(res.status).toBe(1);
     expect(res.stderr).toContain("Unknown command: foo");
-    expect(res.stdout).toContain("Usage:");
-    expect(res.stdout).toContain("--config");
+    expect(res.stdout).toBe(expectedCliHelpStdout());
   });
 
   test("unknown option is rejected with clear message + HELP + exit 1", () => {
     const res = runCli(["--badflag", "--prt"]);
     expect(res.status).toBe(1);
     expect(res.stderr).toContain("Unknown option(s): --badflag, --prt");
-    expect(res.stdout).toContain("Usage:");
+    expect(res.stdout).toBe(expectedCliHelpStdout());
   });
 
   test("invalid --port (out of range) prints exact message and exits 1 before server", () => {
