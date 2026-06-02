@@ -1,6 +1,14 @@
 /**
  * Shared HTTP helpers for adapters (`fetchWithTimeout`, `fetchText`, `fetchJson`).
  *
+ * Adapter-specific `timeoutMs` overrides (omit when equal to `DEFAULT_FETCH_TIMEOUT_MS`):
+ *
+ * - **15s** (`DEFAULT_FETCH_TIMEOUT_MS`) — default for most feed/API calls.
+ * - **10s** — hackernews per-item (`item/{id}.json`); mastodon account lookup;
+ *   producthunt enrich (`ENRICH_FETCH_TIMEOUT_MS` in `producthunt.ts`).
+ * - **20s** — github trending HTML; podcast feed XML.
+ * - **30s** — arxiv Atom query.
+ *
  * Error message prefixes (use `${adapterName}:` consistently):
  *
  * - **`failed to fetch`** — the request completed but the response is unusable:
