@@ -13,7 +13,7 @@ import {
 import { parseFeedDate } from "./dates";
 import { formatLanguage, formatStars, joinBodyParts } from "./engagement";
 import { FEED_FETCH_TIMEOUT_MS, fetchText } from "./fetch";
-import { sliceToLimit } from "../utils";
+import { normalizeStringList, sliceToLimit } from "../utils";
 import { dedupeByKey } from "./merge";
 import { decodeHtmlEntities, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
 import { fetchRepoTagline } from "./github-repo-meta";
@@ -160,10 +160,6 @@ function parseTrendingHtml(html: string): TrendingRepo[] {
   return repos;
 }
 
-function normalizeConfiguredRepos(repos: string[]): string[] {
-  return repos.map((repo) => repo.trim()).filter(Boolean);
-}
-
 async function fetchTrending(
   language: string,
   since: TrendingPeriod,
@@ -229,7 +225,7 @@ const adapter: Adapter = {
       return fetchTrending(language, since, limit);
     }
 
-    const repos = normalizeConfiguredRepos((config.params?.repos as string[]) ?? []);
+    const repos = normalizeStringList((config.params?.repos as string[]) ?? []);
     if (repos.length === 0) {
       console.warn("github: no repos configured");
       return [];

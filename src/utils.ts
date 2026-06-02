@@ -45,3 +45,8 @@ export function compareIsoTimestamp(
 export function sliceToLimit<T>(items: readonly T[], limit: number): T[] {
   return items.slice(0, limit);
 }
+
+/** Trim each string and drop empty entries (after trim). */
+export function normalizeStringList(items: readonly string[]): string[] {
+  return items.map((item) => item.trim()).filter(Boolean);
+}

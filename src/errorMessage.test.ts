@@ -6,6 +6,7 @@ import {
   getAdapterName,
   sliceToLimit,
   compareIsoTimestamp,
+  normalizeStringList,
 } from "./utils";
 
 describe("errorMessage", () => {
@@ -127,6 +128,13 @@ describe("sliceToLimit", () => {
     expect(sliceToLimit([1, 2, 3, 4], 2)).toEqual([1, 2]);
     expect(sliceToLimit([1, 2], 5)).toEqual([1, 2]);
     expect(sliceToLimit([], 3)).toEqual([]);
+  });
+});
+
+describe("normalizeStringList", () => {
+  test("trims entries and drops blank strings", () => {
+    expect(normalizeStringList([" a ", "b", "  ", ""])).toEqual(["a", "b"]);
+    expect(normalizeStringList([])).toEqual([]);
   });
 });
 

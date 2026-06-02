@@ -9,7 +9,7 @@ import {
 } from "./engagement";
 import { fetchJson } from "./fetch";
 import { decodeHtmlEntities } from "./html";
-import { sliceToLimit } from "../utils";
+import { normalizeStringList, sliceToLimit } from "../utils";
 import { dedupeByKey, fetchAndConcat } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
@@ -81,14 +81,10 @@ function resolvePeriod(top: unknown): number {
   return 7; // default: week
 }
 
-function normalizeConfiguredTags(tags: string[]): string[] {
-  return tags.map((tag) => tag.trim()).filter(Boolean);
-}
-
 const adapter: Adapter = {
   name: "devto",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const tags = normalizeConfiguredTags((config.params?.tags as string[]) ?? []);
+    const tags = normalizeStringList((config.params?.tags as string[]) ?? []);
     const username = (config.params?.username as string) ?? "";
     const limit = Math.min((config.params?.limit as number) ?? 20, 30);
     const minReactions = (config.params?.min_reactions as number) ?? 0;
