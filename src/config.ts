@@ -45,6 +45,15 @@ export type DedupeStrategy = (typeof DEDUPE_STRATEGIES)[number];
 export const DEDUPE_KEEP_OPTIONS = ["highest-score", "earliest", "latest"] as const;
 export type DedupeKeep = (typeof DEDUPE_KEEP_OPTIONS)[number];
 
+/** Runtime defaults for dedupe transform (must match apply logic in transforms.ts). */
+export const DEDUPE_DEFAULT_STRATEGY: DedupeStrategy = "url";
+export const DEDUPE_DEFAULT_THRESHOLD = 0.85;
+export const DEDUPE_DEFAULT_KEEP: DedupeKeep = "highest-score";
+
+export function isDedupeStrategy(value: string): value is DedupeStrategy {
+  return (DEDUPE_STRATEGIES as readonly string[]).includes(value);
+}
+
 export type TransformConfig =
   | { type: "latest"; count: number }
   | { type: "filter"; keywords: string[]; fields?: KeywordField[] }

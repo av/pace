@@ -1,11 +1,23 @@
 import type { Model, Api } from "@mariozechner/pi-ai";
-import type { TransformConfig, LlmConfig, KeywordScoreEntry, KeywordField } from "./config";
+import type {
+  TransformConfig,
+  LlmConfig,
+  KeywordScoreEntry,
+  KeywordField,
+  DedupeStrategy,
+  DedupeKeep,
+} from "./config";
+import {
+  DEDUPE_DEFAULT_STRATEGY,
+  DEDUPE_DEFAULT_THRESHOLD,
+  DEDUPE_DEFAULT_KEEP,
+  isDedupeStrategy,
+} from "./config";
 import type { ContentItemRow } from "./db";
 import type { ContentItem } from "./adapters/types";
 import { summarizeItem, lensItems, mergeItems, filterItemsByLlm } from "./llm";
 import { extractEngagementScore, extractScore } from "./adapters/engagement";
 import { normalizeUrl, levenshteinSimilarity } from "./dedupe";
-import type { DedupeStrategy, DedupeKeep } from "./config";
 
 export { extractEngagementScore };
 import { compareIsoTimestamp, errorMessage } from "./utils";
@@ -322,6 +334,98 @@ function dedupeGroupedByKey(
   return { result: sortRowsByInputOrder(result, items), removed };
 }
 
+function logDedupeRemoved(label: string, removed: string[], extra = ""): void {
+  console.log(`[dedupe:${label}] removed ${removed.length} duplicate(s)${extra}:`);
+  for (const r of removed.slice(0, 10)) console.log(`  - ${r}`);
+  if (removed.length > 10) console.log(`  ... and ${removed.length - 10} more`);
+}
+
+function maybeLogDedupeRemoved(shouldLog: boolean, label: string, removed: string[], extra = ""): void {
+  if (shouldLog && removed.length > 0) logDedupeRemoved(label, removed, extra);
+}
+
+interface DedupeRunOptions {
+  strategy: DedupeStrategy;
+  threshold: number;
+  keep: DedupeKeep;
+  shouldLog: boolean;
+}
+
+function resolveDedupeOptions(cfg: Extract<TransformConfig, { type: "dedupe" }>): DedupeRunOptions {
+  return {
+    strategy: cfg.strategy ?? DEDUPE_DEFAULT_STRATEGY,
+    threshold: cfg.threshold ?? DEDUPE_DEFAULT_THRESHOLD,
+    keep: cfg.keep ?? DEDUPE_DEFAULT_KEEP,
+    shouldLog: cfg.log !== false,
+  };
+}
+
+function applyDedupeUrl(items: ContentItemRow[], shouldLog: boolean): ContentItemRow[] {
+  const urlItems = items.filter((item) => item.url);
+  const { result, removed } = dedupeGroupedByKey(
+    urlItems,
+    (item) => item.url!,
+    "first",
+    (item) => formatDedupeRemovedLine(item),
+  );
+  maybeLogDedupeRemoved(shouldLog, "url", removed);
+  return result;
+}
+
+function applyDedupeDomainNormalized(
+  items: ContentItemRow[],
+  keep: DedupeKeep,
+  shouldLog: boolean,
+): ContentItemRow[] {
+  const { result, removed } = dedupeGroupedByKey(
+    items,
+    (item) => normalizeUrl(item.url),
+    keep,
+    (item, winner) => formatDedupeRemovedLine(item, winner),
+  );
+  maybeLogDedupeRemoved(shouldLog, "domain-normalized", removed);
+  return result;
+}
+
+function applyDedupeTitleSimilarity(
+  items: ContentItemRow[],
+  threshold: number,
+  keep: DedupeKeep,
+  shouldLog: boolean,
+): ContentItemRow[] {
+  const kept: ContentItemRow[] = [];
+  const removed: string[] = [];
+  for (const item of items) {
+    let isDuplicate = false;
+    for (const existing of kept) {
+      const similarity = titleSimilarity(item.title, existing.title);
+      if (similarity !== null && similarity >= threshold) {
+        const winner = pickWinner([existing, item], keep);
+        const loser = winner === item ? existing : item;
+        if (winner === item) {
+          const idx = kept.indexOf(existing);
+          kept[idx] = item;
+        }
+        removed.push(formatDedupeRemovedLine(loser, winner));
+        isDuplicate = true;
+        break;
+      }
+    }
+    if (!isDuplicate) kept.push(item);
+  }
+  maybeLogDedupeRemoved(shouldLog, "title-similarity", removed, ` (threshold=${threshold})`);
+  return kept;
+}
+
+type DedupeStrategyHandler = (items: ContentItemRow[], opts: DedupeRunOptions) => ContentItemRow[];
+
+const dedupeStrategyHandlers: Record<DedupeStrategy, DedupeStrategyHandler> = {
+  url: (items, { shouldLog }) => applyDedupeUrl(items, shouldLog),
+  "domain-normalized": (items, { keep, shouldLog }) => applyDedupeDomainNormalized(items, keep, shouldLog),
+  "title-similarity": (items, { threshold, keep, shouldLog }) =>
+    applyDedupeTitleSimilarity(items, threshold, keep, shouldLog),
+};
+
 function sortRowsByInputOrder(rows: ContentItemRow[], order: ContentItemRow[]): ContentItemRow[] {
   const orderMap = new Map<string, number>();
   order.forEach((item, i) => {
@@ -397,82 +501,12 @@ const transforms: Record<string, TransformFn> = {
   },
 
   dedupe: async (items, config) => {
-    const cfg = config as {
-      type: "dedupe";
-      strategy?: DedupeStrategy;
-      threshold?: number;
-      keep?: "highest-score" | "earliest" | "latest";
-      log?: boolean;
-    };
-    const strategy = cfg.strategy ?? "url";
-    const threshold = cfg.threshold ?? 0.85;
-    const keep = cfg.keep ?? "highest-score";
-    const shouldLog = cfg.log !== false; // log by default
-
-    const logRemovedDups = (label: string, removed: string[], extra: string = "") => {
-      console.log(`[dedupe:${label}] removed ${removed.length} duplicate(s)${extra}:`);
-      for (const r of removed.slice(0, 10)) console.log(`  - ${r}`);
-      if (removed.length > 10) console.log(`  ... and ${removed.length - 10} more`);
-    };
-
-    const maybeLogRemoved = (label: string, removed: string[], extra: string = "") => {
-      if (shouldLog && removed.length > 0) {
-        logRemovedDups(label, removed, extra);
-      }
-    };
-
-    if (strategy === "url") {
-      const urlItems = items.filter((item) => item.url);
-      const { result, removed } = dedupeGroupedByKey(
-        urlItems,
-        (item) => item.url!,
-        "first",
-        (item, _winner) => formatDedupeRemovedLine(item),
-      );
-      maybeLogRemoved("url", removed);
-      return result;
+    const opts = resolveDedupeOptions(config as Extract<TransformConfig, { type: "dedupe" }>);
+    if (!isDedupeStrategy(opts.strategy)) {
+      console.warn(`[dedupe] unknown strategy "${opts.strategy}", passing items through`);
+      return items;
     }
-
-    if (strategy === "domain-normalized") {
-      const { result, removed } = dedupeGroupedByKey(
-        items,
-        (item) => normalizeUrl(item.url),
-        keep,
-        (item, winner) => formatDedupeRemovedLine(item, winner),
-      );
-      maybeLogRemoved("domain-normalized", removed);
-      return result;
-    }
-
-    if (strategy === "title-similarity") {
-      const kept: ContentItemRow[] = [];
-      const removed: string[] = [];
-      for (const item of items) {
-        let isDuplicate = false;
-        for (const existing of kept) {
-          const similarity = titleSimilarity(item.title, existing.title);
-          if (similarity !== null && similarity >= threshold) {
-            const winner = pickWinner([existing, item], keep);
-            const loser = winner === item ? existing : item;
-            if (winner === item) {
-              const idx = kept.indexOf(existing);
-              kept[idx] = item;
-            }
-            removed.push(formatDedupeRemovedLine(loser, winner));
-            isDuplicate = true;
-            break;
-          }
-        }
-        if (!isDuplicate) {
-          kept.push(item);
-        }
-      }
-      maybeLogRemoved("title-similarity", removed, ` (threshold=${threshold})`);
-      return kept;
-    }
-
-    console.warn(`[dedupe] unknown strategy "${strategy}", passing items through`);
-    return items;
+    return dedupeStrategyHandlers[opts.strategy](items, opts);
   },
 
   "keyword-score": async (items, config) => {
