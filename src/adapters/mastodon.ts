@@ -1,7 +1,7 @@
 import { sliceToLimit, sortByCreatedAtDesc } from "./dates";
 import { fetchWithTimeout } from "./fetch";
 import { stripHtml } from "./html";
-import { fetchAndConcat } from "./merge";
+import { dedupeByKey, fetchAndConcat } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 
@@ -218,13 +218,7 @@ const adapter: Adapter = {
         }
       }
 
-      // Deduplicate by status ID (possible overlap across hashtags)
-      const seen = new Set<string>();
-      allStatuses = allStatuses.filter((status) => {
-        if (seen.has(status.id)) return false;
-        seen.add(status.id);
-        return true;
-      });
+      allStatuses = dedupeByKey(allStatuses, (status) => status.id);
 
       sortByCreatedAtDesc(allStatuses);
 

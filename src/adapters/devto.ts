@@ -1,5 +1,6 @@
 import { sliceToLimit } from "./dates";
 import { fetchWithTimeout } from "./fetch";
+import { dedupeByKey, fetchAndConcat } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 
@@ -112,22 +113,18 @@ const adapter: Adapter = {
       allArticles.push(...articles);
     }
 
-    // Fetch each tag separately and merge
-    for (const tag of tags) {
-      const articles = await fetchDevToArticles(
-        { tag, top: String(top), per_page: limit },
-        `tag "${tag}"`,
+    if (tags.length > 0) {
+      allArticles.push(
+        ...(await fetchAndConcat(tags, (tag) =>
+          fetchDevToArticles(
+            { tag, top: String(top), per_page: limit },
+            `tag "${tag}"`,
+          ),
+        )),
       );
-      allArticles.push(...articles);
     }
 
-    // Deduplicate by article ID (articles can appear in multiple tags)
-    const seen = new Set<number>();
-    const deduped = allArticles.filter((article) => {
-      if (seen.has(article.id)) return false;
-      seen.add(article.id);
-      return true;
-    });
+    const deduped = dedupeByKey(allArticles, (article) => article.id);
 
     // Apply minimum reactions filter
     const filtered =

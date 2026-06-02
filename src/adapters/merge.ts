@@ -9,3 +9,14 @@ export async function fetchAndConcat<T>(
   }
   return merged;
 }
+
+/** Keep first occurrence per key (overlap when merging multiple tags/endpoints). */
+export function dedupeByKey<T, K>(items: readonly T[], key: (item: T) => K): T[] {
+  const seen = new Set<K>();
+  return items.filter((item) => {
+    const k = key(item);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}

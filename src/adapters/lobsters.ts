@@ -1,6 +1,6 @@
 import { sliceToLimit, sortByCreatedAtDesc } from "./dates";
 import { fetchWithTimeout } from "./fetch";
-import { fetchAndConcat } from "./merge";
+import { dedupeByKey, fetchAndConcat } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 
@@ -83,13 +83,7 @@ const adapter: Adapter = {
           return fetchLobstersJson(tagUrl, `tag ${tag}`);
         });
 
-        // Dedupe by short_id since items may appear in multiple tags
-        const seen = new Set<string>();
-        items = items.filter((item) => {
-          if (seen.has(item.short_id)) return false;
-          seen.add(item.short_id);
-          return true;
-        });
+        items = dedupeByKey(items, (item) => item.short_id);
 
         // Sort merged tag results based on feed type preference
         if (feedType === "hottest") {
