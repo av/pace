@@ -150,18 +150,27 @@ export function resolvePanelId(panel: PanelConfig): string {
   return hasher.digest("hex").slice(0, 8);
 }
 
+function validateAllowedKeys(
+  record: Record<string, unknown>,
+  allowed: readonly string[],
+  message: (key: string) => string,
+): void {
+  const allowedSet = new Set(allowed);
+  for (const key of Object.keys(record)) {
+    if (!allowedSet.has(key)) {
+      throw new Error(`config: ${message(key)}`);
+    }
+  }
+}
+
 function validateSource(source: unknown, path: string): void {
   if (typeof source === "string") {
-    if (source.trim().length === 0) {
-      throw new Error(`config: ${path} must not be empty`);
-    }
+    validateNonEmptyString(source, path);
     return;
   }
 
   if (Array.isArray(source)) {
-    if (source.length === 0) {
-      throw new Error(`config: ${path} must not be an empty list`);
-    }
+    validateNonEmptyArray(source, path);
     source.forEach((entry, index) => validateSource(entry, `${path}[${index}]`));
     return;
   }
@@ -174,13 +183,9 @@ function validateSource(source: unknown, path: string): void {
   if (source.params !== undefined && !isRecord(source.params)) {
     throw new Error(`config: ${path}.params must be an object`);
   }
-  for (const key of Object.keys(source)) {
-    if (key !== "adapter" && key !== "params") {
-      throw new Error(
-        `config: ${path}.${key} is not a valid source field (set refresh_interval on adapters[], not panel source)`,
-      );
-    }
-  }
+  validateAllowedKeys(source, ["adapter", "params"], (key) =>
+    `${path}.${key} is not a valid source field (set refresh_interval on adapters[], not panel source)`,
+  );
 }
 
 function validateLayoutNode(node: unknown, path = "layout"): asserts node is LayoutNodeConfig {
@@ -282,9 +287,7 @@ function validateOptionalBoolean(value: unknown, path: string): void {
 }
 
 function validateOptionalNonEmptyString(value: unknown, path: string): void {
-  if (value !== undefined && (typeof value !== "string" || value.trim().length === 0)) {
-    throw new Error(`config: ${path} must be a non-empty string`);
-  }
+  validateOptional(value, path, validateNonEmptyString);
 }
 
 function validateNonEmptyString(value: unknown, path: string): void {
@@ -302,9 +305,9 @@ function validateNonEmptyArray(value: unknown, path: string): asserts value is u
   }
 }
 
-function validateOptionalList(value: unknown, name: string): void {
+function validateOptionalList(value: unknown, path: string): void {
   if (value !== undefined && !Array.isArray(value)) {
-    throw new Error(`config: ${name} must be a list`);
+    throw new Error(`config: ${path} must be a list`);
   }
 }
 
@@ -464,12 +467,9 @@ function validateLlmConfig(llm: unknown): asserts llm is LlmConfig | undefined {
 }
 
 function validateTopLevelKeys(config: Record<string, unknown>): void {
-  const allowed = new Set(["adapters", "pipelines", "layout", "llm"]);
-  for (const key of Object.keys(config)) {
-    if (!allowed.has(key)) {
-      throw new Error(`config: unknown top-level key "${key}"`);
-    }
-  }
+  validateAllowedKeys(config, ["adapters", "pipelines", "layout", "llm"], (key) =>
+    `unknown top-level key "${key}"`,
+  );
 }
 
 function validatePanelSourceRefs(layout: LayoutNodeConfig, sourceNames: Set<string>): void {
