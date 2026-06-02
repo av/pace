@@ -3,6 +3,7 @@ import {
   extractAtomLink,
   extractFeedEntryTitle,
   extractFeedItemBody,
+  extractFeedRootTitle,
   extractXmlText,
   FEED_XML_PARSER_OPTIONS,
   normalizeXmlList,
@@ -48,10 +49,13 @@ interface PodcastChannel {
   item?: PodcastFeedItem | PodcastFeedItem[];
 }
 
-/** Parsed RSS 2.0 podcast feed root from fast-xml-parser (attributeNamePrefix "@_"). */
+/** Parsed RSS 2.0 / Atom podcast feed root from fast-xml-parser (attributeNamePrefix "@_"). */
 interface PodcastFeedParsed {
   rss?: {
     channel?: PodcastChannel;
+  };
+  feed?: {
+    title?: XmlTextField;
   };
 }
 
@@ -133,9 +137,12 @@ interface PodcastEpisode {
   author: string | null;
 }
 
-function extractChannelTitle(channel: PodcastChannel): string {
+function extractChannelTitle(
+  channel: PodcastChannel,
+  atomTitle?: XmlTextField,
+): string {
   return decodeHtmlEntities(
-    extractXmlText(channel.title) ?? "Unknown Podcast",
+    extractFeedRootTitle(channel.title, atomTitle) ?? "Unknown Podcast",
     { numeric: true },
   );
 }
@@ -274,7 +281,7 @@ async function fetchPodcastFeed(
     return [];
   }
 
-  const showName = extractChannelTitle(channel);
+  const showName = extractChannelTitle(channel, parsed.feed?.title);
   const channelLink = typeof channel.link === "string" ? channel.link : "";
 
   const items = normalizeXmlList(channel.item);
