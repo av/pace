@@ -1,7 +1,7 @@
 import { type Adapter, type AdapterConfig, type ContentItem } from "./types";
 
 function warnAndReturnEmpty(msg: string): ContentItem[] {
-  console.warn(msg);
+  console.warn(msg.startsWith("twitter:") ? msg : `twitter: ${msg}`);
   return [];
 }
 
@@ -14,12 +14,12 @@ const adapter: Adapter = {
     const terms = lists ?? searches ?? [];
     if (terms.length > 0) {
       return warnAndReturnEmpty(
-        `twitter: adapter configured with ${terms.length} source(s), but Twitter API requires API credentials. ` +
+        `adapter configured with ${terms.length} source(s), but Twitter API requires API credentials. ` +
           "Set params.bearer_token to enable. Returning empty results.",
       );
     }
     return warnAndReturnEmpty(
-      "twitter: no lists or searches configured, and Twitter API requires credentials. Returning empty results.",
+      "no lists or searches configured, and Twitter API requires credentials. Returning empty results.",
     );
   },
 };
