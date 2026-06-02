@@ -3,6 +3,7 @@ import {
   extractAtomLink,
   extractFeedEntryTitle,
   extractFeedItemBody,
+  extractFeedRootTitle,
   FEED_XML_PARSER_OPTIONS,
   normalizeXmlList,
   type AtomLinkField,
@@ -36,8 +37,17 @@ interface GHAtomEntry extends FeedItemBodyFields {
 /** Parsed Atom feed root from fast-xml-parser (attributeNamePrefix "@_"). */
 interface GHAtomFeedParsed {
   feed?: {
+    title?: XmlTextField;
     entry?: GHAtomEntry | GHAtomEntry[];
   };
+}
+
+function releasesFeedSource(parsed: GHAtomFeedParsed, repo: string): string {
+  const feedTitle = extractFeedRootTitle(undefined, parsed.feed?.title);
+  if (feedTitle) {
+    return `github:${decodeHtmlEntities(feedTitle, { numeric: true })}`;
+  }
+  return `github:${repo}`;
 }
 
 async function fetchReleasesFeed(
@@ -50,6 +60,7 @@ async function fetchReleasesFeed(
   const xml = await fetchText("github", url, `releases for ${repo}`, { timeoutMs: 15000 });
 
   const parsed = parser.parse(xml) as GHAtomFeedParsed;
+  const source = releasesFeedSource(parsed, repo);
   const entries = normalizeXmlList(parsed.feed?.entry);
   const tagline = await fetchRepoTagline(repo, "github", token);
 
@@ -82,7 +93,7 @@ async function fetchReleasesFeed(
       id: `github:${repo}:${tag || title}`,
       title: displayTitle,
       url: link || `https://github.com/${repo}/releases`,
-      source: `github:${repo}`,
+      source,
       timestamp,
       body,
     });

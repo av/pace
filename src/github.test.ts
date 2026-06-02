@@ -114,6 +114,33 @@ describe("github", () => {
     expect(items.length).toBeLessThanOrEqual(2);
   });
 
+  test("decodes HTML entities in releases atom feed title for source", async () => {
+    const entityFeedTitleXml = `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Release &amp; Notes &#8364;</title>
+  <entry>
+    <title>v1.0.0</title>
+    <link rel="alternate" type="text/html" href="https://github.com/acme/pkg/releases/tag/v1.0.0"/>
+    <updated>2024-12-01T12:00:00Z</updated>
+  </entry>
+</feed>`;
+    mocks.fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).includes("releases.atom")) {
+        return makeTextResponse(entityFeedTitleXml);
+      }
+      return makeErrorResponse(404);
+    });
+
+    const items = await adapter.fetch(
+      githubCfg({ mode: "releases", repos: ["acme/pkg"], limit: 10 }),
+    );
+
+    expect(items.length).toBe(1);
+    expect(items[0].source).toBe("github:Release & Notes €");
+    expect(items[0].source).not.toContain("&amp;");
+    expect(items[0].source).not.toContain("&#8364;");
+  });
+
   test("decodes HTML entities in releases atom entry title", async () => {
     const entityTitleXml = `<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
