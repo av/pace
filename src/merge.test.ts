@@ -2,9 +2,9 @@ import { describe, test, expect } from "bun:test";
 import {
   dedupeByKey,
   fetchAndConcat,
-  sliceToLimit,
   sortByCreatedAtDesc,
 } from "./adapters/merge";
+import { sliceToLimit } from "./utils";
 
 describe("dedupeByKey", () => {
   test("keeps first occurrence per key", () => {

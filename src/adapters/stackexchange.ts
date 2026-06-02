@@ -8,7 +8,8 @@ import {
 } from "./engagement";
 import { parseUnixEpochSeconds } from "./dates";
 import { fetchJson } from "./fetch";
-import { dedupeByKey, fetchAndConcat, sliceToLimit } from "./merge";
+import { sliceToLimit } from "../utils";
+import { dedupeByKey, fetchAndConcat } from "./merge";
 import { type Adapter, type AdapterConfig, type ContentItem } from "./types";
 
 const SE_API = "https://api.stackexchange.com/2.3";

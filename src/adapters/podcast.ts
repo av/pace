@@ -8,7 +8,8 @@ import {
 import { parseFeedDate } from "./dates";
 import { joinBodyParts } from "./engagement";
 import { fetchText } from "./fetch";
-import { dedupeByKey, sliceToLimit } from "./merge";
+import { sliceToLimit } from "../utils";
+import { dedupeByKey } from "./merge";
 import { decodeHtmlEntities, stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 

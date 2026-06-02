@@ -8,7 +8,8 @@ import {
 } from "./engagement";
 import { fetchJson } from "./fetch";
 import { stripHtml } from "./html";
-import { dedupeByKey, fetchAndConcat, sliceToLimit, sortByCreatedAtDesc } from "./merge";
+import { sliceToLimit } from "../utils";
+import { dedupeByKey, fetchAndConcat, sortByCreatedAtDesc } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 

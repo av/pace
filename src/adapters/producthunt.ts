@@ -1,7 +1,7 @@
 import { XMLParser } from "fast-xml-parser";
 import { extractXmlText, type XmlTextField } from "./atom";
 import { parseFeedDate } from "./dates";
-import { sliceToLimit } from "./merge";
+import { sliceToLimit } from "../utils";
 import { fetchText } from "./fetch";
 import { stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";

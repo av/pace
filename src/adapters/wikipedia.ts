@@ -1,7 +1,8 @@
 import { formatViews, joinBodyParts } from "./engagement";
 import { fetchJson } from "./fetch";
 import { stripHtml } from "./html";
-import { dedupeByKey, sliceToLimit } from "./merge";
+import { sliceToLimit } from "../utils";
+import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 type Mode = "most_read" | "featured" | "on_this_day" | "news";

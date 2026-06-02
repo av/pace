@@ -8,7 +8,8 @@ import {
   joinBodyParts,
 } from "./engagement";
 import { fetchJson } from "./fetch";
-import { dedupeByKey, fetchAndConcat, sliceToLimit } from "./merge";
+import { sliceToLimit } from "../utils";
+import { dedupeByKey, fetchAndConcat } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 const DEVTO_API = "https://dev.to/api/articles";

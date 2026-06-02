@@ -7,7 +7,8 @@ import {
   joinBodyParts,
 } from "./engagement";
 import { fetchJson } from "./fetch";
-import { dedupeByKey, sliceToLimit } from "./merge";
+import { sliceToLimit } from "../utils";
+import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 type SortType = "Hot" | "New" | "Top" | "Active" | "MostComments";

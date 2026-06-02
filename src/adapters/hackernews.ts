@@ -7,7 +7,7 @@ import {
 } from "./engagement";
 import { parseUnixEpochSeconds } from "./dates";
 import { fetchJson } from "./fetch";
-import { sliceToLimit } from "./merge";
+import { sliceToLimit } from "../utils";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 

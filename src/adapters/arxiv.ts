@@ -2,7 +2,8 @@ import { XMLParser } from "fast-xml-parser";
 import { parseFeedDate } from "./dates";
 import { formatCategories, joinBodyParts } from "./engagement";
 import { fetchText } from "./fetch";
-import { dedupeByKey, sliceToLimit } from "./merge";
+import { sliceToLimit } from "../utils";
+import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 const ARXIV_API = "http://export.arxiv.org/api/query";
 const RATE_LIMIT_DELAY = 3000; // ArXiv requests 3-second delay between requests

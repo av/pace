@@ -3,7 +3,8 @@ import { extractAtomLink, extractXmlText, type AtomLinkField, type XmlTextField 
 import { parseFeedDate } from "./dates";
 import { formatLanguage, formatStars, joinBodyParts } from "./engagement";
 import { fetchText } from "./fetch";
-import { dedupeByKey, sliceToLimit } from "./merge";
+import { sliceToLimit } from "../utils";
+import { dedupeByKey } from "./merge";
 import { stripHtml } from "./html";
 import { fetchRepoTagline } from "./github-repo-meta";
 import { joinTitleWithTagline, titleWithTagline } from "./title";
