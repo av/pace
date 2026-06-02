@@ -1,12 +1,19 @@
+function hasStringMessage(err: unknown): err is { message: string } {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "message" in err &&
+    typeof (err as Record<string, unknown>).message === "string"
+  );
+}
+
 /**
  * Shared helper to normalize unknown errors to string message.
  * Used across CLI, scheduler, and adapters for consistent error strings.
  */
 export function errorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
-  if (err && typeof err === "object" && "message" in err && typeof (err as any).message === "string") {
-    return (err as any).message;
-  }
+  if (hasStringMessage(err)) return err.message;
   return String(err);
 }
 

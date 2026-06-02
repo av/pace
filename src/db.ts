@@ -105,7 +105,7 @@ export function saveItems(panelId: string, items: ContentItem[]): void {
 
 const DEDUP_GROUP_EXPR = `CASE WHEN url = '' THEN id ELSE lower(rtrim(url, '/')) END`;
 
-function getDedupInClause(panelId?: string): { clause: string; params: any[] } {
+function getDedupInClause(panelId?: string): { clause: string; params: unknown[] } {
   if (panelId != null) {
     return {
       clause: `id IN (SELECT id FROM content_items WHERE panel_id = ? GROUP BY ${DEDUP_GROUP_EXPR} HAVING timestamp = MAX(timestamp))`,
@@ -127,7 +127,7 @@ function getDedupedItems(panelId?: string, limit?: number): ContentItemRow[] {
   const db = getDb();
   const dedup = getDedupInClause(panelId);
   const whereParts: string[] = [];
-  const params: any[] = [];
+  const params: unknown[] = [];
   if (panelId != null) {
     whereParts.push("panel_id = ?");
     params.push(panelId);
