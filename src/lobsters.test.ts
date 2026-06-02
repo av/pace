@@ -60,6 +60,30 @@ describe("lobsters", () => {
     expect(results[0].timestamp).toBeInstanceOf(Date);
   });
 
+  test("blank-only feed uses default hottest", async () => {
+    const item = makeItem({ short_id: "blankfeed1" });
+    mocks.fetchMock.mockResolvedValue(makeJsonResponse([item]));
+
+    await lobstersAdapter.fetch(lobstersCfg({ feed: "   " }));
+
+    expect(mocks.fetchMock).toHaveBeenCalledWith(
+      "https://lobste.rs/hottest.json",
+      expect.anything(),
+    );
+  });
+
+  test("trims whitespace from configured feed", async () => {
+    const item = makeItem({ short_id: "trimfeed1" });
+    mocks.fetchMock.mockResolvedValue(makeJsonResponse([item]));
+
+    await lobstersAdapter.fetch(lobstersCfg({ feed: "  newest  " }));
+
+    expect(mocks.fetchMock).toHaveBeenCalledWith(
+      "https://lobste.rs/newest.json",
+      expect.anything(),
+    );
+  });
+
   test("resolves feed aliases (hot/front -> hottest, new/recent -> newest)", async () => {
     const item = makeItem();
     mocks.fetchMock.mockImplementation(() => makeJsonResponse([item]));

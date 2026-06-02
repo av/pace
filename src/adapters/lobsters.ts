@@ -8,7 +8,11 @@ import {
 } from "./engagement";
 import { fetchJson } from "./fetch";
 import { decodeHtmlEntities } from "./html";
-import { normalizeStringList, sliceToLimit } from "../utils";
+import {
+  normalizeOptionalString,
+  normalizeStringList,
+  sliceToLimit,
+} from "../utils";
 import { dedupeByKey, fetchAndConcat, sortByCreatedAtDesc } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
@@ -52,7 +56,11 @@ function buildBody(item: LobstersItem): string {
 const adapter: Adapter = {
   name: "lobsters",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const feed = (config.params?.feed as string) ?? "hottest";
+    const feedRaw = config.params?.feed;
+    const feed =
+      (typeof feedRaw === "string"
+        ? normalizeOptionalString(feedRaw)
+        : undefined) ?? "hottest";
     const limit = Math.min((config.params?.limit as number) ?? 25, 100);
     const minScore = (config.params?.min_score as number) ?? 0;
     const tags = normalizeStringList((config.params?.tags as string[]) ?? []);
