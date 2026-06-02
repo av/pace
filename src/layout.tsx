@@ -31,13 +31,8 @@ function relativeTime(timestamp: string): string {
   return `${days}d ago`;
 }
 
-function defaultFlex(f?: number): number {
-  return f ?? 1;
-}
-
-/** Shared helper to avoid repeating the `flex:${defaultFlex(f)};` pattern (with optional extra declarations) in panel/container styles. */
 function flexStyle(f?: number, extra = ""): string {
-  const base = `flex:${defaultFlex(f)};`;
+  const base = `flex:${f ?? 1};`;
   return extra ? `${base} ${extra}` : base;
 }
 
