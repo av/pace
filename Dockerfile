@@ -9,7 +9,7 @@ COPY src/ src/
 COPY bunfig.toml tsconfig.json config.example.yaml ./
 COPY config.*.yaml /app/presets/
 
-RUN mkdir -p /app/data /app/presets
+RUN mkdir -p /app/data
 
 EXPOSE 7453
 
