@@ -75,6 +75,16 @@ describe("lemmy", () => {
     expect(items[0].body).not.toContain("discuss:");
   });
 
+  test("decodes HTML entities in item titles from API", async () => {
+    const view = makePostView({ post: { name: "A &amp; B &#8364; C" } });
+    mocks.fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makePostListResponse([view])), { status: 200 }),
+    );
+
+    const items = await lemmyAdapter.fetch(lemmyCfg());
+    expect(items[0].title).toBe("A & B € C");
+  });
+
   test("fetches frontpage from default instance when no communities specified", async () => {
     const view = makePostView();
     mocks.fetchMock.mockResolvedValue(

@@ -7,7 +7,7 @@ import {
   joinBodyParts,
 } from "./engagement";
 import { fetchJson } from "./fetch";
-import { stripHtml } from "./html";
+import { decodeHtmlEntities, stripHtml } from "./html";
 import { sliceToLimit } from "../utils";
 import { dedupeByKey, fetchAndConcat, sortByCreatedAtDesc } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -68,10 +68,16 @@ function buildBody(status: MastodonStatus, instance: string): string {
   );
 }
 
+function decodePostTitle(text: string): string {
+  return decodeHtmlEntities(text, { numeric: true });
+}
+
 function buildTitle(status: MastodonStatus): string {
-  const content = stripHtml(status.content, { blockBreaks: true });
+  const content = decodePostTitle(
+    stripHtml(status.content, { blockBreaks: true }),
+  );
   if (!content && status.spoiler_text) {
-    return status.spoiler_text;
+    return decodePostTitle(status.spoiler_text);
   }
   if (content.length > 200) {
     return content.slice(0, 197) + "...";

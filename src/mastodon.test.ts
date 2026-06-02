@@ -142,6 +142,27 @@ describe("mastodon", () => {
     expect(items[0].body).not.toContain("replies");
   });
 
+  test("decodes HTML entities in item titles after stripHtml", async () => {
+    const status = makeStatus("50", "<p>A &amp; B &#8364; C</p>", "2024-07-01T00:00:00Z");
+    mocks.fetchMock.mockImplementation(async () =>
+      new Response(JSON.stringify([status]), { status: 200 }),
+    );
+
+    const items = await adapter.fetch(mastodonCfg({ instance: "ex.com", limit: 5 }));
+    expect(items[0].title).toBe("A & B € C");
+  });
+
+  test("decodes HTML entities in spoiler_text when content is empty", async () => {
+    const status = makeStatus("51", "<p></p>", "2024-07-02T00:00:00Z");
+    status.spoiler_text = "Spoiler &amp; &#8364;";
+    mocks.fetchMock.mockImplementation(async () =>
+      new Response(JSON.stringify([status]), { status: 200 }),
+    );
+
+    const items = await adapter.fetch(mastodonCfg({ instance: "ex.com", limit: 5 }));
+    expect(items[0].title).toBe("Spoiler & €");
+  });
+
   test("fetches from public timeline (default) and maps items", async () => {
     const items = await adapter.fetch(mastodonCfg({ instance: "ex.com" }));
     expect(items.length).toBeGreaterThan(0);

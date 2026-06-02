@@ -7,6 +7,7 @@ import {
   joinBodyParts,
 } from "./engagement";
 import { fetchJson } from "./fetch";
+import { decodeHtmlEntities } from "./html";
 import { sliceToLimit } from "../utils";
 import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -43,6 +44,11 @@ interface LemmyPostView {
 
 interface LemmyPostListResponse {
   posts: LemmyPostView[];
+}
+
+function decodeItemTitle(title?: string): string {
+  if (!title) return "(untitled)";
+  return decodeHtmlEntities(title, { numeric: true });
 }
 
 function buildBody(view: LemmyPostView): string {
@@ -135,7 +141,7 @@ const adapter: Adapter = {
 
     return limited.map((view) => ({
       id: `lemmy:${instance}:${view.post.id}`,
-      title: view.post.name,
+      title: decodeItemTitle(view.post.name),
       url: view.post.url ?? view.post.ap_id,
       source: sourceLabel,
       timestamp: new Date(view.post.published),
