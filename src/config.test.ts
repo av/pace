@@ -398,6 +398,84 @@ layout:
     expect(() => loadConfig()).toThrow(/config: adapters\[0\].transforms\[0\].count must be a positive integer/);
   });
 
+  test("rejects dedupe keep on url strategy", () => {
+    const yaml = `
+adapters:
+  - type: rss
+    transforms:
+      - type: dedupe
+        strategy: url
+        keep: latest
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: adapters\[0\].transforms\[0\].keep is only valid for dedupe strategies "domain-normalized" and "title-similarity" \(got "url"\)/,
+    );
+  });
+
+  test("rejects dedupe threshold on domain-normalized strategy", () => {
+    const yaml = `
+adapters:
+  - type: rss
+    transforms:
+      - type: dedupe
+        strategy: domain-normalized
+        threshold: 0.9
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: adapters\[0\].transforms\[0\].threshold is only valid for dedupe strategy "title-similarity" \(got "domain-normalized"\)/,
+    );
+  });
+
+  test("rejects dedupe threshold when default url strategy", () => {
+    const yaml = `
+adapters:
+  - type: rss
+    transforms:
+      - type: dedupe
+        threshold: 0.8
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: adapters\[0\].transforms\[0\].threshold is only valid for dedupe strategy "title-similarity" \(got "url"\)/,
+    );
+  });
+
+  test("accepts dedupe threshold and keep for title-similarity", () => {
+    const yaml = `
+adapters:
+  - type: rss
+    transforms:
+      - type: dedupe
+        strategy: title-similarity
+        threshold: 0.8
+        keep: earliest
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).not.toThrow();
+  });
+
   test("rejects unknown llm field", () => {
     const yaml = `
 llm:

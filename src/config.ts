@@ -54,6 +54,16 @@ export function isDedupeStrategy(value: string): value is DedupeStrategy {
   return (DEDUPE_STRATEGIES as readonly string[]).includes(value);
 }
 
+/** Whether dedupe transform applies `threshold` at runtime (transforms.ts title-similarity). */
+export function dedupeStrategyUsesThreshold(strategy: DedupeStrategy): boolean {
+  return strategy === "title-similarity";
+}
+
+/** Whether dedupe transform applies `keep` at runtime (domain-normalized, title-similarity). */
+export function dedupeStrategyUsesKeep(strategy: DedupeStrategy): boolean {
+  return strategy === "domain-normalized" || strategy === "title-similarity";
+}
+
 export type TransformConfig =
   | { type: "latest"; count: number }
   | { type: "filter"; keywords: string[]; fields?: KeywordField[] }
@@ -428,6 +438,25 @@ function validateOptionalUnitNumber(value: unknown, path: string): void {
   }
 }
 
+function resolveDedupeStrategyForValidation(strategy: unknown): DedupeStrategy {
+  return strategy === undefined ? DEDUPE_DEFAULT_STRATEGY : (strategy as DedupeStrategy);
+}
+
+function validateDedupeStrategyFields(transform: Record<string, unknown>, path: string): void {
+  const strategy = resolveDedupeStrategyForValidation(transform.strategy);
+
+  if (transform.threshold !== undefined && !dedupeStrategyUsesThreshold(strategy)) {
+    throw new Error(
+      `config: ${path}.threshold is only valid for dedupe strategy "title-similarity" (got "${strategy}")`,
+    );
+  }
+  if (transform.keep !== undefined && !dedupeStrategyUsesKeep(strategy)) {
+    throw new Error(
+      `config: ${path}.keep is only valid for dedupe strategies "domain-normalized" and "title-similarity" (got "${strategy}")`,
+    );
+  }
+}
+
 function validateKeywordScoreEntries(value: unknown, path: string): void {
   validateNonEmptyArray(value, path);
 
@@ -474,6 +503,7 @@ function validateTransform(transform: Record<string, unknown>, path: string): vo
       validateOptionalUnitNumber(transform.threshold, `${path}.threshold`);
       validateOptionalEnum(transform.keep, DEDUPE_KEEP_OPTIONS, `${path}.keep`);
       validateOptionalBoolean(transform.log, `${path}.log`);
+      validateDedupeStrategyFields(transform, path);
       break;
     case "keyword-score":
       validateAllowedKeys(transform, ["type", "keywords", "min_score", "annotate"], unknownField);
