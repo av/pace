@@ -74,6 +74,29 @@ describe("arxiv", () => {
     expect(items[0].body).toContain("Abstract: Rock & Roll € in the abstract field.");
   });
 
+  test("decodes double-encoded HTML entities in entry summary/abstract", async () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:arxiv="http://arxiv.org/schemas/atom">
+  <entry>
+    <id>http://arxiv.org/abs/2401.00004v1</id>
+    <title>Double-encoded Abstract</title>
+    <summary>Rock &amp;amp; Roll &amp;#8364; in the abstract field.</summary>
+    <published>2024-05-20T12:00:00Z</published>
+    <author><name>Test Author</name></author>
+    <arxiv:primary_category term="cs.AI" />
+    <category term="cs.AI" />
+    <link href="http://arxiv.org/abs/2401.00004v1" rel="alternate" type="text/html" />
+    <link title="pdf" href="http://arxiv.org/pdf/2401.00004" type="application/pdf" />
+  </entry>
+</feed>`;
+    mocks.fetchMock.mockResolvedValue(new Response(xml, { status: 200 }));
+
+    const items = await arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"] }));
+
+    expect(items.length).toBe(1);
+    expect(items[0].body).toContain("Abstract: Rock & Roll € in the abstract field.");
+  });
+
   test("title and summary use FEED_BODY_STRIP_OPTIONS (tags, links, entities)", async () => {
     const htmlXml = `<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom" xmlns:arxiv="http://arxiv.org/schemas/atom">
