@@ -115,7 +115,9 @@ function parseItem(raw: RssFeedItem, source: string): ContentItem {
 }
 
 async function fetchFeed(url: string): Promise<ContentItem[]> {
-  const xml = await fetchText("rss", url);
+  const xml = await fetchText("rss", url, url, {
+    accept: "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
+  });
 
   let parsed: RssFeedParsed;
   try {
