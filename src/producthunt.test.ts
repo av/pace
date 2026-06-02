@@ -28,26 +28,18 @@ function makePHFeedFixture(): string {
 </feed>`;
 }
 
-function makeEnrichHtml(upvotes: number, comments: number, topics: string[] = ["ai"], makers: string[] = ["johndoe"]): string {
-  const topicsHtml = topics.map(t => `<a href="/topics/${t.replace(/\s+/g, "-")}">${t}</a>`).join("");
-  const makersHtml = makers.map(m => `<a href="/@${m}">@${m}</a>`).join("");
-  return `<html><body>
-    <div>Upvote • ${upvotes} points</div>
-    <script>var x = {"commentsCount": ${comments}};</script>
-    ${topicsHtml}
-    ${makersHtml}
-  </body></html>`;
-}
-
-function makeEnrichHtmlWithTopicLabels(
+function makeEnrichHtml(
   upvotes: number,
   comments: number,
-  topicLabels: string[],
+  topics: string[] = ["ai"],
   makers: string[] = ["johndoe"],
+  topicLabels = false,
 ): string {
   const topicsHtml = topicLabels
-    .map((t) => `<span data-test="topic-link">${t}</span>`)
-    .join("");
+    ? topics.map((t) => `<span data-test="topic-link">${t}</span>`).join("")
+    : topics
+        .map((t) => `<a href="/topics/${t.replace(/\s+/g, "-")}">${t}</a>`)
+        .join("");
   const makersHtml = makers.map((m) => `<a href="/@${m}">@${m}</a>`).join("");
   return `<html><body>
     <div>Upvote • ${upvotes} points</div>
@@ -218,7 +210,7 @@ describe("producthunt", () => {
       }
       if (u.includes("123456")) {
         return new Response(
-          makeEnrichHtmlWithTopicLabels(10, 5, ["AI &amp; ML", "Dev&#39;Tools"]),
+          makeEnrichHtml(10, 5, ["AI &amp; ML", "Dev&#39;Tools"], ["johndoe"], true),
           { status: 200 },
         );
       }
