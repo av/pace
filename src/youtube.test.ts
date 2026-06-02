@@ -5,6 +5,22 @@ import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 const mocks = useFetchMockSuite();
 const youtubeCfg = (params: Record<string, unknown> = {}) => adapterCfg("youtube", params);
 
+function makeYoutubeChannelFeedFixture(entryCount: number): string {
+  const entries = Array.from({ length: entryCount }, (_, i) => {
+    const n = entryCount - i;
+    return `  <entry>
+    <yt:videoId>vid${n}</yt:videoId>
+    <title>Video ${n}</title>
+    <published>2024-01-${String(n).padStart(2, "0")}T00:00:00Z</published>
+  </entry>`;
+  }).join("\n");
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015">
+  <title>Multi Channel</title>
+${entries}
+</feed>`;
+}
+
 describe("youtube", () => {
   const channelXml = `<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns:media="http://search.yahoo.com/mrss/">
@@ -195,6 +211,56 @@ describe("youtube", () => {
   it("respects per-feed limit", async () => {
     const items = await adapter.fetch(youtubeCfg({ channels: ["CH1"], limit: 1 }));
     expect(items.length).toBe(1);
+  });
+
+  it.each([NaN, "10", Infinity, -5, 0] as unknown[])(
+    "invalid limit (%s) uses default slice of 15 per feed",
+    async (limit) => {
+      mocks.fetchMock.mockImplementation(async (url: string | URL) => {
+        if (String(url).includes("channel_id=MULTI")) {
+          return new Response(makeYoutubeChannelFeedFixture(20), { status: 200 });
+        }
+        return new Response("not found", { status: 404 });
+      });
+
+      const items = await adapter.fetch(
+        youtubeCfg({ channels: ["MULTI"], limit }),
+      );
+
+      expect(items.length).toBe(15);
+      expect(items[0].title).toBe("Video 20");
+    },
+  );
+
+  it("caps limit at 50 per feed", async () => {
+    mocks.fetchMock.mockImplementation(async (url: string | URL) => {
+      if (String(url).includes("channel_id=MULTI")) {
+        return new Response(makeYoutubeChannelFeedFixture(60), { status: 200 });
+      }
+      return new Response("not found", { status: 404 });
+    });
+
+    const items = await adapter.fetch(
+      youtubeCfg({ channels: ["MULTI"], limit: 500 }),
+    );
+
+    expect(items.length).toBe(50);
+  });
+
+  it("floors fractional limit per feed", async () => {
+    mocks.fetchMock.mockImplementation(async (url: string | URL) => {
+      if (String(url).includes("channel_id=MULTI")) {
+        return new Response(makeYoutubeChannelFeedFixture(5), { status: 200 });
+      }
+      return new Response("not found", { status: 404 });
+    });
+
+    const items = await adapter.fetch(
+      youtubeCfg({ channels: ["MULTI"], limit: 2.9 }),
+    );
+
+    expect(items.length).toBe(2);
+    expect(items[0].title).toBe("Video 5");
   });
 
   it("throws on network error with adapter prefix", async () => {
