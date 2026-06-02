@@ -127,7 +127,6 @@ const adapter: Adapter = {
     const limit = Math.min((config.params?.limit as number) ?? 20, 100);
     const minScore = (config.params?.min_score as number) ?? 0;
 
-    // Resolve sort type
     const sortLower = sort.toLowerCase();
     const effectiveSort: SortType = VALID_SORTS.has(sortLower as SortType)
       ? (sortLower as SortType)
@@ -143,16 +142,13 @@ const adapter: Adapter = {
       questions = await fetchQuestions(site, effectiveSort, tags, limit);
     }
 
-    // Apply minimum score filter
     const filtered =
       minScore > 0
         ? questions.filter((q) => q.score >= minScore)
         : questions;
 
-    // Respect limit after filtering
     const limited = sliceToLimit(filtered, limit);
 
-    // Build source label
     let sourceLabel: string;
     if (tags.length > 0) {
       sourceLabel = `${site}:${tags.join("+")}`;

@@ -17,11 +17,10 @@ const adapter: Adapter = {
         `twitter: adapter configured with ${terms.length} source(s), but Twitter API requires API credentials. ` +
           "Set params.bearer_token to enable. Returning empty results.",
       );
-    } else {
-      return warnAndReturnEmpty(
-        "twitter: no lists or searches configured, and Twitter API requires credentials. Returning empty results.",
-      );
     }
+    return warnAndReturnEmpty(
+      "twitter: no lists or searches configured, and Twitter API requires credentials. Returning empty results.",
+    );
   },
 };
 

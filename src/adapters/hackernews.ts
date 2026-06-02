@@ -14,7 +14,7 @@ interface HNItem {
   time?: number;
   type?: string;
   by?: string;
-  descendants?: number; // comment count
+  descendants?: number;
 }
 
 type FeedType = "top" | "new" | "best" | "ask" | "show" | "job";
@@ -28,10 +28,6 @@ const FEED_ENDPOINTS: Record<FeedType, string> = {
   job: "jobstories",
 };
 
-/**
- * Shared low-level HN JSON fetcher. Throws on !ok (with context for list feeds)
- * so callers can decide error handling (list throws, items swallow to null).
- */
 async function fetchHN<T>(subpath: string, timeout: number, errorContext?: string): Promise<T> {
   const res = await fetchWithTimeout(`${HN_API}/${subpath}`, { timeoutMs: timeout });
   if (!res.ok) {
@@ -84,7 +80,6 @@ const adapter: Adapter = {
     const limit = Math.min((config.params?.limit as number) ?? 30, 200);
     const minScore = (config.params?.min_score as number) ?? 0;
 
-    // Resolve feed type, supporting legacy "stories" param and aliases
     let feedType: FeedType;
     const feedLower = feed.toLowerCase();
     if (feedLower in FEED_ENDPOINTS) {
@@ -127,12 +122,10 @@ const adapter: Adapter = {
     const sliced = ids.slice(0, fetchCount);
     const items = await fetchInBatches(sliced);
 
-    // Apply score filter
     const filtered = minScore > 0
       ? items.filter((item) => (item.score ?? 0) >= minScore)
       : items;
 
-    // Respect limit after filtering
     const limited = sliceToLimit(filtered, limit);
 
     return limited.map((item) => ({
