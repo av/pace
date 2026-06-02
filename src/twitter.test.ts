@@ -58,4 +58,22 @@ describe("twitter", () => {
     expect(mocks.warnSpy).toHaveBeenCalledTimes(1);
     expect(mocks.warnSpy.mock.calls[0][0]).toContain("configured with 1 source(s)");
   });
+
+  it("blank-only lists fall through to searches", async () => {
+    const items = await adapter.fetch(
+      twitterCfg({ lists: ["", "  "], searches: ["foo"] }),
+    );
+    expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledTimes(1);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "twitter: adapter configured with 1 source(s); Twitter API requires params.bearer_token. Returning empty results.",
+    );
+  });
+
+  it("trims whitespace in list entries", async () => {
+    const items = await adapter.fetch(twitterCfg({ lists: ["  u1  ", "u2"] }));
+    expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledTimes(1);
+    expect(mocks.warnSpy.mock.calls[0][0]).toContain("configured with 2 source(s)");
+  });
 });

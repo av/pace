@@ -1,3 +1,4 @@
+import { normalizeStringList } from "../utils";
 import { decodeHtmlEntities } from "./html";
 import { type Adapter, type AdapterConfig, type ContentItem } from "./types";
 
@@ -31,10 +32,14 @@ function warnAndReturnEmpty(msg: string): ContentItem[] {
 const adapter: Adapter = {
   name: "twitter",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const lists = config.params?.lists as string[] | undefined;
-    const searches = config.params?.searches as string[] | undefined;
+    const lists = normalizeStringList(
+      (config.params?.lists as string[]) ?? [],
+    );
+    const searches = normalizeStringList(
+      (config.params?.searches as string[]) ?? [],
+    );
 
-    const terms = lists ?? searches ?? [];
+    const terms = lists.length > 0 ? lists : searches;
     if (terms.length > 0) {
       return warnAndReturnEmpty(
         `adapter configured with ${terms.length} source(s); Twitter API requires params.bearer_token. Returning empty results.`,
