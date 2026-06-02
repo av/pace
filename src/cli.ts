@@ -74,13 +74,13 @@ if (values.listPresets) {
 }
 
 if (values.preset && !values.config) {
-  const { resolvePreset } = await import("./config");
+  const { resolvePreset, listPresets } = await import("./config");
   const resolved = resolvePreset(values.preset);
   if (resolved) {
     process.env.PACE_CONFIG = resolved;
   } else {
     console.error(`Unknown preset: ${values.preset}`);
-    console.error(`Available: ${["example","tech-news","ml-ai","product-launches","release-tracker","academic-papers","video-podcast"].join(", ")}`);
+    console.error(`Available: ${listPresets().join(", ")}`);
     process.exit(1);
   }
 }
