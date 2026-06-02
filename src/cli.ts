@@ -7,11 +7,8 @@ import { tryReadRegularFile } from "./config";
 
 const pkg = JSON.parse(readFileSync(join(import.meta.dir, "../package.json"), "utf-8"));
 
-// Ensure we always run from the project root containing this package.json (and tsconfig.json,
-// node_modules, default config.yaml, data/). This makes the CLI (and global `pace` via bun link)
-// robust to any shell cwd, fixes tsx/jsx resolution, and ensures defaults are project-local.
 const projectRoot = join(import.meta.dir, "..");
-process.chdir(projectRoot); // projectRoot chdir (ensures cwd for tsconfig + defaults)
+process.chdir(projectRoot);
 
 const HELP = `pace v${pkg.version} — personal content dashboard
 
@@ -96,8 +93,6 @@ if (command !== "serve") {
   process.exit(1);
 }
 
-// Reject unknown options (parseArgs with strict:false still populates undeclared keys into values,
-// e.g. --badflag or typos). This provides clear feedback instead of silently proceeding to serve.
 const knownOptions = ["config", "port", "chdir", "preset", "listPresets", "list-presets", "help", "version"];
 const unexpected = Object.keys(values).filter((k) => !knownOptions.includes(k) && values[k] !== undefined);
 if (unexpected.length > 0) {
