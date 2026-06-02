@@ -148,6 +148,36 @@ layout:
     expect(() => loadConfig()).toThrow(/config: layout.children\[0\].source.adapter must be a non-empty string/);
   });
 
+  test("rejects unknown panel field", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - panel: p1
+      source: all
+      typo_field: true
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: layout.children\[0\].typo_field is not a valid panel field/,
+    );
+  });
+
+  test("rejects unknown layout container field", () => {
+    const yaml = `
+layout:
+  direction: row
+  typo_field: true
+  children:
+    - panel: p1
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: layout.typo_field is not a valid layout container field/,
+    );
+  });
+
   test("rejects refresh_interval on panel source object (belongs on adapters[])", () => {
     const yaml = `
 adapters:

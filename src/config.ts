@@ -188,6 +188,33 @@ function validateSource(source: unknown, path: string): void {
   );
 }
 
+function validatePanel(node: Record<string, unknown>, path: string): void {
+  validateAllowedKeys(node, ["panel", "id", "flex", "source", "limit"], (key) =>
+    `${path}.${key} is not a valid panel field`,
+  );
+  validateNonEmptyString(node.panel, `${path}.panel`);
+  if (!("source" in node)) {
+    throw new Error(`config: ${path}.source is required`);
+  }
+  validateSource(node.source, `${path}.source`);
+  validateOptionalNonEmptyString(node.id, `${path}.id`);
+  validateOptionalPositiveNumber(node.flex, `${path}.flex`);
+  validateOptionalPositiveInteger(node.limit, `${path}.limit`);
+}
+
+function validateLayoutContainer(node: Record<string, unknown>, path: string): void {
+  validateAllowedKeys(node, ["direction", "flex", "gap", "children"], (key) =>
+    `${path}.${key} is not a valid layout container field`,
+  );
+  validateEnum(node.direction, ["row", "column"], `${path}.direction`);
+  if (!Array.isArray(node.children)) {
+    throw new Error(`config: ${path}.children must be a list`);
+  }
+  validateOptionalPositiveNumber(node.flex, `${path}.flex`);
+  validateOptionalNonEmptyString(node.gap, `${path}.gap`);
+  node.children.forEach((child, index) => validateLayoutNode(child, `${path}.children[${index}]`));
+}
+
 function validateLayoutNode(node: unknown, path = "layout"): asserts node is LayoutNodeConfig {
   if (!isRecord(node)) {
     throw new Error(`config: ${path} must be a layout node object`);
@@ -201,11 +228,7 @@ function validateLayoutNode(node: unknown, path = "layout"): asserts node is Lay
   }
 
   if (hasPanel) {
-    validateNonEmptyString(node.panel, `${path}.panel`);
-    if (!("source" in node)) {
-      throw new Error(`config: ${path}.source is required`);
-    }
-    validateSource(node.source, `${path}.source`);
+    validatePanel(node, path);
     return;
   }
 
@@ -213,19 +236,10 @@ function validateLayoutNode(node: unknown, path = "layout"): asserts node is Lay
     throw new Error(`config: ${path} must define either panel or direction/children`);
   }
 
-  if (node.direction !== "row" && node.direction !== "column") {
-    throw new Error(`config: ${path}.direction must be "row" or "column"`);
-  }
-
-  if (!Array.isArray(node.children)) {
-    throw new Error(`config: ${path}.children must be a list`);
-  }
-
-  node.children.forEach((child, index) => validateLayoutNode(child, `${path}.children[${index}]`));
+  validateLayoutContainer(node, path);
 }
 
-function validatePanelIds(node: LayoutNodeConfig): void {
-  const panels = collectPanels(node);
+function validatePanelNames(panels: PanelConfig[]): void {
   const names = new Set<string>();
   for (const p of panels) {
     if (names.has(p.panel)) {
@@ -233,6 +247,9 @@ function validatePanelIds(node: LayoutNodeConfig): void {
     }
     names.add(p.panel);
   }
+}
+
+function validatePanelIds(panels: PanelConfig[]): void {
   const idToPanels = new Map<string, string[]>();
   for (const p of panels) {
     const id = resolvePanelId(p);
@@ -243,6 +260,29 @@ function validatePanelIds(node: LayoutNodeConfig): void {
       throw new Error(`config: duplicate panel ID "${id}" (panels: "${list.join('", "')}")`);
     }
   }
+}
+
+function validatePanelSourceRefs(panels: PanelConfig[], sourceNames: Set<string>): void {
+  for (const panel of panels) {
+    const sources = normalizeSource(panel.source);
+    sources.forEach((source, index) => {
+      if (source.adapter === "all") return;
+      if (!sourceNames.has(source.adapter)) {
+        const sourcePath = sources.length === 1
+          ? `layout panel "${panel.panel}" source`
+          : `layout panel "${panel.panel}" source[${index}]`;
+        throw new Error(`config: ${sourcePath} references unknown source "${source.adapter}"`);
+      }
+    });
+  }
+}
+
+function validateLayout(layout: LayoutNodeConfig, sourceNames: Set<string>): void {
+  validateLayoutNode(layout);
+  const panels = collectPanels(layout);
+  validatePanelNames(panels);
+  validatePanelIds(panels);
+  validatePanelSourceRefs(panels, sourceNames);
 }
 
 function validatePositiveNumber(value: unknown, path: string): void {
@@ -496,21 +536,6 @@ function validateTopLevelKeys(config: Record<string, unknown>): void {
   );
 }
 
-function validatePanelSourceRefs(layout: LayoutNodeConfig, sourceNames: Set<string>): void {
-  for (const panel of collectPanels(layout)) {
-    const sources = normalizeSource(panel.source);
-    sources.forEach((source, index) => {
-      if (source.adapter === "all") return;
-      if (!sourceNames.has(source.adapter)) {
-        const sourcePath = sources.length === 1
-          ? `layout panel "${panel.panel}" source`
-          : `layout panel "${panel.panel}" source[${index}]`;
-        throw new Error(`config: ${sourcePath} references unknown source "${source.adapter}"`);
-      }
-    });
-  }
-}
-
 function validateAdapterConfig(adapter: unknown, index: number): asserts adapter is IngestAdapterConfig {
   const path = `adapters[${index}]`;
   if (!isRecord(adapter)) {
@@ -648,9 +673,6 @@ export function loadConfig(): AppConfig {
   const rawPipelines = (resolved.pipelines ?? []) as unknown[];
   const layout = resolved.layout ?? DEFAULT_LAYOUT;
 
-  validateLayoutNode(layout);
-  validatePanelIds(layout);
-
   rawAdapters.forEach(validateAdapterConfig);
   const adapters = rawAdapters as IngestAdapterConfig[];
 
@@ -672,7 +694,7 @@ export function loadConfig(): AppConfig {
     names.add(p.name);
   }
 
-  validatePanelSourceRefs(layout, names);
+  validateLayout(layout, names);
   validateLlmConfig(resolved.llm);
 
   return {
