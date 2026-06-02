@@ -48,10 +48,43 @@ async function waitForAsync(ms = 20): Promise<void> {
   await new Promise((r) => setTimeout(r, ms));
 }
 
-const basePanelMap: SourcePanelMap = {
-  sourceToPanels: new Map([["testsrc", ["panel1"]]]),
-  sourceToReadKey: new Map(),
-};
+function emptyPanelMap(): SourcePanelMap {
+  return { sourceToPanels: new Map(), sourceToReadKey: new Map() };
+}
+
+function panelMap(
+  panels: Record<string, string[]>,
+  readKeys: Record<string, string> = {}
+): SourcePanelMap {
+  return {
+    sourceToPanels: new Map(Object.entries(panels)),
+    sourceToReadKey: new Map(Object.entries(readKeys)),
+  };
+}
+
+function adaptersMap(...entries: [string, Adapter][]): Map<string, Adapter> {
+  return new Map(entries);
+}
+
+type ConsoleSpyMethod = "log" | "warn";
+
+async function spyConsole<T>(
+  methods: ConsoleSpyMethod[],
+  fn: (spies: Record<ConsoleSpyMethod, ReturnType<typeof spyOn>>) => T | Promise<T>
+): Promise<T> {
+  const spies = Object.fromEntries(
+    methods.map((m) => [m, spyOn(console, m)])
+  ) as Record<ConsoleSpyMethod, ReturnType<typeof spyOn>>;
+  try {
+    return await fn(spies);
+  } finally {
+    for (const m of methods) {
+      spies[m].mockRestore();
+    }
+  }
+}
+
+const basePanelMap = panelMap({ testsrc: ["panel1"] });
 
 const baseConfig = schedulerConfig({
   adapters: [{ type: "test", name: "testsrc", refresh_interval: 60 }],
@@ -82,32 +115,26 @@ describe("scheduler", () => {
   test("startScheduler with no adapters/pipelines is safe and refreshSources returns empty", async () => {
     const config = schedulerConfig({ adapters: [] });
     const adapters = new Map<string, Adapter>();
-    const pm: SourcePanelMap = { sourceToPanels: new Map(), sourceToReadKey: new Map() };
-    startScheduler(config, adapters, pm, null);
+    startScheduler(config, adapters, emptyPanelMap(), null);
     const results = await refreshSources([]);
     expect(results).toEqual([]);
   });
 
-  test("startScheduler duplicate guard prevents re-registration (early return, no double logs)", () => {
+  test("startScheduler duplicate guard prevents re-registration (early return, no double logs)", async () => {
     const items = [{ id: "i1", title: "t", url: "u", source: "s", timestamp: new Date() }];
-    const adapters = new Map<string, Adapter>([["test", makeMockAdapter(items)]]);
-    const logSpy = spyOn(console, "log");
-    try {
+    const adapters = adaptersMap(["test", makeMockAdapter(items)]);
+    await spyConsole(["log"], ({ log: logSpy }) => {
       startScheduler(baseConfig, adapters, basePanelMap, null);
       startScheduler(baseConfig, adapters, basePanelMap, null); // guard
-      // only one "every" log + one fetch log
       const everyLogs = logSpy.mock.calls.filter((c) => String(c[0]).includes("every 60m"));
       expect(everyLogs.length).toBe(1);
-    } finally {
-      logSpy.mockRestore();
-    }
+    });
   });
 
   test("startScheduler throws on missing adapter type with exact prefix", () => {
     const config = schedulerConfig({ adapters: [{ type: "missing", refresh_interval: 1 }] });
     const adapters = new Map<string, Adapter>();
-    const pm: SourcePanelMap = { sourceToPanels: new Map(), sourceToReadKey: new Map() };
-    expect(() => startScheduler(config, adapters, pm, null)).toThrow(
+    expect(() => startScheduler(config, adapters, emptyPanelMap(), null)).toThrow(
       'scheduler: adapter type "missing" is configured but no matching adapter module was discovered'
     );
   });
@@ -116,9 +143,8 @@ describe("scheduler", () => {
     const items = [
       { id: "g1", title: "GitHub Release", url: "https://ex", source: "gh", timestamp: new Date() },
     ];
-    const adapters = new Map<string, Adapter>([["test", makeMockAdapter(items)]]);
-    const logSpy = spyOn(console, "log");
-    try {
+    const adapters = adaptersMap(["test", makeMockAdapter(items)]);
+    await spyConsole(["log"], async ({ log: logSpy }) => {
       startScheduler(baseConfig, adapters, basePanelMap, null);
       await waitForAsync();
       const saved = getAllItemsByPanel("panel1");
@@ -128,20 +154,14 @@ describe("scheduler", () => {
         String(c[0]).includes("fetched 1 items")
       );
       expect(fetchedLog).toBe(true);
-    } finally {
-      logSpy.mockRestore();
-    }
+    });
   });
 
   test("run via refreshSources on error adapter returns failed result + warns with prefix", async () => {
-    const adapters = new Map<string, Adapter>([["err", makeErrorAdapter("simulated fail")]]);
+    const adapters = adaptersMap(["err", makeErrorAdapter("simulated fail")]);
     const config = schedulerConfig({ adapters: [{ type: "err", name: "errsrc", refresh_interval: 60 }] });
-    const pm: SourcePanelMap = {
-      sourceToPanels: new Map([["errsrc", ["ep1"]]]),
-      sourceToReadKey: new Map(),
-    };
-    const warnSpy = spyOn(console, "warn");
-    try {
+    const pm = panelMap({ errsrc: ["ep1"] });
+    await spyConsole(["warn"], async ({ warn: warnSpy }) => {
       startScheduler(config, adapters, pm, null);
       await waitForAsync();
       const results = await refreshSources(["errsrc"]);
@@ -152,47 +172,41 @@ describe("scheduler", () => {
         String(c[0]).includes("scheduler: errsrc — error:")
       );
       expect(warned).toBe(true);
-    } finally {
-      warnSpy.mockRestore();
-    }
+    });
   });
 
-  test("prune failure on startScheduler warns with errorMessage", () => {
+  test("prune failure on startScheduler warns with errorMessage", async () => {
     const pruneSpy = spyOn(dbMod, "pruneOldItems").mockImplementation(() => {
       throw new Error("db prune fail");
     });
     const emSpy = spyOn(utilsMod, "errorMessage");
-    const warnSpy = spyOn(console, "warn");
     try {
-      const adapters = new Map<string, Adapter>([["test", makeMockAdapter([])]]);
-      startScheduler(baseConfig, adapters, basePanelMap, null);
-      expect(pruneSpy).toHaveBeenCalledWith(30);
-      expect(emSpy).toHaveBeenCalled();
-      expect(warnSpy).toHaveBeenCalledWith("scheduler: prune error: db prune fail");
+      await spyConsole(["warn"], ({ warn: warnSpy }) => {
+        const adapters = adaptersMap(["test", makeMockAdapter([])]);
+        startScheduler(baseConfig, adapters, basePanelMap, null);
+        expect(pruneSpy).toHaveBeenCalledWith(30);
+        expect(emSpy).toHaveBeenCalled();
+        expect(warnSpy).toHaveBeenCalledWith("scheduler: prune error: db prune fail");
+      });
     } finally {
       pruneSpy.mockRestore();
       emSpy.mockRestore();
-      warnSpy.mockRestore();
     }
   });
 
-  test("stopScheduler clears timers and allows restart", () => {
-    const adapters = new Map<string, Adapter>([["test", makeMockAdapter([])]]);
-    const logSpy = spyOn(console, "log");
-    try {
+  test("stopScheduler clears timers and allows restart", async () => {
+    const adapters = adaptersMap(["test", makeMockAdapter([])]);
+    await spyConsole(["log"], ({ log: logSpy }) => {
       startScheduler(baseConfig, adapters, basePanelMap, null);
       stopScheduler();
-      // restart should log "every" again
       startScheduler(baseConfig, adapters, basePanelMap, null);
       const everyLogs = logSpy.mock.calls.filter((c) => String(c[0]).includes("every 60m"));
       expect(everyLogs.length).toBe(2);
-    } finally {
-      logSpy.mockRestore();
-    }
+    });
   });
 
   test("refreshSources with unknown names returns no results (no crash)", async () => {
-    const adapters = new Map<string, Adapter>([["test", makeMockAdapter([])]]);
+    const adapters = adaptersMap(["test", makeMockAdapter([])]);
     startScheduler(baseConfig, adapters, basePanelMap, null);
     const results = await refreshSources(["nonexistent"]);
     expect(Array.isArray(results)).toBe(true);
@@ -216,10 +230,7 @@ describe("scheduler", () => {
         transforms: [{ type: "latest", count: 10 }],
       }],
     });
-    const pm: SourcePanelMap = {
-      sourceToPanels: new Map([["merge", ["outPanel"]]]),
-      sourceToReadKey: new Map([["srcA", "srcA"], ["srcB", "srcB"]]),
-    };
+    const pm = panelMap({ merge: ["outPanel"] }, { srcA: "srcA", srcB: "srcB" });
     startScheduler(config, new Map(), pm, null);
     await refreshSources(["merge"]);
     const out = getAllItemsByPanel("outPanel");
@@ -231,7 +242,7 @@ describe("scheduler", () => {
   });
 
   test("startScheduler schedules pipelines with 5s initial delay (PIPELINE_INITIAL_DELAY_MS) before first runPipelineJob + setInterval, adapters do immediate fetch; default refresh when refresh_interval omitted (t3i)", async () => {
-    const adapters = new Map<string, Adapter>([["test", makeMockAdapter([])]]);
+    const adapters = adaptersMap(["test", makeMockAdapter([])]);
     const config = schedulerConfig({
       adapters: [{ type: "test", name: "testsrc" /* omit refresh_interval -> DEFAULT_REFRESH_INTERVAL_MIN */ }],
       pipelines: [{
@@ -241,34 +252,28 @@ describe("scheduler", () => {
         refresh_interval: 1,
       }],
     });
-    const pm: SourcePanelMap = {
-      sourceToPanels: new Map([["testsrc", ["panelP"]]]),
-      sourceToReadKey: new Map([["testsrc", "testsrc"]]),
-    };
+    const pm = panelMap({ testsrc: ["panelP"] }, { testsrc: "testsrc" });
     const setTimeoutSpy = spyOn(globalThis, "setTimeout");
     const setIntervalSpy = spyOn(globalThis, "setInterval");
-    const logSpy = spyOn(console, "log");
     try {
-      startScheduler(config, adapters, pm, null);
-      expect(PIPELINE_INITIAL_DELAY_MS).toBe(5000);
-      // exactly one setTimeout during start: the 5s for pipeline initial (adapters immediate, no timeout for their first)
-      expect(setTimeoutSpy.mock.calls.length).toBe(1);
-      expect(setTimeoutSpy.mock.calls[0][1]).toBe(5000);
-      // setInterval for adapter (default refresh) + prune daily (24h); pipeline's interval set later inside timeout cb
-      expect(setIntervalSpy.mock.calls.length).toBe(2);
-      const hasDefaultRefreshLog = logSpy.mock.calls.some((c) =>
-        String(c[0]).includes(`every ${DEFAULT_REFRESH_INTERVAL_MIN}m`)
-      );
-      expect(hasDefaultRefreshLog).toBe(true);
-      // pipeline setup log immediate (delay is for first *run*, not the schedule log)
-      const hasPipelineEveryLog = logSpy.mock.calls.some((c) =>
-        String(c[0]).includes('pipeline "p1" — every 1m')
-      );
-      expect(hasPipelineEveryLog).toBe(true);
+      await spyConsole(["log"], ({ log: logSpy }) => {
+        startScheduler(config, adapters, pm, null);
+        expect(PIPELINE_INITIAL_DELAY_MS).toBe(5000);
+        expect(setTimeoutSpy.mock.calls.length).toBe(1);
+        expect(setTimeoutSpy.mock.calls[0][1]).toBe(5000);
+        expect(setIntervalSpy.mock.calls.length).toBe(2);
+        const hasDefaultRefreshLog = logSpy.mock.calls.some((c) =>
+          String(c[0]).includes(`every ${DEFAULT_REFRESH_INTERVAL_MIN}m`)
+        );
+        expect(hasDefaultRefreshLog).toBe(true);
+        const hasPipelineEveryLog = logSpy.mock.calls.some((c) =>
+          String(c[0]).includes('pipeline "p1" — every 1m')
+        );
+        expect(hasPipelineEveryLog).toBe(true);
+      });
     } finally {
       setTimeoutSpy.mockRestore();
       setIntervalSpy.mockRestore();
-      logSpy.mockRestore();
     }
   });
 });
