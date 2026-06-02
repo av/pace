@@ -2,6 +2,7 @@ import {
   formatBy,
   formatComments,
   formatReactions,
+  formatReadingTime,
   formatTags,
   joinBodyParts,
 } from "./engagement";
@@ -32,7 +33,7 @@ function buildBody(article: DevToArticle): string {
   return joinBodyParts(
     formatReactions(article.positive_reactions_count),
     formatComments(article.comments_count),
-    `${article.reading_time_minutes} min read`,
+    formatReadingTime(article.reading_time_minutes),
     formatBy(`@${article.user.username}`),
     formatTags(article.tag_list),
     article.cover_image ? `cover: ${article.cover_image}` : undefined,

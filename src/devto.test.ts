@@ -102,9 +102,11 @@ describe("devto", () => {
     expect(reactCall?.url ?? "").toContain("top=7");
   });
 
-  test("buildBody formats reactions, comments, read time, author, tags and cover", () => {
-    // buildBody internal; exercised in fetch mapping; verify output shape in item tests below
-    expect(1).toBe(1);
+  test("buildBody formats reactions, comments, read time, author, tags and cover", async () => {
+    const items = await devtoAdapter.fetch(devtoCfg({ username: "testuser", limit: 20 }));
+    expect(items[0].body).toBe(
+      "42 reactions | 3 comments | 5 min read | by @testuser | tags: typescript | cover: https://example.com/cover.jpg",
+    );
   });
 
   test("fetch with username only calls API with username param and returns mapped item with correct source and body", async () => {
@@ -113,7 +115,7 @@ describe("devto", () => {
     expect(items[0].id).toBe("devto:101");
     expect(items[0].title).toBe("User Article");
     expect(items[0].source).toBe("devto:testuser");
-    expect(items[0].body).toContain("42 reactions");
+    expect(items[0].body).toContain("5 min read");
     expect(items[0].body).toContain("by @testuser");
     expect(items[0].body).toContain("cover: https://example.com/cover.jpg");
     expect(devtoFetchCalls().some((c) => c.url.includes("username=testuser"))).toBe(true);
