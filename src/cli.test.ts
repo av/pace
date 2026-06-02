@@ -103,11 +103,11 @@ describe("cli", () => {
     expect(res.stderr).toContain(badCfg);
   });
 
-  test("--chdir/-C accepted; invalid dir fails with Failed to chdir", () => {
+  test("--chdir/-C accepted; invalid dir fails with cli: chdir message", () => {
     const bad = join(tmpDir, "nonexistent-chdir-subdir-xyz");
     const resBad = runCli(["--chdir", bad, "--version"]);
     expect(resBad.status).toBe(1);
-    expect(resBad.stderr).toContain("Failed to chdir");
+    expect(resBad.stderr).toContain(`cli: failed to chdir to ${bad}:`);
     expect(resBad.stderr).toContain(bad);
     expect(resBad.stdout).toBe("");
     const resValidThenPort = runCli(["-C", tmpDir, "--port", "99999"]);

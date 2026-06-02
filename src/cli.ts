@@ -8,6 +8,11 @@ import { formatCliHelp } from "./cli-help";
 
 const pkg = JSON.parse(readFileSync(join(import.meta.dir, "../package.json"), "utf-8"));
 
+function cliDie(message: string): never {
+  console.error(message);
+  process.exit(1);
+}
+
 const projectRoot = join(import.meta.dir, "..");
 process.chdir(projectRoot);
 
@@ -35,8 +40,7 @@ if (values.chdir || values['chdir']) {
   try {
     process.chdir(target);
   } catch (err) {
-    console.error(`Failed to chdir to ${target}: ${errorMessage(err)}`);
-    process.exit(1);
+    cliDie(`cli: failed to chdir to ${target}: ${errorMessage(err)}`);
   }
 }
 
@@ -89,8 +93,7 @@ if (values.config) {
   try {
     tryReadRegularFile(configPath);
   } catch (err) {
-    console.error(errorMessage(err));
-    process.exit(1);
+    cliDie(errorMessage(err));
   }
   process.env.PACE_CONFIG = configPath;
 }
@@ -110,8 +113,7 @@ try {
 } catch (err) {
   const message = errorMessage(err);
   if (message.startsWith("config:") || message.startsWith("scheduler:")) {
-    console.error(message);
-    process.exit(1);
+    cliDie(message);
   }
   throw err;
 }
