@@ -1,6 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import { parseFeedDate } from "./dates";
-import { joinBodyParts } from "./engagement";
+import { formatCategories, joinBodyParts } from "./engagement";
 import { fetchText } from "./fetch";
 import { dedupeByKey, sliceToLimit } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -128,7 +128,7 @@ function buildBody(entry: ArxivEntry): string {
 
   return joinBodyParts(
     authors ? `Authors: ${authors}` : undefined,
-    categories.length > 0 ? `Categories: ${categories.join(", ")}` : undefined,
+    categories.length > 0 ? formatCategories(categories) : undefined,
     abstract ? `Abstract: ${truncate(abstract, 300)}` : undefined,
     pdfUrl ? `PDF: ${pdfUrl}` : undefined,
   );

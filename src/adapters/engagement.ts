@@ -126,6 +126,11 @@ export function formatTopics(topics: string[]): string {
   return `topics: ${topics.join(", ")}`;
 }
 
+/** ArXiv primary/secondary category terms in body metadata. */
+export function formatCategories(categories: string[]): string {
+  return `Categories: ${categories.join(", ")}`;
+}
+
 export function formatSite(url: string): string {
   return `site: ${url}`;
 }
