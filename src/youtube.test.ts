@@ -132,6 +132,31 @@ describe("youtube", () => {
     ).rejects.toThrow(/youtube:.*failed to fetch channel ERR.*HTTP error 404/);
   });
 
+  it("strips HTML from media:description in body", async () => {
+    const htmlDescXml = `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns:media="http://search.yahoo.com/mrss/">
+  <title>HTML Desc Channel</title>
+  <entry>
+    <yt:videoId>html1</yt:videoId>
+    <title>HTML Video</title>
+    <published>2024-05-01T00:00:00Z</published>
+    <media:group>
+      <media:description><![CDATA[<p>Hello &amp; <b>world</b></p>]]></media:description>
+    </media:group>
+    <author><name>HTML Author</name></author>
+  </entry>
+</feed>`;
+    mocks.fetchMock.mockImplementation(async (url: string | URL) => {
+      if (String(url).includes("channel_id=HTML")) {
+        return new Response(htmlDescXml, { status: 200 });
+      }
+      return new Response("not found", { status: 404 });
+    });
+
+    const items = await adapter.fetch(youtubeCfg({ channels: ["HTML"], limit: 5 }));
+    expect(items[0].body).toBe("by HTML Author | Hello & world");
+  });
+
   it("decodes HTML entities in channel and entry titles", async () => {
     const entityXml = `<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns:yt="http://www.youtube.com/xml/schemas/2015">

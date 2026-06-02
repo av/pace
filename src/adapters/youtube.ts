@@ -11,7 +11,7 @@ import {
 import { parseFeedDate } from "./dates";
 import { formatBy, joinBodyParts } from "./engagement";
 import { fetchText } from "./fetch";
-import { decodeHtmlEntities } from "./html";
+import { decodeHtmlEntities, stripHtml } from "./html";
 import { sliceToLimit } from "../utils";
 import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -39,11 +39,18 @@ interface YTAtomFeedParsed {
 }
 
 function buildBody(entry: YTEntry): string | undefined {
-  const description = entry["media:group"]?.["media:description"];
+  const rawDescription = entry["media:group"]?.["media:description"];
+  const description = rawDescription
+    ? stripHtml(String(rawDescription), {
+        tagSeparator: " ",
+        whitespace: "collapse-all",
+        numericEntities: true,
+      })
+    : undefined;
   const author = entry.author?.name?.trim();
   const body = joinBodyParts(
     author ? formatBy(author) : undefined,
-    description ? String(description) : undefined,
+    description || undefined,
   );
   return body || undefined;
 }
