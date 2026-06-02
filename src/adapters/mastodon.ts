@@ -179,10 +179,6 @@ async function fetchAccountStatuses(
   );
 }
 
-function normalizeConfiguredAccounts(accounts: string[]): string[] {
-  return accounts.map((handle) => handle.trim()).filter(Boolean);
-}
-
 function parseAccountHandle(handle: string): { username: string; instance: string } | null {
   // Accepts: @user@instance, user@instance
   const cleaned = handle.startsWith("@") ? handle.slice(1) : handle;
@@ -198,7 +194,7 @@ const adapter: Adapter = {
     const hashtags = normalizeStringList(
       (config.params?.hashtags as string[]) ?? [],
     );
-    const accounts = normalizeConfiguredAccounts(
+    const accounts = normalizeStringList(
       (config.params?.accounts as string[]) ?? [],
     );
     const limit = Math.min((config.params?.limit as number) ?? 20, 40);
