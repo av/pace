@@ -125,7 +125,7 @@ describe("transforms - dedupe strategies", () => {
     const steps = transformPipeline({ type: "dedupe", strategy: "url", log: true });
     const result = await runPipeline(items, steps, ctx);
     expect(result.map((r) => r.id)).toEqual(["1", "3"]);
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("[dedupe:url] removed 1 duplicate(s):"));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("transforms: dedupe:url removed 1 duplicate(s):"));
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('  - "Dup" (https://ex.com/a)'));
   });
 
@@ -138,7 +138,7 @@ describe("transforms - dedupe strategies", () => {
     const steps = transformPipeline({ type: "dedupe", strategy: "domain-normalized", keep: "latest", log: true });
     const result = await runPipeline(items, steps, ctx);
     expect(result.map((r) => r.id)).toEqual(["2", "3"]); // latest of the group kept
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("[dedupe:domain-normalized] removed 1 duplicate(s):"));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("transforms: dedupe:domain-normalized removed 1 duplicate(s):"));
   });
 
   test("dedupe:title-similarity detects near titles, keeps winner, logs with threshold", async () => {
@@ -151,7 +151,7 @@ describe("transforms - dedupe strategies", () => {
     const result = await runPipeline(items, steps, ctx);
     expect(result.map((r) => r.id)).toContain("2"); // or 1 depending on pick, but one kept + 3
     expect(result).toHaveLength(2);
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("[dedupe:title-similarity] removed 1 duplicate(s) (threshold=0.8):"));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("transforms: dedupe:title-similarity removed 1 duplicate(s) (threshold=0.8):"));
     expect(logSpy).toHaveBeenCalledWith(
       expect.stringContaining('  - "Hello World Update" (u1) -> kept "Hello World Upd8"'),
     );
@@ -162,7 +162,7 @@ describe("transforms - dedupe strategies", () => {
     const steps = transformPipeline({ type: "dedupe", strategy: "url", log: false });
     await runPipeline(items, steps, ctx);
     // only possible other logs? but in this run no, check not the dedupe one
-    const dedupeCalls = logSpy.mock.calls.filter((c) => String(c[0]).includes("[dedupe:"));
+    const dedupeCalls = logSpy.mock.calls.filter((c) => String(c[0]).includes("transforms: dedupe:"));
     expect(dedupeCalls).toHaveLength(0);
   });
 
@@ -287,7 +287,7 @@ describe("keyword-score and time-decay", () => {
     expect(result.map(r => r.id)).toEqual(["b", "a"]); // sorted score desc: b=3, a=2
     expect(result[0].body).toContain("[keyword-score: 3] beta(x3+1)");
     expect(result[1].body).toContain("[keyword-score: 2] alpha(+2)");
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("[keyword-score] scored 3 items, 2 passed"));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("transforms: keyword-score scored 3 items, 2 passed"));
   });
 
   test("keyword-score supports regex entries (global count) and falls back on bad regex", async () => {
@@ -324,7 +324,7 @@ describe("keyword-score and time-decay", () => {
     });
     const result = await runPipeline(items, steps, ctx);
     expect(result.map(r => r.id)).toEqual(["new-high-rec", "old-low"]);
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("[time-decay] ranked 2 items"));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("transforms: time-decay ranked 2 items"));
   });
 
   test("time-decay handles invalid half_life (warns, defaults), linear decay, min_score filter and annotate", async () => {
@@ -346,7 +346,7 @@ describe("keyword-score and time-decay", () => {
     expect(result.length).toBe(1); // old filtered by min_score (low recency + low eng -> final <0.5)
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("transforms: invalid half_life"));
     expect(result[0].body).toContain("[hot-score:");
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("[time-decay] filtered out"));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("transforms: time-decay filtered out"));
   });
 });
 
@@ -372,7 +372,7 @@ describe("transforms - cluster", () => {
     // clustered githubs , annotated with GitHub from domain majority (exercises topDomain + 0.6 threshold + domainLabels)
     expect(result[0].body).toMatch(/^\[GitHub\] /);
     expect(result[1].body).toMatch(/^\[GitHub\] /);
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('[cluster] strategy=auto, 1 cluster(s): "GitHub" (2 items), 0 unclustered'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('transforms: cluster strategy=auto, 1 cluster(s): "GitHub" (2 items), 0 unclustered'));
   });
 
   test("cluster uses shared keywords for label when no dominant domain", async () => {
@@ -385,7 +385,7 @@ describe("transforms - cluster", () => {
     expect(result.length).toBe(2);
     // diff domains (no 0.6 majority), keywords "react" wins -> label starts with [React...
     expect(result[0].body).toMatch(/^\[React/);
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('[cluster] strategy=keywords'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('transforms: cluster strategy=keywords'));
   });
 
   test("cluster forms groups on keyword overlap even with mixed domains and same source", async () => {

@@ -147,7 +147,7 @@ function filterByMinScore<T extends { score?: number; finalScore?: number }>(
   const filtered = scored.filter((s) => getScore(s) >= minScore);
   if (filtered.length < before) {
     console.log(
-      `[${label}] filtered out ${before - filtered.length} item(s) below min_score=${minScore}`
+      `transforms: ${label} filtered out ${before - filtered.length} item(s) below min_score=${minScore}`
     );
   }
   return filtered;
@@ -344,7 +344,7 @@ function dedupeGroupedByKey(
 }
 
 function logDedupeRemoved(label: string, removed: string[], extra = ""): void {
-  console.log(`[dedupe:${label}] removed ${removed.length} duplicate(s)${extra}:`);
+  console.log(`transforms: dedupe:${label} removed ${removed.length} duplicate(s)${extra}:`);
   for (const r of removed.slice(0, 10)) console.log(`  - ${r}`);
   if (removed.length > 10) console.log(`  ... and ${removed.length - 10} more`);
 }
@@ -552,7 +552,7 @@ function applyKeywordScore(
   });
 
   console.log(
-    `[keyword-score] scored ${items.length} items, ${result.length} passed` +
+    `transforms: keyword-score scored ${items.length} items, ${result.length} passed` +
       (result.length > 0
         ? ` (top score: ${filtered[0]?.score}, bottom: ${filtered[filtered.length - 1]?.score})`
         : "")
@@ -617,7 +617,7 @@ function applyTimeDecay(
   });
 
   console.log(
-    `[time-decay] ranked ${items.length} items (decay=${decayType}, half_life=${halfLifeStr}, weights=${engagementWeight}/${recencyWeight})` +
+    `transforms: time-decay ranked ${items.length} items (decay=${decayType}, half_life=${halfLifeStr}, weights=${engagementWeight}/${recencyWeight})` +
       (result.length > 0
         ? ` top=${filtered[0]?.finalScore.toFixed(3)}, bottom=${filtered[filtered.length - 1]?.finalScore.toFixed(3)}`
         : "")
@@ -924,7 +924,7 @@ const transforms: Record<string, TransformFn> = {
       .map((c) => `"${c.label}" (${c.indices.length} items)`)
       .join(", ");
     console.log(
-      `[cluster] strategy=${strategy}, ${clusters.length} cluster(s): ${clusterSummary || "none"}, ${unclustered.length} unclustered`
+      `transforms: cluster strategy=${strategy}, ${clusters.length} cluster(s): ${clusterSummary || "none"}, ${unclustered.length} unclustered`
     );
 
     return result;
