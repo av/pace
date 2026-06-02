@@ -124,26 +124,39 @@ describe("cli serve", () => {
     const env = { ...process.env, PACE_DB_PATH: dbPath };
     try { require("node:fs").unlinkSync(dbPath); } catch {}
     try { require("node:fs").unlinkSync(logPath); } catch {}
+    let serverLog = "";
     const proc: ChildProcess = spawn(process.execPath, ["src/cli.ts", "--port", String(port), "--preset", "tech-news", "serve"], {
       stdio: ["ignore", "pipe", "pipe"],
       cwd: process.cwd(),
       env,
     });
-    await new Promise<void>((resolve) => {
-      let buf = "";
-      const timer = setTimeout(() => resolve(), 2800);
-      const onData = (d: Buffer) => {
-        buf += d.toString();
-        if (buf.includes("listening on")) {
-          clearTimeout(timer);
-          proc.stdout?.off("data", onData);
-          resolve();
-        }
-      };
-      proc.stdout?.on("data", onData);
-      proc.stderr?.on("data", (d: Buffer) => { buf += d.toString(); });
-    });
+    const appendLog = (d: Buffer) => { serverLog += d.toString(); };
+    proc.stdout?.on("data", appendLog);
+    proc.stderr?.on("data", appendLog);
     const base = `http://localhost:${port}`;
+    async function waitForServerReady(deadlineMs: number): Promise<void> {
+      const start = Date.now();
+      while (Date.now() - start < deadlineMs) {
+        if (proc.exitCode !== null) {
+          throw new Error(
+            `server exited with code ${proc.exitCode} before ready:\n${serverLog}`,
+          );
+        }
+        try {
+          const signal =
+            typeof AbortSignal.timeout === "function"
+              ? AbortSignal.timeout(800)
+              : undefined;
+          const r = await fetch(`${base}/health`, { signal });
+          if (r.status === 200) return;
+        } catch {
+          // not listening yet
+        }
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      throw new Error(`server not ready after ${deadlineMs}ms:\n${serverLog}`);
+    }
+    await waitForServerReady(12_000);
     function requestSignal(): AbortSignal | undefined {
       if (typeof AbortSignal.timeout === "function") {
         return AbortSignal.timeout(2500);
