@@ -1,18 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
+import { beforeEach, describe, expect, it } from "bun:test";
 import adapter from "./adapters/youtube";
-import type { AdapterConfig } from "./adapters/types";
+import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
-const originalFetch = globalThis.fetch;
-
-const defaultCfg: AdapterConfig = { type: "youtube" };
-
-function youtubeCfg(params: Record<string, unknown> = {}): AdapterConfig {
-  return { ...defaultCfg, params };
-}
+const mocks = useFetchMockSuite();
+const youtubeCfg = (params: Record<string, unknown> = {}) => adapterCfg("youtube", params);
 
 describe("youtube", () => {
-  let fetchMock: ReturnType<typeof mock>;
-
   const channelXml = `<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns:media="http://search.yahoo.com/mrss/">
   <title>Channel One</title>
@@ -52,7 +45,7 @@ describe("youtube", () => {
 </feed>`;
 
   beforeEach(() => {
-    fetchMock = mock(async (url: string | URL) => {
+    mocks.fetchMock.mockImplementation(async (url: string | URL) => {
       const urlStr = String(url);
       if (urlStr.includes("channel_id=CH1")) {
         return new Response(channelXml, {
@@ -71,11 +64,6 @@ describe("youtube", () => {
       }
       return new Response("not found", { status: 404 });
     });
-    globalThis.fetch = fetchMock as typeof fetch;
-  });
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
   });
 
   it("returns empty when no channels or playlists configured", async () => {
@@ -119,7 +107,7 @@ describe("youtube", () => {
     <published>2024-03-01T00:00:00Z</published>
   </entry>
 </feed>`;
-    fetchMock.mockImplementation(async (url: string | URL) => {
+    mocks.fetchMock.mockImplementation(async (url: string | URL) => {
       const urlStr = String(url);
       if (urlStr.includes("channel_id=CH1")) {
         return new Response(channelXml, { status: 200 });
@@ -150,11 +138,11 @@ describe("youtube", () => {
   });
 
   it("throws on network error with adapter prefix", async () => {
-    globalThis.fetch = mock(async () => {
+    mocks.fetchMock.mockImplementation(async () => {
       throw new Error("network boom for youtube test");
-    }) as typeof fetch;
+    });
     await expect(
       adapter.fetch(youtubeCfg({ channels: ["UCtestchannel"] })),
-    ).rejects.toThrow(/youtube: error fetching.*network boom for youtube test/);
+    ).rejects.toThrow(/youtube:.*error fetching.*network boom for youtube test/);
   });
 });
