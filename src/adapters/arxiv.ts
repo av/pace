@@ -38,6 +38,19 @@ interface ArxivEntry {
   link?: ArxivLink | ArxivLink[];
 }
 
+/** Parsed Atom feed root from fast-xml-parser (attributeNamePrefix "@_"). */
+interface ArxivAtomFeedParsed {
+  feed?: {
+    entry?: ArxivEntry | ArxivEntry[];
+  };
+}
+
+function extractEntries(parsed: ArxivAtomFeedParsed): ArxivEntry[] {
+  const entries = parsed.feed?.entry;
+  if (!entries) return [];
+  return Array.isArray(entries) ? entries : [entries];
+}
+
 function extractAuthors(author: ArxivEntry["author"]): string {
   if (!author) return "";
   const authors = Array.isArray(author) ? author : [author];
@@ -119,11 +132,8 @@ async function fetchArxivQuery(
   const url = `${ARXIV_API}?search_query=${encodeURIComponent(queryStr)}&sortBy=submittedDate&sortOrder=descending&max_results=${limit}`;
 
   const xml = await fetchText("arxiv", url, `query "${queryStr}"`, { timeoutMs: 30_000 });
-  const parsed = parser.parse(xml);
-
-  const entries = parsed?.feed?.entry;
-  if (!entries) return [];
-  return Array.isArray(entries) ? entries : [entries];
+  const parsed = parser.parse(xml) as ArxivAtomFeedParsed;
+  return extractEntries(parsed);
 }
 
 function buildBody(entry: ArxivEntry): string {
