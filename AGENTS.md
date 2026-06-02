@@ -13,7 +13,7 @@ This project uses [facts](https://github.com/av/facts) for specification and doc
 
 Step 4 only works if step 2 happened. If you skipped step 2, go back now — you cannot verify work that has no fact.
 
-**Manual facts (`?` in check output):** these have no command, so you verify them by reading the relevant code. For each `?` fact: read what it claims, check the code, report PASS or FAIL with a one-line reason. Reporting "N manual" without verifying each one is not acceptable.
+**Manual facts (`?` in check output):** these have no command, so you verify them by reading the relevant code. For each `?` fact: read what it claims, check the code, report PASS or FAIL with a one-line reason (see the project's established 'name: ' + errorMessage(err) prefix convention from adapters/types or cli/config rather than ad-hoc). Reporting "N manual" without verifying each one is not acceptable.
 
 **Lifecycle:** `@draft` → `@spec` → `@implemented`
 
