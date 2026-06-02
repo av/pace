@@ -22,15 +22,20 @@ export interface Adapter {
   name: string;
   /**
    * Fetch content items for the given config.
-   * MUST throw Error (not swallow with console.warn + return []) on:
-   * - network failures (dns, timeout, connection)
-   * - non-2xx HTTP responses for required fetches
-   * - parse failures (bad xml/json)
-   * - auth failures (401/403 from tokens)
-   * Error message MUST start with `${name}: ` prefix (e.g. "rss: error fetching ...")
-   * to allow easy identification and lastError propagation in scheduler.
-   * Return [] ONLY for valid "no sources configured" cases (not on fetch errors).
-   * Use the exported errorMessage() helper for cause strings.
+   *
+   * Throw (`Error`, `${name}: …` prefix) when a required fetch fails so the
+   * scheduler can record `lastError`: network/timeout, non-2xx HTTP, bad
+   * XML/JSON on the primary response, and auth errors on token-backed APIs.
+   * Never downgrade these to `console.warn` + `[]`.
+   *
+   * Return `[]` without throwing when there is nothing to return: empty source
+   * lists in `params`, or a successful primary response with zero usable entries
+   * (e.g. empty Atom `<entry>`). Use `console.warn` when empty results likely
+   * mean misconfiguration (missing subreddits, tags, repos, etc.).
+   *
+   * Warn and continue only for optional secondary fetches (per-item enrichment,
+   * account lookup): `console.warn` with `errorMessage`, skip that item, return
+   * the rest.
    */
   fetch(config: AdapterConfig): Promise<ContentItem[]>;
 }
