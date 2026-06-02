@@ -69,6 +69,8 @@ describe("youtube", () => {
   it("returns empty when no channels or playlists configured", async () => {
     const items = await adapter.fetch(youtubeCfg());
     expect(items).toEqual([]);
+    expect(mocks.fetchMock).not.toHaveBeenCalled();
+    expect(mocks.warnSpy).toHaveBeenCalledWith("youtube: no channels or playlists configured");
   });
 
   it("fetches from channel and maps items with correct title/source/url/body", async () => {

@@ -13,6 +13,13 @@ describe("github-releases", () => {
     expect(typeof githubReleasesAdapter.fetch).toBe("function");
   });
 
+  test("returns [] and no fetch when no repos configured", async () => {
+    const items = await githubReleasesAdapter.fetch(githubReleasesCfg({ repos: [] }));
+    expect(items).toEqual([]);
+    expect(mocks.fetchMock).not.toHaveBeenCalled();
+    expect(mocks.warnSpy).toHaveBeenCalledWith("github-releases: no repos configured");
+  });
+
   test("includes repo tagline in release title from api.github.com/repos", async () => {
     mocks.fetchMock.mockImplementation(async (url: string) => {
       const u = String(url);

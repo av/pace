@@ -48,7 +48,10 @@ const adapter: Adapter = {
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
     const repos = (config.params?.repos as string[]) ?? [];
     const token = config.params?.token as string | undefined;
-    if (repos.length === 0) return [];
+    if (repos.length === 0) {
+      console.warn("github-releases: no repos configured");
+      return [];
+    }
 
     const results = await Promise.all(
       repos.map((repo) => fetchRepoReleases(repo, token)),

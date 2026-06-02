@@ -304,7 +304,10 @@ const adapter: Adapter = {
     const feeds = (config.params?.feeds as string[]) ?? [];
     const limit = Math.min((config.params?.limit as number) ?? 10, 50);
 
-    if (feeds.length === 0) return [];
+    if (feeds.length === 0) {
+      console.warn("podcast: no feeds configured");
+      return [];
+    }
 
     const results = await Promise.all(
       feeds.map((url) => fetchPodcastFeed(url, limit)),

@@ -54,6 +54,7 @@ describe("podcast", () => {
     const items = await podcastAdapter.fetch(podcastCfg());
     expect(items).toEqual([]);
     expect(mocks.fetchMock).not.toHaveBeenCalled();
+    expect(mocks.warnSpy).toHaveBeenCalledWith("podcast: no feeds configured");
   });
 
   test("fetches single feed and maps episodes with correct id/source/timestamp/body (duration, show, ep, audio, desc)", async () => {

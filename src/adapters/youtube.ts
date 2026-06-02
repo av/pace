@@ -102,7 +102,10 @@ const adapter: Adapter = {
     const playlists = (config.params?.playlists as string[]) ?? [];
     const limit = Math.min((config.params?.limit as number) ?? 15, 50);
 
-    if (channels.length === 0 && playlists.length === 0) return [];
+    if (channels.length === 0 && playlists.length === 0) {
+      console.warn("youtube: no channels or playlists configured");
+      return [];
+    }
 
     const results = await Promise.all([
       ...channels.map((ch) => fetchYoutubeFeed("channel", ch, limit)),
