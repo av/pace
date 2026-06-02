@@ -54,8 +54,17 @@ export function formatPoints(score: number): string {
   return `${score} points`;
 }
 
+/** Stack Exchange and other APIs that expose vote count as "Score: N". */
+export function formatScore(score: number): string {
+  return `Score: ${score}`;
+}
+
 export function formatComments(count: number): string {
   return `${count} comments`;
+}
+
+export function formatReactions(count: number): string {
+  return `${count} reactions`;
 }
 
 export function formatUpvotes(count: number): string {

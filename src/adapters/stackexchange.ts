@@ -1,3 +1,4 @@
+import { formatBy, formatScore, joinBodyParts } from "./engagement";
 import { parseUnixEpochSeconds } from "./dates";
 import { fetchJson } from "./fetch";
 import { dedupeByKey, fetchAndConcat, sliceToLimit } from "./merge";
@@ -43,26 +44,16 @@ function formatViewCount(count: number): string {
 }
 
 function buildBody(question: SEQuestion): string {
-  const parts: string[] = [];
-
-  parts.push(`Score: ${question.score}`);
-
   const answerStr = question.accepted_answer_id
     ? `${question.answer_count} answers (accepted)`
     : `${question.answer_count} answers`;
-  parts.push(answerStr);
-
-  parts.push(`${formatViewCount(question.view_count)} views`);
-
-  if (question.tags.length > 0) {
-    parts.push(`tags: ${question.tags.join(", ")}`);
-  }
-
-  if (question.owner?.display_name) {
-    parts.push(`by ${question.owner.display_name}`);
-  }
-
-  return parts.join(" | ");
+  return joinBodyParts(
+    formatScore(question.score),
+    answerStr,
+    `${formatViewCount(question.view_count)} views`,
+    question.tags.length > 0 ? `tags: ${question.tags.join(", ")}` : undefined,
+    question.owner?.display_name ? formatBy(question.owner.display_name) : undefined,
+  );
 }
 
 async function fetchQuestions(

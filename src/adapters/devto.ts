@@ -1,3 +1,9 @@
+import {
+  formatBy,
+  formatComments,
+  formatReactions,
+  joinBodyParts,
+} from "./engagement";
 import { fetchJson } from "./fetch";
 import { dedupeByKey, fetchAndConcat, sliceToLimit } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -22,22 +28,14 @@ interface DevToArticle {
 }
 
 function buildBody(article: DevToArticle): string {
-  const parts: string[] = [];
-
-  parts.push(`${article.positive_reactions_count} reactions`);
-  parts.push(`${article.comments_count} comments`);
-  parts.push(`${article.reading_time_minutes} min read`);
-  parts.push(`by @${article.user.username}`);
-
-  if (article.tag_list.length > 0) {
-    parts.push(`tags: ${article.tag_list.join(", ")}`);
-  }
-
-  if (article.cover_image) {
-    parts.push(`cover: ${article.cover_image}`);
-  }
-
-  return parts.join(" | ");
+  return joinBodyParts(
+    formatReactions(article.positive_reactions_count),
+    formatComments(article.comments_count),
+    `${article.reading_time_minutes} min read`,
+    formatBy(`@${article.user.username}`),
+    article.tag_list.length > 0 ? `tags: ${article.tag_list.join(", ")}` : undefined,
+    article.cover_image ? `cover: ${article.cover_image}` : undefined,
+  );
 }
 
 async function fetchDevToArticles(
