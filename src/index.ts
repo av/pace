@@ -7,7 +7,39 @@ import { discoverAdapters } from "./adapters/index";
 import { renderDashboard, type PanelData } from "./layout";
 import { createModel } from "./llm";
 import { startScheduler, stopScheduler, refreshSources, type SourcePanelMap } from "./scheduler";
-import { parsePort, getAdapterName } from "./utils";
+import { parsePort, getAdapterName, errorMessage } from "./utils";
+
+const SRC_DIR = import.meta.dir;
+
+type BundledStatic = {
+  route: `/${string}`;
+  file: string;
+  contentType: string;
+};
+
+const BUNDLED_STATIC: BundledStatic[] = [
+  { route: "/styles.css", file: "styles.css", contentType: "text/css" },
+];
+
+function readBundledText(file: string): string {
+  try {
+    return readFileSync(join(SRC_DIR, file), "utf-8");
+  } catch (err) {
+    throw new Error(`index: failed to read ${file}: ${errorMessage(err)}`);
+  }
+}
+
+function registerBundledStatic(app: Hono, assets: BundledStatic[]): void {
+  for (const { route, file, contentType } of assets) {
+    const body = readBundledText(file);
+    app.get(route, (c) =>
+      c.body(body, 200, {
+        "Content-Type": contentType,
+        "Cache-Control": "public, max-age=3600",
+      }),
+    );
+  }
+}
 
 const app = new Hono();
 
@@ -65,10 +97,7 @@ async function start() {
   const panelMap: SourcePanelMap = { sourceToPanels, sourceToReadKey };
   startScheduler(config, adapters, panelMap, llmModel);
 
-  const cssContent = readFileSync(join(import.meta.dir, "styles.css"), "utf-8");
-  app.get("/styles.css", (c) => {
-    return c.body(cssContent, 200, { "Content-Type": "text/css", "Cache-Control": "public, max-age=3600" });
-  });
+  registerBundledStatic(app, BUNDLED_STATIC);
 
   app.get("/health", (c) => c.json({ status: "ok" }));
 

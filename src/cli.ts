@@ -110,7 +110,7 @@ try {
   await import("./index");
 } catch (err) {
   const message = errorMessage(err);
-  if (message.startsWith("config:") || message.startsWith("scheduler:")) {
+  if (message.startsWith("config:") || message.startsWith("scheduler:") || message.startsWith("index:")) {
     cliDie(message);
   }
   throw err;
