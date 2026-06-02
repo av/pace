@@ -266,11 +266,9 @@ transforms:
 
   - type: llm-summarize
 
-  # Keep items matching LLM-evaluated criteria
   - type: llm-filter
     criteria: "relevant to AI research"
 
-  # Reorder by LLM-scored relevance to user interests
   - type: llm-rank
 
   # Group and merge related items via LLM
