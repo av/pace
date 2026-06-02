@@ -104,9 +104,8 @@ async function fetchRedditListing(
   }
 
   if (!res.ok) {
-    const detail = errorMessage({ message: String(res.status) });
     throw new Error(
-      `reddit: error fetching ${path}/${sort}: reddit: failed to fetch ${path}/${sort}: ${detail}`,
+      `reddit: failed to fetch ${path}/${sort}: ${errorMessage({ message: String(res.status) })}`,
     );
   }
 

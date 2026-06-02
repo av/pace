@@ -184,11 +184,11 @@ describe("reddit adapter", () => {
     expect(items[1].body).not.toContain("discuss:");
   });
 
-  test("throws with 'reddit: error fetching' wrapping the failed message on HTTP !ok", async () => {
+  test("throws reddit: failed to fetch on HTTP !ok (no double-wrap)", async () => {
     fetchMock.mockImplementation(async () => makeErrorResponse(403));
 
     await expect(redditAdapter.fetch(redditCfg({ subreddits: ["private"] }))).rejects.toThrow(
-      /reddit: error fetching .*failed to fetch \/r\/private\/hot: 403/,
+      /reddit: failed to fetch \/r\/private\/hot: 403/,
     );
   });
 
@@ -206,7 +206,7 @@ describe("reddit adapter", () => {
       fetchMock.mockResolvedValue(makeErrorResponse(404));
 
       await expect(redditAdapter.fetch(redditCfg({ subreddits: ["test"] }))).rejects.toThrow(
-        /reddit: error fetching/,
+        /reddit: failed to fetch/,
       );
 
       expect(emSpy).toHaveBeenCalledWith({ message: "404" });
