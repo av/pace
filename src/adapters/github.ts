@@ -212,7 +212,11 @@ async function fetchTrending(
 const adapter: Adapter = {
   name: "github",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const mode = (config.params?.mode as string) ?? "releases";
+    const modeRaw = config.params?.mode;
+    const mode =
+      (typeof modeRaw === "string"
+        ? normalizeOptionalString(modeRaw)
+        : undefined) ?? "releases";
     const limit = Math.min((config.params?.limit as number) ?? 10, 50);
 
     if (mode === "trending") {

@@ -101,6 +101,28 @@ describe("github", () => {
     );
   });
 
+  test("blank-only mode uses default releases", async () => {
+    const items = await adapter.fetch(githubCfg({ mode: "   " }));
+
+    expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith("github: no repos configured");
+    expect(mocks.fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("trims whitespace from configured mode", async () => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).includes("trending")) {
+        return makeTextResponse(trendingHtml);
+      }
+      throw new Error("unexpected url in test");
+    });
+
+    const items = await adapter.fetch(githubCfg({ mode: "  trending  ", limit: 1 }));
+
+    expect(items.length).toBe(1);
+    expect(String(mocks.fetchMock.mock.calls[0][0])).toContain("/trending?");
+  });
+
   test("warns and returns [] when trending page has no parseable repos", async () => {
     mocks.fetchMock.mockImplementation(async () => makeTextResponse("<html></html>"));
 
