@@ -441,6 +441,7 @@ type LatestTransformConfig = Extract<TransformConfig, { type: "latest" }>;
 type SortTransformConfig = Extract<TransformConfig, { type: "sort" }>;
 type KeywordScoreTransformConfig = Extract<TransformConfig, { type: "keyword-score" }>;
 type TimeDecayTransformConfig = Extract<TransformConfig, { type: "time-decay" }>;
+type LlmSummarizeTransformConfig = Extract<TransformConfig, { type: "llm-summarize" }>;
 type LlmFilterTransformConfig = Extract<TransformConfig, { type: "llm-filter" }>;
 type LlmRankTransformConfig = Extract<TransformConfig, { type: "llm-rank" }>;
 type LlmMergeTransformConfig = Extract<TransformConfig, { type: "llm-merge" }>;
@@ -655,6 +656,23 @@ function withLlmModel<T extends ContentItemRow>(
 ): Promise<T[]> {
   if (!ctx.llmModel) return Promise.resolve(items);
   return work(ctx.llmModel);
+}
+
+async function applyLlmSummarize(
+  model: Model<Api>,
+  items: ContentItemRow[],
+  _config: LlmSummarizeTransformConfig
+): Promise<ContentItemRow[]> {
+  const results: ContentItemRow[] = [];
+  for (const item of items) {
+    if (item.summary) {
+      results.push(item);
+      continue;
+    }
+    const summary = await summarizeItem(model, rowToContentItem(item));
+    results.push({ ...item, summary: summary ?? item.summary });
+  }
+  return results;
 }
 
 async function applyLlmFilter(
@@ -910,19 +928,9 @@ const transforms: Record<string, TransformFn> = {
     return result;
   },
 
-  "llm-summarize": (items, _config, ctx) =>
-    withLlmModel(ctx, items, async (model) => {
-      const results: ContentItemRow[] = [];
-      for (const item of items) {
-        if (item.summary) {
-          results.push(item);
-          continue;
-        }
-        const summary = await summarizeItem(model, rowToContentItem(item));
-        results.push({ ...item, summary: summary ?? item.summary });
-      }
-      return results;
-    }),
+  "llm-summarize": (items, config, ctx) =>
+    withLlmModel(ctx, items, (model) =>
+      applyLlmSummarize(model, items, config as LlmSummarizeTransformConfig)),
 
   "llm-filter": (items, config, ctx) =>
     withLlmModel(ctx, items, (model) =>
