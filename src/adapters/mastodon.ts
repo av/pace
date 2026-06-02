@@ -58,6 +58,33 @@ interface MastodonAccount {
 
 type Mode = "public" | "hashtag" | "account";
 
+function publicTimelineContext(instance: string): string {
+  return `public timeline from ${instance}`;
+}
+
+function hashtagTimelineContext(instance: string, hashtag: string): string {
+  const tag = hashtag.replace(/^#/, "");
+  return `hashtag #${tag} from ${instance}`;
+}
+
+function accountStatusesContext(instance: string, accountId: string): string {
+  return `account ${accountId} statuses from ${instance}`;
+}
+
+/** Primary fetch context for outer-catch fallback (matches fetchJson contexts). */
+function mastodonPrimaryFetchContext(
+  mode: Mode,
+  instance: string,
+  hashtags: string[],
+): string {
+  if (mode === "public") return publicTimelineContext(instance);
+  if (mode === "hashtag") {
+    const tag = hashtags[0] ?? "";
+    return tag ? hashtagTimelineContext(instance, tag) : `hashtag timeline from ${instance}`;
+  }
+  return `account statuses from ${instance}`;
+}
+
 function buildBody(status: MastodonStatus, instance: string): string {
   return joinBodyParts(
     formatBoosts(status.reblogs_count),
@@ -122,7 +149,7 @@ async function fetchPublicTimeline(
 ): Promise<MastodonStatus[]> {
   let url = `https://${instance}/api/v1/timelines/public?limit=${limit}`;
   if (onlyMedia) url += "&only_media=true";
-  return fetchJson<MastodonStatus[]>("mastodon", url, `public timeline from ${instance}`);
+  return fetchJson<MastodonStatus[]>("mastodon", url, publicTimelineContext(instance));
 }
 
 async function fetchHashtagTimeline(
@@ -134,7 +161,7 @@ async function fetchHashtagTimeline(
   const tag = hashtag.replace(/^#/, ""); // strip leading # if present
   let url = `https://${instance}/api/v1/timelines/tag/${encodeURIComponent(tag)}?limit=${limit}`;
   if (onlyMedia) url += "&only_media=true";
-  return fetchJson<MastodonStatus[]>("mastodon", url, `hashtag #${tag} from ${instance}`);
+  return fetchJson<MastodonStatus[]>("mastodon", url, hashtagTimelineContext(instance, tag));
 }
 
 async function fetchAccountStatuses(
@@ -148,7 +175,7 @@ async function fetchAccountStatuses(
   return fetchJson<MastodonStatus[]>(
     "mastodon",
     url,
-    `account ${accountId} statuses from ${instance}`,
+    accountStatusesContext(instance, accountId),
   );
 }
 
@@ -234,7 +261,8 @@ const adapter: Adapter = {
       if (err instanceof Error && err.message.startsWith("mastodon:")) {
         throw err;
       }
-      throw new Error(`mastodon: error fetching from ${instance}: ${errorMessage(err)}`);
+      const context = mastodonPrimaryFetchContext(mode, instance, hashtags);
+      throw new Error(`mastodon: error fetching ${context}: ${errorMessage(err)}`);
     }
   },
 };
