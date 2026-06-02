@@ -15,10 +15,7 @@ export function errorMessage(err: unknown): string {
 
 export function parsePort(input: string | undefined, fallback = 7453): number {
   const n = parseInt(input ?? String(fallback), 10);
-  if (isNaN(n) || n < 1 || n > 65535) {
-    return fallback;
-  }
-  return n;
+  return isValidPort(n) ? n : fallback;
 }
 
 export function isValidPort(n: number): boolean {
