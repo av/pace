@@ -110,7 +110,7 @@ function parseTrendingHtml(html: string): TrendingRepo[] {
 
     const descMatch = article.match(/<p[^>]*class="[^"]*col-9[^"]*"[^>]*>([\s\S]*?)<\/p>/);
     const description = descMatch
-      ? descMatch[1].replace(/<[^>]+>/g, "").trim()
+      ? stripHtml(descMatch[1], { whitespace: "collapse-all" })
       : "";
 
     const langMatch = article.match(/itemprop="programmingLanguage"[^>]*>([\s\S]*?)<\/span>/);

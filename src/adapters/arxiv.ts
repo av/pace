@@ -10,6 +10,7 @@ import {
 import { parseFeedDate } from "./dates";
 import { formatCategories, joinBodyParts } from "./engagement";
 import { fetchText } from "./fetch";
+import { stripHtml } from "./html";
 import { sliceToLimit } from "../utils";
 import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -91,11 +92,6 @@ function extractArxivId(idUrl: string | undefined): string {
   return match ? match[1] : idUrl;
 }
 
-function cleanText(text: string | undefined): string {
-  if (!text) return "";
-  return text.replace(/\s+/g, " ").trim();
-}
-
 function truncate(text: string, maxLen: number): string {
   if (text.length <= maxLen) return text;
   return text.slice(0, maxLen).trimEnd() + "...";
@@ -120,7 +116,10 @@ async function fetchArxivQuery(
 function buildBody(entry: ArxivEntry): string {
   const authors = extractAuthors(entry.author);
   const categories = extractCategories(entry);
-  const abstract = cleanText(extractFeedItemBody(entry));
+  const rawAbstract = extractFeedItemBody(entry);
+  const abstract = rawAbstract
+    ? stripHtml(rawAbstract, { whitespace: "collapse-all" })
+    : "";
   const pdfLink = extractPdfLink(entry.link);
   const arxivId = extractArxivId(entry.id);
   const pdfUrl = pdfLink || (arxivId ? `https://arxiv.org/pdf/${arxivId}` : "");
@@ -135,7 +134,9 @@ function buildBody(entry: ArxivEntry): string {
 
 function entryToItem(entry: ArxivEntry, sourceLabel: string): ContentItem {
   const arxivId = extractArxivId(entry.id);
-  const title = cleanText(extractFeedEntryTitle(entry.title));
+  const title = stripHtml(extractFeedEntryTitle(entry.title), {
+    whitespace: "collapse-all",
+  });
   const url = entry.id ?? `https://arxiv.org/abs/${arxivId}`;
   const timestamp = parseFeedDate(entry.published ?? entry.updated ?? "");
 
