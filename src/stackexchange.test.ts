@@ -73,6 +73,40 @@ describe("stackexchange", () => {
     expect(calledUrl).toContain("site=stackoverflow");
   });
 
+  test("blank-only sort uses default hot", async () => {
+    const q = makeQuestion();
+    mocks.fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({ items: [q], has_more: false, quota_remaining: 100 }),
+        { status: 200 },
+      ),
+    );
+
+    const items = await stackexchangeAdapter.fetch(seCfg({ sort: "   " }));
+
+    expect(items).toHaveLength(1);
+    expect(items[0].source).toBe("stackoverflow:hot");
+    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    expect(calledUrl).toContain("sort=hot");
+  });
+
+  test("trims whitespace from configured sort", async () => {
+    const q = makeQuestion({ question_id: 77 });
+    mocks.fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({ items: [q], has_more: false, quota_remaining: 100 }),
+        { status: 200 },
+      ),
+    );
+
+    const items = await stackexchangeAdapter.fetch(seCfg({ sort: "  votes  " }));
+
+    expect(items).toHaveLength(1);
+    expect(items[0].source).toBe("stackoverflow:votes");
+    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    expect(calledUrl).toContain("sort=votes");
+  });
+
   test("trims whitespace from configured site", async () => {
     const q = makeQuestion({ question_id: 88 });
     mocks.fetchMock.mockResolvedValue(

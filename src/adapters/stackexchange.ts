@@ -109,7 +109,11 @@ const adapter: Adapter = {
       normalizeOptionalString(config.params?.site as string | undefined) ??
       "stackoverflow";
     const tags = normalizeStringList((config.params?.tags as string[]) ?? []);
-    const sort = (config.params?.sort as string) ?? "hot";
+    const sortRaw = config.params?.sort;
+    const sort =
+      (typeof sortRaw === "string"
+        ? normalizeOptionalString(sortRaw)
+        : undefined) ?? "hot";
     const limit = Math.min((config.params?.limit as number) ?? 20, 100);
     const minScore = (config.params?.min_score as number) ?? 0;
 
