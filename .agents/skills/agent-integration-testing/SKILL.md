@@ -33,21 +33,11 @@ This skill guides the creation and autonomous execution of verifiable integratio
 5. **Fix Failures (Optional)**
    - If the user explicitly specifies that failures should be fixed, spawn another subagent (e.g., the `SWE` or `BUILDER` agent) to investigate and fix any noted failures.
 
-## Quick Reference
+## Guidance References
 
-| Action | Pattern / Command |
-|--------|-------------------|
-| Test File Location | `./tests/<name>.md` (default: `integration.md`) |
-| Prerequisites | Must be documented at the top of the test file |
-| Test Format | Plain English, Repro Steps, Verifiable Expectations |
-| Execution | Spawn one subagent per test or test suite |
-| Fixing | Spawn SWE/BUILDER subagent if requested by user |
+See .agents/skills/timeboxed-iterating/SKILL.md for the canonical "Quick Reference" table and .agents/skills/timeboxed-iterating/SKILL.md for the canonical "Red Flags" guidance. The general patterns apply to this skill too.
 
-## Red Flags - STOP and Start Over
-
-- **Unverifiable Tests:** "Verify the UI looks nice" or "Check if the animation is smooth." (Agents cannot verify visual aesthetics without specific tools). **Fix:** Rewrite to check DOM elements, network responses, or file states.
-- **Missing Prerequisites:** Subagents failing because the server wasn't started. **Fix:** Ensure the prerequisite section explicitly defines the commands to start dependencies.
-- **Executing Tests Manually:** Running tests in the main conversation thread instead of spawning subagents. **Fix:** Dispatch parallel subagents for isolated execution.
+The agent-integration-testing-specific details remain in the Core Process (e.g. test file naming, prerequisites at top, verifiable expectations, subagent dispatch per test, and red flags for unverifiable tests/missing setup/manual runs).
 
 ## Example Test Specification (`./tests/auth-integration.md`)
 
