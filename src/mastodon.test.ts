@@ -163,6 +163,23 @@ describe("mastodon", () => {
     expect(items[0].title).toBe("Spoiler & €");
   });
 
+  test("treats blank-only instance as default mastodon.social", async () => {
+    const items = await adapter.fetch(mastodonCfg({ instance: "   " }));
+
+    expect(items.length).toBeGreaterThan(0);
+    expect(items[0].source).toBe("mastodon:mastodon.social");
+    expect(fetchUrls().some((u) => u.includes("mastodon.social"))).toBe(true);
+  });
+
+  test("trims whitespace from configured instance", async () => {
+    const items = await adapter.fetch(mastodonCfg({ instance: "  ex.com  " }));
+
+    expect(items.length).toBeGreaterThan(0);
+    expect(items[0].source).toBe("mastodon:ex.com");
+    expect(fetchUrls().some((u) => u.includes("ex.com"))).toBe(true);
+    expect(fetchUrls().every((u) => !u.includes("ex.com%20"))).toBe(true);
+  });
+
   test("fetches from public timeline (default) and maps items", async () => {
     const items = await adapter.fetch(mastodonCfg({ instance: "ex.com" }));
     expect(items.length).toBeGreaterThan(0);

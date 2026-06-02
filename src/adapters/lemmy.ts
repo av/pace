@@ -8,7 +8,7 @@ import {
 } from "./engagement";
 import { fetchJson } from "./fetch";
 import { decodeHtmlEntities } from "./html";
-import { normalizeStringList, sliceToLimit } from "../utils";
+import { normalizeOptionalString, normalizeStringList, sliceToLimit } from "../utils";
 import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
@@ -97,7 +97,9 @@ async function fetchLemmyPosts(
 const adapter: Adapter = {
   name: "lemmy",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const instance = (config.params?.instance as string) ?? "lemmy.ml";
+    const instance =
+      normalizeOptionalString(config.params?.instance as string | undefined) ??
+      "lemmy.ml";
     const communities = normalizeStringList(
       (config.params?.communities as string[]) ?? [],
     );

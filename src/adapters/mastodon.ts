@@ -8,7 +8,7 @@ import {
 } from "./engagement";
 import { fetchJson, HN_ITEM_FETCH_TIMEOUT_MS } from "./fetch";
 import { decodeHtmlEntities, stripHtml } from "./html";
-import { normalizeStringList, sliceToLimit } from "../utils";
+import { normalizeOptionalString, normalizeStringList, sliceToLimit } from "../utils";
 import { dedupeByKey, fetchAndConcat, sortByCreatedAtDesc } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
@@ -190,7 +190,9 @@ function parseAccountHandle(handle: string): { username: string; instance: strin
 const adapter: Adapter = {
   name: "mastodon",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const instance = (config.params?.instance as string) ?? "mastodon.social";
+    const instance =
+      normalizeOptionalString(config.params?.instance as string | undefined) ??
+      "mastodon.social";
     const hashtags = normalizeStringList(
       (config.params?.hashtags as string[]) ?? [],
     );

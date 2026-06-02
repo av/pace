@@ -171,6 +171,34 @@ describe("lemmy", () => {
     expect(calledUrl).toContain("lemmy.world");
   });
 
+  test("treats blank-only instance as default lemmy.ml", async () => {
+    const view = makePostView();
+    mocks.fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makePostListResponse([view])), { status: 200 }),
+    );
+
+    const items = await lemmyAdapter.fetch(lemmyCfg({ instance: "   " }));
+
+    expect(items).toHaveLength(1);
+    expect(items[0].id).toBe("lemmy:lemmy.ml:1001");
+    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    expect(calledUrl).toContain("lemmy.ml");
+  });
+
+  test("trims whitespace from configured instance", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makePostListResponse([])), { status: 200 }),
+    );
+
+    await lemmyAdapter.fetch(
+      lemmyCfg({ instance: "  lemmy.world  ", communities: ["test"] }),
+    );
+
+    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    expect(calledUrl).toContain("lemmy.world");
+    expect(calledUrl).not.toContain("lemmy.world%20");
+  });
+
   test("applies sort parameter (case-insensitive)", async () => {
     mocks.fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makePostListResponse([])), { status: 200 }),
