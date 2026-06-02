@@ -114,6 +114,33 @@ describe("github", () => {
     expect(items.length).toBeLessThanOrEqual(2);
   });
 
+  test("releases atom body uses FEED_BODY_STRIP_OPTIONS (tags, links, entities)", async () => {
+    const htmlReleaseXml = `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <entry>
+    <title>v1.0.0</title>
+    <link rel="alternate" type="text/html" href="https://github.com/acme/pkg/releases/tag/v1.0.0"/>
+    <updated>2024-12-01T12:00:00Z</updated>
+    <content type="html">&lt;p&gt;See &lt;a href="https://docs.example.com"&gt;docs&lt;/a&gt; for &#65; details&lt;/p&gt;</content>
+  </entry>
+</feed>`;
+    mocks.fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).includes("releases.atom")) {
+        return makeTextResponse(htmlReleaseXml);
+      }
+      return makeErrorResponse(404);
+    });
+
+    const items = await adapter.fetch(
+      githubCfg({ mode: "releases", repos: ["acme/pkg"], limit: 10 }),
+    );
+
+    expect(items.length).toBe(1);
+    expect(items[0].body).toBe("See docs for A details");
+    expect(items[0].body).not.toContain("<");
+    expect(items[0].body).not.toContain("docs.example.com");
+  });
+
   test("releases without repo meta still return items when api.github.com fails", async () => {
     mocks.fetchMock.mockImplementation(async (url: string) => {
       if (String(url).includes("releases.atom")) {

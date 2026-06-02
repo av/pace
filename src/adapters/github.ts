@@ -64,7 +64,9 @@ async function fetchReleasesFeed(
     const tag = tagMatch ? tagMatch[1] : "";
 
     const rawBody = extractFeedItemBody(entry);
-    const body = rawBody ? stripHtml(rawBody).slice(0, 500) : undefined;
+    const body = rawBody
+      ? stripHtml(rawBody, FEED_BODY_STRIP_OPTIONS).slice(0, 500)
+      : undefined;
 
     const releaseTitle = tag && title !== tag
       ? `${repo}: ${tag} | ${title}`
