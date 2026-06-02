@@ -365,6 +365,26 @@ function validateStringList(value: unknown, path: string): void {
   });
 }
 
+function validateUniqueStringList(
+  value: unknown,
+  path: string,
+  allowed?: Set<string>,
+): asserts value is string[] {
+  validateStringList(value, path);
+  const seen = new Set<string>();
+  for (let index = 0; index < value.length; index++) {
+    const entry = value[index] as string;
+    const entryPath = `${path}[${index}]`;
+    if (seen.has(entry)) {
+      throw new Error(`config: ${entryPath} duplicates source "${entry}"`);
+    }
+    if (allowed && !allowed.has(entry)) {
+      throw new Error(`config: ${entryPath} references unknown source "${entry}"`);
+    }
+    seen.add(entry);
+  }
+}
+
 function validateOptionalStringList(value: unknown, path: string): void {
   if (value !== undefined) {
     validateStringList(value, path);
@@ -571,20 +591,7 @@ function validatePipelineConfig(
     `${path}.${key} is not a valid pipeline field`,
   );
   validateNonEmptyString(pipeline.name, `${path}.name`);
-  validateNonEmptyArray(pipeline.sources, `${path}.sources`);
-
-  const seenSources = new Set<string>();
-  pipeline.sources.forEach((source, sourceIndex) => {
-    const sourcePath = `${path}.sources[${sourceIndex}]`;
-    validateNonEmptyString(source, sourcePath);
-    if (seenSources.has(source)) {
-      throw new Error(`config: ${sourcePath} duplicates source "${source}"`);
-    }
-    if (!sourceNames.has(source)) {
-      throw new Error(`config: ${sourcePath} references unknown source "${source}"`);
-    }
-    seenSources.add(source);
-  });
+  validateUniqueStringList(pipeline.sources, `${path}.sources`, sourceNames);
 
   validateTransforms(pipeline.transforms, `${path}.transforms`);
   validateOptionalPositiveNumber(pipeline.refresh_interval, `${path}.refresh_interval`);

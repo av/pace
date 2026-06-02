@@ -290,6 +290,25 @@ layout:
     expect(() => loadConfig()).toThrow(/config: pipelines\[0\].sources\[0\] must be a non-empty string/);
   });
 
+  test("rejects duplicate pipeline source", () => {
+    const yaml = `
+adapters:
+  - type: rss
+pipelines:
+  - name: pl
+    sources: [rss, rss]
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: pipelines\[0\].sources\[1\] duplicates source "rss"/,
+    );
+  });
+
   test("rejects unknown transform field", () => {
     const yaml = `
 adapters:
