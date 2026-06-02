@@ -242,6 +242,26 @@ layout:
     );
   });
 
+  test("rejects unknown adapter params field", () => {
+    const yaml = `
+adapters:
+  - type: rss
+    params:
+      urls:
+        - https://example.com/feed.xml
+      typo_field: true
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: adapters\[0\].params.typo_field is not a valid rss param/,
+    );
+  });
+
   test("rejects unknown pipeline field", () => {
     const yaml = `
 pipelines:
@@ -744,7 +764,8 @@ layout:
 adapters:
   - type: rss
     params:
-      chained: "pre\${${outerKey}}post"
+      urls:
+        - "pre\${${outerKey}}post"
 layout:
   direction: row
   children:
@@ -753,7 +774,7 @@ layout:
 `;
       setConfig(yaml);
       const cfg = loadConfig();
-      expect(cfg.adapters[0]?.params?.chained).toBe("prexzypost");
+      expect(cfg.adapters[0]?.params?.urls).toEqual(["prexzypost"]);
     } finally {
       if (origOuter === undefined) { delete process.env[outerKey]; } else { process.env[outerKey] = origOuter; }
       if (origInner === undefined) { delete process.env[innerKey]; } else { process.env[innerKey] = origInner; }

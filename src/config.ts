@@ -598,6 +598,37 @@ function validateTopLevelKeys(config: Record<string, unknown>): void {
   );
 }
 
+/** Known adapter types and their allowed `params` keys (from adapter implementations). */
+const ADAPTER_PARAM_KEYS: Readonly<Record<string, readonly string[]>> = {
+  hackernews: ["feed", "stories", "limit", "min_score"],
+  lobsters: ["feed", "limit", "min_score", "tags"],
+  rss: ["urls"],
+  reddit: ["subreddits", "sort", "limit", "min_score", "time"],
+  github: ["mode", "language", "since", "limit", "repos", "token"],
+  "github-releases": ["repos", "token"],
+  devto: ["tags", "username", "limit", "min_reactions", "top"],
+  mastodon: ["instance", "hashtags", "accounts", "limit", "only_media"],
+  youtube: ["channels", "playlists", "limit"],
+  arxiv: ["categories", "query", "limit"],
+  stackexchange: ["site", "tags", "sort", "limit", "min_score"],
+  producthunt: ["limit", "min_upvotes", "enrich"],
+  podcast: ["feeds", "limit"],
+  twitter: ["lists", "searches", "bearer_token"],
+  npm: ["keywords", "scope", "limit", "sort"],
+  lemmy: ["instance", "communities", "sort", "limit", "min_score"],
+  wikipedia: ["modes", "mode", "language", "limit"],
+};
+
+function validateAdapterParams(
+  type: string,
+  params: Record<string, unknown>,
+  path: string,
+): void {
+  const allowed = ADAPTER_PARAM_KEYS[type];
+  if (!allowed) return;
+  validateAllowedKeys(params, allowed, (key) => `${path}.params.${key} is not a valid ${type} param`);
+}
+
 function validateAdapterConfig(adapter: unknown, index: number): asserts adapter is IngestAdapterConfig {
   const path = `adapters[${index}]`;
   if (!isRecord(adapter)) {
@@ -610,6 +641,9 @@ function validateAdapterConfig(adapter: unknown, index: number): asserts adapter
   validateOptionalNonEmptyString(adapter.name, `${path}.name`);
   if (adapter.params !== undefined && !isRecord(adapter.params)) {
     throw new Error(`config: ${path}.params must be an object`);
+  }
+  if (isRecord(adapter.params)) {
+    validateAdapterParams(adapter.type as string, adapter.params, path);
   }
   validateOptionalPositiveNumber(adapter.refresh_interval, `${path}.refresh_interval`);
   if (adapter.transforms !== undefined) {
