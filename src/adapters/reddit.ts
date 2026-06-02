@@ -84,6 +84,10 @@ function getItemUrl(post: RedditPostData): string {
   return post.url;
 }
 
+function normalizeConfiguredSubreddits(subreddits: string[]): string[] {
+  return subreddits.map((sub) => sub.trim()).filter(Boolean);
+}
+
 async function fetchRedditListing(
   path: string,
   sort: SortType,
@@ -103,7 +107,9 @@ async function fetchRedditListing(
 const adapter: Adapter = {
   name: "reddit",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const subreddits = (config.params?.subreddits as string[]) ?? [];
+    const subreddits = normalizeConfiguredSubreddits(
+      (config.params?.subreddits as string[]) ?? [],
+    );
     const sort = (config.params?.sort as string) ?? "hot";
     const limit = Math.min((config.params?.limit as number) ?? 25, 100);
     const minScore = (config.params?.min_score as number) ?? 0;

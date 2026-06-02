@@ -61,6 +61,29 @@ describe("reddit", () => {
     expect(mocks.fetchMock).not.toHaveBeenCalled();
   });
 
+  test("returns [] and warns when subreddits are only blank strings", async () => {
+    const items = await redditAdapter.fetch(
+      redditCfg({ subreddits: ["", "  "] }),
+    );
+    expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith("reddit: no subreddits configured");
+    expect(mocks.fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("trims whitespace from configured subreddit names", async () => {
+    const posts = [makePost("trim1", "Trimmed", false, 10, "programming")];
+    mocks.fetchMock.mockResolvedValue(makeListingResponse(posts));
+
+    const items = await redditAdapter.fetch(
+      redditCfg({ subreddits: ["  programming  ", ""] }),
+    );
+
+    expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
+    const calledUrl = mocks.fetchMock.mock.calls[0][0] as string;
+    expect(calledUrl).toContain("/r/programming/hot.json");
+    expect(items[0].source).toBe("reddit:r/programming");
+  });
+
   test("decodes HTML entities in post titles from API", async () => {
     const posts = [makePost("ent1", "A &amp; B &#8364; C")];
     mocks.fetchMock.mockResolvedValue(makeListingResponse(posts));
