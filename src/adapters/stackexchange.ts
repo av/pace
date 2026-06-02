@@ -80,8 +80,6 @@ async function fetchQuestions(
   });
 
   if (tags.length > 0) {
-    // SE API uses semicolons for "AND" (all tags), commas would mean "OR"
-    // Use semicolons so questions must match ALL specified tags
     params.set("tagged", tags.join(";"));
   }
 
@@ -119,6 +117,9 @@ async function fetchQuestions(
 
 const adapter: Adapter = {
   name: "stackexchange",
+  /**
+   * @param config.params.tags Multiple tags are OR: one API request per tag, merged and deduped by `question_id`.
+   */
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
     const site = (config.params?.site as string) ?? "stackoverflow";
     const tags = (config.params?.tags as string[]) ?? [];
