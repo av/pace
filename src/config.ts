@@ -34,10 +34,15 @@ export interface KeywordScoreEntry {
   regex?: boolean;
 }
 
+/** Fields keyword filter/exclude transforms may match against. */
+export type KeywordField = "title" | "body" | "source";
+
+export const KEYWORD_FIELDS: readonly KeywordField[] = ["title", "body", "source"];
+
 export type TransformConfig =
   | { type: "latest"; count: number }
-  | { type: "filter"; keywords: string[]; fields?: ("title" | "body" | "source")[] }
-  | { type: "exclude"; keywords: string[]; fields?: ("title" | "body" | "source")[] }
+  | { type: "filter"; keywords: string[]; fields?: KeywordField[] }
+  | { type: "exclude"; keywords: string[]; fields?: KeywordField[] }
   | { type: "sort"; field: "timestamp" | "title" | "source"; direction?: "asc" | "desc" }
   | { type: "dedupe"; strategy?: "url" | "domain-normalized" | "title-similarity"; threshold?: number; keep?: "highest-score" | "earliest" | "latest"; log?: boolean }
   | { type: "keyword-score"; keywords: KeywordScoreEntry[]; min_score?: number; annotate?: boolean }
@@ -369,7 +374,7 @@ function validateTransform(transform: Record<string, unknown>, path: string): vo
       if (transform.fields !== undefined) {
         validateNonEmptyArray(transform.fields, `${path}.fields`);
         transform.fields.forEach((field, fieldIndex) =>
-          validateEnum(field, ["title", "body", "source"], `${path}.fields[${fieldIndex}]`)
+          validateEnum(field, KEYWORD_FIELDS, `${path}.fields[${fieldIndex}]`)
         );
       }
       break;

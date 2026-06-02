@@ -1,5 +1,5 @@
 import type { Model, Api } from "@mariozechner/pi-ai";
-import type { TransformConfig, LlmConfig, KeywordScoreEntry } from "./config";
+import type { TransformConfig, LlmConfig, KeywordScoreEntry, KeywordField } from "./config";
 import type { ContentItemRow } from "./db";
 import type { ContentItem } from "./adapters/types";
 import { summarizeItem, lensItems, mergeItems, filterItemsByLlm } from "./llm";
@@ -158,8 +158,6 @@ function sortByScoreDesc<T>(arr: T[], getScore: (x: T) => number): void {
   arr.sort((a, b) => getScore(b) - getScore(a));
 }
 
-type KeywordField = "title" | "body" | "source";
-
 function keywordFieldValue(item: ContentItemRow, field: KeywordField): string | null {
   switch (field) {
     case "title":
@@ -215,21 +213,13 @@ const transforms: Record<string, TransformFn> = {
   },
 
   filter: async (items, config) => {
-    const { keywords, fields } = config as {
-      type: "filter";
-      keywords: string[];
-      fields?: ("title" | "body" | "source")[];
-    };
+    const { keywords, fields } = config as Extract<TransformConfig, { type: "filter" }>;
     const predicate = makeKeywordPredicate(keywords, fields);
     return items.filter(predicate);
   },
 
   exclude: async (items, config) => {
-    const { keywords, fields } = config as {
-      type: "exclude";
-      keywords: string[];
-      fields?: ("title" | "body" | "source")[];
-    };
+    const { keywords, fields } = config as Extract<TransformConfig, { type: "exclude" }>;
     const predicate = makeKeywordPredicate(keywords, fields);
     return items.filter((item) => !predicate(item));
   },
