@@ -1,7 +1,11 @@
 import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from "bun:test";
 import hackernewsAdapter from "./adapters/hackernews";
+import type { AdapterConfig } from "./adapters/types";
+import * as typesMod from "./adapters/types";
 
 const originalFetch = globalThis.fetch;
+
+const defaultCfg: AdapterConfig = { type: "hackernews" };
 
 interface HNItemFixture {
   id: number;
@@ -46,7 +50,7 @@ describe("hackernews adapter", () => {
 
   beforeEach(() => {
     fetchMock = mock();
-    globalThis.fetch = fetchMock as any;
+    globalThis.fetch = fetchMock as typeof fetch;
     warnSpy = spyOn(console, "warn").mockImplementation(() => {});
   });
 
@@ -68,7 +72,7 @@ describe("hackernews adapter", () => {
       return makeItemResponse(null);
     });
 
-    const results = await hackernewsAdapter.fetch({} as any);
+    const results = await hackernewsAdapter.fetch(defaultCfg);
 
     expect(results).toHaveLength(3);
     expect(results[0].id).toBe("hn:1");
@@ -89,19 +93,19 @@ describe("hackernews adapter", () => {
       return makeItemResponse(null);
     });
 
-    const r1 = await hackernewsAdapter.fetch({ params: { feed: "newest" } } as any);
+    const r1 = await hackernewsAdapter.fetch({ type: "hackernews", params: { feed: "newest" } });
     expect(r1[0].source).toBe("hackernews:new");
 
-    const r2 = await hackernewsAdapter.fetch({ params: { stories: "frontpage" } } as any);
+    const r2 = await hackernewsAdapter.fetch({ type: "hackernews", params: { stories: "frontpage" } });
     expect(r2[0].source).toBe("hackernews:top");
 
-    const r3 = await hackernewsAdapter.fetch({ params: { feed: "ask_hn" } } as any);
+    const r3 = await hackernewsAdapter.fetch({ type: "hackernews", params: { feed: "ask_hn" } });
     expect(r3[0].source).toBe("hackernews:ask");
 
-    const r4 = await hackernewsAdapter.fetch({ params: { feed: "show_hn" } } as any);
+    const r4 = await hackernewsAdapter.fetch({ type: "hackernews", params: { feed: "show_hn" } });
     expect(r4[0].source).toBe("hackernews:show");
 
-    const r5 = await hackernewsAdapter.fetch({ params: { feed: "jobs" } } as any);
+    const r5 = await hackernewsAdapter.fetch({ type: "hackernews", params: { feed: "jobs" } });
     expect(r5[0].source).toBe("hackernews:job");
   });
 
@@ -119,9 +123,11 @@ describe("hackernews adapter", () => {
       return makeItemResponse(null);
     });
 
-    const results = await hackernewsAdapter.fetch({
+    const cfg: AdapterConfig = {
+      type: "hackernews",
       params: { min_score: 50, limit: 2 },
-    } as any);
+    };
+    const results = await hackernewsAdapter.fetch(cfg);
 
     // should have fetched extra (limit*3=6 but only 5), filtered to >=50 (3 items), then limited to 2
     expect(results).toHaveLength(2);
@@ -136,34 +142,36 @@ describe("hackernews adapter", () => {
       return makeItemResponse(m ? makeHNItem(parseInt(m[1])) : null);
     });
 
-    const results = await hackernewsAdapter.fetch({ params: { limit: 1 } } as any);
+    const cfg: AdapterConfig = { type: "hackernews", params: { limit: 1 } };
+    const results = await hackernewsAdapter.fetch(cfg);
     expect(results).toHaveLength(1);
   });
 
   test("throws on HTTP !ok for feed list with exact prefixed message", async () => {
     fetchMock.mockResolvedValue(new Response("[]", { status: 500 }));
 
-    await expect(
-      hackernewsAdapter.fetch({ params: { feed: "top" } } as any),
-    ).rejects.toThrow(/hackernews: failed to fetch topstories: 500/);
+    const cfg: AdapterConfig = { type: "hackernews", params: { feed: "top" } };
+    await expect(hackernewsAdapter.fetch(cfg)).rejects.toThrow(
+      /hackernews: failed to fetch topstories: 500/,
+    );
   });
 
   test("throws on network/fetch reject (wrapped via errorMessage)", async () => {
     fetchMock.mockRejectedValue(new Error("DNS fail"));
 
-    await expect(
-      hackernewsAdapter.fetch({} as any),
-    ).rejects.toThrow(/hackernews: error fetching stories: DNS fail/);
+    await expect(hackernewsAdapter.fetch(defaultCfg)).rejects.toThrow(
+      /hackernews: error fetching stories: DNS fail/,
+    );
   });
 
   test("handles items with missing optional fields (title fallback, no url, no score)", async () => {
     const ids = [99];
     fetchMock.mockImplementation(async (url: string) => {
       if (url.includes("topstories")) return makeIdsResponse(ids);
-      return makeItemResponse({ id: 99 } as any); // missing fields
+      return makeItemResponse({ id: 99 });
     });
 
-    const results = await hackernewsAdapter.fetch({} as any);
+    const results = await hackernewsAdapter.fetch(defaultCfg);
     expect(results[0].title).toBe("(untitled)");
     expect(results[0].url).toBe("https://news.ycombinator.com/item?id=99");
     expect(results[0].body).toBe(""); // no parts
@@ -178,10 +186,11 @@ describe("hackernews adapter", () => {
       return makeItemResponse(null);
     });
 
-    const results = await hackernewsAdapter.fetch({ params: { limit: 25 } } as any);
+    const cfg: AdapterConfig = { type: "hackernews", params: { limit: 25 } };
+    const results = await hackernewsAdapter.fetch(cfg);
     expect(results).toHaveLength(25);
     // at least 3 batch calls for items (10+10+5)
-    const itemCalls = fetchMock.mock.calls.filter((c: any[]) =>
+    const itemCalls = fetchMock.mock.calls.filter((c: unknown[]) =>
       String(c[0]).includes("/item/"),
     ).length;
     expect(itemCalls).toBe(25);
@@ -190,19 +199,15 @@ describe("hackernews adapter", () => {
   test("uses errorMessage helper (via sh1 duck) for !ok feed list status errors (mmu contract, closes raw status gap; also ngb shape)", async () => {
     fetchMock.mockResolvedValue(new Response("[]", { status: 500 }));
 
-    const typesMod = await import("./adapters/types");
     const emSpy = spyOn(typesMod, "errorMessage");
-
-    await expect(
-      hackernewsAdapter.fetch({ params: { feed: "top" } } as any),
-    ).rejects.toThrow(/hackernews: failed to fetch topstories: 500/);
-
-    const hadDuckForStatus = emSpy.mock.calls.some((c: any[]) => {
-      const arg = c[0];
-      return arg && typeof arg === "object" && !(arg instanceof Error) && (arg as any).message === "500";
-    });
-    expect(hadDuckForStatus).toBe(true); // pre-edit: false (raw status, no duck to helper in inner); post-edit: true
-
-    emSpy.mockRestore();
+    try {
+      const cfg: AdapterConfig = { type: "hackernews", params: { feed: "top" } };
+      await expect(hackernewsAdapter.fetch(cfg)).rejects.toThrow(
+        /hackernews: failed to fetch topstories: 500/,
+      );
+      expect(emSpy).toHaveBeenCalledWith({ message: "500" });
+    } finally {
+      emSpy.mockRestore();
+    }
   });
 });
