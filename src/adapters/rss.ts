@@ -1,8 +1,13 @@
 import { XMLParser } from "fast-xml-parser";
 import {
   extractAtomLink,
+  extractFeedItemBody,
+  extractFeedRootTitle,
+  extractRssAtomItems,
   extractXmlText,
+  FEED_XML_PARSER_OPTIONS,
   type AtomLinkField,
+  type FeedItemBodyFields,
   type XmlTextField,
 } from "./atom";
 import { parseFeedDate } from "./dates";
@@ -11,16 +16,12 @@ import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 
-interface RssFeedItem {
+interface RssFeedItem extends FeedItemBodyFields {
   title?: XmlTextField;
   link?: AtomLinkField;
   pubDate?: string;
   updated?: string;
   published?: string;
-  description?: XmlTextField;
-  summary?: XmlTextField;
-  content?: XmlTextField;
-  "content:encoded"?: XmlTextField;
 }
 
 /** Parsed RSS 2.0 / Atom feed root from fast-xml-parser (attributeNamePrefix "@_"). */
@@ -45,43 +46,20 @@ function simpleHash(str: string): string {
   return (h >>> 0).toString(36);
 }
 
-const parser = new XMLParser({
-  ignoreAttributes: false,
-  attributeNamePrefix: "@_",
-});
-
-function extractItems(parsed: RssFeedParsed): RssFeedItem[] {
-  if (parsed?.rss?.channel?.item) {
-    const items = parsed.rss.channel.item;
-    return Array.isArray(items) ? items : [items];
-  }
-  if (parsed?.feed?.entry) {
-    const entries = parsed.feed.entry;
-    return Array.isArray(entries) ? entries : [entries];
-  }
-  return [];
-}
+const parser = new XMLParser(FEED_XML_PARSER_OPTIONS);
 
 function extractFeedTitle(parsed: RssFeedParsed, url: string): string {
-  const rssTitle = extractXmlText(parsed?.rss?.channel?.title);
-  if (rssTitle) return rssTitle;
-  const atomTitle = extractXmlText(parsed?.feed?.title);
-  if (atomTitle) return atomTitle;
+  const title = extractFeedRootTitle(
+    parsed?.rss?.channel?.title,
+    parsed?.feed?.title,
+  );
+  if (title) return title;
   try {
     return new URL(url).hostname;
   } catch (err) {
     console.warn(`rss: extractFeedTitle could not parse url "${url}": ${errorMessage(err)}`);
     return url;
   }
-}
-
-function buildBody(raw: RssFeedItem): string | undefined {
-  return (
-    extractXmlText(raw.description) ??
-    extractXmlText(raw.summary) ??
-    extractXmlText(raw.content) ??
-    extractXmlText(raw["content:encoded"])
-  );
 }
 
 function parseItem(raw: RssFeedItem, source: string): ContentItem {
@@ -92,7 +70,7 @@ function parseItem(raw: RssFeedItem, source: string): ContentItem {
   const dateStr = raw.pubDate ?? raw.updated ?? raw.published ?? "";
   const timestamp = parseFeedDate(dateStr);
 
-  const body = buildBody(raw);
+  const body = extractFeedItemBody(raw);
 
   const resolvedUrl = link || undefined;
 
@@ -100,11 +78,11 @@ function parseItem(raw: RssFeedItem, source: string): ContentItem {
 
   return {
     id: `rss:${idSuffix}`,
-    title: String(title),
-    url: resolvedUrl ? String(resolvedUrl) : "",
+    title,
+    url: resolvedUrl ?? "",
     source,
     timestamp,
-    body: body ? String(body) : undefined,
+    body,
   };
 }
 
@@ -120,7 +98,7 @@ async function fetchFeed(url: string): Promise<ContentItem[]> {
     throw new Error(`rss: error parsing xml from ${url}: ${errorMessage(err)}`);
   }
   const source = extractFeedTitle(parsed, url);
-  const items = extractItems(parsed);
+  const items = extractRssAtomItems(parsed);
   return items.map((item) => parseItem(item, source));
 }
 
