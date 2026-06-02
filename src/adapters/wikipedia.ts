@@ -157,7 +157,6 @@ function parseModeToken(token: string): Mode | null {
   return VALID_MODES.has(normalized as Mode) ? (normalized as Mode) : null;
 }
 
-/** Single `mode` string, comma-separated `mode`, or `modes` array. Invalid tokens skipped; empty → most_read. */
 function resolveModes(config: AdapterConfig): Mode[] {
   const modesParam = config.params?.modes;
   const tokens: string[] = [];
@@ -195,10 +194,6 @@ function extractForMode(data: WikiFeaturedResponse, mode: Mode, limit: number): 
 
 const adapter: Adapter = {
   name: "wikipedia",
-  /**
-   * @param config.params.mode One mode, or comma-separated modes (e.g. `most_read,news`).
-   * @param config.params.modes Alternative: array of modes; merged and deduped by article URL.
-   */
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
     const languageRaw = (config.params?.language as string) ?? "en";
     const language = isValidLanguage(languageRaw) ? languageRaw : "en";

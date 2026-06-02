@@ -24,7 +24,6 @@ interface YTEntry {
   };
 }
 
-/** Parsed Atom feed root from fast-xml-parser (attributeNamePrefix "@_"). */
 interface YTAtomFeedParsed {
   feed?: {
     entry?: YTEntry | YTEntry[];
