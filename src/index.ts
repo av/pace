@@ -9,11 +9,6 @@ import { createModel } from "./llm";
 import { startScheduler, stopScheduler, refreshSources, type SourcePanelMap } from "./scheduler";
 import { parsePort, getAdapterName } from "./utils";
 
-/** Single source of truth for the special "all" adapter sentinel (used in source mapping, dashboard "recent" fallback, and refresh expansion). */
-function isAllAdapter(adapter: string): boolean {
-  return adapter === "all";
-}
-
 const app = new Hono();
 
 app.use("*", async (c, next) => {
@@ -38,7 +33,7 @@ async function start() {
   const allPanelConfigs = collectPanels(config.layout);
   const enrichedPanels = allPanelConfigs.map((panel) => {
     const sources = normalizeSource(panel.source);
-    const isAll = sources.some((s) => isAllAdapter(s.adapter));
+    const isAll = sources.some((s) => s.adapter === "all");
     return {
       panel,
       pid: resolvePanelId(panel),
@@ -112,7 +107,7 @@ async function start() {
     if (!sources) return c.text(`Unknown panel: ${param}`, 404);
 
     const sourceNames = Array.from(new Set(sources.flatMap((s) =>
-      isAllAdapter(s.adapter) ? configuredAdapterNames : [s.adapter]
+      s.adapter === "all" ? configuredAdapterNames : [s.adapter]
     )));
 
     if (sourceNames.length > 0) {
