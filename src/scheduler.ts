@@ -33,10 +33,7 @@ const pipelineEntries: PipelineEntry[] = [];
 let transformCtx: TransformContext = { llmModel: null };
 let pruneTimer: ReturnType<typeof setInterval> | null = null;
 
-/** 5s initial delay before first pipeline run (while adapters fetch immediately on startup).
- * Extracted from magic literal per t3i fact ("pipelines are scheduled with a 5s initial delay");
- * also provides assertable hook for scheduler.test.ts coverage of startup sequence + default interval.
- */
+/** Delay before first pipeline run (adapters fetch immediately on startup). */
 export const PIPELINE_INITIAL_DELAY_MS = 5000;
 
 export interface RefreshResult {
@@ -51,11 +48,6 @@ export interface SourcePanelMap {
   sourceToReadKey: Map<string, string>;
 }
 
-/**
- * Shared internal helper to eliminate the duplicated running-guard, try/work, error handling (errorMessage + console.warn + lastError + failed result), finally reset, and ok return pattern
- * between runAdapter and runPipelineJob. Work is provided as a thunk that may throw (to trigger the shared catch path).
- * Preserves exact logs, results, and side effects for adapter and pipeline execution paths.
- */
 async function executeWithRunningGuard(
   entry: { running: boolean; lastError?: string },
   name: string,
@@ -77,9 +69,7 @@ async function executeWithRunningGuard(
   }
 }
 
-/** Shared helper to compute refresh interval (default 15m, min 1m) in ms for both adapter and pipeline entries.
- * Eliminates the exact duplicated 2-line calc in startScheduler loops.
- */
+/** Default 15m refresh, minimum 1m. */
 function computeRefreshInterval(refreshInterval?: number): { intervalMin: number; intervalMs: number } {
   const intervalMin = Math.max(refreshInterval ?? 15, 1);
   const intervalMs = intervalMin * 60 * 1000;
@@ -92,7 +82,6 @@ export function startScheduler(
   panelMap: SourcePanelMap,
   model?: Model<Api> | null,
 ): void {
-  // Guard against duplicate starts (e.g. tests, reloads, multiple requires): ignore if already running
   if (adapterEntries.length > 0 || pipelineEntries.length > 0) {
     return;
   }
