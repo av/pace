@@ -45,8 +45,10 @@ function toContentItems(items: ContentItemRow[]): ContentItem[] {
   return items.map(rowToContentItem);
 }
 
-function pickEarliest(group: ContentItemRow[]): ContentItemRow {
-  return group.reduce((a, b) => (a.timestamp <= b.timestamp ? a : b));
+function pickByTimestamp(group: ContentItemRow[], direction: "asc" | "desc"): ContentItemRow {
+  return group.reduce((a, b) =>
+    compareIsoTimestamp(a.timestamp, b.timestamp, direction) <= 0 ? a : b
+  );
 }
 
 function pickWinner(
@@ -55,10 +57,10 @@ function pickWinner(
 ): ContentItemRow {
   if (group.length === 1) return group[0];
   if (keep === "earliest") {
-    return pickEarliest(group);
+    return pickByTimestamp(group, "asc");
   }
   if (keep === "latest") {
-    return group.reduce((a, b) => (a.timestamp >= b.timestamp ? a : b));
+    return pickByTimestamp(group, "desc");
   }
   let best = group[0];
   let bestScore = extractScore(best.body);
@@ -70,7 +72,7 @@ function pickWinner(
     }
   }
   if (bestScore === 0) {
-    return pickEarliest(group);
+    return pickByTimestamp(group, "asc");
   }
   return best;
 }
@@ -849,11 +851,9 @@ const transforms: Record<string, TransformFn> = {
       }
     }
 
-    unclustered.sort((a, b) => {
-      const tA = new Date(items[a].timestamp).getTime();
-      const tB = new Date(items[b].timestamp).getTime();
-      return tB - tA;
-    });
+    unclustered.sort((a, b) =>
+      compareIsoTimestamp(items[a].timestamp, items[b].timestamp, "desc")
+    );
     for (const idx of unclustered) {
       result.push(items[idx]);
     }
