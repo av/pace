@@ -109,6 +109,36 @@ describe("devto", () => {
     );
   });
 
+  test("decodes HTML entities in article titles from API", async () => {
+    mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("tag=javascript")) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: 401,
+              title: "A &amp; B &#8364; C",
+              url: "https://dev.to/j/article",
+              description: "",
+              published_at: "2024-01-18T00:00:00Z",
+              reading_time_minutes: 3,
+              positive_reactions_count: 1,
+              comments_count: 0,
+              user: { username: "j", name: "J" },
+              tag_list: ["javascript"],
+              cover_image: null,
+            },
+          ]),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return devtoDefaultFetchMock(input);
+    });
+
+    const items = await devtoAdapter.fetch(devtoCfg({ tags: ["javascript"], limit: 5 }));
+    expect(items[0].title).toBe("A & B € C");
+  });
+
   test("fetch with username only calls API with username param and returns mapped item with correct source and body", async () => {
     const items = await devtoAdapter.fetch(devtoCfg({ username: "testuser", limit: 20 }));
     expect(items.length).toBe(1);

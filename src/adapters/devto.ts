@@ -8,6 +8,7 @@ import {
   joinBodyParts,
 } from "./engagement";
 import { fetchJson } from "./fetch";
+import { decodeHtmlEntities } from "./html";
 import { sliceToLimit } from "../utils";
 import { dedupeByKey, fetchAndConcat } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -29,6 +30,10 @@ interface DevToArticle {
   };
   tag_list: string[];
   cover_image: string | null;
+}
+
+function decodeArticleTitle(title: string): string {
+  return decodeHtmlEntities(title, { numeric: true });
 }
 
 function buildBody(article: DevToArticle): string {
@@ -138,7 +143,7 @@ const adapter: Adapter = {
 
     return limited.map((article) => ({
       id: `devto:${article.id}`,
-      title: article.title,
+      title: decodeArticleTitle(article.title),
       url: article.url,
       source: sourceLabel,
       timestamp: new Date(article.published_at),
