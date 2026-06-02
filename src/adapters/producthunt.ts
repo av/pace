@@ -11,7 +11,11 @@ import {
   type XmlTextField,
 } from "./atom";
 import { parseFeedDate } from "./dates";
-import { normalizeNonNegativeNumber, sliceToLimit } from "../utils";
+import {
+  normalizeNonNegativeNumber,
+  normalizePositiveInteger,
+  sliceToLimit,
+} from "../utils";
 import { fetchText, HN_ITEM_FETCH_TIMEOUT_MS } from "./fetch";
 import {
   decodeHtmlEntities,
@@ -269,7 +273,11 @@ async function fetchProductHuntFeed(): Promise<{
 const adapter: Adapter = {
   name: "producthunt",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const limit = Math.min((config.params?.limit as number) ?? 20, 50);
+    const limitRaw = config.params?.limit;
+    const limit =
+      limitRaw !== undefined
+        ? Math.min(normalizePositiveInteger(limitRaw, 20), 50)
+        : undefined;
     const minUpvotes = normalizeNonNegativeNumber(config.params?.min_upvotes);
     const enrich = (config.params?.enrich as boolean) ?? false;
 
@@ -281,8 +289,9 @@ const adapter: Adapter = {
 
     const { feedTitle, items: feedItems } = await fetchProductHuntFeed();
 
-    // Apply limit before enriching (enrichment is expensive)
-    let items = sliceToLimit(feedItems, limit);
+    // Apply limit after fetch (before enriching — enrichment is expensive)
+    let items =
+      limit !== undefined ? sliceToLimit(feedItems, limit) : feedItems;
 
     // Optionally enrich with page scraping for upvotes/topics
     let enrichedMap = new Map<string, EnrichedData | null>();

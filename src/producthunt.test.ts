@@ -176,6 +176,77 @@ describe("producthunt", () => {
     expect(items[0].title).toBe("Test Product | Cool new AI tool tagline");
   });
 
+  test.each([NaN, "20", Infinity, -5, 0] as unknown[])(
+    "invalid limit (%s) uses default slice of 20 when limit param set",
+    async (limit) => {
+      const entries = Array.from({ length: 25 }, (_, i) => `  <entry>
+    <id>tag:www.producthunt.com,2005:Post/${100000 + i}</id>
+    <title>Product ${i}</title>
+    <content>&lt;p&gt;Tagline ${i}&lt;/p&gt;</content>
+    <link rel="alternate" href="https://www.producthunt.com/posts/product-${i}-${100000 + i}" />
+    <published>2024-05-20T10:00:00Z</published>
+  </entry>`).join("\n");
+      const feed = `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+${entries}
+</feed>`;
+      mocks.fetchMock.mockResolvedValue(new Response(feed, { status: 200 }));
+
+      const items = await producthuntAdapter.fetch(producthuntCfg({ limit }));
+
+      expect(items).toHaveLength(20);
+      expect(items[0].title).toBe("Product 0 | Tagline 0");
+    },
+  );
+
+  test("caps limit at 50", async () => {
+    const entries = Array.from({ length: 60 }, (_, i) => `  <entry>
+    <id>tag:www.producthunt.com,2005:Post/${200000 + i}</id>
+    <title>Cap ${i}</title>
+    <content>&lt;p&gt;T ${i}&lt;/p&gt;</content>
+    <link rel="alternate" href="https://www.producthunt.com/posts/cap-${i}-${200000 + i}" />
+    <published>2024-05-20T10:00:00Z</published>
+  </entry>`).join("\n");
+    const feed = `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+${entries}
+</feed>`;
+    mocks.fetchMock.mockResolvedValue(new Response(feed, { status: 200 }));
+
+    const items = await producthuntAdapter.fetch(producthuntCfg({ limit: 500 }));
+
+    expect(items).toHaveLength(50);
+  });
+
+  test("floors fractional limit", async () => {
+    const entries = Array.from({ length: 10 }, (_, i) => `  <entry>
+    <id>tag:www.producthunt.com,2005:Post/${300000 + i}</id>
+    <title>Floor ${i}</title>
+    <content>&lt;p&gt;T ${i}&lt;/p&gt;</content>
+    <link rel="alternate" href="https://www.producthunt.com/posts/floor-${i}-${300000 + i}" />
+    <published>2024-05-20T10:00:00Z</published>
+  </entry>`).join("\n");
+    const feed = `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+${entries}
+</feed>`;
+    mocks.fetchMock.mockResolvedValue(new Response(feed, { status: 200 }));
+
+    const items = await producthuntAdapter.fetch(producthuntCfg({ limit: 7.9 }));
+
+    expect(items).toHaveLength(7);
+  });
+
+  test("without limit param returns all feed entries", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      new Response(makePHFeedFixture(), { status: 200 }),
+    );
+
+    const items = await producthuntAdapter.fetch(producthuntCfg());
+
+    expect(items).toHaveLength(2);
+  });
+
   test("with enrich=true performs per-product fetches and includes upvotes/comments/topics/makers in body", async () => {
     let callCount = 0;
     mocks.fetchMock.mockImplementation(async (url: string) => {
