@@ -3,29 +3,13 @@ import { spawnSync, spawn, type SpawnSyncReturns, type ChildProcess } from "node
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import os from "node:os";
+import { formatCliHelp } from "./cli-help";
 
-/** Mirrors `HELP` in cli.ts — locks usage text against accidental drift. */
 function expectedCliHelp(): string {
   const pkg = JSON.parse(
     readFileSync(join(import.meta.dir, "../package.json"), "utf-8"),
   ) as { version: string };
-  return `pace v${pkg.version} — personal content dashboard
-
-Usage:
-  pace [command] [options]
-
-Commands:
-  serve     Start the dashboard server (default)
-
-Options:
-  -c, --config <path>   Path to config file (default: ./config.yaml)
-  -p, --port <number>   Server port (default: 7453, or $PORT)
-  -C, --chdir <dir>     Change to directory (for config/data loads; after bootstrap)
-  -P, --preset <name>   Use a bundled preset (tech-news, ml-ai, etc.)
-      --list-presets    List available bundled presets
-  -h, --help            Show this help
-  -v, --version         Show version
-`;
+  return formatCliHelp(pkg.version);
 }
 
 /** stdout from `console.log(HELP)` — template newline plus log's trailing newline. */

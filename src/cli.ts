@@ -4,29 +4,14 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { errorMessage, isValidPort } from "./utils";
 import { tryReadRegularFile } from "./config";
+import { formatCliHelp } from "./cli-help";
 
 const pkg = JSON.parse(readFileSync(join(import.meta.dir, "../package.json"), "utf-8"));
 
 const projectRoot = join(import.meta.dir, "..");
 process.chdir(projectRoot);
 
-const HELP = `pace v${pkg.version} — personal content dashboard
-
-Usage:
-  pace [command] [options]
-
-Commands:
-  serve     Start the dashboard server (default)
-
-Options:
-  -c, --config <path>   Path to config file (default: ./config.yaml)
-  -p, --port <number>   Server port (default: 7453, or $PORT)
-  -C, --chdir <dir>     Change to directory (for config/data loads; after bootstrap)
-  -P, --preset <name>   Use a bundled preset (tech-news, ml-ai, etc.)
-      --list-presets    List available bundled presets
-  -h, --help            Show this help
-  -v, --version         Show version
-`;
+const HELP = formatCliHelp(pkg.version);
 
 const { values, positionals } = parseArgs({
   args: Bun.argv.slice(2),
