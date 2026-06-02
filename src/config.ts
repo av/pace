@@ -418,6 +418,21 @@ function validateStringList(value: unknown, path: string): void {
   });
 }
 
+function validateUniqueUnnamedAdapterTypes(adapters: IngestAdapterConfig[]): void {
+  const seenTypes = new Set<string>();
+  for (let index = 0; index < adapters.length; index++) {
+    const adapter = adapters[index]!;
+    if (adapter.name !== undefined) continue;
+    const { type } = adapter;
+    if (seenTypes.has(type)) {
+      throw new Error(
+        `config: adapters[${index}] duplicates adapter type "${type}" (set name on each adapter to use multiple adapters of the same type)`,
+      );
+    }
+    seenTypes.add(type);
+  }
+}
+
 function validateUniqueStringList(
   value: unknown,
   path: string,
@@ -793,6 +808,8 @@ export function loadConfig(): AppConfig {
 
   rawAdapters.forEach(validateAdapterConfig);
   const adapters = rawAdapters as IngestAdapterConfig[];
+
+  validateUniqueUnnamedAdapterTypes(adapters);
 
   const adapterNames = adapters.map(getAdapterName);
   if (adapterNames.length > 0) {

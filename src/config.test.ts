@@ -349,6 +349,50 @@ layout:
     );
   });
 
+  test("rejects duplicate adapter type when name omitted", () => {
+    const yaml = `
+adapters:
+  - type: rss
+    params:
+      urls: ["https://example.com/feed.xml"]
+  - type: rss
+    params:
+      urls: ["https://other.example/feed.xml"]
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: adapters\[1\] duplicates adapter type "rss"/,
+    );
+  });
+
+  test("allows multiple adapters of same type with distinct names", () => {
+    const yaml = `
+adapters:
+  - type: rss
+    name: feed-a
+    params:
+      urls: ["https://a.example/feed.xml"]
+  - type: rss
+    name: feed-b
+    params:
+      urls: ["https://b.example/feed.xml"]
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(yaml);
+    const config = loadConfig();
+    expect(config.adapters).toHaveLength(2);
+    expect(config.adapters.map((a) => a.name)).toEqual(["feed-a", "feed-b"]);
+  });
+
   test("rejects duplicate pipeline source", () => {
     const yaml = `
 adapters:
