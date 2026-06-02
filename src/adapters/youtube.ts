@@ -11,6 +11,7 @@ import {
 import { parseFeedDate } from "./dates";
 import { formatBy, joinBodyParts } from "./engagement";
 import { fetchText } from "./fetch";
+import { decodeHtmlEntities } from "./html";
 import { sliceToLimit } from "../utils";
 import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -49,7 +50,9 @@ function buildBody(entry: YTEntry): string | undefined {
 
 function parseEntry(entry: YTEntry, channelTitle: string): ContentItem {
   const videoId = entry["yt:videoId"] ?? "";
-  const title = extractFeedEntryTitle(entry.title);
+  const title = decodeHtmlEntities(extractFeedEntryTitle(entry.title), {
+    numeric: true,
+  });
 
   const link = videoId
     ? `https://www.youtube.com/watch?v=${videoId}`
@@ -77,8 +80,10 @@ async function fetchYoutubeFeed(
   const url = `https://www.youtube.com/feeds/videos.xml?${param}=${id}`;
   const xml = await fetchText("youtube", url, `${label} ${id}`);
   const parsed = parser.parse(xml) as YTAtomFeedParsed;
-  const channelTitle =
-    extractFeedRootTitle(undefined, parsed.feed?.title) ?? "YouTube";
+  const channelTitle = decodeHtmlEntities(
+    extractFeedRootTitle(undefined, parsed.feed?.title) ?? "YouTube",
+    { numeric: true },
+  );
   const entries = normalizeXmlList(parsed.feed?.entry);
   return sliceToLimit(entries, limit).map((entry) => parseEntry(entry, channelTitle));
 }

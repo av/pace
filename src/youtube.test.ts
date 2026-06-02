@@ -132,6 +132,28 @@ describe("youtube", () => {
     ).rejects.toThrow(/youtube:.*failed to fetch channel ERR.*HTTP error 404/);
   });
 
+  it("decodes HTML entities in channel and entry titles", async () => {
+    const entityXml = `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015">
+  <title>Chan &amp; Co &#8364;</title>
+  <entry>
+    <yt:videoId>ent1</yt:videoId>
+    <title>Rock &amp; Roll &#8364;</title>
+    <published>2024-04-01T00:00:00Z</published>
+  </entry>
+</feed>`;
+    mocks.fetchMock.mockImplementation(async (url: string | URL) => {
+      if (String(url).includes("channel_id=ENT")) {
+        return new Response(entityXml, { status: 200 });
+      }
+      return new Response("not found", { status: 404 });
+    });
+
+    const items = await adapter.fetch(youtubeCfg({ channels: ["ENT"], limit: 5 }));
+    expect(items[0].title).toBe("Rock & Roll €");
+    expect(items[0].source).toBe("youtube:Chan & Co €");
+  });
+
   it("respects per-feed limit", async () => {
     const items = await adapter.fetch(youtubeCfg({ channels: ["CH1"], limit: 1 }));
     expect(items.length).toBe(1);
