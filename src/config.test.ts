@@ -141,6 +141,20 @@ layout:
     );
   });
 
+  test("rejects duplicate panel name", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - panel: shared
+      source: all
+    - panel: shared
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(/config: duplicate panel name "shared"/);
+  });
+
   test("rejects empty panel name", () => {
     const yaml = `
 layout:
