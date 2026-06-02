@@ -2,6 +2,7 @@ import { describe, test, expect, spyOn } from "bun:test";
 import {
   stripJsonCodeFences,
   safeComplete,
+  createModel,
   summarizeItem,
   mergeItems,
   filterItemsByLlm,
@@ -194,6 +195,54 @@ describe("llm utils (DRY quality + test coverage)", () => {
       const items = [makeItem({ id: "m1", title: "m", body: "bb" })];
       // merge/filter/lens call format internally now; just ensure no throw on valid
       expect(await mergeItems(fakeThrowingModel, items)).toEqual(items); // errors to passthrough
+    });
+  });
+
+  describe("createModel", () => {
+    test("returns null when provider, model, or api_key is missing", () => {
+      expect(createModel({})).toBe(null);
+      expect(createModel({ provider: "openai", model: "gpt-4" })).toBe(null);
+      expect(createModel({ provider: "openai", api_key: "k" })).toBe(null);
+    });
+
+    test("warns on unknown provider/model and returns OpenAI-compatible fallback", () => {
+      const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+      try {
+        const model = createModel({
+          provider: "totally-unknown-provider",
+          model: "custom-model-id",
+          api_key: "test-key",
+        });
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        expect(warnSpy).toHaveBeenCalledWith(
+          "llm: unknown provider/model (totally-unknown-provider/custom-model-id), using OpenAI-compatible fallback",
+        );
+        expect(model).not.toBeNull();
+        expect(model!.id).toBe("custom-model-id");
+        expect(model!.provider).toBe("totally-unknown-provider");
+        expect(model!.api).toBe("openai-completions");
+        expect(model!.baseUrl).toBe("http://localhost:11434/v1");
+      } finally {
+        warnSpy.mockRestore();
+      }
+    });
+
+    test("warns when known provider has no matching model id", () => {
+      const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+      try {
+        const model = createModel({
+          provider: "openai",
+          model: "__pace_test_nonexistent_model__",
+          api_key: "sk-test",
+        });
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        expect(warnSpy).toHaveBeenCalledWith(
+          "llm: unknown provider/model (openai/__pace_test_nonexistent_model__), using OpenAI-compatible fallback",
+        );
+        expect(model!.id).toBe("__pace_test_nonexistent_model__");
+      } finally {
+        warnSpy.mockRestore();
+      }
     });
   });
 
