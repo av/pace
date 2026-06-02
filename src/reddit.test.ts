@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from "bun:test";
 import redditAdapter from "./adapters/reddit";
+import * as typesMod from "./adapters/types";
 
 const originalFetch = globalThis.fetch;
 
@@ -48,6 +49,11 @@ function makeErrorResponse(status: number): Response {
 describe("reddit adapter", () => {
   let fetchMock: ReturnType<typeof mock>;
   let warnSpy: ReturnType<typeof spyOn>;
+
+  test("satisfies ngb contract: default export has .name and .fetch", () => {
+    expect(redditAdapter.name).toBe("reddit");
+    expect(typeof redditAdapter.fetch).toBe("function");
+  });
 
   beforeEach(() => {
     fetchMock = mock();
@@ -193,5 +199,21 @@ describe("reddit adapter", () => {
     await expect(
       redditAdapter.fetch({ params: { subreddits: ["down"] } } as any),
     ).rejects.toThrow(/reddit: error fetching .*down\/hot: ECONNRESET/);
+  });
+
+  test("uses errorMessage helper in !ok HTTP error path", async () => {
+    const emSpy = spyOn(typesMod, "errorMessage");
+    fetchMock.mockResolvedValue({ ok: false, status: 404 } as any);
+
+    await expect(
+      redditAdapter.fetch({ params: { subreddits: ["test"] } } as any),
+    ).rejects.toThrow(/reddit: error fetching/);
+
+    const hasStatusObjCall = emSpy.mock.calls.some((call: unknown[]) => {
+      const arg = call[0];
+      return arg && typeof arg === "object" && arg !== null && "message" in arg && String((arg as { message: string }).message) === "404";
+    });
+    expect(hasStatusObjCall).toBe(true);
+    emSpy.mockRestore();
   });
 });

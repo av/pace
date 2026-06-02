@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from "bun:test";
 import podcastAdapter from "./adapters/podcast";
+import * as typesMod from "./adapters/types";
 
 const originalFetch = globalThis.fetch;
 
@@ -40,6 +41,11 @@ function makeNoChannelFixture(): string {
 describe("podcast adapter (DRY quality + test coverage)", () => {
   let fetchMock: ReturnType<typeof mock>;
   let warnSpy: ReturnType<typeof spyOn>;
+
+  test("satisfies ngb contract: default export has .name and .fetch", () => {
+    expect(podcastAdapter.name).toBe("podcast");
+    expect(typeof podcastAdapter.fetch).toBe("function");
+  });
 
   beforeEach(() => {
     fetchMock = mock();
@@ -139,5 +145,21 @@ describe("podcast adapter (DRY quality + test coverage)", () => {
     await expect(
       podcastAdapter.fetch({ params: { feeds: ["https://netfail.com/f.xml"] } } as any),
     ).rejects.toThrow(/podcast: error fetching https:\/\/netfail\.com\/f\.xml.*connection refused/);
+  });
+
+  test("uses errorMessage helper in fetch !ok error path", async () => {
+    const errorMessageSpy = spyOn(typesMod, "errorMessage");
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 404,
+    } as any);
+
+    await expect(
+      podcastAdapter.fetch({ params: { feeds: ["https://example.com/podcast.xml"] } } as any),
+    ).rejects.toThrow(/podcast: failed to fetch .*404/);
+
+    expect(errorMessageSpy.mock.calls.length).toBeGreaterThanOrEqual(1);
+    expect(errorMessageSpy).toHaveBeenCalledWith({ message: "404" });
+    errorMessageSpy.mockRestore();
   });
 });

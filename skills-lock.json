@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "skills": {
+    "agent-integration-testing": {
+      "source": "av/skills",
+      "sourceType": "github",
+      "skillPath": "agent-integration-testing/SKILL.md",
+      "computedHash": "1c4770eb61d896674f47fc0e1819871cf540d77cef615f64751c81fef88b8b68"
+    },
+    "anneal": {
+      "source": "av/skills",
+      "sourceType": "github",
+      "skillPath": "anneal/SKILL.md",
+      "computedHash": "78b10f2a05875b75bba4be3f60c9a487782414a52ed93ff4e50534fe0c09bb5a"
+    },
+    "bugbash": {
+      "source": "av/skills",
+      "sourceType": "github",
+      "skillPath": "bugbash/SKILL.md",
+      "computedHash": "d68cfc7d3724f7a810c31e3fccff79e0205fb14fff4950bbcc9b3f83b3be6320"
+    },
+    "ideate": {
+      "source": "av/skills",
+      "sourceType": "github",
+      "skillPath": "ideate/SKILL.md",
+      "computedHash": "c9512d1aa14a39b668cb0ca5449b150926c310ab629875de2dd0e92be6e87f99"
+    },
+    "timeboxed-iterating": {
+      "source": "av/skills",
+      "sourceType": "github",
+      "skillPath": "timeboxed-iterating/SKILL.md",
+      "computedHash": "c7cb190bd64a7beb3c2de9e8304053daa567ed56fed12ff93e673a6215e5ed06"
+    }
+  }
+}
