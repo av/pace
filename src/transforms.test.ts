@@ -165,11 +165,15 @@ describe("transforms - dedupe strategies", () => {
   });
 
   test("dedupe unknown strategy warns and passes through", async () => {
-    const items = [makeRow()];
-    const steps = [{ type: "dedupe", strategy: "weird" }] as TransformConfig[];
-    const result = await runPipeline(items, steps, ctx);
-    expect(result).toHaveLength(1);
-    // note: the warn is console.warn, not caught by logSpy here
+    await spyConsole(["warn"], async ({ warn: warnSpy }) => {
+      const items = [makeRow()];
+      const steps = [{ type: "dedupe", strategy: "weird" }] as TransformConfig[];
+      const result = await runPipeline(items, steps, ctx);
+      expect(result).toHaveLength(1);
+      expect(warnSpy).toHaveBeenCalledWith(
+        'transforms: unknown dedupe strategy "weird", passing items through',
+      );
+    });
   });
 
   test("dedupe:domain-normalized with keep:earliest picks the earliest timestamp winner (exercises pickWinner)", async () => {
