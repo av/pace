@@ -5,6 +5,7 @@ import type { FC } from "hono/jsx";
 import type { LayoutNodeConfig, PanelConfig, FlexContainerConfig } from "./config";
 import { isPanel, resolvePanelId } from "./config";
 import type { ContentItemRow } from "./db";
+import { errorMessage } from "./utils";
 
 function safeUrl(url: string): string | null {
   if (!url) return null;
@@ -12,7 +13,8 @@ function safeUrl(url: string): string | null {
     const parsed = new URL(url);
     if (["http:", "https:", "mailto:"].includes(parsed.protocol)) return url;
     return null;
-  } catch {
+  } catch (err) {
+    console.warn(`layout: safeUrl failed for "${url}": ${errorMessage(err)}`);
     return null;
   }
 }
