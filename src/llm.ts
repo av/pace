@@ -30,7 +30,10 @@ export function createModel(config: LlmConfig): Model<Api> | null {
   try {
     const model = getModel(config.provider as any, config.model as any);
     return model as Model<Api>;
-  } catch {
+  } catch (err) {
+    console.warn(
+      `llm: unknown provider/model (${config.provider}/${config.model}), using OpenAI-compatible fallback: ${errorMessage(err)}`
+    );
     // Unknown provider/model combo — build a custom model for OpenAI-compatible endpoints
     const customModel: Model<"openai-completions"> = {
       id: config.model,
