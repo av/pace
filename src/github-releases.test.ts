@@ -1,36 +1,20 @@
-import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from "bun:test";
+import { describe, test, expect, spyOn } from "bun:test";
 import githubReleasesAdapter from "./adapters/github-releases";
-import type { AdapterConfig } from "./adapters/types";
 import * as typesMod from "./adapters/types";
+import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
-const originalFetch = globalThis.fetch;
-
-const defaultCfg: AdapterConfig = { type: "github-releases" };
-
-function githubReleasesCfg(params: Record<string, unknown> = {}): AdapterConfig {
-  return { ...defaultCfg, params };
-}
+const mocks = useFetchMockSuite({ restoreAllMocks: true });
+const githubReleasesCfg = (params: Record<string, unknown> = {}) =>
+  adapterCfg("github-releases", params);
 
 describe("github-releases", () => {
-  let fetchMock: ReturnType<typeof mock>;
-
   test("ngb contract", () => {
     expect(githubReleasesAdapter.name).toBe("github-releases");
     expect(typeof githubReleasesAdapter.fetch).toBe("function");
   });
 
-  beforeEach(() => {
-    fetchMock = mock();
-    globalThis.fetch = fetchMock as typeof fetch;
-  });
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
-    mock.restore();
-  });
-
   test("includes repo tagline in release title from api.github.com/repos", async () => {
-    fetchMock.mockImplementation(async (url: string) => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
       const u = String(url);
       if (u.includes("/releases?")) {
         return new Response(
@@ -68,7 +52,7 @@ describe("github-releases", () => {
   test("errorMessage on !ok", async () => {
     const emSpy = spyOn(typesMod, "errorMessage");
     const callsBefore = emSpy.mock.calls.length;
-    fetchMock.mockResolvedValue(new Response("not found", { status: 404 }));
+    mocks.fetchMock.mockResolvedValue(new Response("not found", { status: 404 }));
 
     await expect(
       githubReleasesAdapter.fetch(githubReleasesCfg({ repos: ["missing/repo"] })),
