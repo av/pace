@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from "./fetch";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 
@@ -43,12 +44,9 @@ async function fetchLobstersJson(
   url: string,
   label: string,
 ): Promise<LobstersItem[]> {
-  const res = await fetch(url, {
-    signal: AbortSignal.timeout(15000),
-  });
+  const res = await fetchWithTimeout(url);
   if (!res.ok) {
-    console.warn(`lobsters: failed to fetch ${label}: ${res.status}`);
-    return [];
+    throw new Error(`lobsters: failed to fetch ${label}: ${errorMessage({ message: String(res.status) })}`);
   }
   return (await res.json()) as LobstersItem[];
 }
@@ -129,8 +127,7 @@ const adapter: Adapter = {
         body: buildBody(item),
       }));
     } catch (err) {
-      console.warn(`lobsters: error fetching stories: ${errorMessage(err)}`);
-      return [];
+      throw new Error(`lobsters: error fetching stories: ${errorMessage(err)}`);
     }
   },
 };

@@ -1,5 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import { extractAtomLink } from "./atom";
+import { fetchText } from "./fetch";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 // from "./types" errorMessage helper (verifier s7s for bugbash-iter11)
@@ -95,26 +96,7 @@ function parseItem(raw: any, source: string): ContentItem {
 }
 
 async function fetchFeed(url: string): Promise<ContentItem[]> {
-  let res: Response;
-  try {
-    res = await fetch(url, {
-      headers: { "User-Agent": "pace/1.0" },
-      signal: AbortSignal.timeout(15000),
-    });
-  } catch (err) {
-    throw new Error(`rss: error fetching ${url}: ${errorMessage(err)}`);
-  }
-
-  if (!res.ok) {
-    throw new Error(`rss: failed to fetch ${url}: ${errorMessage({ message: `HTTP error ${res.status}` })}`);
-  }
-
-  let xml: string;
-  try {
-    xml = await res.text();
-  } catch (err) {
-    throw new Error(`rss: error reading ${url}: ${errorMessage(err)}`);
-  }
+  const xml = await fetchText("rss", url);
 
   let parsed: any;
   try {

@@ -1,5 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import { extractAtomLink } from "./atom";
+import { fetchWithTimeout } from "./fetch";
 import { stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
@@ -43,16 +44,10 @@ async function fetchGithubResource(
   context: string,
   opts: { timeoutMs?: number; accept?: string } = {},
 ): Promise<string | null> {
-  const timeoutMs = opts.timeoutMs ?? 15000;
-  const headers: Record<string, string> = { "User-Agent": "pace/1.0" };
-  if (opts.accept) {
-    headers.Accept = opts.accept;
-  }
-
   try {
-    const res = await fetch(url, {
-      headers,
-      signal: AbortSignal.timeout(timeoutMs),
+    const res = await fetchWithTimeout(url, {
+      timeoutMs: opts.timeoutMs,
+      accept: opts.accept,
     });
 
     if (!res.ok) {

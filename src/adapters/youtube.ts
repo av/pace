@@ -1,5 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import { extractAtomLink } from "./atom";
+import { fetchWithTimeout } from "./fetch";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 
@@ -69,10 +70,7 @@ async function fetchYoutubeFeed(
   const label = kind;
   const url = `https://www.youtube.com/feeds/videos.xml?${param}=${id}`;
   try {
-    const res = await fetch(url, {
-      headers: { "User-Agent": "pace/1.0" },
-      signal: AbortSignal.timeout(15000),
-    });
+    const res = await fetchWithTimeout(url);
     if (!res.ok) {
       throw new Error(`youtube: failed to fetch ${label} ${id}: ${errorMessage({ message: String(res.status) })}`);
     }
