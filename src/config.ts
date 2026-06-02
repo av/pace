@@ -2,7 +2,7 @@ import { readFileSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import yaml from "js-yaml";
 import type { AdapterConfig } from "./adapters/types";
-import { getAdapterName } from "./utils";
+import { errorMessage, getAdapterName } from "./utils";
 
 // --- Layout Tree ---
 
@@ -616,7 +616,7 @@ export function loadConfig(): AppConfig {
   try {
     parsed = yaml.load(raw) as Record<string, unknown>;
   } catch (err) {
-    const reason = err instanceof Error ? err.message.split("\n")[0] : String(err);
+    const reason = errorMessage(err).split("\n")[0];
     throw new Error(`config: failed to parse YAML from ${usedConfigPath}: ${reason}`);
   }
 

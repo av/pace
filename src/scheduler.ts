@@ -1,7 +1,7 @@
 import type { Adapter } from "./adapters/types";
 import { errorMessage, getAdapterName } from "./utils";
 import type { Model, Api } from "@mariozechner/pi-ai";
-import { saveItems, getAllItemsByPanel, replacePanelItems, getDb, pruneOldItems as dbPruneOldItems } from "./db";
+import { saveItems, getAllItemsByPanel, replacePanelItems, pruneOldItems as dbPruneOldItems } from "./db";
 import type { AppConfig, IngestAdapterConfig, PipelineConfig } from "./config";
 import { runPipeline, type TransformContext } from "./transforms";
 import type { ContentItemRow } from "./db";
