@@ -1,7 +1,6 @@
 import { fetchWithTimeout } from "./fetch";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
-// from "./types" errorMessage helper (verifier s7s for bugbash-iter11)
 
 const HN_API = "https://hacker-news.firebaseio.com/v0";
 const BATCH_SIZE = 10;
@@ -44,7 +43,8 @@ async function fetchHN<T>(subpath: string, timeout: number, errorContext?: strin
 async function fetchItem(id: number): Promise<HNItem | null> {
   try {
     return await fetchHN<HNItem>(`item/${id}.json`, 10000);
-  } catch {
+  } catch (err) {
+    console.warn(`hackernews: failed to fetch item ${id}: ${errorMessage(err)}`);
     return null;
   }
 }
