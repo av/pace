@@ -6,7 +6,7 @@ import {
   joinBodyParts,
 } from "./engagement";
 import { parseUnixEpochSeconds } from "./dates";
-import { DEFAULT_FETCH_TIMEOUT_MS, fetchJson } from "./fetch";
+import { fetchJson } from "./fetch";
 import { decodeHtmlEntities } from "./html";
 import { sliceToLimit } from "../utils";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -114,9 +114,7 @@ const adapter: Adapter = {
 
     let ids: number[];
     try {
-      ids = await fetchJson<number[]>("hackernews", `${HN_API}/${endpoint}.json`, endpoint, {
-        timeoutMs: DEFAULT_FETCH_TIMEOUT_MS,
-      });
+      ids = await fetchJson<number[]>("hackernews", `${HN_API}/${endpoint}.json`, endpoint);
     } catch (err) {
       if (err instanceof Error && err.message.startsWith("hackernews: failed to fetch")) {
         throw err;

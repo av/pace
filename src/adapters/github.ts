@@ -12,7 +12,7 @@ import {
 } from "./atom";
 import { parseFeedDate } from "./dates";
 import { formatLanguage, formatStars, joinBodyParts } from "./engagement";
-import { DEFAULT_FETCH_TIMEOUT_MS, fetchText } from "./fetch";
+import { fetchText } from "./fetch";
 import { sliceToLimit } from "../utils";
 import { dedupeByKey } from "./merge";
 import { decodeHtmlEntities, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
@@ -57,9 +57,7 @@ async function fetchReleasesFeed(
 ): Promise<ContentItem[]> {
   const url = `https://github.com/${repo}/releases.atom`;
 
-  const xml = await fetchText("github", url, `releases for ${repo}`, {
-    timeoutMs: DEFAULT_FETCH_TIMEOUT_MS,
-  });
+  const xml = await fetchText("github", url, `releases for ${repo}`);
 
   const parsed = parser.parse(xml) as GHAtomFeedParsed;
   const source = releasesFeedSource(parsed, repo);
