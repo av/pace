@@ -258,30 +258,54 @@ function pruneOldItems(): void {
   }
 }
 
+function namesInSet<T>(entries: readonly T[], getName: (e: T) => string, names: Set<string>): Set<string> {
+  const out = new Set<string>();
+  for (const entry of entries) {
+    const name = getName(entry);
+    if (names.has(name)) out.add(name);
+  }
+  return out;
+}
+
+function filterByNames<T>(entries: readonly T[], getName: (e: T) => string, names: Set<string>): T[] {
+  return entries.filter((e) => names.has(getName(e)));
+}
+
+function addPipelineSourcesTo(names: Set<string>, pipelines: readonly PipelineEntry[]): void {
+  for (const pipeline of pipelines) {
+    for (const source of pipeline.config.sources) {
+      names.add(source);
+    }
+  }
+}
+
+/** Pipelines named in `seed` plus any whose sources intersect `adapterNames`. */
+function dependentPipelineNames(adapterNames: Set<string>, seed: Set<string>): Set<string> {
+  const names = new Set(seed);
+  for (const pipeline of pipelineEntries) {
+    if (names.has(pipeline.config.name)) continue;
+    if (pipeline.config.sources.some((source) => adapterNames.has(source))) {
+      names.add(pipeline.config.name);
+    }
+  }
+  return names;
+}
+
 export async function refreshSources(sourceNames: string[]): Promise<RefreshResult[]> {
   const sourceNameSet = new Set(sourceNames);
-  const selectedPipelines = pipelineEntries.filter((e) => sourceNameSet.has(e.config.name));
-  const adapterNameSet = new Set(
-    adapterEntries.filter((e) => sourceNameSet.has(e.name)).map((e) => e.name)
-  );
 
-  for (const pipeline of selectedPipelines) {
-    for (const source of pipeline.config.sources) {
-      adapterNameSet.add(source);
-    }
-  }
+  const selectedPipelines = filterByNames(pipelineEntries, (e) => e.config.name, sourceNameSet);
+  const adapterNameSet = namesInSet(adapterEntries, (e) => e.name, sourceNameSet);
+  addPipelineSourcesTo(adapterNameSet, selectedPipelines);
 
-  const toRefresh = adapterEntries.filter((e) => adapterNameSet.has(e.name));
+  const toRefresh = filterByNames(adapterEntries, (e) => e.name, adapterNameSet);
   const adapterResults = await Promise.all(toRefresh.map((e) => runAdapter(e)));
 
-  const pipelineNameSet = new Set(selectedPipelines.map((e) => e.config.name));
-  for (const pipeline of pipelineEntries) {
-    if (pipeline.config.sources.some((source) => adapterNameSet.has(source))) {
-      pipelineNameSet.add(pipeline.config.name);
-    }
-  }
-
-  const pipelinesToRefresh = pipelineEntries.filter((e) => pipelineNameSet.has(e.config.name));
+  const pipelineNameSet = dependentPipelineNames(
+    adapterNameSet,
+    new Set(selectedPipelines.map((e) => e.config.name)),
+  );
+  const pipelinesToRefresh = filterByNames(pipelineEntries, (e) => e.config.name, pipelineNameSet);
   const pipelineResults = await Promise.all(pipelinesToRefresh.map((e) => runPipelineJob(e)));
 
   return adapterResults.concat(pipelineResults);
