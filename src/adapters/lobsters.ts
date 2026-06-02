@@ -1,5 +1,6 @@
 import { sliceToLimit, sortByCreatedAtDesc } from "./dates";
 import { fetchWithTimeout } from "./fetch";
+import { fetchAndConcat } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 
@@ -77,12 +78,10 @@ const adapter: Adapter = {
       let items: LobstersItem[] = [];
 
       if (tags.length > 0) {
-        // Fetch tag-specific feeds and merge
-        for (const tag of tags) {
+        items = await fetchAndConcat(tags, (tag) => {
           const tagUrl = `${LOBSTERS_BASE}/t/${encodeURIComponent(tag)}.json`;
-          const tagItems = await fetchLobstersJson(tagUrl, `tag ${tag}`);
-          items.push(...tagItems);
-        }
+          return fetchLobstersJson(tagUrl, `tag ${tag}`);
+        });
 
         // Dedupe by short_id since items may appear in multiple tags
         const seen = new Set<string>();

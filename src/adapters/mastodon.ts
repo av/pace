@@ -1,6 +1,7 @@
 import { sliceToLimit, sortByCreatedAtDesc } from "./dates";
 import { fetchWithTimeout } from "./fetch";
 import { stripHtml } from "./html";
+import { fetchAndConcat } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 
@@ -193,11 +194,9 @@ const adapter: Adapter = {
       if (mode === "public") {
         allStatuses = await fetchPublicTimeline(instance, limit, onlyMedia);
       } else if (mode === "hashtag") {
-        // Fetch each hashtag timeline and merge
-        for (const tag of hashtags) {
-          const statuses = await fetchHashtagTimeline(instance, tag, limit, onlyMedia);
-          allStatuses.push(...statuses);
-        }
+        allStatuses = await fetchAndConcat(hashtags, (tag) =>
+          fetchHashtagTimeline(instance, tag, limit, onlyMedia),
+        );
       } else if (mode === "account") {
         // Resolve and fetch each account
         for (const handle of accounts) {
