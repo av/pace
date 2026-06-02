@@ -76,17 +76,15 @@ export interface AppConfig {
   llm?: LlmConfig;
 }
 
-function defaultLayout(): LayoutNodeConfig {
-  return {
-    direction: "row",
-    children: [{ panel: "all", source: "all", limit: 50 }],
-  };
-}
+const DEFAULT_LAYOUT: LayoutNodeConfig = {
+  direction: "row",
+  children: [{ panel: "all", source: "all", limit: 50 }],
+};
 
 function defaultConfig(): AppConfig {
   return {
     adapters: [],
-    layout: defaultLayout(),
+    layout: DEFAULT_LAYOUT,
   };
 }
 
@@ -604,7 +602,7 @@ export function loadConfig(): AppConfig {
 
   const rawAdapters = (resolved.adapters ?? []) as unknown[];
   const rawPipelines = (resolved.pipelines ?? []) as unknown[];
-  const layout = resolved.layout ?? defaultLayout();
+  const layout = resolved.layout ?? DEFAULT_LAYOUT;
 
   validateLayoutNode(layout);
   validatePanelIds(layout);
