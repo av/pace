@@ -60,6 +60,15 @@ describe("types", () => {
     });
   });
 
+  describe("AdapterConfig shape", () => {
+    test("refresh_interval is ingest-only (IngestAdapterConfig), not on fetch contract", () => {
+      const src = fs.readFileSync(TYPES_TS, "utf8");
+      const block = src.match(/export interface AdapterConfig \{[\s\S]*?\n\}/);
+      expect(block).toBeTruthy();
+      expect(block![0]).not.toMatch(/refresh_interval/);
+    });
+  });
+
   describe("Adapter.fetch contract (reference)", () => {
     test("Adapter interface requires name and fetch", () => {
       const adapter: Adapter = {

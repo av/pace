@@ -89,6 +89,8 @@ export interface LlmConfig {
 
 export interface IngestAdapterConfig extends AdapterConfig {
   name?: string;
+  /** Minutes between scheduled fetches (default 15, minimum 1); not read by `Adapter.fetch`. */
+  refresh_interval?: number;
   transforms?: TransformConfig[];
 }
 

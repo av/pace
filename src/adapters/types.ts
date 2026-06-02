@@ -11,10 +11,10 @@ export interface ContentItem extends ContentItemFields {
   body?: string;
 }
 
+/** Params passed to `Adapter.fetch` (scheduling fields live on `IngestAdapterConfig` in config.ts). */
 export interface AdapterConfig {
   type: string;
   params?: Record<string, unknown>;
-  refresh_interval?: number;
 }
 
 // Re-export for adapters/*.ts only; core modules import errorMessage from ../utils directly.
