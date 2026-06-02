@@ -46,6 +46,10 @@ interface SEResponse {
   quota_remaining: number;
 }
 
+function normalizeConfiguredTags(tags: string[]): string[] {
+  return tags.map((tag) => tag.trim()).filter(Boolean);
+}
+
 function decodeQuestionTitle(title: string): string {
   return decodeHtmlEntities(title, { numeric: true });
 }
@@ -102,7 +106,7 @@ const adapter: Adapter = {
    */
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
     const site = (config.params?.site as string) ?? "stackoverflow";
-    const tags = (config.params?.tags as string[]) ?? [];
+    const tags = normalizeConfiguredTags((config.params?.tags as string[]) ?? []);
     const sort = (config.params?.sort as string) ?? "hot";
     const limit = Math.min((config.params?.limit as number) ?? 20, 100);
     const minScore = (config.params?.min_score as number) ?? 0;

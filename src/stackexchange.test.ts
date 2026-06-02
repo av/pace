@@ -55,6 +55,53 @@ describe("stackexchange", () => {
     expect(calledUrl).not.toContain("tagged=");
   });
 
+  test("blank-only tags behave like no tags configured", async () => {
+    const q = makeQuestion();
+    mocks.fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({ items: [q], has_more: false, quota_remaining: 100 }),
+        { status: 200 },
+      ),
+    );
+
+    const items = await stackexchangeAdapter.fetch(seCfg({ tags: ["", "  "] }));
+
+    expect(items).toHaveLength(1);
+    expect(items[0].source).toBe("stackoverflow:hot");
+    expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
+    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    expect(calledUrl).not.toContain("tagged=");
+    expect(mocks.warnSpy).not.toHaveBeenCalled();
+  });
+
+  test("trims whitespace from configured tag names", async () => {
+    const q = makeQuestion({ question_id: 55, tags: ["typescript"] });
+    const empty = new Response(
+      JSON.stringify({ items: [], has_more: false, quota_remaining: 99 }),
+      { status: 200 },
+    );
+    mocks.fetchMock
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ items: [q], has_more: false, quota_remaining: 100 }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(empty);
+
+    const items = await stackexchangeAdapter.fetch(
+      seCfg({ tags: ["  typescript  ", "bun"], limit: 5 }),
+    );
+
+    expect(items).toHaveLength(1);
+    expect(mocks.fetchMock).toHaveBeenCalledTimes(2);
+    const url0 = String(mocks.fetchMock.mock.calls[0][0]);
+    const url1 = String(mocks.fetchMock.mock.calls[1][0]);
+    expect(url0).toContain("tagged=typescript");
+    expect(url1).toContain("tagged=bun");
+    expect(items[0].source).toBe("stackoverflow:typescript+bun");
+  });
+
   test("one tag per request", async () => {
     const q1 = makeQuestion({ question_id: 1, tags: ["typescript"] });
     const q2 = makeQuestion({ question_id: 2, tags: ["bun"] });
