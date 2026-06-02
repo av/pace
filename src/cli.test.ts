@@ -3,7 +3,7 @@ import { spawnSync, spawn, type SpawnSyncReturns, type ChildProcess } from "node
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import os from "node:os";
-import { formatCliHelpStdout } from "./cli-help";
+import { formatCliHelpStdout, isCliFatalStartupError } from "./cli-help";
 
 function runCli(args: string[]): SpawnSyncReturns<string> {
   return spawnSync(process.execPath, ["src/cli.ts", ...args], {
@@ -13,6 +13,16 @@ function runCli(args: string[]): SpawnSyncReturns<string> {
     env: { ...process.env, PACE_DB_PATH: "/tmp/pace-cli-test.db" },
   });
 }
+
+describe("cli-help", () => {
+  test("isCliFatalStartupError matches config/scheduler/index prefixes", () => {
+    expect(isCliFatalStartupError("config: bad yaml")).toBe(true);
+    expect(isCliFatalStartupError("scheduler: boom")).toBe(true);
+    expect(isCliFatalStartupError("index: failed to read styles.css")).toBe(true);
+    expect(isCliFatalStartupError("cli: failed to chdir")).toBe(false);
+    expect(isCliFatalStartupError("unexpected")).toBe(false);
+  });
+});
 
 describe("cli", () => {
   let tmpDir: string;

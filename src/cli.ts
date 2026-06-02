@@ -3,14 +3,17 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { errorMessage, isValidPort } from "./utils";
 import { tryReadRegularFile } from "./config";
-import { formatCliHelp, isCliKnownOption, readPackageVersion } from "./cli-help";
+import {
+  cliDie,
+  cliExitOk,
+  cliFailWithHelp,
+  formatCliHelp,
+  isCliFatalStartupError,
+  isCliKnownOption,
+  readPackageVersion,
+} from "./cli-help";
 
 const version = readPackageVersion();
-
-function cliDie(message: string): never {
-  console.error(message);
-  process.exit(1);
-}
 
 const projectRoot = join(import.meta.dir, "..");
 process.chdir(projectRoot);
@@ -44,19 +47,16 @@ if (values.chdir) {
 }
 
 if (values.help) {
-  console.log(HELP);
-  process.exit(0);
+  cliExitOk(HELP);
 }
 
 if (values.version) {
-  console.log(version);
-  process.exit(0);
+  cliExitOk(version);
 }
 
 if (values.listPresets) {
   const { listPresets } = await import("./config");
-  console.log(listPresets().join("\n"));
-  process.exit(0);
+  cliExitOk(listPresets().join("\n"));
 }
 
 if (values.preset && !values.config) {
@@ -65,25 +65,19 @@ if (values.preset && !values.config) {
   if (resolved) {
     process.env.PACE_CONFIG = resolved;
   } else {
-    console.error(`Unknown preset: ${values.preset}`);
-    console.error(`Available: ${listPresets().join(", ")}`);
-    process.exit(1);
+    cliDie(`Unknown preset: ${values.preset}\nAvailable: ${listPresets().join(", ")}`);
   }
 }
 
 const command = positionals[0] ?? "serve";
 
 if (command !== "serve") {
-  console.error(`Unknown command: ${command}\n`);
-  console.log(HELP);
-  process.exit(1);
+  cliFailWithHelp(`Unknown command: ${command}\n`, HELP);
 }
 
 const unexpected = Object.keys(values).filter((k) => !isCliKnownOption(k) && values[k] !== undefined);
 if (unexpected.length > 0) {
-  console.error(`Unknown option(s): ${unexpected.map((u) => "--" + u).join(", ")}\n`);
-  console.log(HELP);
-  process.exit(1);
+  cliFailWithHelp(`Unknown option(s): ${unexpected.map((u) => "--" + u).join(", ")}\n`, HELP);
 }
 
 if (values.config) {
@@ -100,8 +94,7 @@ if (values.port) {
   const p = values.port;
   const n = parseInt(p, 10);
   if (!isValidPort(n)) {
-    console.error(`Invalid --port value: ${p}. Must be an integer between 1 and 65535.`);
-    process.exit(1);
+    cliDie(`Invalid --port value: ${p}. Must be an integer between 1 and 65535.`);
   }
   process.env.PORT = p;
 }
@@ -110,7 +103,7 @@ try {
   await import("./index");
 } catch (err) {
   const message = errorMessage(err);
-  if (message.startsWith("config:") || message.startsWith("scheduler:") || message.startsWith("index:")) {
+  if (isCliFatalStartupError(message)) {
     cliDie(message);
   }
   throw err;
