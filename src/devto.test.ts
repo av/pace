@@ -1,10 +1,16 @@
-import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from "bun:test";
 import devtoAdapter from "./adapters/devto";
+import * as typesMod from "./adapters/types";
 
 const originalFetch = globalThis.fetch;
 
 describe("devto adapter", () => {
   let fetchCalls: Array<{ url: string; init?: RequestInit }> = [];
+
+  test("satisfies ngb contract: default export has .name and .fetch", () => {
+    expect(devtoAdapter.name).toBe("devto");
+    expect(typeof devtoAdapter.fetch).toBe("function");
+  });
 
   beforeEach(() => {
     fetchCalls = [];
@@ -156,5 +162,32 @@ describe("devto adapter", () => {
     const items = await devtoAdapter.fetch({ params: {} } as any);
     expect(items.length).toBe(0);
     expect(fetchCalls.length).toBe(0);
+  });
+
+  test("throws on network rejection with devto-prefixed message", async () => {
+    globalThis.fetch = mock(async () => {
+      throw new Error("network boom for devto test");
+    }) as unknown as typeof fetch;
+
+    await expect(
+      devtoAdapter.fetch({ params: { tags: ["javascript"] } } as any),
+    ).rejects.toThrow('devto: error fetching tag "javascript": network boom for devto test');
+  });
+
+  test("uses errorMessage helper in !ok HTTP error path", async () => {
+    const emSpy = spyOn(typesMod, "errorMessage");
+    const callsBefore = emSpy.mock.calls.length;
+
+    globalThis.fetch = mock(async () => ({
+      ok: false,
+      status: 403,
+    })) as unknown as typeof fetch;
+
+    await expect(
+      devtoAdapter.fetch({ params: { tags: ["javascript"] } } as any),
+    ).rejects.toThrow('devto: failed to fetch tag "javascript": 403');
+
+    expect(emSpy.mock.calls.length - callsBefore).toBe(2);
+    emSpy.mockRestore();
   });
 });

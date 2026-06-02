@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from "bun:test";
 import producthuntAdapter from "./adapters/producthunt";
+import * as typesMod from "./adapters/types";
 
 const originalFetch = globalThis.fetch;
 
@@ -39,6 +40,11 @@ function makeEnrichHtml(upvotes: number, comments: number, topics: string[] = ["
 describe("producthunt adapter (DRY quality + test coverage)", () => {
   let fetchMock: ReturnType<typeof mock>;
   let warnSpy: ReturnType<typeof spyOn>;
+
+  test("satisfies ngb contract: default export has .name and .fetch", () => {
+    expect(producthuntAdapter.name).toBe("producthunt");
+    expect(typeof producthuntAdapter.fetch).toBe("function");
+  });
 
   beforeEach(() => {
     fetchMock = mock();
@@ -147,11 +153,19 @@ describe("producthunt adapter (DRY quality + test coverage)", () => {
   });
 
   test("throws on HTTP !ok from feed (propagates with producthunt: prefix)", async () => {
+    const emSpy = spyOn(typesMod, "errorMessage");
     fetchMock.mockResolvedValue(new Response("rate limited", { status: 429 }));
 
     await expect(
       producthuntAdapter.fetch({ params: {} } as any),
     ).rejects.toThrow(/producthunt: failed to fetch feed: 429/);
+
+    const hasStatusObjCall = emSpy.mock.calls.some((call: unknown[]) => {
+      const arg = call[0];
+      return arg && typeof arg === "object" && arg !== null && "message" in arg && String((arg as { message: string }).message) === "429";
+    });
+    expect(hasStatusObjCall).toBe(true);
+    emSpy.mockRestore();
   });
 
   test("throws on network reject from feed (wrapped)", async () => {
