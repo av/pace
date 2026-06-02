@@ -361,7 +361,9 @@ interface DedupeRunOptions {
   shouldLog: boolean;
 }
 
-function resolveDedupeOptions(cfg: Extract<TransformConfig, { type: "dedupe" }>): DedupeRunOptions {
+type DedupeTransformConfig = Extract<TransformConfig, { type: "dedupe" }>;
+
+function resolveDedupeOptions(cfg: DedupeTransformConfig): DedupeRunOptions {
   return {
     strategy: cfg.strategy ?? DEDUPE_DEFAULT_STRATEGY,
     threshold: cfg.threshold ?? DEDUPE_DEFAULT_THRESHOLD,
@@ -438,6 +440,11 @@ const dedupeStrategyHandlers: Record<DedupeStrategy, DedupeStrategyHandler> = {
 
 type LatestTransformConfig = Extract<TransformConfig, { type: "latest" }>;
 type SortTransformConfig = Extract<TransformConfig, { type: "sort" }>;
+type KeywordScoreTransformConfig = Extract<TransformConfig, { type: "keyword-score" }>;
+type TimeDecayTransformConfig = Extract<TransformConfig, { type: "time-decay" }>;
+type LlmFilterTransformConfig = Extract<TransformConfig, { type: "llm-filter" }>;
+type LlmRankTransformConfig = Extract<TransformConfig, { type: "llm-rank" }>;
+type LlmMergeTransformConfig = Extract<TransformConfig, { type: "llm-merge" }>;
 
 function applyLatest(items: ContentItemRow[], { count }: LatestTransformConfig): ContentItemRow[] {
   return sliceToLimit(items, count);
@@ -457,6 +464,164 @@ function applySort(
     }
     return av < bv ? -dir : av > bv ? dir : 0;
   });
+}
+
+function applyDedupe(items: ContentItemRow[], config: DedupeTransformConfig): ContentItemRow[] {
+  const opts = resolveDedupeOptions(config);
+  if (!isDedupeStrategy(opts.strategy)) {
+    console.warn(`[dedupe] unknown strategy "${opts.strategy}", passing items through`);
+    return items;
+  }
+  return dedupeStrategyHandlers[opts.strategy](items, opts);
+}
+
+function applyKeywordScore(
+  items: ContentItemRow[],
+  { keywords, min_score: minScore, annotate = false }: KeywordScoreTransformConfig
+): ContentItemRow[] {
+  if (keywords.length === 0) return items;
+
+  const matchers = keywords.map((kw) => {
+    if (kw.regex) {
+      try {
+        return { regex: new RegExp(kw.term, "gi"), weight: kw.weight, term: kw.term };
+      } catch {
+        console.warn(`[keyword-score] invalid regex "${kw.term}", treating as literal`);
+        return { regex: null, literal: kw.term.toLowerCase(), weight: kw.weight, term: kw.term };
+      }
+    }
+    return { regex: null, literal: kw.term.toLowerCase(), weight: kw.weight, term: kw.term };
+  });
+
+  interface ScoredItem {
+    row: ContentItemRow;
+    score: number;
+    matchedTerms: string[];
+  }
+
+  const scored: ScoredItem[] = items.map((item) => {
+    const title = (item.title ?? "").toLowerCase();
+    const body = (item.body ?? "").toLowerCase();
+    const titleOrig = item.title ?? "";
+    const bodyOrig = item.body ?? "";
+    let score = 0;
+    const matchedTerms: string[] = [];
+
+    for (const matcher of matchers) {
+      let matchCount = 0;
+
+      if (matcher.regex) {
+        matcher.regex.lastIndex = 0;
+        const titleMatches = titleOrig.match(matcher.regex);
+        const bodyMatches = bodyOrig.match(matcher.regex);
+        matchCount = (titleMatches?.length ?? 0) + (bodyMatches?.length ?? 0);
+      } else {
+        const literal = matcher.literal!;
+        let idx = 0;
+        while ((idx = title.indexOf(literal, idx)) !== -1) {
+          matchCount++;
+          idx += literal.length;
+        }
+        idx = 0;
+        while ((idx = body.indexOf(literal, idx)) !== -1) {
+          matchCount++;
+          idx += literal.length;
+        }
+      }
+
+      if (matchCount > 0) {
+        score += matcher.weight * matchCount;
+        matchedTerms.push(`${matcher.term}(${matchCount > 1 ? "x" + matchCount : ""}${matcher.weight > 0 ? "+" : ""}${matcher.weight})`);
+      }
+    }
+
+    return { row: item, score, matchedTerms };
+  });
+
+  const filtered = filterByMinScore(scored, minScore, (s) => s.score, "keyword-score");
+  sortByScoreDesc(filtered, (s) => s.score);
+
+  const result = filtered.map((s) => {
+    if (annotate && s.matchedTerms.length > 0) {
+      const annotation = `\n---\n[keyword-score: ${s.score}] ${s.matchedTerms.join(", ")}`;
+      return annotateRow(s.row, annotation);
+    }
+    return s.row;
+  });
+
+  console.log(
+    `[keyword-score] scored ${items.length} items, ${result.length} passed` +
+      (result.length > 0
+        ? ` (top score: ${filtered[0]?.score}, bottom: ${filtered[filtered.length - 1]?.score})`
+        : "")
+  );
+
+  return result;
+}
+
+function applyTimeDecay(
+  items: ContentItemRow[],
+  {
+    half_life: halfLifeStr = "12h",
+    engagement_weight: engagementWeight = 0.7,
+    recency_weight: recencyWeight = 0.3,
+    decay: decayType = "exponential",
+    annotate = false,
+    min_score: minScore,
+  }: TimeDecayTransformConfig
+): ContentItemRow[] {
+  const halfLifeMs = parseHalfLife(halfLifeStr);
+  const now = Date.now();
+
+  const engagementScores = items.map((item) => extractEngagementScore(item.body));
+  const maxEngagement = Math.max(1, ...engagementScores);
+
+  interface DecayScored {
+    row: ContentItemRow;
+    engagementNorm: number;
+    recencyNorm: number;
+    finalScore: number;
+  }
+
+  const scored: DecayScored[] = items.map((item, i) => {
+    const rawEngagement = engagementScores[i];
+    const engagementNorm = maxEngagement > 1
+      ? Math.log(1 + rawEngagement) / Math.log(1 + maxEngagement)
+      : (rawEngagement > 0 ? 1 : 0);
+
+    const itemTime = new Date(item.timestamp).getTime();
+    const ageMs = Math.max(0, now - itemTime);
+
+    let recencyNorm: number;
+    if (decayType === "exponential") {
+      recencyNorm = Math.pow(2, -(ageMs / halfLifeMs));
+    } else {
+      recencyNorm = Math.max(0, 1 - ageMs / (2 * halfLifeMs));
+    }
+
+    const finalScore = engagementWeight * engagementNorm + recencyWeight * recencyNorm;
+    return { row: item, engagementNorm, recencyNorm, finalScore };
+  });
+
+  const filtered = filterByMinScore(scored, minScore, (s) => s.finalScore, "time-decay");
+  sortByScoreDesc(filtered, (s) => s.finalScore);
+
+  const result = filtered.map((s) => {
+    if (annotate) {
+      const annotation = `\n---\n[hot-score: ${s.finalScore.toFixed(3)}] engagement=${s.engagementNorm.toFixed(3)} recency=${s.recencyNorm.toFixed(3)} (${decayType}, half_life=${halfLifeStr})`;
+      return annotateRow(s.row, annotation);
+    }
+    return s.row;
+  });
+
+  console.log(
+    `[time-decay] ranked ${items.length} items (decay=${decayType}, half_life=${halfLifeStr}, weights=${engagementWeight}/${recencyWeight})` +
+      (result.length > 0
+        ? ` top=${filtered[0]?.finalScore.toFixed(3)}, bottom=${filtered[filtered.length - 1]?.finalScore.toFixed(3)}`
+        : "")
+  );
+
+  return result;
 }
 
 function sortRowsByInputOrder(rows: ContentItemRow[], order: ContentItemRow[]): ContentItemRow[] {
@@ -493,6 +658,55 @@ function withLlmModel<T extends ContentItemRow>(
   return work(ctx.llmModel);
 }
 
+async function applyLlmFilter(
+  model: Model<Api>,
+  items: ContentItemRow[],
+  { criteria }: LlmFilterTransformConfig
+): Promise<ContentItemRow[]> {
+  const filtered = await filterItemsByLlm(model, toContentItems(items), criteria);
+  const keepIds = new Set(filtered.map((i) => i.id));
+  return items.filter((row) => keepIds.has(row.id));
+}
+
+async function applyLlmRank(
+  model: Model<Api>,
+  items: ContentItemRow[],
+  config: LlmRankTransformConfig,
+  ctx: TransformContext
+): Promise<ContentItemRow[]> {
+  const effectiveInterests = config.interests ?? ctx.llmConfig?.interests ?? [];
+  if (effectiveInterests.length === 0) return items;
+  const ranked = await lensItems(model, toContentItems(items), effectiveInterests);
+  const rowById = new Map(items.map((r) => [r.id, r]));
+  const order: ContentItemRow[] = [];
+  const seen = new Set<string>();
+  for (const item of ranked) {
+    const row = rowById.get(item.id);
+    if (row) {
+      order.push(row);
+      seen.add(row.id);
+    }
+  }
+  for (const row of items) {
+    if (!seen.has(row.id)) order.push(row);
+  }
+  return sortRowsByInputOrder(items, order);
+}
+
+async function applyLlmMerge(
+  model: Model<Api>,
+  items: ContentItemRow[],
+  { prompt }: LlmMergeTransformConfig
+): Promise<ContentItemRow[]> {
+  const merged = await mergeItems(model, toContentItems(items), prompt);
+  const rowMap = new Map<string, ContentItemRow>();
+  for (const row of items) rowMap.set(row.id, row);
+  return merged.map((item) => {
+    const baseRow = rowMap.get(item.id) ?? rowMap.get(item.id.split("+")[0]);
+    return contentItemToRow(item, baseRow);
+  });
+}
+
 type TransformFn = (
   items: ContentItemRow[],
   config: TransformConfig,
@@ -508,200 +722,12 @@ const transforms: Record<string, TransformFn> = {
 
   sort: async (items, config) => applySort(items, config as SortTransformConfig),
 
-  dedupe: async (items, config) => {
-    const opts = resolveDedupeOptions(config as Extract<TransformConfig, { type: "dedupe" }>);
-    if (!isDedupeStrategy(opts.strategy)) {
-      console.warn(`[dedupe] unknown strategy "${opts.strategy}", passing items through`);
-      return items;
-    }
-    return dedupeStrategyHandlers[opts.strategy](items, opts);
-  },
+  dedupe: async (items, config) => applyDedupe(items, config as DedupeTransformConfig),
 
-  "keyword-score": async (items, config) => {
-    const cfg = config as {
-      type: "keyword-score";
-      keywords: KeywordScoreEntry[];
-      min_score?: number;
-      annotate?: boolean;
-    };
-    const keywords = cfg.keywords ?? [];
-    const minScore = cfg.min_score ?? undefined;
-    const annotate = cfg.annotate ?? false;
+  "keyword-score": async (items, config) =>
+    applyKeywordScore(items, config as KeywordScoreTransformConfig),
 
-    if (keywords.length === 0) return items;
-
-    // Pre-compile regex patterns for regex entries, plain lowercase strings for others
-    const matchers = keywords.map((kw) => {
-      if (kw.regex) {
-        try {
-          return { regex: new RegExp(kw.term, "gi"), weight: kw.weight, term: kw.term };
-        } catch {
-          console.warn(`[keyword-score] invalid regex "${kw.term}", treating as literal`);
-          return { regex: null, literal: kw.term.toLowerCase(), weight: kw.weight, term: kw.term };
-        }
-      }
-      return { regex: null, literal: kw.term.toLowerCase(), weight: kw.weight, term: kw.term };
-    });
-
-    interface ScoredItem {
-      row: ContentItemRow;
-      score: number;
-      matchedTerms: string[];
-    }
-
-    const scored: ScoredItem[] = items.map((item) => {
-      const title = (item.title ?? "").toLowerCase();
-      const body = (item.body ?? "").toLowerCase();
-      const titleOrig = item.title ?? "";
-      const bodyOrig = item.body ?? "";
-      let score = 0;
-      const matchedTerms: string[] = [];
-
-      for (const matcher of matchers) {
-        let matchCount = 0;
-
-        if (matcher.regex) {
-          // Reset lastIndex for global regex
-          matcher.regex.lastIndex = 0;
-          const titleMatches = titleOrig.match(matcher.regex);
-          const bodyMatches = bodyOrig.match(matcher.regex);
-          matchCount = (titleMatches?.length ?? 0) + (bodyMatches?.length ?? 0);
-        } else {
-          // Case-insensitive literal matching - count occurrences
-          const literal = matcher.literal!;
-          let idx = 0;
-          while ((idx = title.indexOf(literal, idx)) !== -1) {
-            matchCount++;
-            idx += literal.length;
-          }
-          idx = 0;
-          while ((idx = body.indexOf(literal, idx)) !== -1) {
-            matchCount++;
-            idx += literal.length;
-          }
-        }
-
-        if (matchCount > 0) {
-          score += matcher.weight * matchCount;
-          matchedTerms.push(`${matcher.term}(${matchCount > 1 ? "x" + matchCount : ""}${matcher.weight > 0 ? "+" : ""}${matcher.weight})`);
-        }
-      }
-
-      return { row: item, score, matchedTerms };
-    });
-
-    // Filter by minimum score if specified
-    let filtered = filterByMinScore(scored, minScore, (s) => s.score, "keyword-score");
-
-    // Sort by score descending (stable: items with same score keep original order)
-    sortByScoreDesc(filtered, (s) => s.score);
-
-    // Annotate items with matched keywords if requested
-    const result = filtered.map((s) => {
-      if (annotate && s.matchedTerms.length > 0) {
-        const annotation = `\n---\n[keyword-score: ${s.score}] ${s.matchedTerms.join(", ")}`;
-        return annotateRow(s.row, annotation);
-      }
-      return s.row;
-    });
-
-    console.log(
-      `[keyword-score] scored ${items.length} items, ${result.length} passed` +
-        (result.length > 0
-          ? ` (top score: ${filtered[0]?.score}, bottom: ${filtered[filtered.length - 1]?.score})`
-          : "")
-    );
-
-    return result;
-  },
-
-  "time-decay": async (items, config) => {
-    const cfg = config as {
-      type: "time-decay";
-      half_life?: string;
-      engagement_weight?: number;
-      recency_weight?: number;
-      decay?: "exponential" | "linear";
-      annotate?: boolean;
-      min_score?: number;
-    };
-
-    const halfLifeStr = cfg.half_life ?? "12h";
-    const engagementWeight = cfg.engagement_weight ?? 0.7;
-    const recencyWeight = cfg.recency_weight ?? 0.3;
-    const decayType = cfg.decay ?? "exponential";
-    const annotate = cfg.annotate ?? false;
-    const minScore = cfg.min_score ?? undefined;
-
-    // Parse half-life string into milliseconds
-    const halfLifeMs = parseHalfLife(halfLifeStr);
-
-    const now = Date.now();
-
-    // Compute engagement scores and find the max for normalization
-    const engagementScores = items.map((item) => extractEngagementScore(item.body));
-    const maxEngagement = Math.max(1, ...engagementScores); // avoid division by zero
-
-    // Compute time-decay scores
-    interface DecayScored {
-      row: ContentItemRow;
-      engagementNorm: number;
-      recencyNorm: number;
-      finalScore: number;
-    }
-
-    const scored: DecayScored[] = items.map((item, i) => {
-      // Normalize engagement to [0, 1] using log scale for better distribution
-      const rawEngagement = engagementScores[i];
-      const engagementNorm = maxEngagement > 1
-        ? Math.log(1 + rawEngagement) / Math.log(1 + maxEngagement)
-        : (rawEngagement > 0 ? 1 : 0);
-
-      // Compute age in ms
-      const itemTime = new Date(item.timestamp).getTime();
-      const ageMs = Math.max(0, now - itemTime);
-
-      // Compute recency score via decay function
-      let recencyNorm: number;
-      if (decayType === "exponential") {
-        // Exponential decay: score = 2^(-age / half_life)
-        recencyNorm = Math.pow(2, -(ageMs / halfLifeMs));
-      } else {
-        // Linear decay: score = max(0, 1 - age / (2 * half_life))
-        // Items older than 2x half-life get score 0
-        recencyNorm = Math.max(0, 1 - ageMs / (2 * halfLifeMs));
-      }
-
-      // Combined weighted score
-      const finalScore = engagementWeight * engagementNorm + recencyWeight * recencyNorm;
-
-      return { row: item, engagementNorm, recencyNorm, finalScore };
-    });
-
-    // Filter by minimum score if specified
-    let filtered = filterByMinScore(scored, minScore, (s) => s.finalScore, "time-decay");
-
-    // Sort by final score descending (stable sort preserves order for ties)
-    sortByScoreDesc(filtered, (s) => s.finalScore);
-
-    // Annotate items with computed scores if requested
-    const result = filtered.map((s) => {
-      if (annotate) {
-        const annotation = `\n---\n[hot-score: ${s.finalScore.toFixed(3)}] engagement=${s.engagementNorm.toFixed(3)} recency=${s.recencyNorm.toFixed(3)} (${decayType}, half_life=${halfLifeStr})`;
-        return annotateRow(s.row, annotation);
-      }
-      return s.row;
-    });
-
-    console.log(
-      `[time-decay] ranked ${items.length} items (decay=${decayType}, half_life=${halfLifeStr}, weights=${engagementWeight}/${recencyWeight})` +
-        (result.length > 0
-          ? ` top=${filtered[0]?.finalScore.toFixed(3)}, bottom=${filtered[filtered.length - 1]?.finalScore.toFixed(3)}`
-          : "")
-    );
-
-    return result;
-  },
+  "time-decay": async (items, config) => applyTimeDecay(items, config as TimeDecayTransformConfig),
 
   cluster: async (items, config) => {
     const cfg = config as Extract<TransformConfig, { type: "cluster" }>;
@@ -900,49 +926,16 @@ const transforms: Record<string, TransformFn> = {
     }),
 
   "llm-filter": (items, config, ctx) =>
-    withLlmModel(ctx, items, async (model) => {
-      const { criteria } = config as { type: "llm-filter"; criteria: string };
-      const contentItems = toContentItems(items);
-      const filtered = await filterItemsByLlm(model, contentItems, criteria);
-      const keepIds = new Set(filtered.map((i) => i.id));
-      return items.filter((row) => keepIds.has(row.id));
-    }),
+    withLlmModel(ctx, items, (model) =>
+      applyLlmFilter(model, items, config as LlmFilterTransformConfig)),
 
   "llm-rank": (items, config, ctx) =>
-    withLlmModel(ctx, items, async (model) => {
-      const { interests } = config as { type: "llm-rank"; interests?: string[] };
-      const effectiveInterests = interests ?? ctx.llmConfig?.interests ?? [];
-      if (effectiveInterests.length === 0) return items;
-      const contentItems = toContentItems(items);
-      const ranked = await lensItems(model, contentItems, effectiveInterests);
-      const rowById = new Map(items.map((r) => [r.id, r]));
-      const order: ContentItemRow[] = [];
-      const seen = new Set<string>();
-      for (const item of ranked) {
-        const row = rowById.get(item.id);
-        if (row) {
-          order.push(row);
-          seen.add(row.id);
-        }
-      }
-      for (const row of items) {
-        if (!seen.has(row.id)) order.push(row);
-      }
-      return sortRowsByInputOrder(items, order);
-    }),
+    withLlmModel(ctx, items, (model) =>
+      applyLlmRank(model, items, config as LlmRankTransformConfig, ctx)),
 
   "llm-merge": (items, config, ctx) =>
-    withLlmModel(ctx, items, async (model) => {
-      const { prompt } = config as { type: "llm-merge"; prompt?: string };
-      const contentItems = toContentItems(items);
-      const merged = await mergeItems(model, contentItems, prompt);
-      const rowMap = new Map<string, ContentItemRow>();
-      for (const row of items) rowMap.set(row.id, row);
-      return merged.map((item) => {
-        const baseRow = rowMap.get(item.id) ?? rowMap.get(item.id.split("+")[0]);
-        return contentItemToRow(item, baseRow);
-      });
-    }),
+    withLlmModel(ctx, items, (model) =>
+      applyLlmMerge(model, items, config as LlmMergeTransformConfig)),
 };
 
 export async function runPipeline(
