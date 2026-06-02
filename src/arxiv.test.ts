@@ -147,6 +147,44 @@ describe("arxiv", () => {
     expect(items[0].timestamp).toBeInstanceOf(Date);
   });
 
+  test("trims whitespace from configured categories", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      new Response(makeArxivFixture("Trimmed Cat Paper", "2501.0099", "Author", "cs.AI"), {
+        status: 200,
+      }),
+    );
+
+    await arxivAdapter.fetch(arxivCfg({ categories: ["  cs.AI  ", ""] }));
+
+    expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
+    const callUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    expect(callUrl).toContain("cat%3Acs.AI");
+    expect(callUrl).not.toContain("cat%3A%20");
+  });
+
+  test("trims whitespace from configured query", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      new Response(makeArxivFixture("Trimmed Query Paper", "2501.0100", "Author", "quant-ph"), {
+        status: 200,
+      }),
+    );
+
+    await arxivAdapter.fetch(arxivCfg({ query: "  quantum computing  " }));
+
+    expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
+    const callUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    expect(callUrl).toContain("all%3Aquantum%20computing");
+    expect(callUrl).not.toContain("%20%20");
+  });
+
+  test("whitespace-only query is treated as unconfigured", async () => {
+    const items = await arxivAdapter.fetch(arxivCfg({ query: "   " }));
+
+    expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(expect.stringContaining("arxiv: no categories or query configured"));
+    expect(mocks.fetchMock).not.toHaveBeenCalled();
+  });
+
   test("fetches by keyword query and uses arxiv:search source label", async () => {
     mocks.fetchMock.mockResolvedValue(
       new Response(makeArxivFixture("Quantum Paper", "2301.00001", "Alice", "quant-ph"), {

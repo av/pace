@@ -105,6 +105,14 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function normalizeConfiguredCategories(categories: string[]): string[] {
+  return categories.map((cat) => cat.trim()).filter(Boolean);
+}
+
+function normalizeConfiguredQuery(query: string): string {
+  return query.trim();
+}
+
 async function fetchArxivQuery(
   queryStr: string,
   limit: number,
@@ -163,8 +171,10 @@ function entryToItem(entry: ArxivEntry, sourceLabel: string): ContentItem {
 const adapter: Adapter = {
   name: "arxiv",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const categories = (config.params?.categories as string[]) ?? [];
-    const query = (config.params?.query as string) ?? "";
+    const categories = normalizeConfiguredCategories(
+      (config.params?.categories as string[]) ?? [],
+    );
+    const query = normalizeConfiguredQuery((config.params?.query as string) ?? "");
     const limit = Math.min((config.params?.limit as number) ?? 20, 100);
 
     if (categories.length === 0 && !query) {
