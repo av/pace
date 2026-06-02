@@ -1,6 +1,7 @@
-import { fetchWithTimeout } from "./fetch";
+import { fetchJson } from "./fetch";
+import { fetchRepoTagline } from "./github-repo-meta";
+import { joinTitle, truncateForTitle } from "./title";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
-import { errorMessage } from "./types";
 
 interface GitHubRelease {
   id: number;
@@ -26,26 +27,22 @@ async function fetchRepoReleases(
     headers.Authorization = `Bearer ${token}`;
   }
 
-  try {
-    const res = await fetchWithTimeout(url, { headers });
-    if (!res.ok) {
-      throw new Error(`${ADAPTER_NAME}: failed to fetch ${repo}: ${errorMessage({ message: String(res.status) })}`);
-    }
-    const releases: GitHubRelease[] = await res.json();
-    return releases.map((r) => ({
+  const releases = await fetchJson<GitHubRelease[]>(ADAPTER_NAME, url, repo, { headers });
+  const tagline = await fetchRepoTagline(repo, ADAPTER_NAME, token);
+  return releases.map((r) => {
+    const releaseName = r.name ?? r.tag_name;
+    const title = tagline
+      ? joinTitle(`${repo}: ${releaseName}`, truncateForTitle(tagline))
+      : `${repo}: ${releaseName}`;
+    return {
       id: `github:${repo}:${r.id}`,
-      title: r.name ?? r.tag_name,
+      title,
       url: r.html_url,
       source: `github:${repo}`,
       timestamp: new Date(r.published_at),
       body: r.body ?? undefined,
-    }));
-  } catch (err) {
-    if (err instanceof Error && err.message.startsWith(`${ADAPTER_NAME}: failed to fetch`)) {
-      throw err;
-    }
-    throw new Error(`${ADAPTER_NAME}: error fetching ${repo}: ${errorMessage(err)}`);
-  }
+    };
+  });
 }
 
 const adapter: Adapter = {

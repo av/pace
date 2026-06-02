@@ -1,5 +1,5 @@
 /**
- * Shared HTTP helpers for adapters (`fetchWithTimeout`, `fetchText`).
+ * Shared HTTP helpers for adapters (`fetchWithTimeout`, `fetchText`, `fetchJson`).
  *
  * Error message prefixes (use `${adapterName}:` consistently):
  *
@@ -9,7 +9,8 @@
  * - **`error fetching`** — transport-layer failure before a definitive HTTP
  *   status: network errors, DNS, timeouts (`AbortSignal.timeout`), etc. Use in
  *   catch blocks around `fetchWithTimeout` / `res.text()`.
- * - **`error reading`** — `res.ok` but reading the body failed (`fetchText` only).
+ * - **`error reading`** — `res.ok` but reading/parsing the body failed (`fetchText`,
+ *   `fetchJson`).
  *
  * Avoid double-wrapped messages (`error fetching … failed to fetch …`): in a
  * catch-all around fetch+parse, rethrow when
@@ -73,6 +74,33 @@ export async function fetchText(
 
   try {
     return await res.text();
+  } catch (err) {
+    throw new Error(`${prefix}: error reading ${context}: ${errorMessage(err)}`);
+  }
+}
+
+/** Fetch URL as JSON; applies the module error-prefix conventions above. */
+export async function fetchJson<T>(
+  prefix: string,
+  url: string,
+  context: string = url,
+  options: FetchWithTimeoutOptions = {},
+): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetchWithTimeout(url, options);
+  } catch (err) {
+    throw new Error(`${prefix}: error fetching ${context}: ${errorMessage(err)}`);
+  }
+
+  if (!res.ok) {
+    throw new Error(
+      `${prefix}: failed to fetch ${context}: ${errorMessage({ message: `HTTP error ${res.status}` })}`,
+    );
+  }
+
+  try {
+    return (await res.json()) as T;
   } catch (err) {
     throw new Error(`${prefix}: error reading ${context}: ${errorMessage(err)}`);
   }
