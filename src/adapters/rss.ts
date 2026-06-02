@@ -12,7 +12,7 @@ import {
 } from "./atom";
 import { parseFeedDate } from "./dates";
 import { fetchText } from "./fetch";
-import { stripHtml } from "./html";
+import { FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
 import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
@@ -72,13 +72,7 @@ function parseItem(raw: RssFeedItem, source: string): ContentItem {
   const timestamp = parseFeedDate(dateStr);
 
   const rawBody = extractFeedItemBody(raw);
-  const body = rawBody
-    ? stripHtml(rawBody, {
-        tagSeparator: " ",
-        whitespace: "collapse-all",
-        numericEntities: true,
-      })
-    : undefined;
+  const body = rawBody ? stripHtml(rawBody, FEED_BODY_STRIP_OPTIONS) : undefined;
 
   const resolvedUrl = link || undefined;
 

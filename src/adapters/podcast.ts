@@ -16,7 +16,11 @@ import { joinBodyParts } from "./engagement";
 import { fetchText } from "./fetch";
 import { sliceToLimit } from "../utils";
 import { dedupeByKey } from "./merge";
-import { decodeHtmlEntities, stripHtml } from "./html";
+import {
+  decodeHtmlEntities,
+  FEED_BODY_STRIP_OPTIONS,
+  stripHtml,
+} from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 interface PodcastEnclosure {
@@ -195,11 +199,7 @@ function parseEpisode(
   const publishDate = parseFeedDate(dateStr ? String(dateStr) : "");
 
   const rawDesc = extractFeedItemBody(item) ?? "";
-  const description = stripHtml(rawDesc, {
-    tagSeparator: " ",
-    whitespace: "collapse-all",
-    numericEntities: true,
-  });
+  const description = stripHtml(rawDesc, FEED_BODY_STRIP_OPTIONS);
 
   const duration = parseDuration(item["itunes:duration"]);
 

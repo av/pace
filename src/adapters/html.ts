@@ -7,6 +7,13 @@ interface StripHtmlOptions {
   numericEntities?: boolean;
 }
 
+/** Shared strip options for RSS/Atom/podcast/YouTube/Product Hunt feed bodies. */
+export const FEED_BODY_STRIP_OPTIONS = {
+  tagSeparator: " ",
+  whitespace: "collapse-all" as const,
+  numericEntities: true,
+} satisfies StripHtmlOptions;
+
 export function decodeHtmlEntities(
   str: string,
   options?: { numeric?: boolean },

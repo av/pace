@@ -12,13 +12,11 @@ import {
 import { parseFeedDate } from "./dates";
 import { sliceToLimit } from "../utils";
 import { fetchText } from "./fetch";
-import { decodeHtmlEntities, stripHtml } from "./html";
-
-const FEED_BODY_STRIP_OPTIONS = {
-  tagSeparator: " ",
-  whitespace: "collapse-all" as const,
-  numericEntities: true,
-};
+import {
+  decodeHtmlEntities,
+  FEED_BODY_STRIP_OPTIONS,
+  stripHtml,
+} from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 import {
@@ -118,9 +116,13 @@ function topicLabelFromSlug(slug: string): string {
   return slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function decodeTopicLabel(label: string): string {
+  return decodeHtmlEntities(label.trim(), { numeric: true });
+}
+
 function extractTopics(html: string): string[] {
   const labels = matchCaptures(html, RE_ENRICH_TOPIC_LABEL)
-    .map((t) => t.trim())
+    .map(decodeTopicLabel)
     .filter(Boolean);
   if (labels.length > 0) return labels;
 
