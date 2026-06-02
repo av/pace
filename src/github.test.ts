@@ -148,65 +148,61 @@ describe("github adapter", () => {
     expect(items[0].source).toBe("github:trending");
   });
 
-  test("handles !ok for releases feed (returns [] for repo, no crash)", async () => {
-    fetchMock.mockImplementation(async (url: string) => ({
+  test("throws on !ok for releases feed (contract; no swallow)", async () => {
+    fetchMock.mockImplementation(async () => ({
       ok: false,
       status: 404,
       text: async () => "",
     } as any));
 
-    const items = await adapter.fetch({
-      params: { mode: "releases", repos: ["bad/repo"], limit: 10 },
-    } as any);
-
-    expect(items).toEqual([]);
-    expect(warnSpy.mock.calls.some((c: any[]) =>
-      String(c[0]).includes("failed to fetch releases for bad/repo: 404")
-    )).toBe(true);
+    await expect(
+      adapter.fetch({
+        params: { mode: "releases", repos: ["bad/repo"], limit: 10 },
+      } as any),
+    ).rejects.toThrow(/github:.*failed to fetch releases for bad\/repo.*404/);
   });
 
-  test("handles fetch error (reject) for trending (returns [], warns)", async () => {
+  test("throws on fetch error (reject) for trending (contract; no swallow)", async () => {
     fetchMock.mockImplementation(async () => {
       throw new Error("network boom");
     });
 
-    const items = await adapter.fetch({
-      params: { mode: "trending" },
-    } as any);
-
-    expect(items).toEqual([]);
-    expect(warnSpy.mock.calls.some((c: any[]) =>
-      String(c[0]).includes("error fetching trending")
-    )).toBe(true);
+    await expect(
+      adapter.fetch({
+        params: { mode: "trending" },
+      } as any),
+    ).rejects.toThrow(/github: error fetching trending.*network boom/);
   });
 
   test("uses errorMessage helper in !ok and network error paths per mmu/sh1", async () => {
     const emSpy = spyOn(typesMod, "errorMessage");
 
-    // !ok path via shared fetchGithubResource (releases mode)
-    fetchMock.mockImplementation(async (url: string) => ({
+    fetchMock.mockImplementation(async () => ({
       ok: false,
       status: 404,
       text: async () => "",
     } as any));
 
-    const items1 = await adapter.fetch({
-      params: { mode: "releases", repos: ["bad/repo"], limit: 10 },
-    } as any);
-    expect(items1).toEqual([]);
+    await expect(
+      adapter.fetch({
+        params: { mode: "releases", repos: ["bad/repo"], limit: 10 },
+      } as any),
+    ).rejects.toThrow(/github:/);
     expect(emSpy.mock.calls.some((c: any[]) =>
       c[0] && c[0].message === "404"
     )).toBe(true);
 
-    // network error path (trending uses fetchGithubResource catch)
     fetchMock.mockImplementation(async () => {
       throw new Error("network boom");
     });
 
-    const items2 = await adapter.fetch({
-      params: { mode: "trending" },
-    } as any);
-    expect(items2).toEqual([]);
+    await expect(
+      adapter.fetch({
+        params: { mode: "trending" },
+      } as any),
+    ).rejects.toThrow(/github: error fetching trending/);
     expect(emSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
+
+    emSpy.mockRestore();
   });
 });

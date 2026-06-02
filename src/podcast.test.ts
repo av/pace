@@ -110,17 +110,14 @@ describe("podcast adapter (DRY quality + test coverage)", () => {
     expect(items.length).toBe(6); // 3 items per feed x 2 feeds (flat)
   });
 
-  test("warns and returns [] on HTTP !ok from feed (no crash)", async () => {
+  test("throws on HTTP !ok from feed (contract; no swallow)", async () => {
     fetchMock.mockResolvedValue(
       new Response("not found", { status: 404, statusText: "Not Found" }),
     );
 
-    const items = await podcastAdapter.fetch({ params: { feeds: ["https://bad.com/404.xml"] } } as any);
-
-    expect(items).toEqual([]);
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining("podcast: failed to fetch https://bad.com/404.xml: 404"),
-    );
+    await expect(
+      podcastAdapter.fetch({ params: { feeds: ["https://bad.com/404.xml"] } } as any),
+    ).rejects.toThrow(/podcast:.*failed to fetch https:\/\/bad\.com\/404\.xml.*404/);
   });
 
   test("warns and returns [] when no channel found in feed XML", async () => {
@@ -136,16 +133,11 @@ describe("podcast adapter (DRY quality + test coverage)", () => {
     );
   });
 
-  test("warns and returns [] on network/fetch reject error", async () => {
+  test("throws on network/fetch reject error (contract; no swallow)", async () => {
     fetchMock.mockRejectedValue(new Error("connection refused"));
 
-    const items = await podcastAdapter.fetch({ params: { feeds: ["https://netfail.com/f.xml"] } } as any);
-
-    expect(items).toEqual([]);
-    // console.warn takes (msg, err) so check calls for the prefix string in first arg
-    const errorWarnCalls = warnSpy.mock.calls.filter((c: any[]) =>
-      String(c[0]).includes("podcast: error fetching https://netfail.com/f.xml:"),
-    );
-    expect(errorWarnCalls.length).toBeGreaterThan(0);
+    await expect(
+      podcastAdapter.fetch({ params: { feeds: ["https://netfail.com/f.xml"] } } as any),
+    ).rejects.toThrow(/podcast: error fetching https:\/\/netfail\.com\/f\.xml.*connection refused/);
   });
 });

@@ -127,12 +127,13 @@ describe("mastodon adapter", () => {
     expect(items[0].title).toContain("three");
   });
 
-  test("handles !ok fetch error (returns [] for that path, no crash)", async () => {
+  test("throws on !ok fetch error (contract; no swallow)", async () => {
     const orig = globalThis.fetch;
     globalThis.fetch = async () => new Response(null, { status: 500 });
     try {
-      const items = await adapter.fetch({ params: { instance: "bad.com" } } as any);
-      expect(items).toEqual([]);
+      await expect(
+        adapter.fetch({ params: { instance: "bad.com" } } as any),
+      ).rejects.toThrow(/mastodon:.*failed to fetch.*bad\.com.*500/);
     } finally {
       globalThis.fetch = orig;
     }

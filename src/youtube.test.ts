@@ -105,11 +105,12 @@ describe("youtube adapter", () => {
     expect(items.length).toBe(3); // 2 channel + 1 playlist
   });
 
-  it("handles error on one feed (404 returns [] for it) and succeeds on others", async () => {
-    const items = await adapter.fetch({
-      params: { channels: ["ERR"], playlists: ["PL1"] },
-    } as AdapterConfig);
-    expect(items.length).toBe(1); // only playlist succeeds
+  it("throws when any configured feed fails (!ok), even if others would succeed", async () => {
+    await expect(
+      adapter.fetch({
+        params: { channels: ["ERR"], playlists: ["PL1"] },
+      } as AdapterConfig),
+    ).rejects.toThrow(/youtube:.*failed to fetch channel ERR.*404/);
   });
 
   it("respects per-feed limit", async () => {
