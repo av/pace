@@ -1,13 +1,15 @@
 import { XMLParser } from "fast-xml-parser";
-import { extractAtomLink, type AtomLinkField } from "./atom";
+import {
+  extractAtomLink,
+  extractXmlText,
+  type AtomLinkField,
+  type XmlTextField,
+} from "./atom";
 import { parseFeedDate } from "./dates";
 import { fetchText } from "./fetch";
 import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
-
-/** Parsed text node from fast-xml-parser. */
-type XmlTextField = string | { "#text"?: string };
 
 interface RssFeedItem {
   title?: XmlTextField;
@@ -43,13 +45,6 @@ function simpleHash(str: string): string {
   return (h >>> 0).toString(36);
 }
 
-function extractText(raw: XmlTextField | undefined): string | undefined {
-  if (raw == null) return undefined;
-  if (typeof raw === "string") return raw;
-  const val = raw["#text"];
-  return typeof val === "string" ? val : undefined;
-}
-
 const parser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "@_",
@@ -70,8 +65,7 @@ function extractItems(parsed: RssFeedParsed): RssFeedItem[] {
 function extractFeedTitle(parsed: RssFeedParsed, url: string): string {
   if (parsed?.rss?.channel?.title) return parsed.rss.channel.title;
   if (parsed?.feed?.title) {
-    const t = parsed.feed.title;
-    return extractText(t) ?? url;
+    return extractXmlText(parsed.feed.title) ?? url;
   }
   try {
     return new URL(url).hostname;
@@ -81,24 +75,24 @@ function extractFeedTitle(parsed: RssFeedParsed, url: string): string {
   }
 }
 
+function buildBody(raw: RssFeedItem): string | undefined {
+  return (
+    extractXmlText(raw.description) ??
+    extractXmlText(raw.summary) ??
+    extractXmlText(raw.content) ??
+    extractXmlText(raw["content:encoded"])
+  );
+}
+
 function parseItem(raw: RssFeedItem, source: string): ContentItem {
-  const title = extractText(raw.title) ?? "(untitled)";
+  const title = extractXmlText(raw.title) ?? "(untitled)";
 
   const link = extractAtomLink(raw.link);
 
   const dateStr = raw.pubDate ?? raw.updated ?? raw.published ?? "";
   const timestamp = parseFeedDate(dateStr);
 
-  const rawDesc = raw.description;
-  const rawSummary = raw.summary;
-  const rawContent = raw.content;
-  const rawEncoded = raw["content:encoded"];
-  const body =
-    extractText(rawDesc) ??
-    extractText(rawSummary) ??
-    extractText(rawContent) ??
-    extractText(rawEncoded) ??
-    undefined;
+  const body = buildBody(raw);
 
   const resolvedUrl = link || undefined;
 

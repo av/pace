@@ -1,5 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
-import { extractAtomLink, type AtomLinkField } from "./atom";
+import { extractAtomLink, extractXmlText, type AtomLinkField, type XmlTextField } from "./atom";
 import { parseFeedDate } from "./dates";
 import { formatStars, joinBodyParts } from "./engagement";
 import { fetchText } from "./fetch";
@@ -18,9 +18,6 @@ const parser = new XMLParser({
   attributeNamePrefix: "@_",
 });
 
-/** Parsed text node from fast-xml-parser. */
-type XmlTextField = string | { "#text"?: string };
-
 interface GHAtomEntry {
   id?: string;
   title?: XmlTextField;
@@ -35,12 +32,6 @@ interface GHAtomFeedParsed {
   feed?: {
     entry?: GHAtomEntry | GHAtomEntry[];
   };
-}
-
-function extractTextContent(val: XmlTextField | undefined): string {
-  if (!val) return "";
-  if (typeof val === "string") return val;
-  return val["#text"] ?? "";
 }
 
 function extractEntries(parsed: GHAtomFeedParsed): GHAtomEntry[] {
@@ -65,14 +56,14 @@ async function fetchReleasesFeed(
   const items: ContentItem[] = [];
 
   for (const entry of sliceToLimit(entries, limit)) {
-    const title = extractTextContent(entry.title) || "(untitled release)";
+    const title = (extractXmlText(entry.title) ?? "") || "(untitled release)";
     const link = extractAtomLink(entry.link);
     const timestamp = parseFeedDate(entry.updated ?? entry.published ?? "");
 
     const tagMatch = link.match(/\/releases\/tag\/(.+)$/);
     const tag = tagMatch ? tagMatch[1] : "";
 
-    const rawContent = extractTextContent(entry.content);
+    const rawContent = extractXmlText(entry.content) ?? "";
     const body = rawContent ? stripHtml(rawContent).slice(0, 500) : undefined;
 
     const releaseTitle = tag && title !== tag
