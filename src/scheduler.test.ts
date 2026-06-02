@@ -1,4 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach, spyOn } from "bun:test";
+import { spyConsole } from "./test/console-spy";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -64,24 +65,6 @@ function panelMap(
 
 function adaptersMap(...entries: [string, Adapter][]): Map<string, Adapter> {
   return new Map(entries);
-}
-
-type ConsoleSpyMethod = "log" | "warn";
-
-async function spyConsole<T>(
-  methods: ConsoleSpyMethod[],
-  fn: (spies: Record<ConsoleSpyMethod, ReturnType<typeof spyOn>>) => T | Promise<T>
-): Promise<T> {
-  const spies = Object.fromEntries(
-    methods.map((m) => [m, spyOn(console, m)])
-  ) as Record<ConsoleSpyMethod, ReturnType<typeof spyOn>>;
-  try {
-    return await fn(spies);
-  } finally {
-    for (const m of methods) {
-      spies[m].mockRestore();
-    }
-  }
 }
 
 const basePanelMap = panelMap({ testsrc: ["panel1"] });

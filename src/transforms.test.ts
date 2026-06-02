@@ -1,4 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach, spyOn } from "bun:test";
+import { spyConsole } from "./test/console-spy";
 import { runPipeline, type TransformContext, extractEngagementScore } from "./transforms";
 import type { TransformConfig } from "./config";
 import type { ContentItemRow } from "./db";
@@ -418,8 +419,8 @@ describe("transforms - cluster", () => {
   });
 
   test("cluster warns on extractDomain parse failure for invalid item urls", async () => {
-    const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
-    try {
+    await spyConsole(["warn"], async ({ warn: warnSpy }) => {
+      warnSpy.mockImplementation(() => {});
       const badUrl = "not-a-valid-url";
       const items = [
         makeRow({ id: "u1", url: badUrl, title: "Shared alpha news topic", source: "s1" }),
@@ -432,8 +433,6 @@ describe("transforms - cluster", () => {
       expect(warnSpy).toHaveBeenCalledWith(
         expect.stringMatching(/^transforms: extractDomain failed for "not-a-valid-url": /),
       );
-    } finally {
-      warnSpy.mockRestore();
-    }
+    });
   });
 });
