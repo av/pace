@@ -8,6 +8,11 @@
 ## presets
 - Users can start with a ready-made configuration using --preset tech-news (or ml-ai, academic-papers, product-launches, etc.) instead of writing their own config.yaml
 
+## validation
+- label: layout panel source objects accept only adapter and params; refresh_interval on layout.source is rejected with config: error directing users to adapters[]
+  command: grep -q 'is not a valid source field (set refresh_interval on adapters' src/config.ts && ! grep -A4 'export interface SourceConfig' src/config.ts | grep -q refresh_interval && grep -q 'rejects refresh_interval on panel source object' src/config.test.ts
+  tags: [spec, implemented]
+
 # adapters
 
 ## contract
@@ -51,9 +56,9 @@
 - an Item is a single piece of content (story, paper, video, release note, etc.) shown in the Dashboard, with title, link, publication time, and optional summary or body
 - a Panel is a section of the Dashboard that shows a curated list of Items from one or more Sources after the user's configured Transforms have been applied
 - a Transform is a processing step (deduplicate, keyword filter/exclude, keep latest N, LLM summarize/rank/filter, time decay scoring, etc.) that the user declares in their Config to control which Items appear and in what order
-- a Config is the single YAML file in which the user declares Sources with their refresh schedules, the sequence of Transforms to apply, the recursive flexbox Layout of Panels, and optional LLM provider settings
+- a Config is the single YAML file in which the user declares adapters[] (optional refresh_interval per adapter), optional pipelines, Transforms, the recursive flexbox Layout of Panels (panel source objects only adapter and params), and optional LLM provider settings
 - a Preset is a ready-to-use Config file (tech-news, ml-ai, academic-papers, product-launches, etc.) that can be selected with --preset or -P so a user can get a working Dashboard instantly without writing YAML
-- a Refresh updates the Items for a Panel (or all Panels) by re-fetching from the underlying Sources, re-applying Transforms, and redrawing the Dashboard; users can trigger it manually via a button or it happens on the schedule defined per Source
+- a Refresh updates the Items for a Panel (or all Panels) by re-fetching from the underlying Sources, re-applying Transforms, and redrawing the Dashboard; users can trigger it manually via a button or it happens on the schedule defined per adapters[] entry (and per pipeline when configured), not on panel layout source objects
 - LLM-powered Transforms (summarize, filter, rank by interests) are optional; when no LLM is configured or the provider is unreachable, the Dashboard still works normally using only the non-LLM Transforms
 - the entire system runs as a single Docker container (or local Bun process) serving server-rendered HTML with no client-side JavaScript; the Dashboard is responsive and works on phones, tablets, and desktops
 
