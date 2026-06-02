@@ -7,6 +7,7 @@ import {
 } from "./engagement";
 import { parseUnixEpochSeconds } from "./dates";
 import { fetchJson } from "./fetch";
+import { decodeHtmlEntities } from "./html";
 import { sliceToLimit } from "../utils";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
@@ -65,6 +66,11 @@ async function fetchInBatches(ids: number[]): Promise<HNItem[]> {
     }
   }
   return results;
+}
+
+function decodeItemTitle(title?: string): string {
+  if (!title) return "(untitled)";
+  return decodeHtmlEntities(title, { numeric: true });
 }
 
 function buildBody(item: HNItem): string {
@@ -136,7 +142,7 @@ const adapter: Adapter = {
 
     return limited.map((item) => ({
       id: `hn:${item.id}`,
-      title: item.title ?? "(untitled)",
+      title: decodeItemTitle(item.title),
       url: item.url ?? `https://news.ycombinator.com/item?id=${item.id}`,
       source: `hackernews:${feedType}`,
       timestamp: parseUnixEpochSeconds(item.time),

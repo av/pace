@@ -146,6 +146,19 @@ describe("hackernews", () => {
     );
   });
 
+  test("decodes HTML entities in item titles from API", async () => {
+    const ids = [42];
+    mocks.fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes("topstories.json")) return makeIdsResponse(ids);
+      return makeItemResponse(
+        makeHNItem(42, { title: "A &amp; B &#8364; C" }),
+      );
+    });
+
+    const results = await hackernewsAdapter.fetch(hnCfg());
+    expect(results[0].title).toBe("A & B € C");
+  });
+
   test("handles items with missing optional fields (title fallback, no url, no score)", async () => {
     const ids = [99];
     mocks.fetchMock.mockImplementation(async (url: string) => {
