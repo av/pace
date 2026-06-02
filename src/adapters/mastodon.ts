@@ -85,7 +85,6 @@ function buildTitle(status: MastodonStatus): string {
   if (!content && status.spoiler_text) {
     return status.spoiler_text;
   }
-  // Truncate long posts for the title
   if (content.length > 200) {
     return content.slice(0, 197) + "...";
   }
@@ -177,8 +176,6 @@ const adapter: Adapter = {
     const limit = Math.min((config.params?.limit as number) ?? 20, 40);
     const onlyMedia = (config.params?.only_media as boolean) ?? false;
 
-    // Determine mode based on config
-    // Priority: accounts > hashtags > public timeline
     let mode: Mode;
     if (accounts.length > 0) {
       mode = "account";
@@ -198,14 +195,12 @@ const adapter: Adapter = {
           fetchHashtagTimeline(instance, tag, limit, onlyMedia),
         );
       } else if (mode === "account") {
-        // Resolve and fetch each account
         for (const handle of accounts) {
           const parsed = parseAccountHandle(handle);
           if (!parsed) {
             console.warn(`mastodon: invalid account handle: ${handle}`);
             continue;
           }
-          // Look up the account on their home instance
           const account = await lookupAccount(parsed.instance, parsed.username);
           if (!account) continue;
           const statuses = await fetchAccountStatuses(
@@ -222,10 +217,8 @@ const adapter: Adapter = {
 
       sortByCreatedAtDesc(allStatuses);
 
-      // Apply limit
       const limited = sliceToLimit(allStatuses, limit);
 
-      // Build source label
       let sourceLabel: string;
       if (mode === "hashtag") {
         const tagNames = hashtags.map((t) => t.replace(/^#/, "")).join("+");

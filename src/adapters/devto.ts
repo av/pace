@@ -73,7 +73,6 @@ async function fetchDevToArticles(
 
 function resolvePeriod(top: unknown): number {
   if (typeof top === "number") {
-    // Map to nearest valid period
     if (top <= 1) return 1;
     if (top <= 7) return 7;
     if (top <= 30) return 30;
@@ -107,7 +106,6 @@ const adapter: Adapter = {
 
     const allArticles: DevToArticle[] = [];
 
-    // Fetch by username if specified
     if (username) {
       const articles = await fetchDevToArticles(
         { username, per_page: limit },
@@ -129,7 +127,6 @@ const adapter: Adapter = {
 
     const deduped = dedupeByKey(allArticles, (article) => article.id);
 
-    // Apply minimum reactions filter
     const filtered =
       minReactions > 0
         ? deduped.filter(
@@ -137,15 +134,12 @@ const adapter: Adapter = {
           )
         : deduped;
 
-    // Sort by reactions descending
     filtered.sort(
       (a, b) => b.positive_reactions_count - a.positive_reactions_count,
     );
 
-    // Apply limit
     const limited = sliceToLimit(filtered, limit);
 
-    // Build source label
     let sourceLabel: string;
     if (username) {
       sourceLabel = `devto:${username}`;
