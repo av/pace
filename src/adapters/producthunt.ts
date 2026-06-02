@@ -11,7 +11,7 @@ import {
   type XmlTextField,
 } from "./atom";
 import { parseFeedDate } from "./dates";
-import { sliceToLimit } from "../utils";
+import { normalizeNonNegativeNumber, sliceToLimit } from "../utils";
 import { fetchText, HN_ITEM_FETCH_TIMEOUT_MS } from "./fetch";
 import {
   decodeHtmlEntities,
@@ -270,7 +270,7 @@ const adapter: Adapter = {
   name: "producthunt",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
     const limit = Math.min((config.params?.limit as number) ?? 20, 50);
-    const minUpvotes = (config.params?.min_upvotes as number) ?? 0;
+    const minUpvotes = normalizeNonNegativeNumber(config.params?.min_upvotes);
     const enrich = (config.params?.enrich as boolean) ?? false;
 
     if (minUpvotes > 0 && !enrich) {

@@ -58,3 +58,14 @@ export function normalizeOptionalString(
   const trimmed = (value ?? "").trim();
   return trimmed || undefined;
 }
+
+/** Coerce optional param to a finite non-negative number; invalid values → fallback (default 0). */
+export function normalizeNonNegativeNumber(
+  value: unknown,
+  fallback = 0,
+): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    return fallback;
+  }
+  return value;
+}

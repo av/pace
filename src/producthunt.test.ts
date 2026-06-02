@@ -279,6 +279,43 @@ describe("producthunt", () => {
     );
   });
 
+  test.each([NaN, "100", Infinity, -5] as unknown[])(
+    "invalid min_upvotes (%s) treated as 0 without misconfig warn",
+    async (min_upvotes) => {
+      mocks.fetchMock.mockResolvedValue(
+        new Response(makePHFeedFixture(), { status: 200 }),
+      );
+
+      const items = await producthuntAdapter.fetch(
+        producthuntCfg({ min_upvotes }),
+      );
+
+      expect(items.length).toBe(2);
+      expect(mocks.warnSpy).not.toHaveBeenCalled();
+    },
+  );
+
+  test("enrich + invalid min_upvotes does not filter items", async () => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
+      const u = String(url);
+      if (u.includes("feed")) {
+        return new Response(makePHFeedFixture(), { status: 200 });
+      }
+      return new Response(makeEnrichHtml(50, 10), { status: 200 });
+    });
+
+    const items = await producthuntAdapter.fetch(
+      producthuntCfg({ enrich: true, min_upvotes: NaN }),
+    );
+
+    expect(items.length).toBe(2);
+    expect(
+      mocks.warnSpy.mock.calls.some((c) =>
+        String(c[0]).includes("min_upvotes"),
+      ),
+    ).toBe(false);
+  });
+
   test("warns and returns [] when feed has no entries", async () => {
     const emptyFeed = `<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"></feed>`;
     mocks.fetchMock.mockResolvedValue(new Response(emptyFeed, { status: 200 }));
