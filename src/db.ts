@@ -14,12 +14,18 @@ export function getDb(): Database {
       try { db.close(); } catch (err) { console.warn(`db: failed to close: ${errorMessage(err)}`); }
       db = null;
     }
-    fs.mkdirSync(dirname(desiredPath), { recursive: true });
-    db = new Database(desiredPath, { create: true });
-    currentDbPath = desiredPath;
-    db.exec("PRAGMA journal_mode=WAL");
-    db.exec("PRAGMA foreign_keys=ON");
-    db.exec("PRAGMA busy_timeout=5000");
+    try {
+      fs.mkdirSync(dirname(desiredPath), { recursive: true });
+      db = new Database(desiredPath, { create: true });
+      currentDbPath = desiredPath;
+      db.exec("PRAGMA journal_mode=WAL");
+      db.exec("PRAGMA foreign_keys=ON");
+      db.exec("PRAGMA busy_timeout=5000");
+    } catch (e: unknown) {
+      db = null;
+      currentDbPath = null;
+      throw new Error(`db: failed to open ${desiredPath}: ${errorMessage(e)}`);
+    }
   }
   return db!;
 }
@@ -182,20 +188,30 @@ export function replacePanelItems(panelId: string, items: ContentItemRow[]): voi
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const item of items) {
-      stmt.run(
-        item.id,
-        panelId,
-        item.title,
-        item.url,
-        item.source,
-        item.body,
-        item.timestamp,
-        item.fetched_at,
-        item.summary ?? summaryMap.get(item.id) ?? null,
-      );
+      try {
+        stmt.run(
+          item.id,
+          panelId,
+          item.title,
+          item.url,
+          item.source,
+          item.body,
+          item.timestamp,
+          item.fetched_at,
+          item.summary ?? summaryMap.get(item.id) ?? null,
+        );
+      } catch (e: unknown) {
+        throw new Error(`db: failed to replace item id=${item.id} for panel=${panelId}: ${errorMessage(e)}`);
+      }
     }
   });
-  tx();
+
+  try {
+    tx();
+  } catch (e: unknown) {
+    if (e instanceof Error && e.message.startsWith("db:")) throw e;
+    throw new Error(`db: failed to replace ${items.length} items for panel ${panelId}: ${errorMessage(e)}`);
+  }
 }
 
 export function closeDb(): void {

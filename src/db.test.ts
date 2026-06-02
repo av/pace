@@ -1,4 +1,5 @@
 import { test, expect, beforeEach, afterEach, spyOn } from "bun:test";
+import * as fs from "node:fs";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -14,6 +15,7 @@ import {
   getLastFetchedAt,
   getLastFetchedAtAll,
   pruneOldItems,
+  replacePanelItems,
   type ContentItemRow,
 } from "./db";
 import * as utilsMod from "./utils";
@@ -230,6 +232,57 @@ test("saveItems per-item failure uses errorMessage in thrown message", () => {
     expect(emSpy).toHaveBeenCalled();
   } finally {
     prepareSpy.mockRestore();
+    emSpy.mockRestore();
+  }
+});
+
+test("replacePanelItems per-item failure uses errorMessage in thrown message", () => {
+  initDb();
+  const database = getDb();
+  const emSpy = spyOn(utilsMod, "errorMessage");
+  const row: ContentItemRow = {
+    id: "r1",
+    panel_id: "prep",
+    title: "t",
+    url: "https://ex.com/r1",
+    source: "s",
+    body: null,
+    timestamp: new Date().toISOString(),
+    fetched_at: new Date().toISOString(),
+    summary: null,
+  };
+  const realPrepare = database.prepare.bind(database);
+  const prepareSpy = spyOn(database, "prepare").mockImplementation((sql: unknown) => {
+    const stmt = realPrepare(sql as string);
+    if (typeof sql === "string" && sql.includes("INSERT INTO content_items")) {
+      spyOn(stmt, "run").mockImplementation(() => {
+        throw new Error("replace insert fail");
+      });
+    }
+    return stmt;
+  });
+  try {
+    expect(() => replacePanelItems("prep", [row])).toThrow(
+      /db: failed to replace item id=r1 for panel=prep: replace insert fail/,
+    );
+    expect(emSpy).toHaveBeenCalled();
+  } finally {
+    prepareSpy.mockRestore();
+    emSpy.mockRestore();
+  }
+});
+
+test("getDb open failure uses errorMessage in thrown message", () => {
+  closeDb();
+  const emSpy = spyOn(utilsMod, "errorMessage");
+  const mkdirSpy = spyOn(fs, "mkdirSync").mockImplementation(() => {
+    throw new Error("mkdir fail");
+  });
+  try {
+    expect(() => getDb()).toThrow(/db: failed to open.*mkdir fail/);
+    expect(emSpy).toHaveBeenCalled();
+  } finally {
+    mkdirSpy.mockRestore();
     emSpy.mockRestore();
   }
 });
