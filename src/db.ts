@@ -118,11 +118,6 @@ function getDedupInClause(panelId?: string): { clause: string; params: unknown[]
   };
 }
 
-/**
- * Single source of truth for dedup-aware item selection used by getRecentItems/getItemsByPanel/getAllItemsByPanel.
- * Centralizes the repeated SELECT * + optional panel_id outer filter + dedup subquery clause + ORDER + optional LIMIT construction.
- * Delegates to getDedupInClause; preserves exact SQL, parameter order (outer panel before dedup's subselect param), semantics and outputs.
- */
 function getDedupedItems(panelId?: string, limit?: number): ContentItemRow[] {
   const db = getDb();
   const dedup = getDedupInClause(panelId);
@@ -150,7 +145,6 @@ export function getItemsByPanel(panelId: string, limit: number = 50): ContentIte
   return getDedupedItems(panelId, limit);
 }
 
-/** Internal helper centralizing the duplicated MAX(fetched_at) query (with optional panel filter). */
 function getLastFetchedAtQuery(panelId?: string): string | null {
   const db = getDb();
   const sql = panelId !== undefined

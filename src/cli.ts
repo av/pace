@@ -43,10 +43,8 @@ const { values, positionals } = parseArgs({
   strict: false,
 });
 
-// parseArgs keeps kebab-case for some flags (e.g. --list-presets -> "list-presets")
 if (values['list-presets'] !== undefined) values.listPresets = values['list-presets'];
 
-// --chdir/-C handling (minimal quality: clean error for invalid; chdir early so affects subsequent --config/--preset/port validation + loads; supports td2 bootstrap + 25k spec; test-driven)
 if (values.chdir || values['chdir']) {
   const target = (values.chdir || values['chdir']) as string;
   try {

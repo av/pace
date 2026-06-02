@@ -4,8 +4,6 @@ import yaml from "js-yaml";
 import type { AdapterConfig } from "./adapters/types";
 import { errorMessage, getAdapterName } from "./utils";
 
-// --- Layout Tree ---
-
 export interface FlexContainerConfig {
   direction: "row" | "column";
   flex?: number;
@@ -23,8 +21,6 @@ export interface PanelConfig {
 
 export type LayoutNodeConfig = FlexContainerConfig | PanelConfig;
 
-// --- Sources ---
-
 export type SourceValue = string | string[] | SourceConfig | SourceConfig[];
 
 export interface SourceConfig {
@@ -32,8 +28,6 @@ export interface SourceConfig {
   params?: Record<string, unknown>;
   refresh_interval?: number;
 }
-
-// --- Transforms ---
 
 export interface KeywordScoreEntry {
   term: string;
@@ -55,8 +49,6 @@ export type TransformConfig =
   | { type: "llm-rank"; interests?: string[] }
   | { type: "llm-merge"; prompt?: string };
 
-// --- LLM ---
-
 export interface LlmConfig {
   provider?: string;
   model?: string;
@@ -64,8 +56,6 @@ export interface LlmConfig {
   base_url?: string;
   interests?: string[];
 }
-
-// --- Ingest ---
 
 export interface IngestAdapterConfig extends AdapterConfig {
   name?: string;
@@ -79,16 +69,12 @@ export interface PipelineConfig {
   refresh_interval?: number;
 }
 
-// --- Top-level ---
-
 export interface AppConfig {
   adapters: IngestAdapterConfig[];
   pipelines?: PipelineConfig[];
   layout: LayoutNodeConfig;
   llm?: LlmConfig;
 }
-
-// --- Helpers ---
 
 function defaultLayout(): LayoutNodeConfig {
   return {
@@ -105,8 +91,6 @@ function defaultConfig(): AppConfig {
 }
 
 function resolveEnvVars(value: string, depth = 0): string {
-  // recursive to support chained ${VAR} where env value itself contains ${REF} (per wyp fact);
-  // depth guard prevents infinite loop on cycles (e.g. mutual refs) for safety/0g1 quality
   if (depth > 10) throw new Error(`config: too many recursive env var expansions (possible cycle) at depth ${depth}`);
   const replaced = value.replace(/\$\{(\w+)\}/g, (_, name) => process.env[name] ?? "");
   if (replaced === value || !replaced.includes("${")) return replaced;
@@ -265,11 +249,6 @@ function validateFiniteNumber(value: unknown, path: string): void {
   }
 }
 
-/**
- * Higher-order helper to DRY the common `if (value !== undefined) { validator(value, path); }`
- * pattern for optional numeric (and potentially other) fields. Single source of truth for
- * the duplicated boilerplate previously in validateOptionalPositiveInteger and validateOptionalFiniteNumber.
- */
 function validateOptional(value: unknown, path: string, validator: (v: unknown, p: string) => void): void {
   if (value !== undefined) {
     validator(value, path);
@@ -311,7 +290,6 @@ function validateNonEmptyArray(value: unknown, path: string): asserts value is u
   }
 }
 
-/** Single source of truth for the optional top-level "adapters" / "pipelines" list checks in loadConfig (eliminates the duplicated !==undefined + !Array.isArray + throw). */
 function validateOptionalList(value: unknown, name: string): void {
   if (value !== undefined && !Array.isArray(value)) {
     throw new Error(`config: ${name} must be a list`);
@@ -542,12 +520,6 @@ function validatePipelineConfig(
   validateRefreshInterval(pipeline.refresh_interval, `${path}.refresh_interval`);
 }
 
-/**
- * Single source of truth for reading a config file path: returns the UTF-8 content if the path
- * exists and is a regular file; returns null if the path does not exist (caller decides fallback);
- * throws the exact "config: <path> is not a regular file" error (preserving prior messages) for
- * directories or other non-files. Eliminates the prior duplicated exists+stat+isFile+read blocks.
- */
 export function tryReadRegularFile(path: string): string | null {
   if (!existsSync(path)) {
     return null;
@@ -564,7 +536,6 @@ const PRESET_NAMES = ["example", "tech-news", "ml-ai", "product-launches", "rele
 export function resolvePreset(name: string): string | null {
   if (!name || name.includes("/") || name.includes("\\")) return null;
   if (!(PRESET_NAMES as readonly string[]).includes(name)) return null;
-  // Try image location first, then source tree (for local `pace` after bun link / dev)
   const candidates = [
     `/app/presets/config.${name}.yaml`,
     join(process.cwd(), `config.${name}.yaml`),
@@ -583,7 +554,6 @@ export function loadConfig(): AppConfig {
   let explicitConfigPath = process.env.PACE_CONFIG !== undefined;
   let configPath = process.env.PACE_CONFIG ?? join(process.cwd(), "config.yaml");
 
-  // Support bare short preset names via PACE_CONFIG (e.g. tech-news)
   if (process.env.PACE_CONFIG && !process.env.PACE_CONFIG.includes("/") && !process.env.PACE_CONFIG.includes("\\")) {
     const resolved = resolvePreset(process.env.PACE_CONFIG);
     if (resolved) {
