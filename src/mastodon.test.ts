@@ -1,13 +1,10 @@
-import { beforeEach, afterEach, describe, expect, test, spyOn } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
 
 import adapter from "./adapters/mastodon";
-import type { AdapterConfig } from "./adapters/types";
+import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
-const defaultCfg: AdapterConfig = { type: "mastodon" };
-
-function mastodonCfg(params: Record<string, unknown> = {}): AdapterConfig {
-  return { ...defaultCfg, params };
-}
+const mocks = useFetchMockSuite();
+const mastodonCfg = (params: Record<string, unknown> = {}) => adapterCfg("mastodon", params);
 
 interface MastodonStatusFixture {
   id: string;
@@ -31,40 +28,38 @@ interface MastodonStatusFixture {
   reblog: null;
 }
 
+function makeStatus(id: string, content: string, created: string): MastodonStatusFixture {
+  return {
+    id,
+    uri: `https://ex.com/status/${id}`,
+    url: `https://ex.com/@u/${id}`,
+    content,
+    created_at: created,
+    reblogs_count: 3,
+    favourites_count: 7,
+    replies_count: 1,
+    account: {
+      id: "a1",
+      username: "u",
+      acct: "u",
+      display_name: "U",
+      url: "https://ex.com/@u",
+    },
+    media_attachments: [],
+    tags: [],
+    spoiler_text: "",
+    reblog: null,
+  };
+}
+
+function fetchUrls(): string[] {
+  return mocks.fetchMock.mock.calls.map((c) => String(c[0]));
+}
+
 describe("mastodon", () => {
-  let originalFetch: typeof globalThis.fetch;
-  let fetchCalls: Array<{ url: string; init?: RequestInit }>;
-
-  function makeStatus(id: string, content: string, created: string): MastodonStatusFixture {
-    return {
-      id,
-      uri: `https://ex.com/status/${id}`,
-      url: `https://ex.com/@u/${id}`,
-      content,
-      created_at: created,
-      reblogs_count: 3,
-      favourites_count: 7,
-      replies_count: 1,
-      account: {
-        id: "a1",
-        username: "u",
-        acct: "u",
-        display_name: "U",
-        url: "https://ex.com/@u",
-      },
-      media_attachments: [],
-      tags: [],
-      spoiler_text: "",
-      reblog: null,
-    };
-  }
-
   beforeEach(() => {
-    originalFetch = globalThis.fetch;
-    fetchCalls = [];
-    globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
       const urlStr = typeof input === "string" ? input : input.toString();
-      fetchCalls.push({ url: urlStr, init });
 
       if (urlStr.includes("/accounts/lookup")) {
         return new Response(
@@ -75,41 +70,41 @@ describe("mastodon", () => {
             display_name: "Test",
             url: "https://ex.com/@test",
           }),
-          { status: 200 }
+          { status: 200 },
         );
       }
 
-      // hashtag specific for dedup/merge test
       if (urlStr.includes("/timelines/tag/foo")) {
         return new Response(
-          JSON.stringify([makeStatus("1", "<p>post one</p>", "2024-01-01T10:00:00Z"), makeStatus("2", "<p>post two</p>", "2024-01-01T11:00:00Z")]),
-          { status: 200 }
+          JSON.stringify([
+            makeStatus("1", "<p>post one</p>", "2024-01-01T10:00:00Z"),
+            makeStatus("2", "<p>post two</p>", "2024-01-01T11:00:00Z"),
+          ]),
+          { status: 200 },
         );
       }
       if (urlStr.includes("/timelines/tag/bar")) {
         return new Response(
-          JSON.stringify([makeStatus("2", "<p>post two</p>", "2024-01-01T11:00:00Z"), makeStatus("3", "<p>post three</p>", "2024-01-01T12:00:00Z")]),
-          { status: 200 }
+          JSON.stringify([
+            makeStatus("2", "<p>post two</p>", "2024-01-01T11:00:00Z"),
+            makeStatus("3", "<p>post three</p>", "2024-01-01T12:00:00Z"),
+          ]),
+          { status: 200 },
         );
       }
 
-      // default success for public, other tags, account statuses
-      if (urlStr.includes("/timelines/") || urlStr.includes("/accounts/") && urlStr.includes("/statuses")) {
+      if (urlStr.includes("/timelines/") || (urlStr.includes("/accounts/") && urlStr.includes("/statuses"))) {
         return new Response(
           JSON.stringify([
             makeStatus("10", "<p>hello <b>world</b></p>", "2024-05-01T00:00:00Z"),
             makeStatus("11", "short", "2024-05-02T00:00:00Z"),
           ]),
-          { status: 200 }
+          { status: 200 },
         );
       }
 
       return new Response(null, { status: 404 });
-    };
-  });
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
+    });
   });
 
   test("fetches from public timeline (default) and maps items", async () => {
@@ -118,22 +113,22 @@ describe("mastodon", () => {
     expect(items.map((i) => i.title).join(" ")).toContain("hello");
     expect(items[0].source).toBe("mastodon:ex.com");
     expect(items[0].body).toContain("boosts");
-    expect(fetchCalls.some((c) => c.url.includes("/timelines/public"))).toBe(true);
+    expect(fetchUrls().some((u) => u.includes("/timelines/public"))).toBe(true);
   });
 
   test("fetches from hashtag timeline and builds source label", async () => {
     const items = await adapter.fetch(mastodonCfg({ instance: "ex.com", hashtags: ["foo"] }));
     expect(items.length).toBe(2);
     expect(items[0].source).toBe("mastodon:ex.com:#foo");
-    expect(fetchCalls.some((c) => c.url.includes("/timelines/tag/foo"))).toBe(true);
+    expect(fetchUrls().some((u) => u.includes("/timelines/tag/foo"))).toBe(true);
   });
 
   test("fetches from account mode (lookup + statuses) and uses :accounts source", async () => {
     const items = await adapter.fetch(mastodonCfg({ accounts: ["test@ex.com"] }));
     expect(items.length).toBeGreaterThan(0);
-    expect(items[0].source).toBe("mastodon:mastodon.social:accounts"); // config default instance used for label
-    expect(fetchCalls.some((c) => c.url.includes("/accounts/lookup"))).toBe(true);
-    expect(fetchCalls.some((c) => c.url.includes("/statuses"))).toBe(true);
+    expect(items[0].source).toBe("mastodon:mastodon.social:accounts");
+    expect(fetchUrls().some((u) => u.includes("/accounts/lookup"))).toBe(true);
+    expect(fetchUrls().some((u) => u.includes("/statuses"))).toBe(true);
   });
 
   test("respects limit param (capped)", async () => {
@@ -143,94 +138,66 @@ describe("mastodon", () => {
 
   test("passes only_media query when configured", async () => {
     await adapter.fetch(mastodonCfg({ only_media: true }));
-    expect(fetchCalls.some((c) => c.url.includes("only_media=true"))).toBe(true);
+    expect(fetchUrls().some((u) => u.includes("only_media=true"))).toBe(true);
   });
 
   test("merges multiple hashtags and deduplicates by status id", async () => {
     const items = await adapter.fetch(mastodonCfg({ hashtags: ["foo", "bar"] }));
-    // foo gives 1+2, bar gives 2+3 -> dedup to 3 unique, sorted newest first
     expect(items).toHaveLength(3);
     const ids = items.map((i) => i.id);
     expect(new Set(ids).size).toBe(3);
-    // newest first by created_at
     expect(items[0].title).toContain("three");
   });
 
   test("throws on !ok fetch error (contract; no swallow)", async () => {
-    const orig = globalThis.fetch;
-    globalThis.fetch = async () => new Response(null, { status: 500 });
-    try {
-      await expect(
-        adapter.fetch(mastodonCfg({ instance: "bad.com" })),
-      ).rejects.toThrow(/mastodon: failed to fetch public timeline from bad\.com: HTTP error 500/);
-    } finally {
-      globalThis.fetch = orig;
-    }
+    mocks.fetchMock.mockImplementation(async () => new Response(null, { status: 500 }));
+
+    await expect(adapter.fetch(mastodonCfg({ instance: "bad.com" }))).rejects.toThrow(
+      /mastodon: failed to fetch public timeline from bad\.com: HTTP error 500/,
+    );
   });
 
   test("throws on network error with adapter prefix", async () => {
-    const orig = globalThis.fetch;
-    globalThis.fetch = async () => {
+    mocks.fetchMock.mockImplementation(async () => {
       throw new Error("network boom for mastodon test");
-    };
-    try {
-      await expect(
-        adapter.fetch(mastodonCfg({ instance: "example.invalid" })),
-      ).rejects.toThrow(
-        /mastodon: error fetching public timeline from example\.invalid/,
-      );
-    } finally {
-      globalThis.fetch = orig;
-    }
+    });
+
+    await expect(adapter.fetch(mastodonCfg({ instance: "example.invalid" }))).rejects.toThrow(
+      /mastodon: error fetching public timeline from example\.invalid/,
+    );
   });
 
   test("warns on account lookup HTTP failure and returns no items", async () => {
-    const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
-    const orig = globalThis.fetch;
-    globalThis.fetch = async (input: RequestInfo | URL) => {
+    mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
       const urlStr = typeof input === "string" ? input : input.toString();
       if (urlStr.includes("/accounts/lookup")) {
         return new Response(null, { status: 404 });
       }
       return new Response(JSON.stringify([]), { status: 200 });
-    };
-    try {
-      const items = await adapter.fetch(
-        mastodonCfg({ accounts: ["missing@ex.com"] }),
-      );
-      expect(items).toHaveLength(0);
-      expect(warnSpy).toHaveBeenCalledTimes(1);
-      expect(warnSpy).toHaveBeenCalledWith(
-        "mastodon: failed to fetch account lookup missing@ex.com: HTTP error 404",
-      );
-    } finally {
-      warnSpy.mockRestore();
-      globalThis.fetch = orig;
-    }
+    });
+
+    const items = await adapter.fetch(mastodonCfg({ accounts: ["missing@ex.com"] }));
+    expect(items).toHaveLength(0);
+    expect(mocks.warnSpy).toHaveBeenCalledTimes(1);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "mastodon: failed to fetch account lookup missing@ex.com: HTTP error 404",
+    );
   });
 
   test("warns on account lookup network failure and returns no items", async () => {
-    const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
-    const orig = globalThis.fetch;
-    globalThis.fetch = async (input: RequestInfo | URL) => {
+    mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
       const urlStr = typeof input === "string" ? input : input.toString();
       if (urlStr.includes("/accounts/lookup")) {
         throw new Error("lookup connection refused");
       }
       return new Response(JSON.stringify([]), { status: 200 });
-    };
-    try {
-      const items = await adapter.fetch(
-        mastodonCfg({ accounts: ["user@ex.com"] }),
-      );
-      expect(items).toHaveLength(0);
-      expect(warnSpy).toHaveBeenCalledTimes(1);
-      expect(warnSpy).toHaveBeenCalledWith(
-        "mastodon: error fetching account lookup user@ex.com: lookup connection refused",
-      );
-    } finally {
-      warnSpy.mockRestore();
-      globalThis.fetch = orig;
-    }
+    });
+
+    const items = await adapter.fetch(mastodonCfg({ accounts: ["user@ex.com"] }));
+    expect(items).toHaveLength(0);
+    expect(mocks.warnSpy).toHaveBeenCalledTimes(1);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "mastodon: error fetching account lookup user@ex.com: lookup connection refused",
+    );
   });
 });
