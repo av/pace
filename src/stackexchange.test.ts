@@ -137,6 +137,20 @@ describe("stackexchange", () => {
     expect(items[0].id).toBe("se:stackoverflow:20");
   });
 
+  test("decodes HTML entities in question titles from API", async () => {
+    const q = makeQuestion({ title: "A &amp; B &#8364; C" });
+    mocks.fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({ items: [q], has_more: false, quota_remaining: 100 }),
+        { status: 200 },
+      ),
+    );
+
+    const [item] = await stackexchangeAdapter.fetch(seCfg());
+
+    expect(item.title).toBe("A & B € C");
+  });
+
   test("body fields", async () => {
     const q = makeQuestion({
       view_count: 2500,

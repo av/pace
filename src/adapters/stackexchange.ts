@@ -8,6 +8,7 @@ import {
 } from "./engagement";
 import { parseUnixEpochSeconds } from "./dates";
 import { fetchJson } from "./fetch";
+import { decodeHtmlEntities } from "./html";
 import { sliceToLimit } from "../utils";
 import { dedupeByKey, fetchAndConcat } from "./merge";
 import { type Adapter, type AdapterConfig, type ContentItem } from "./types";
@@ -43,6 +44,10 @@ interface SEResponse {
   items: SEQuestion[];
   has_more: boolean;
   quota_remaining: number;
+}
+
+function decodeQuestionTitle(title: string): string {
+  return decodeHtmlEntities(title, { numeric: true });
 }
 
 function buildBody(question: SEQuestion): string {
@@ -133,7 +138,7 @@ const adapter: Adapter = {
 
     return limited.map((question) => ({
       id: `se:${site}:${question.question_id}`,
-      title: question.title,
+      title: decodeQuestionTitle(question.title),
       url: question.link,
       source: sourceLabel,
       timestamp: parseUnixEpochSeconds(question.creation_date),
