@@ -12,7 +12,13 @@ import {
 import { parseFeedDate } from "./dates";
 import { sliceToLimit } from "../utils";
 import { fetchText } from "./fetch";
-import { stripHtml } from "./html";
+import { decodeHtmlEntities, stripHtml } from "./html";
+
+const FEED_BODY_STRIP_OPTIONS = {
+  tagSeparator: " ",
+  whitespace: "collapse-all" as const,
+  numericEntities: true,
+};
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 import {
@@ -74,23 +80,23 @@ function extractContent(entry: PHEntry): { tagline: string; productLink: string 
   // The content has HTML structure:
   // <p>Tagline text</p>
   // <p><a href="...">Discussion</a> | <a href="...product link...">Link</a></p>
-  // Extract just the first paragraph as the tagline
-  const firstParagraph = raw.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
-  let tagline = "";
-  if (firstParagraph) {
-    tagline = stripHtml(firstParagraph[1], { whitespace: "collapse-all" });
-  } else {
-    // Fallback: strip everything but remove "Discussion | Link" noise
-    tagline = stripHtml(raw, { whitespace: "collapse-all" })
-      .replace(/Discussion\s*\|\s*Link/gi, "")
-      .trim();
-  }
-
-  // Extract the product link (the "Link" anchor)
+  // Extract the product link before stripping (needs href in markup).
   const linkMatch = raw.match(
     /href="(https:\/\/www\.producthunt\.com\/r\/[^"]+)"/,
   );
   const productLink = linkMatch ? linkMatch[1] : "";
+
+  const html = decodeHtmlEntities(raw, { numeric: true });
+  const firstParagraph = html.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
+  let tagline = "";
+  if (firstParagraph) {
+    tagline = stripHtml(firstParagraph[1], FEED_BODY_STRIP_OPTIONS);
+  } else {
+    // Fallback: strip everything but remove "Discussion | Link" noise
+    tagline = stripHtml(html, FEED_BODY_STRIP_OPTIONS)
+      .replace(/Discussion\s*\|\s*Link/gi, "")
+      .trim();
+  }
 
   return { tagline, productLink };
 }
@@ -183,13 +189,16 @@ function buildBody(
   productLink: string,
   enriched: EnrichedData | null,
 ): string {
+  const cleanTagline = tagline
+    ? stripHtml(tagline, FEED_BODY_STRIP_OPTIONS)
+    : "";
   const byAuthor = enriched?.makers?.length
     ? formatBy(enriched.makers.join(", "))
     : author
       ? formatBy(author)
       : undefined;
   return joinBodyParts(
-    tagline || undefined,
+    cleanTagline || undefined,
     enriched?.upvotes !== undefined ? formatUpvotes(enriched.upvotes) : undefined,
     enriched?.comments !== undefined ? formatComments(enriched.comments) : undefined,
     enriched?.topics?.length ? formatTopics(enriched.topics) : undefined,

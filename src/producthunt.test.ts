@@ -70,6 +70,36 @@ describe("producthunt", () => {
     expect(items[0].body).not.toContain("upvotes");
   });
 
+  test("strips HTML from feed content body in item body (with and without enrich)", async () => {
+    const htmlFeed = `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <entry>
+    <id>tag:www.producthunt.com,2005:Post/999001</id>
+    <title>HTML Product</title>
+    <content type="html"><![CDATA[<p>Hello &amp; <b>world</b></p><p><a href="https://www.producthunt.com/r/html-product">Link</a></p>]]></content>
+    <link rel="alternate" href="https://www.producthunt.com/posts/html-product-999001" />
+    <published>2024-05-22T08:00:00Z</published>
+    <author><name>Pat Lee</name></author>
+  </entry>
+</feed>`;
+    mocks.fetchMock.mockImplementation(async (url: string) => {
+      const u = String(url);
+      if (u.includes("feed")) {
+        return new Response(htmlFeed, { status: 200 });
+      }
+      return new Response(makeEnrichHtml(10, 2), { status: 200 });
+    });
+
+    const noEnrich = await producthuntAdapter.fetch(producthuntCfg());
+    expect(noEnrich[0].body).toContain("Hello & world");
+    expect(noEnrich[0].body).not.toMatch(/<[^>]+>/);
+
+    const enriched = await producthuntAdapter.fetch(producthuntCfg({ enrich: true }));
+    expect(enriched[0].body).toContain("Hello & world");
+    expect(enriched[0].body).toContain("10 upvotes");
+    expect(enriched[0].body).not.toMatch(/<[^>]+>/);
+  });
+
   test("respects limit param (caps at 50)", async () => {
     mocks.fetchMock.mockResolvedValue(
       new Response(makePHFeedFixture(), { status: 200 }),
