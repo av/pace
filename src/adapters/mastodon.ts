@@ -183,6 +183,10 @@ function normalizeConfiguredHashtags(hashtags: string[]): string[] {
   return hashtags.map((tag) => tag.trim()).filter(Boolean);
 }
 
+function normalizeConfiguredAccounts(accounts: string[]): string[] {
+  return accounts.map((handle) => handle.trim()).filter(Boolean);
+}
+
 function parseAccountHandle(handle: string): { username: string; instance: string } | null {
   // Accepts: @user@instance, user@instance
   const cleaned = handle.startsWith("@") ? handle.slice(1) : handle;
@@ -198,7 +202,9 @@ const adapter: Adapter = {
     const hashtags = normalizeConfiguredHashtags(
       (config.params?.hashtags as string[]) ?? [],
     );
-    const accounts = (config.params?.accounts as string[]) ?? [];
+    const accounts = normalizeConfiguredAccounts(
+      (config.params?.accounts as string[]) ?? [],
+    );
     const limit = Math.min((config.params?.limit as number) ?? 20, 40);
     const onlyMedia = (config.params?.only_media as boolean) ?? false;
 

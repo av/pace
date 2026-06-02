@@ -207,6 +207,26 @@ describe("mastodon", () => {
     expect(fetchUrls().some((u) => u.includes("/statuses"))).toBe(true);
   });
 
+  test("treats blank-only accounts as public timeline", async () => {
+    const items = await adapter.fetch(mastodonCfg({ instance: "ex.com", accounts: ["", "  "] }));
+
+    expect(items.length).toBeGreaterThan(0);
+    expect(items[0].source).toBe("mastodon:ex.com");
+    expect(fetchUrls().some((u) => u.includes("/timelines/public"))).toBe(true);
+    expect(fetchUrls().some((u) => u.includes("/accounts/lookup"))).toBe(false);
+  });
+
+  test("trims whitespace from configured account handles", async () => {
+    const items = await adapter.fetch(
+      mastodonCfg({ instance: "ex.com", accounts: ["  test@ex.com  ", ""] }),
+    );
+
+    expect(items.length).toBeGreaterThan(0);
+    expect(items[0].source).toBe("mastodon:ex.com:accounts");
+    expect(fetchUrls().filter((u) => u.includes("/accounts/lookup")).length).toBe(1);
+    expect(fetchUrls().some((u) => u.includes("/statuses"))).toBe(true);
+  });
+
   test("respects limit param (capped)", async () => {
     const items = await adapter.fetch(mastodonCfg({ limit: 1 }));
     expect(items).toHaveLength(1);
