@@ -110,6 +110,33 @@ describe("lemmy", () => {
     expect(calledUrl).toContain("sort=Hot");
   });
 
+  test("treats blank-only communities as frontpage (no community_name requests)", async () => {
+    const view = makePostView();
+    mocks.fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makePostListResponse([view])), { status: 200 }),
+    );
+
+    const items = await lemmyAdapter.fetch(lemmyCfg({ communities: ["", "  "] }));
+
+    expect(items).toHaveLength(1);
+    expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
+    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    expect(calledUrl).not.toContain("community_name=");
+    expect(calledUrl).toContain("lemmy.ml");
+  });
+
+  test("trims whitespace from configured community names", async () => {
+    const view = makePostView({ community: { name: "linux" } });
+    mocks.fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makePostListResponse([view])), { status: 200 }),
+    );
+
+    await lemmyAdapter.fetch(lemmyCfg({ communities: ["  linux  ", ""] }));
+
+    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    expect(calledUrl).toContain("community_name=linux");
+  });
+
   test("fetches specific communities", async () => {
     const view1 = makePostView({ post: { id: 1 }, community: { name: "linux" } });
     const view2 = makePostView({ post: { id: 2 }, community: { name: "rust" } });

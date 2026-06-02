@@ -94,11 +94,17 @@ async function fetchLemmyPosts(
   return json.posts ?? [];
 }
 
+function normalizeConfiguredCommunities(communities: string[]): string[] {
+  return communities.map((c) => c.trim()).filter(Boolean);
+}
+
 const adapter: Adapter = {
   name: "lemmy",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
     const instance = (config.params?.instance as string) ?? "lemmy.ml";
-    const communities = (config.params?.communities as string[]) ?? [];
+    const communities = normalizeConfiguredCommunities(
+      (config.params?.communities as string[]) ?? [],
+    );
     const sort = resolveSort(config.params?.sort as string);
     const limit = Math.min((config.params?.limit as number) ?? 25, 50);
     const minScore = (config.params?.min_score as number) ?? 0;

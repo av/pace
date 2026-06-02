@@ -81,10 +81,14 @@ function resolvePeriod(top: unknown): number {
   return 7; // default: week
 }
 
+function normalizeConfiguredTags(tags: string[]): string[] {
+  return tags.map((tag) => tag.trim()).filter(Boolean);
+}
+
 const adapter: Adapter = {
   name: "devto",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const tags = (config.params?.tags as string[]) ?? [];
+    const tags = normalizeConfiguredTags((config.params?.tags as string[]) ?? []);
     const username = (config.params?.username as string) ?? "";
     const limit = Math.min((config.params?.limit as number) ?? 20, 30);
     const minReactions = (config.params?.min_reactions as number) ?? 0;

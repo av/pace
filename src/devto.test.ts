@@ -189,6 +189,47 @@ describe("devto", () => {
     expect(mocks.fetchMock).not.toHaveBeenCalled();
   });
 
+  test("returns [] and warns when tags are only blank strings", async () => {
+    const items = await devtoAdapter.fetch(devtoCfg({ tags: ["", "  "] }));
+    expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith("devto: no tags or username configured");
+    expect(mocks.fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("trims whitespace from configured tag names", async () => {
+    mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("tag=javascript")) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: 501,
+              title: "Trimmed Tag",
+              url: "https://dev.to/trim",
+              description: "",
+              published_at: "2024-01-19T00:00:00Z",
+              reading_time_minutes: 1,
+              positive_reactions_count: 1,
+              comments_count: 0,
+              user: { username: "t", name: "T" },
+              tag_list: ["javascript"],
+              cover_image: null,
+            },
+          ]),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return devtoDefaultFetchMock(input);
+    });
+
+    const items = await devtoAdapter.fetch(devtoCfg({ tags: ["  javascript  ", ""] }));
+    expect(items).toHaveLength(1);
+    expect(devtoFetchCalls().some((c) => c.url.includes("tag=javascript"))).toBe(true);
+    expect(devtoFetchCalls().every((c) => !c.url.includes("tag=") || c.url.includes("tag=javascript"))).toBe(
+      true,
+    );
+  });
+
   test("throws on network rejection with devto-prefixed message", async () => {
     mocks.fetchMock.mockImplementation(async () => {
       throw new Error("network boom for devto test");
