@@ -684,7 +684,7 @@ function validateTopLevelKeys(config: Record<string, unknown>): void {
 
 /** Known adapter types and their allowed `params` keys (from adapter implementations). */
 const ADAPTER_PARAM_KEYS: Readonly<Record<string, readonly string[]>> = {
-  hackernews: ["feed", "stories", "limit", "min_score"],
+  hackernews: ["type", "feed", "stories", "limit", "min_score"],
   lobsters: ["feed", "limit", "min_score", "tags"],
   rss: ["urls"],
   reddit: ["subreddits", "sort", "limit", "min_score", "time"],

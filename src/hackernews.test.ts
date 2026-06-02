@@ -67,6 +67,50 @@ describe("hackernews", () => {
     expect(results[0].body).toContain("by testuser");
   });
 
+  test("blank-only type uses default top", async () => {
+    const ids = [1];
+    mocks.fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes("topstories.json")) return makeIdsResponse(ids);
+      const match = url.match(/item\/(\d+)\.json/);
+      if (match) return makeItemResponse(makeHNItem(1));
+      return makeItemResponse(null);
+    });
+
+    const results = await hackernewsAdapter.fetch(hnCfg({ type: "   " }));
+    expect(results[0].source).toBe("hackernews:top");
+    expect(mocks.fetchMock.mock.calls[0][0]).toContain("topstories.json");
+  });
+
+  test("trims whitespace from configured type", async () => {
+    const ids = [2];
+    mocks.fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes("newstories.json")) return makeIdsResponse(ids);
+      const match = url.match(/item\/(\d+)\.json/);
+      if (match) return makeItemResponse(makeHNItem(2));
+      return makeItemResponse(null);
+    });
+
+    const results = await hackernewsAdapter.fetch(hnCfg({ type: "  new  " }));
+    expect(results[0].source).toBe("hackernews:new");
+    expect(mocks.fetchMock.mock.calls[0][0]).toContain("newstories.json");
+  });
+
+  test("type takes precedence over feed and stories", async () => {
+    const ids = [3];
+    mocks.fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes("beststories.json")) return makeIdsResponse(ids);
+      const match = url.match(/item\/(\d+)\.json/);
+      if (match) return makeItemResponse(makeHNItem(3));
+      return makeItemResponse(null);
+    });
+
+    const results = await hackernewsAdapter.fetch(
+      hnCfg({ type: "best", feed: "new", stories: "ask" }),
+    );
+    expect(results[0].source).toBe("hackernews:best");
+    expect(mocks.fetchMock.mock.calls[0][0]).toContain("beststories.json");
+  });
+
   test("supports feed aliases (newest, frontpage, ask_hn, show_hn, jobs)", async () => {
     const ids = [10];
     mocks.fetchMock.mockImplementation(async (url: string) => {

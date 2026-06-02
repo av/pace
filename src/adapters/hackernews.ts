@@ -8,7 +8,7 @@ import {
 import { parseUnixEpochSeconds } from "./dates";
 import { fetchJson, HN_ITEM_FETCH_TIMEOUT_MS } from "./fetch";
 import { decodeHtmlEntities } from "./html";
-import { sliceToLimit } from "../utils";
+import { normalizeOptionalString, sliceToLimit } from "../utils";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 
@@ -88,7 +88,12 @@ function buildBody(item: HNItem): string {
 const adapter: Adapter = {
   name: "hackernews",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const feed = (config.params?.feed as string) ?? (config.params?.stories as string) ?? "top";
+    const feedRaw =
+      config.params?.type ?? config.params?.feed ?? config.params?.stories;
+    const feed =
+      (typeof feedRaw === "string"
+        ? normalizeOptionalString(feedRaw)
+        : undefined) ?? "top";
     const limit = Math.min((config.params?.limit as number) ?? 30, 200);
     const minScore = (config.params?.min_score as number) ?? 0;
 
