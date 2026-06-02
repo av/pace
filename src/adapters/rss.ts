@@ -64,7 +64,9 @@ function extractFeedTitle(parsed: RssFeedParsed, url: string): string {
 }
 
 function parseItem(raw: RssFeedItem, source: string): ContentItem {
-  const title = extractFeedEntryTitle(raw.title);
+  const title = decodeHtmlEntities(extractFeedEntryTitle(raw.title), {
+    numeric: true,
+  });
 
   const link = extractAtomLink(raw.link);
 
