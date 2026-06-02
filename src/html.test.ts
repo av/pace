@@ -51,6 +51,12 @@ describe("stripHtml", () => {
     );
   });
 
+  test("strips empty and malformed tags consistently regardless of tagSeparator", () => {
+    const html = "a<>b<//>c";
+    expect(stripHtml(html)).toBe("abc");
+    expect(stripHtml(html, { tagSeparator: " " })).toBe("a b c");
+  });
+
   test("numericEntities decodes numeric references in stripped text", () => {
     expect(stripHtml("<p>&#65;</p>", { numericEntities: true })).toBe("A");
     expect(stripHtml("<p>&#65;</p>", { numericEntities: false })).toBe("&#65;");

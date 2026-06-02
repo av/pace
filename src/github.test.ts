@@ -44,6 +44,12 @@ const trendingHtml = `
   <span>2,345 stars today</span>
 </article>
 <article class="Box-row">
+  <h2><a href="/owner/html-demo">owner/html-demo</a></h2>
+  <p class="col-9 color-fg-muted"><a href="/owner/html-demo">Tools &amp; &#39;kit&#39; for &#x42;uilders</a></p>
+  <span itemprop="programmingLanguage">Rust</span>
+  <svg class="octicon-star">star</svg>  1,000
+</article>
+<article class="Box-row">
   <h2><a href="/facebook/react">facebook/react</a></h2>
   <p class="col-9 something">A declarative JavaScript library</p>
   <span itemprop="programmingLanguage">JavaScript</span>
@@ -163,14 +169,16 @@ describe("github", () => {
       githubCfg({ mode: "trending", language: "typescript", since: "daily", limit: 5 }),
     );
 
-    expect(items.length).toBe(2);
+    expect(items.length).toBe(3);
     expect(items[0].title).toContain("vercel/next.js");
     expect(items[0].title).toContain("The React Framework");
     expect(items[0].title).toContain("+2,345 today");
     expect(items[0].source).toBe("github:trending:typescript");
     expect(items[0].body).toContain("123,456 stars");
-    expect(items[1].title).toContain("facebook/react");
-    expect(items[1].title).toContain("declarative JavaScript");
+    expect(items[1].title).toContain("owner/html-demo");
+    expect(items[1].title).toContain("Tools & 'kit' for Builders");
+    expect(items[2].title).toContain("facebook/react");
+    expect(items[2].title).toContain("declarative JavaScript");
   });
 
   test("trending default (no lang, daily) works and respects limit", async () => {

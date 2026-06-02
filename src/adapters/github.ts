@@ -14,7 +14,7 @@ import { formatLanguage, formatStars, joinBodyParts } from "./engagement";
 import { fetchText } from "./fetch";
 import { sliceToLimit } from "../utils";
 import { dedupeByKey } from "./merge";
-import { stripHtml } from "./html";
+import { FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
 import { fetchRepoTagline } from "./github-repo-meta";
 import { joinTitleWithTagline, titleWithTagline } from "./title";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -110,7 +110,7 @@ function parseTrendingHtml(html: string): TrendingRepo[] {
 
     const descMatch = article.match(/<p[^>]*class="[^"]*col-9[^"]*"[^>]*>([\s\S]*?)<\/p>/);
     const description = descMatch
-      ? stripHtml(descMatch[1], { whitespace: "collapse-all" })
+      ? stripHtml(descMatch[1], FEED_BODY_STRIP_OPTIONS)
       : "";
 
     const langMatch = article.match(/itemprop="programmingLanguage"[^>]*>([\s\S]*?)<\/span>/);

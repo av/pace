@@ -7,7 +7,7 @@ interface StripHtmlOptions {
   numericEntities?: boolean;
 }
 
-/** Shared strip options for RSS/Atom/podcast/YouTube/Product Hunt feed bodies. */
+/** Shared strip options for feed bodies and inline HTML snippets (e.g. GitHub trending descriptions). */
 export const FEED_BODY_STRIP_OPTIONS = {
   tagSeparator: " ",
   whitespace: "collapse-all" as const,
@@ -51,8 +51,7 @@ export function stripHtml(html: string, options?: StripHtmlOptions): string {
       .replace(/<\/p>/gi, "\n");
   }
 
-  const tagPattern = tagSeparator === " " ? /<[^>]*>/g : /<[^>]+>/g;
-  text = text.replace(tagPattern, tagSeparator);
+  text = text.replace(/<[^>]*>/g, tagSeparator);
   text = decodeHtmlEntities(text, { numeric: numericEntities });
 
   if (whitespace === "collapse-all") {
