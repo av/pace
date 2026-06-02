@@ -59,6 +59,11 @@ export function formatScore(score: number): string {
   return `Score: ${score}`;
 }
 
+/** Fractional scores (e.g. npm registry 0–1) as a rounded percent string. */
+export function formatPercent(fraction: number): string {
+  return `${Math.round(fraction * 100)}%`;
+}
+
 export function formatComments(count: number): string {
   return `${count} comments`;
 }

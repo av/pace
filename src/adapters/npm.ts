@@ -1,3 +1,4 @@
+import { formatBy, formatPercent, joinBodyParts } from "./engagement";
 import { fetchJson } from "./fetch";
 import { titleWithTagline } from "./title";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -35,34 +36,19 @@ interface NpmPackageResult {
   };
 }
 
-function formatScore(n: number): string {
-  return `${Math.round(n * 100)}%`;
-}
-
 function buildBody(result: NpmPackageResult): string {
-  const parts: string[] = [];
   const pkg = result.package;
   const scores = result.score.detail;
 
-  parts.push(`v${pkg.version}`);
-
-  if (pkg.publisher?.username) {
-    parts.push(`by ${pkg.publisher.username}`);
-  }
-
-  parts.push(`quality: ${formatScore(scores.quality)}`);
-  parts.push(`popularity: ${formatScore(scores.popularity)}`);
-  parts.push(`maintenance: ${formatScore(scores.maintenance)}`);
-
-  if (pkg.keywords && pkg.keywords.length > 0) {
-    parts.push(`tags: ${pkg.keywords.slice(0, 5).join(", ")}`);
-  }
-
-  if (pkg.links.repository) {
-    parts.push(`repo: ${pkg.links.repository}`);
-  }
-
-  return parts.join(" | ");
+  return joinBodyParts(
+    `v${pkg.version}`,
+    pkg.publisher?.username ? formatBy(pkg.publisher.username) : undefined,
+    `quality: ${formatPercent(scores.quality)}`,
+    `popularity: ${formatPercent(scores.popularity)}`,
+    `maintenance: ${formatPercent(scores.maintenance)}`,
+    pkg.keywords && pkg.keywords.length > 0 ? `tags: ${pkg.keywords.slice(0, 5).join(", ")}` : undefined,
+    pkg.links.repository ? `repo: ${pkg.links.repository}` : undefined,
+  );
 }
 
 async function searchNpm(

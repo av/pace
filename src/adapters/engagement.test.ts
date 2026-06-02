@@ -4,6 +4,7 @@ import {
   extractScore,
   formatComments,
   formatDiscuss,
+  formatPercent,
   formatPoints,
   formatReactions,
   formatScore,
@@ -21,6 +22,11 @@ describe("engagement format helpers", () => {
 
   test("formatReactions for devto-style bodies", () => {
     expect(formatReactions(7)).toBe("7 reactions");
+  });
+
+  test("formatPercent for npm registry fractional scores", () => {
+    expect(formatPercent(0.806)).toBe("81%");
+    expect(formatPercent(0)).toBe("0%");
   });
 
   test("joinBodyParts matches adapter metadata layout", () => {
