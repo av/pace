@@ -17,15 +17,9 @@ Identify the **Target** (e.g., a CLI binary, an API base URL, a Python package).
 | **Output directory** | `/tmp/dogfood-output/` | `Output directory: ./qa-reports` |
 | **Scope** | Full project | `Focus on the auth middleware` |
 
-## Workflow
+## Process
 
-```
-1. Initialize    Set up output dirs, report file, build/start the software
-2. Orient        Discover surface area (help menus, API schemas, exported functions)
-3. Explore       Systematically test features, inputs, and edge cases
-4. Document      Record exact inputs, outputs, and logs for each issue
-5. Wrap up       Update summary counts, finalize report
-```
+Lightweight exploration flow (no rigid 5-phase orchestration, no quotas, no 5-item capture lists):
 
 ### 1. Initialize
 
@@ -41,53 +35,13 @@ Create a `report.md` in the output directory and fill in the header fields. Incl
 
 If the software needs to be built or started (e.g., `npm run build`, `docker-compose up -d`, `cargo build`), do that now. Keep track of the startup logs and run servers in the background if necessary (e.g., using `&` and redirecting output for commands that do not support detached mode).
 
-### 2. Orient
+Orient by mapping the surface area of the software before testing (for CLIs: `{TARGET} --help` + subcommands + envs; for APIs: schemas/routes; for libs: exports). Save to `{OUTPUT_DIR}/surface-area.txt`.
 
-Map out the surface area of the software before testing.
+Explore the surface systematically: happy paths, invalid inputs, missing context, boundary conditions. At each step capture stdout, stderr, exit codes, HTTP status.
 
-- **For CLIs:** Run `{TARGET} --help`, list subcommands, check environment variable configurations.
-- **For APIs:** Fetch OpenAPI/Swagger specs, list route definitions in code, or run a schema discovery tool.
-- **For Libraries:** Inspect exported modules, classes, and public methods.
+Document issues *as you find them* (do not batch at end). Every issue needs full repro evidence for a reader to copy-paste and reproduce: description, severity (Critical/High/Medium/Low), exact repro steps/commands, expected vs actual behavior, and evidence (stdout/stderr, traces, logs, exit codes). Save verbose evidence files to `{OUTPUT_DIR}/evidence/issue-{NNN}.txt` and reference in report; embed short ones in markdown.
 
-Save this initial mapping to `{OUTPUT_DIR}/surface-area.txt`.
-
-### 3. Explore
-
-Work through the surface area systematically.
-
-- **Happy Paths:** Test the primary use cases. Does it do what it claims to do?
-- **Invalid Inputs:** Pass wrong types, extremely large strings, negative numbers, malformed JSON.
-- **Missing Context:** Run commands without required environment variables, missing config files, or unauthenticated API calls.
-- **Boundary Conditions:** File not found, permission denied, port already in use.
-
-**At each step:**
-Capture standard output, standard error, exit codes, and HTTP status codes.
-
-### 4. Document Issues (Repro-First)
-
-Document issues *as you find them*. Do not wait until the end. Every issue must be reproducible by a human reading the report.
-
-For each issue, capture:
-1. **Description:** What is the bug or UX issue?
-2. **Severity:** Critical (crash/data loss), High (broken core feature), Medium (broken edge case), Low (UX issue/typo).
-3. **Repro Steps:** Exact commands run, API requests made (e.g., `curl` commands), or code executed.
-4. **Expected vs Actual Behavior:** What should have happened vs what actually happened.
-5. **Evidence:**
-   - Stdout/Stderr output
-   - Stack traces or panic messages
-   - Log file snippets
-   - Exit codes
-
-Save verbose evidence (like full crash dumps or multi-megabyte log files) to `{OUTPUT_DIR}/evidence/issue-{NNN}.txt` and reference it in the report. For short errors, embed them directly in the report using markdown code blocks.
-
-### 5. Wrap Up
-
-Aim to find **5-10 well-documented issues**. Depth of evidence matters more than total count — 5 issues with full repros beat 20 with vague descriptions.
-
-After exploring:
-1. Re-read the report and update the summary severity counts so they match the actual issues. Every issue block must be reflected in the totals.
-2. Stop any background processes (e.g., API servers) started during initialization.
-3. Tell the user the report is ready and summarize findings: total issues, breakdown by severity, and the most critical items.
+Wrap up: re-read and sync the report's summary severity counts to the actual documented issues; stop any background processes started in init; tell the user the report is ready with totals, breakdown, and top critical items.
 
 ## Guidance
 
