@@ -773,6 +773,55 @@ layout:
     expect(() => loadConfig()).toThrow(/config: pipelines must be a list/);
   });
 
+  test("rejects invalid env var placeholder syntax in adapter params", () => {
+    const yaml = `
+adapters:
+  - type: rss
+    params:
+      urls:
+        - "https://example.com/\${bad-name}"
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: env var placeholder \$\{bad-name\} has invalid name "bad-name"/,
+    );
+  });
+
+  test("rejects cyclic env var expansion", () => {
+    const keyA = "TEST_REC_CYCLE_A_" + Date.now().toString(36);
+    const keyB = "TEST_REC_CYCLE_B_" + Date.now().toString(36);
+    const origA = process.env[keyA];
+    const origB = process.env[keyB];
+    process.env[keyA] = `\${${keyB}}`;
+    process.env[keyB] = `\${${keyA}}`;
+    try {
+      const yaml = `
+adapters:
+  - type: rss
+    params:
+      urls:
+        - "\${${keyA}}"
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+      setConfig(yaml);
+      expect(() => loadConfig()).toThrow(
+        /config: env var expansion exceeded 10 passes \(possible cycle\); still contains \$\{/,
+      );
+    } finally {
+      if (origA === undefined) { delete process.env[keyA]; } else { process.env[keyA] = origA; }
+      if (origB === undefined) { delete process.env[keyB]; } else { process.env[keyB] = origB; }
+    }
+  });
+
   test("expands chained ${VAR} in adapter params", () => {
     const outerKey = "TEST_REC_OUTER_" + Date.now().toString(36);
     const innerKey = "TEST_REC_INNER_" + Date.now().toString(36);

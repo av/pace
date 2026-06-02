@@ -117,10 +117,41 @@ function defaultConfig(): AppConfig {
   };
 }
 
+const ENV_VAR_PLACEHOLDER = /\$\{(\w+)\}/g;
+const LEFTOVER_ENV_PLACEHOLDER = /\$\{([^}]*)\}/g;
+const MAX_ENV_EXPANSION_DEPTH = 10;
+
+function assertEnvVarsFullyExpanded(value: string): void {
+  const matches = [...value.matchAll(LEFTOVER_ENV_PLACEHOLDER)];
+  if (matches.length === 0) return;
+  const placeholders = [...new Set(matches.map((m) => m[0]))];
+  const invalid = matches.find((m) => m[1] === "" || !/^\w+$/.test(m[1]));
+  if (invalid) {
+    const name = invalid[1];
+    const detail =
+      name === ""
+        ? "empty name in ${}"
+        : `invalid name "${name}" (use letters, digits, underscore only)`;
+    throw new Error(`config: env var placeholder ${invalid[0]} has ${detail}`);
+  }
+  throw new Error(
+    `config: unexpanded env var placeholder(s): ${placeholders.join(", ")} (check for a cyclic \${VAR} chain)`,
+  );
+}
+
 function resolveEnvVars(value: string, depth = 0): string {
-  if (depth > 10) throw new Error(`config: too many recursive env var expansions (possible cycle) at depth ${depth}`);
-  const replaced = value.replace(/\$\{(\w+)\}/g, (_, name) => process.env[name] ?? "");
-  if (replaced === value || !replaced.includes("${")) return replaced;
+  if (depth > MAX_ENV_EXPANSION_DEPTH) {
+    const leftover = [...new Set([...value.matchAll(LEFTOVER_ENV_PLACEHOLDER)].map((m) => m[0]))];
+    const hint = leftover.length ? `; still contains ${leftover.join(", ")}` : "";
+    throw new Error(
+      `config: env var expansion exceeded ${MAX_ENV_EXPANSION_DEPTH} passes (possible cycle)${hint}`,
+    );
+  }
+  const replaced = value.replace(ENV_VAR_PLACEHOLDER, (_, name) => process.env[name] ?? "");
+  if (replaced === value || !replaced.includes("${")) {
+    assertEnvVarsFullyExpanded(replaced);
+    return replaced;
+  }
   return resolveEnvVars(replaced, depth + 1);
 }
 
