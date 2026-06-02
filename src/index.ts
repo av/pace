@@ -158,7 +158,7 @@ async function start() {
   ["SIGTERM", "SIGINT"].forEach((sig) => process.on(sig, shutdown));
 
   Bun.serve({ port, fetch: app.fetch });
-  console.log(`pace listening on http://localhost:${port}`);
+  console.log(`index: listening on http://localhost:${port}`);
 }
 
 await start();

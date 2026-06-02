@@ -33,7 +33,7 @@ describe("dedupe utils", () => {
         expect(normalizeUrl(bad)).toBe(bad);
         expect(warnSpy).toHaveBeenCalledTimes(1);
         expect(warnSpy).toHaveBeenCalledWith(
-          expect.stringMatching(/^dedupe: normalizeUrl failed for "not a valid url at all": /),
+          expect.stringMatching(/^transforms: normalizeUrl failed for "not a valid url at all": /),
         );
       } finally {
         warnSpy.mockRestore();

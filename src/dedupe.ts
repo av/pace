@@ -47,7 +47,7 @@ export function normalizeUrl(url: string): string {
 
     return parsed.toString();
   } catch (err) {
-    console.warn(`dedupe: normalizeUrl failed for "${url}": ${errorMessage(err)}`);
+    console.warn(`transforms: normalizeUrl failed for "${url}": ${errorMessage(err)}`);
     return url.toLowerCase().trim();
   }
 }
