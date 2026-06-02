@@ -1,7 +1,7 @@
 import { XMLParser } from "fast-xml-parser";
 import { parseFeedDate } from "./dates";
 import { sliceToLimit } from "./merge";
-import { fetchWithTimeout } from "./fetch";
+import { fetchText, fetchWithTimeout } from "./fetch";
 import { stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
@@ -44,7 +44,6 @@ interface EnrichedData {
   comments?: number;
   topics?: string[];
   makers?: string[];
-  website?: string;
 }
 
 function extractEntries(parsed: PHAtomFeedParsed): PHEntry[] {
@@ -238,49 +237,36 @@ async function fetchProductHuntFeed(): Promise<
     timestamp: Date;
   }>
 > {
-  try {
-    const res = await fetchWithTimeout(PH_FEED_URL, {
-      userAgent: "pace:feed-aggregator/1.0",
-      accept: "application/atom+xml, application/xml, text/xml",
-    });
+  const xml = await fetchText("producthunt", PH_FEED_URL, "feed", {
+    userAgent: "pace:feed-aggregator/1.0",
+    accept: "application/atom+xml, application/xml, text/xml",
+  });
 
-    if (!res.ok) {
-      throw new Error(`producthunt: failed to fetch feed: ${errorMessage({ message: String(res.status) })}`);
-    }
+  const parsed = parser.parse(xml) as PHAtomFeedParsed;
+  const entries = extractEntries(parsed);
 
-    const xml = await res.text();
-    const parsed = parser.parse(xml) as PHAtomFeedParsed;
-    const entries = extractEntries(parsed);
-
-    if (entries.length === 0) {
-      console.warn("producthunt: no entries found in feed");
-      return [];
-    }
-
-    // Parse basic data from feed
-    return entries.map((entry) => {
-      const title = extractTitle(entry);
-      const url = extractLink(entry);
-      const { tagline, productLink } = extractContent(entry);
-      const author = entry.author?.name ?? "";
-      const timestamp = parseFeedDate(entry.published ?? entry.updated ?? "");
-
-      return {
-        id: extractId(entry),
-        title,
-        tagline,
-        url,
-        productLink,
-        author,
-        timestamp,
-      };
-    });
-  } catch (err) {
-    if (err instanceof Error && err.message.startsWith("producthunt: failed to fetch")) {
-      throw err;
-    }
-    throw new Error(`producthunt: error fetching feed: ${errorMessage(err)}`);
+  if (entries.length === 0) {
+    console.warn("producthunt: no entries found in feed");
+    return [];
   }
+
+  return entries.map((entry) => {
+    const title = extractTitle(entry);
+    const url = extractLink(entry);
+    const { tagline, productLink } = extractContent(entry);
+    const author = entry.author?.name ?? "";
+    const timestamp = parseFeedDate(entry.published ?? entry.updated ?? "");
+
+    return {
+      id: extractId(entry),
+      title,
+      tagline,
+      url,
+      productLink,
+      author,
+      timestamp,
+    };
+  });
 }
 
 const adapter: Adapter = {

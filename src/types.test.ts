@@ -145,7 +145,7 @@ describe("types", () => {
         const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
         try {
           await expect(producthuntAdapter.fetch({ type: "producthunt" })).rejects.toThrow(
-            /producthunt: failed to fetch feed: 429/,
+            /producthunt: failed to fetch feed: HTTP error 429/,
           );
           expect(warnSpy).not.toHaveBeenCalled();
         } finally {

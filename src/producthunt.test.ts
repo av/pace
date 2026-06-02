@@ -1,15 +1,10 @@
-import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from "bun:test";
+import { describe, test, expect, spyOn } from "bun:test";
 import producthuntAdapter from "./adapters/producthunt";
-import type { AdapterConfig } from "./adapters/types";
 import * as typesMod from "./adapters/types";
+import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
-const originalFetch = globalThis.fetch;
-
-const defaultCfg: AdapterConfig = { type: "producthunt" };
-
-function producthuntCfg(params: Record<string, unknown> = {}): AdapterConfig {
-  return { ...defaultCfg, params };
-}
+const mocks = useFetchMockSuite({ restoreAllMocks: true });
+const producthuntCfg = (params: Record<string, unknown> = {}) => adapterCfg("producthunt", params);
 
 function makePHFeedFixture(): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -45,27 +40,13 @@ function makeEnrichHtml(upvotes: number, comments: number, topics: string[] = ["
 }
 
 describe("producthunt", () => {
-  let fetchMock: ReturnType<typeof mock>;
-  let warnSpy: ReturnType<typeof spyOn>;
-
   test("ngb contract", () => {
     expect(producthuntAdapter.name).toBe("producthunt");
     expect(typeof producthuntAdapter.fetch).toBe("function");
   });
 
-  beforeEach(() => {
-    fetchMock = mock();
-    globalThis.fetch = fetchMock as typeof fetch;
-    warnSpy = spyOn(console, "warn").mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
-    mock.restore();
-  });
-
   test("fetches feed and maps basic items with correct id/source/timestamp/body (no enrich)", async () => {
-    fetchMock.mockResolvedValue(
+    mocks.fetchMock.mockResolvedValue(
       new Response(makePHFeedFixture(), {
         status: 200,
         headers: { "content-type": "application/atom+xml" },
@@ -74,13 +55,13 @@ describe("producthunt", () => {
 
     const items = await producthuntAdapter.fetch(producthuntCfg());
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const callUrl = String(fetchMock.mock.calls[0][0]);
+    expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
+    const callUrl = String(mocks.fetchMock.mock.calls[0][0]);
     expect(callUrl).toBe("https://www.producthunt.com/feed");
 
     expect(items.length).toBe(2);
     expect(items[0].id).toBe("ph:123456");
-    expect(items[0].title).toBe("Test Product");
+    expect(items[0].title).toBe("Test Product | Cool new AI tool tagline");
     expect(items[0].url).toContain("test-product-123456");
     expect(items[0].source).toBe("producthunt");
     expect(items[0].timestamp).toBeInstanceOf(Date);
@@ -90,19 +71,19 @@ describe("producthunt", () => {
   });
 
   test("respects limit param (caps at 50)", async () => {
-    fetchMock.mockResolvedValue(
+    mocks.fetchMock.mockResolvedValue(
       new Response(makePHFeedFixture(), { status: 200 }),
     );
 
     const items = await producthuntAdapter.fetch(producthuntCfg({ limit: 1 }));
 
     expect(items.length).toBe(1);
-    expect(items[0].title).toBe("Test Product");
+    expect(items[0].title).toBe("Test Product | Cool new AI tool tagline");
   });
 
   test("with enrich=true performs per-product fetches and includes upvotes/comments/topics/makers in body", async () => {
     let callCount = 0;
-    fetchMock.mockImplementation(async (url: string) => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
       const u = String(url);
       callCount++;
       if (u.includes("producthunt.com/feed")) {
@@ -128,7 +109,7 @@ describe("producthunt", () => {
 
   test("with enrich + min_upvotes filters items below threshold", async () => {
     let call = 0;
-    fetchMock.mockImplementation(async (url: string) => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
       const u = String(url);
       call++;
       if (u.includes("feed")) {
@@ -145,38 +126,44 @@ describe("producthunt", () => {
     );
 
     expect(items.length).toBe(1);
-    expect(items[0].title).toBe("Another Great Product");
+    expect(items[0].title).toBe("Another Great Product | Second tagline here");
     expect(items[0].body).toContain("300 upvotes");
   });
 
   test("warns and returns [] when feed has no entries", async () => {
     const emptyFeed = `<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"></feed>`;
-    fetchMock.mockResolvedValue(new Response(emptyFeed, { status: 200 }));
+    mocks.fetchMock.mockResolvedValue(new Response(emptyFeed, { status: 200 }));
 
     const items = await producthuntAdapter.fetch(producthuntCfg());
 
     expect(items).toEqual([]);
-    expect(warnSpy).toHaveBeenCalledWith("producthunt: no entries found in feed");
+    expect(mocks.warnSpy).toHaveBeenCalledWith("producthunt: no entries found in feed");
   });
 
   test("errorMessage on !ok", async () => {
     const emSpy = spyOn(typesMod, "errorMessage");
-    fetchMock.mockResolvedValue(new Response("rate limited", { status: 429 }));
+    mocks.fetchMock.mockResolvedValue(new Response("rate limited", { status: 429 }));
 
     await expect(
       producthuntAdapter.fetch(producthuntCfg()),
-    ).rejects.toThrow(/producthunt: failed to fetch feed: 429/);
+    ).rejects.toThrow(/producthunt: failed to fetch feed: HTTP error 429/);
 
     const hasStatusObjCall = emSpy.mock.calls.some((call: unknown[]) => {
       const arg = call[0];
-      return arg && typeof arg === "object" && arg !== null && "message" in arg && String((arg as { message: string }).message) === "429";
+      return (
+        arg &&
+        typeof arg === "object" &&
+        arg !== null &&
+        "message" in arg &&
+        String((arg as { message: string }).message) === "HTTP error 429"
+      );
     });
     expect(hasStatusObjCall).toBe(true);
     emSpy.mockRestore();
   });
 
   test("throws on network reject from feed (wrapped)", async () => {
-    fetchMock.mockRejectedValue(new Error("connection refused"));
+    mocks.fetchMock.mockRejectedValue(new Error("connection refused"));
 
     await expect(
       producthuntAdapter.fetch(producthuntCfg({ limit: 5 })),
@@ -185,7 +172,7 @@ describe("producthunt", () => {
 
   test("enrich failures (null) are tolerated and items still returned without extra data", async () => {
     let c = 0;
-    fetchMock.mockImplementation(async (url: string) => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
       const u = String(url);
       c++;
       if (u.includes("feed")) {
@@ -202,7 +189,7 @@ describe("producthunt", () => {
   });
 
   test("warns on enrich HTTP failure and still returns items without enrich data", async () => {
-    fetchMock.mockImplementation(async (url: string) => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
       const u = String(url);
       if (u.includes("feed")) {
         return new Response(makePHFeedFixture(), { status: 200 });
@@ -214,7 +201,7 @@ describe("producthunt", () => {
 
     expect(items.length).toBe(2);
     expect(items[0].body).not.toContain("upvotes");
-    const enrichWarns = warnSpy.mock.calls.filter((call) =>
+    const enrichWarns = mocks.warnSpy.mock.calls.filter((call) =>
       String(call[0]).startsWith("producthunt: enrich failed for"),
     );
     expect(enrichWarns).toHaveLength(2);
@@ -224,7 +211,7 @@ describe("producthunt", () => {
   });
 
   test("warns on enrich network failure and still returns items without enrich data", async () => {
-    fetchMock.mockImplementation(async (url: string) => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
       const u = String(url);
       if (u.includes("feed")) {
         return new Response(makePHFeedFixture(), { status: 200 });
@@ -235,7 +222,7 @@ describe("producthunt", () => {
     const items = await producthuntAdapter.fetch(producthuntCfg({ enrich: true }));
 
     expect(items.length).toBe(2);
-    const enrichWarns = warnSpy.mock.calls.filter((call) =>
+    const enrichWarns = mocks.warnSpy.mock.calls.filter((call) =>
       String(call[0]).startsWith("producthunt: enrich failed for"),
     );
     expect(enrichWarns).toHaveLength(2);
