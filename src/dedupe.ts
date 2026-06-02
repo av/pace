@@ -53,7 +53,8 @@ export function normalizeUrl(url: string): string {
         params.delete(key);
       }
     }
-    parsed.search = params.toString() ? `?${params.toString()}` : "";
+    const search = params.toString();
+    parsed.search = search ? `?${search}` : "";
 
     // Remove fragment
     parsed.hash = "";
