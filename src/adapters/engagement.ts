@@ -140,6 +140,12 @@ export function formatTopics(topics: string[]): string {
   return `topics: ${topics.join(", ")}`;
 }
 
+/** Dev.to, Lobsters, Stack Exchange, npm keywords, and similar tag lists in body metadata. */
+export function formatTags(tags: readonly string[]): string | undefined {
+  if (tags.length === 0) return undefined;
+  return `tags: ${tags.join(", ")}`;
+}
+
 /** ArXiv primary/secondary category terms in body metadata. */
 export function formatCategories(categories: string[]): string {
   return `Categories: ${categories.join(", ")}`;

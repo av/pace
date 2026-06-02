@@ -3,6 +3,7 @@ import {
   formatComments,
   formatDiscuss,
   formatPoints,
+  formatTags,
   joinBodyParts,
 } from "./engagement";
 import { fetchJson } from "./fetch";
@@ -34,7 +35,7 @@ function buildBody(item: LobstersItem): string {
     formatPoints(item.score),
     formatBy(item.submitter_user),
     formatComments(item.comment_count),
-    item.tags.length > 0 ? `tags: ${item.tags.join(", ")}` : undefined,
+    formatTags(item.tags),
     item.url && !item.url.includes("lobste.rs")
       ? formatDiscuss(item.comments_url)
       : undefined,

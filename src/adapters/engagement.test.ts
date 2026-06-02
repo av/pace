@@ -16,6 +16,7 @@ import {
   formatScore,
   formatSite,
   formatStars,
+  formatTags,
   formatTopics,
   formatViews,
   joinBodyParts,
@@ -50,9 +51,11 @@ describe("engagement format helpers", () => {
     expect(formatViews(500)).toBe("500 views");
   });
 
-  test("formatLanguage, formatTopics, formatCategories, formatSite for adapter metadata", () => {
+  test("formatLanguage, formatTopics, formatTags, formatCategories, formatSite for adapter metadata", () => {
     expect(formatLanguage("TypeScript")).toBe("language: TypeScript");
     expect(formatTopics(["Ai", "Devtools"])).toBe("topics: Ai, Devtools");
+    expect(formatTags(["typescript", "webdev"])).toBe("tags: typescript, webdev");
+    expect(formatTags([])).toBeUndefined();
     expect(formatCategories(["cs.LG", "cs.AI"])).toBe("Categories: cs.LG, cs.AI");
     expect(formatSite("https://example.com/p")).toBe("site: https://example.com/p");
   });

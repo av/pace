@@ -2,6 +2,7 @@ import {
   formatBy,
   formatComments,
   formatReactions,
+  formatTags,
   joinBodyParts,
 } from "./engagement";
 import { fetchJson } from "./fetch";
@@ -33,7 +34,7 @@ function buildBody(article: DevToArticle): string {
     formatComments(article.comments_count),
     `${article.reading_time_minutes} min read`,
     formatBy(`@${article.user.username}`),
-    article.tag_list.length > 0 ? `tags: ${article.tag_list.join(", ")}` : undefined,
+    formatTags(article.tag_list),
     article.cover_image ? `cover: ${article.cover_image}` : undefined,
   );
 }
