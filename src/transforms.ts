@@ -50,8 +50,16 @@ function pickByTimestamp(group: ContentItemRow[], direction: "asc" | "desc"): Co
   );
 }
 
-function pickWinner(group: ContentItemRow[], keep: DedupeKeep): ContentItemRow {
+type DedupePick = DedupeKeep | "first";
+
+function formatDedupeRemovedLine(loser: ContentItemRow, winner?: ContentItemRow): string {
+  const line = `"${loser.title}" (${loser.url})`;
+  return winner ? `${line} -> kept "${winner.title}"` : line;
+}
+
+function pickWinner(group: ContentItemRow[], keep: DedupePick): ContentItemRow {
   if (group.length === 1) return group[0];
+  if (keep === "first") return group[0];
   if (keep === "earliest" || keep === "latest") {
     return pickByTimestamp(group, keep === "earliest" ? "asc" : "desc");
   }
@@ -297,7 +305,7 @@ function generateClusterLabel(
 function dedupeGroupedByKey(
   items: ContentItemRow[],
   keyOf: (item: ContentItemRow) => string,
-  keep: DedupeKeep,
+  keep: DedupePick,
   formatRemoved: (loser: ContentItemRow, winner: ContentItemRow) => string,
 ): { result: ContentItemRow[]; removed: string[] } {
   const groups = new Map<string, ContentItemRow[]>();
@@ -414,16 +422,13 @@ const transforms: Record<string, TransformFn> = {
     };
 
     if (strategy === "url") {
-      const seen = new Set<string>();
-      const removed: string[] = [];
-      const result = items.filter((item) => {
-        if (!item.url || seen.has(item.url)) {
-          if (item.url) removed.push(`"${item.title}" (${item.url})`);
-          return false;
-        }
-        seen.add(item.url);
-        return true;
-      });
+      const urlItems = items.filter((item) => item.url);
+      const { result, removed } = dedupeGroupedByKey(
+        urlItems,
+        (item) => item.url!,
+        "first",
+        (item, _winner) => formatDedupeRemovedLine(item),
+      );
       maybeLogRemoved("url", removed);
       return result;
     }
@@ -433,7 +438,7 @@ const transforms: Record<string, TransformFn> = {
         items,
         (item) => normalizeUrl(item.url),
         keep,
-        (item, w) => `"${item.title}" (${item.url}) -> kept "${w.title}"`,
+        (item, winner) => formatDedupeRemovedLine(item, winner),
       );
       maybeLogRemoved("domain-normalized", removed);
       return result;
