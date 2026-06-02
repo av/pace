@@ -1,15 +1,10 @@
-import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from "bun:test";
+import { describe, test, expect, spyOn } from "bun:test";
 import redditAdapter from "./adapters/reddit";
-import type { AdapterConfig } from "./adapters/types";
 import * as typesMod from "./adapters/types";
+import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
-const originalFetch = globalThis.fetch;
-
-const defaultCfg: AdapterConfig = { type: "reddit" };
-
-function redditCfg(params: Record<string, unknown> = {}): AdapterConfig {
-  return { ...defaultCfg, params };
-}
+const mocks = useFetchMockSuite();
+const redditCfg = (params: Record<string, unknown> = {}) => adapterCfg("reddit", params);
 
 interface RedditPostDataFixture {
   id: string;
@@ -54,40 +49,26 @@ function makeErrorResponse(status: number): Response {
 }
 
 describe("reddit", () => {
-  let fetchMock: ReturnType<typeof mock>;
-  let warnSpy: ReturnType<typeof spyOn>;
-
   test("ngb contract", () => {
     expect(redditAdapter.name).toBe("reddit");
     expect(typeof redditAdapter.fetch).toBe("function");
   });
 
-  beforeEach(() => {
-    fetchMock = mock();
-    globalThis.fetch = fetchMock as typeof fetch;
-    warnSpy = spyOn(console, "warn").mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
-    warnSpy.mockRestore();
-  });
-
   test("returns [] and warns when no subreddits configured", async () => {
-    const items = await redditAdapter.fetch(defaultCfg);
+    const items = await redditAdapter.fetch(redditCfg());
     expect(items).toEqual([]);
-    expect(warnSpy).toHaveBeenCalledWith("reddit: no subreddits configured");
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(mocks.warnSpy).toHaveBeenCalledWith("reddit: no subreddits configured");
+    expect(mocks.fetchMock).not.toHaveBeenCalled();
   });
 
   test("fetches default hot feed for a subreddit and maps items with correct source/body/url", async () => {
     const posts = [makePost("abc123", "Hello Reddit", false, 42, "programming")];
-    fetchMock.mockResolvedValue(makeListingResponse(posts));
+    mocks.fetchMock.mockResolvedValue(makeListingResponse(posts));
 
     const items = await redditAdapter.fetch(redditCfg({ subreddits: ["programming"] }));
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const calledUrl = (fetchMock.mock.calls[0][0] as string);
+    expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
+    const calledUrl = (mocks.fetchMock.mock.calls[0][0] as string);
     expect(calledUrl).toContain("/r/programming/hot.json?limit=25&raw_json=1");
     expect(calledUrl).not.toContain("&t=");
 
@@ -108,13 +89,13 @@ describe("reddit", () => {
       makePost("high", "High", false, 200),
       makePost("med", "Med", false, 50),
     ];
-    fetchMock.mockResolvedValue(makeListingResponse(posts));
+    mocks.fetchMock.mockResolvedValue(makeListingResponse(posts));
 
     const items = await redditAdapter.fetch(
       redditCfg({ subreddits: ["test"], sort: "new", limit: 10, min_score: 10 }),
     );
 
-    const calledUrl = (fetchMock.mock.calls[0][0] as string);
+    const calledUrl = (mocks.fetchMock.mock.calls[0][0] as string);
     expect(calledUrl).toContain("/r/test/new.json?limit=10&raw_json=1");
 
     // minScore 10 drops the 5, keeps 200+50, sorted desc
@@ -125,22 +106,22 @@ describe("reddit", () => {
 
   test("defaults invalid sort and timePeriod to hot/day and omits t param unless top", async () => {
     const posts = [makePost("1")];
-    fetchMock.mockResolvedValue(makeListingResponse(posts));
+    mocks.fetchMock.mockResolvedValue(makeListingResponse(posts));
 
     await redditAdapter.fetch(redditCfg({ subreddits: ["x"], sort: "INVALID", time: "nonsense" }));
 
-    const url = (fetchMock.mock.calls[0][0] as string);
+    const url = (mocks.fetchMock.mock.calls[0][0] as string);
     expect(url).toContain("/hot.json?limit=25&raw_json=1");
     expect(url).not.toContain("&t=");
   });
 
   test("includes t= param only for top sort with valid period", async () => {
     const posts = [makePost("top1")];
-    fetchMock.mockResolvedValue(makeListingResponse(posts));
+    mocks.fetchMock.mockResolvedValue(makeListingResponse(posts));
 
     await redditAdapter.fetch(redditCfg({ subreddits: ["x"], sort: "top", time: "week" }));
 
-    const url = (fetchMock.mock.calls[0][0] as string);
+    const url = (mocks.fetchMock.mock.calls[0][0] as string);
     expect(url).toContain("/top.json?limit=25&raw_json=1&t=week");
   });
 
@@ -148,13 +129,13 @@ describe("reddit", () => {
     const postA = makePost("dup", "Dup", false, 10, "a");
     const postB = makePost("unique", "Unique", false, 20, "b");
     // first call (a) returns both, second (b) returns dup + unique? but dedup on id
-    fetchMock
+    mocks.fetchMock
       .mockResolvedValueOnce(makeListingResponse([postA, postB]))
       .mockResolvedValueOnce(makeListingResponse([postA]));
 
     const items = await redditAdapter.fetch(redditCfg({ subreddits: ["a", "b"] }));
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(mocks.fetchMock).toHaveBeenCalledTimes(2);
     // deduped to 2 unique ids
     expect(items).toHaveLength(2);
     const ids = items.map((i) => i.id);
@@ -163,7 +144,7 @@ describe("reddit", () => {
   });
 
   test("uses subreddit-specific source label only for single sub, else falls back to sort label", async () => {
-    fetchMock.mockImplementation(async () => makeListingResponse([makePost("1")]));
+    mocks.fetchMock.mockImplementation(async () => makeListingResponse([makePost("1")]));
 
     const single = await redditAdapter.fetch(redditCfg({ subreddits: ["onlyone"] }));
     expect(single[0].source).toBe("reddit:r/onlyone");
@@ -175,7 +156,7 @@ describe("reddit", () => {
   test("constructs discuss link for external posts and direct url for self posts", async () => {
     const linkPost = makePost("link", "LinkPost", false, 100, "mix");
     const selfPost = makePost("self", "SelfPost", true, 100, "mix");
-    fetchMock.mockImplementation(async () => makeListingResponse([linkPost, selfPost]));
+    mocks.fetchMock.mockImplementation(async () => makeListingResponse([linkPost, selfPost]));
 
     const items = await redditAdapter.fetch(redditCfg({ subreddits: ["mix"] }));
 
@@ -185,7 +166,7 @@ describe("reddit", () => {
   });
 
   test("throws reddit: failed to fetch on HTTP !ok (no double-wrap)", async () => {
-    fetchMock.mockImplementation(async () => makeErrorResponse(403));
+    mocks.fetchMock.mockImplementation(async () => makeErrorResponse(403));
 
     await expect(redditAdapter.fetch(redditCfg({ subreddits: ["private"] }))).rejects.toThrow(
       /reddit: failed to fetch \/r\/private\/hot: HTTP error 403/,
@@ -193,7 +174,7 @@ describe("reddit", () => {
   });
 
   test("throws with exact 'reddit: error fetching' prefix on network rejection", async () => {
-    fetchMock.mockRejectedValue(new Error("ECONNRESET"));
+    mocks.fetchMock.mockRejectedValue(new Error("ECONNRESET"));
 
     await expect(redditAdapter.fetch(redditCfg({ subreddits: ["down"] }))).rejects.toThrow(
       /reddit: error fetching .*down\/hot: ECONNRESET/,
@@ -203,7 +184,7 @@ describe("reddit", () => {
   test("errorMessage on !ok", async () => {
     const emSpy = spyOn(typesMod, "errorMessage");
     try {
-      fetchMock.mockResolvedValue(makeErrorResponse(404));
+      mocks.fetchMock.mockResolvedValue(makeErrorResponse(404));
 
       await expect(redditAdapter.fetch(redditCfg({ subreddits: ["test"] }))).rejects.toThrow(
         /reddit: failed to fetch/,

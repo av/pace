@@ -1,28 +1,15 @@
-import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import stackexchangeAdapter from "./adapters/stackexchange";
 import * as typesMod from "./adapters/types";
+import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
-const originalFetch = globalThis.fetch;
+const mocks = useFetchMockSuite({ restoreAllMocks: true });
+const seCfg = (params: Record<string, unknown> = {}) => adapterCfg("stackexchange", params);
 
 describe("stackexchange", () => {
-  let fetchMock: ReturnType<typeof mock>;
-  let warnSpy: ReturnType<typeof spyOn>;
-
   test("ngb contract", () => {
     expect(stackexchangeAdapter.name).toBe("stackexchange");
     expect(typeof stackexchangeAdapter.fetch).toBe("function");
-  });
-
-  beforeEach(() => {
-    fetchMock = mock();
-    globalThis.fetch = fetchMock as typeof fetch;
-    warnSpy = spyOn(console, "warn").mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
-    warnSpy.mockRestore();
-    mock.restore();
   });
 
   function makeQuestion(overrides: Partial<Record<string, unknown>> = {}) {
@@ -44,14 +31,14 @@ describe("stackexchange", () => {
 
   test("default site", async () => {
     const q = makeQuestion();
-    fetchMock.mockResolvedValue(
+    mocks.fetchMock.mockResolvedValue(
       new Response(
         JSON.stringify({ items: [q], has_more: false, quota_remaining: 100 }),
         { status: 200 },
       ),
     );
 
-    const items = await stackexchangeAdapter.fetch({ type: "stackexchange", params: {} });
+    const items = await stackexchangeAdapter.fetch(seCfg());
 
     expect(items.length).toBe(1);
     expect(items[0]).toMatchObject({
@@ -61,8 +48,8 @@ describe("stackexchange", () => {
       source: "stackoverflow:hot",
       body: expect.stringContaining("Score: 42"),
     });
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const calledUrl = String(fetchMock.mock.calls[0][0]);
+    expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
+    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
     expect(calledUrl).toContain("site=stackoverflow");
     expect(calledUrl).toContain("sort=hot");
     expect(calledUrl).not.toContain("tagged=");
@@ -71,7 +58,7 @@ describe("stackexchange", () => {
   test("one tag per request", async () => {
     const q1 = makeQuestion({ question_id: 1, tags: ["typescript"] });
     const q2 = makeQuestion({ question_id: 2, tags: ["bun"] });
-    fetchMock
+    mocks.fetchMock
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({ items: [q1], has_more: false, quota_remaining: 50 }),
@@ -85,20 +72,19 @@ describe("stackexchange", () => {
         ),
       );
 
-    const items = await stackexchangeAdapter.fetch({
-      type: "stackexchange",
-      params: {
+    const items = await stackexchangeAdapter.fetch(
+      seCfg({
         site: "stackoverflow",
         tags: ["typescript", "bun"],
         sort: "votes",
         limit: 5,
-      },
-    });
+      }),
+    );
 
     expect(items).toHaveLength(2);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    const url0 = String(fetchMock.mock.calls[0][0]);
-    const url1 = String(fetchMock.mock.calls[1][0]);
+    expect(mocks.fetchMock).toHaveBeenCalledTimes(2);
+    const url0 = String(mocks.fetchMock.mock.calls[0][0]);
+    const url1 = String(mocks.fetchMock.mock.calls[1][0]);
     expect(url0).toContain("tagged=typescript");
     expect(url0).not.toContain("tagged=typescript%3Bbun");
     expect(url1).toContain("tagged=bun");
@@ -109,7 +95,7 @@ describe("stackexchange", () => {
   test("dedupe across tags", async () => {
     const shared = makeQuestion({ question_id: 99, title: "Shared question" });
     const onlyTs = makeQuestion({ question_id: 1, title: "TS only" });
-    fetchMock
+    mocks.fetchMock
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({ items: [shared, onlyTs], has_more: false, quota_remaining: 50 }),
@@ -123,10 +109,9 @@ describe("stackexchange", () => {
         ),
       );
 
-    const items = await stackexchangeAdapter.fetch({
-      type: "stackexchange",
-      params: { tags: ["typescript", "bun"], limit: 10 },
-    });
+    const items = await stackexchangeAdapter.fetch(
+      seCfg({ tags: ["typescript", "bun"], limit: 10 }),
+    );
 
     expect(items).toHaveLength(2);
     expect(items.map((i) => i.id)).toEqual(
@@ -140,16 +125,13 @@ describe("stackexchange", () => {
       makeQuestion({ question_id: 20, score: 100 }),
       makeQuestion({ question_id: 30, score: 20 }),
     ];
-    fetchMock.mockResolvedValue(
+    mocks.fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ items: questions, has_more: false, quota_remaining: 100 }), {
         status: 200,
       }),
     );
 
-    const items = await stackexchangeAdapter.fetch({
-      type: "stackexchange",
-      params: { min_score: 10, limit: 1 },
-    });
+    const items = await stackexchangeAdapter.fetch(seCfg({ min_score: 10, limit: 1 }));
 
     expect(items).toHaveLength(1);
     expect(items[0].id).toBe("se:stackoverflow:20");
@@ -162,11 +144,11 @@ describe("stackexchange", () => {
       accepted_answer_id: 99,
       owner: { display_name: "dev" },
     });
-    fetchMock.mockResolvedValue(
+    mocks.fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ items: [q], quota_remaining: 100 }), { status: 200 }),
     );
 
-    const [item] = await stackexchangeAdapter.fetch({ type: "stackexchange", params: {} });
+    const [item] = await stackexchangeAdapter.fetch(seCfg());
 
     expect(item.body).toContain("Score: 42");
     expect(item.body).toContain("5 answers (accepted)");
@@ -176,45 +158,44 @@ describe("stackexchange", () => {
   });
 
   test("!ok throws", async () => {
-    fetchMock.mockResolvedValue(
+    mocks.fetchMock.mockResolvedValue(
       new Response("too many", { status: 429, statusText: "Too Many Requests" }),
     );
 
     await expect(
-      stackexchangeAdapter.fetch({ type: "stackexchange", params: { site: "meta.stackexchange.com" } }),
+      stackexchangeAdapter.fetch(seCfg({ site: "meta.stackexchange.com" })),
     ).rejects.toThrow(/stackexchange: failed to fetch from meta.stackexchange.com: HTTP error 429/);
   });
 
   test("low quota warns", async () => {
     const q = makeQuestion({ question_id: 777 });
-    fetchMock.mockResolvedValue(
+    mocks.fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ items: [q], has_more: false, quota_remaining: 3 }), { status: 200 }),
     );
 
-    const items = await stackexchangeAdapter.fetch({ type: "stackexchange", params: { site: "stackoverflow" } });
+    const items = await stackexchangeAdapter.fetch(seCfg({ site: "stackoverflow" }));
 
     expect(items).toHaveLength(1);
-    expect(warnSpy).toHaveBeenCalledWith("stackexchange: API quota low (3 remaining)");
+    expect(mocks.warnSpy).toHaveBeenCalledWith("stackexchange: API quota low (3 remaining)");
   });
 
   test("network throws", async () => {
-    fetchMock.mockRejectedValue(new Error("connection refused"));
+    mocks.fetchMock.mockRejectedValue(new Error("connection refused"));
 
     await expect(
-      stackexchangeAdapter.fetch({ type: "stackexchange", params: { site: "bad.site" } }),
+      stackexchangeAdapter.fetch(seCfg({ site: "bad.site" })),
     ).rejects.toThrow(/stackexchange: error fetching from bad.site: connection refused/);
   });
 
   test("invalid sort and view format", async () => {
     const q = makeQuestion({ view_count: 1234567 });
-    fetchMock.mockResolvedValue(
+    mocks.fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ items: [q], quota_remaining: 100 }), { status: 200 }),
     );
 
-    const items = await stackexchangeAdapter.fetch({
-      type: "stackexchange",
-      params: { sort: "invalid", site: "ru.stackoverflow.com" },
-    });
+    const items = await stackexchangeAdapter.fetch(
+      seCfg({ sort: "invalid", site: "ru.stackoverflow.com" }),
+    );
 
     expect(items[0].source).toBe("ru.stackoverflow.com:hot");
     expect(items[0].body).toContain("1.2m views");
@@ -223,16 +204,16 @@ describe("stackexchange", () => {
   test("errorMessage on !ok and network", async () => {
     const emSpy = spyOn(typesMod, "errorMessage");
     try {
-      fetchMock.mockResolvedValue(
+      mocks.fetchMock.mockResolvedValue(
         new Response("rate limit", { status: 429, statusText: "Too Many Requests" }),
       );
       await expect(
-        stackexchangeAdapter.fetch({ type: "stackexchange", params: { site: "meta.stackexchange.com" } }),
+        stackexchangeAdapter.fetch(seCfg({ site: "meta.stackexchange.com" })),
       ).rejects.toThrow(/429/);
 
-      fetchMock.mockRejectedValue(new Error("connection refused"));
+      mocks.fetchMock.mockRejectedValue(new Error("connection refused"));
       await expect(
-        stackexchangeAdapter.fetch({ type: "stackexchange", params: { site: "bad.site" } }),
+        stackexchangeAdapter.fetch(seCfg({ site: "bad.site" })),
       ).rejects.toThrow(/connection refused/);
 
       expect(emSpy.mock.calls.length).toBeGreaterThanOrEqual(2);

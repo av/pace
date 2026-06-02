@@ -1,11 +1,10 @@
-import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from "bun:test";
+import { describe, test, expect, spyOn } from "bun:test";
 import hackernewsAdapter from "./adapters/hackernews";
-import type { AdapterConfig } from "./adapters/types";
 import * as typesMod from "./adapters/types";
+import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
-const originalFetch = globalThis.fetch;
-
-const defaultCfg: AdapterConfig = { type: "hackernews" };
+const mocks = useFetchMockSuite();
+const hnCfg = (params: Record<string, unknown> = {}) => adapterCfg("hackernews", params);
 
 interface HNItemFixture {
   id: number;
@@ -45,24 +44,10 @@ function makeItemResponse(item: HNItemFixture | null, status = 200): Response {
 }
 
 describe("hackernews", () => {
-  let fetchMock: ReturnType<typeof mock>;
-  let warnSpy: ReturnType<typeof spyOn>;
-
-  beforeEach(() => {
-    fetchMock = mock();
-    globalThis.fetch = fetchMock as typeof fetch;
-    warnSpy = spyOn(console, "warn").mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
-    warnSpy.mockRestore();
-  });
-
   test("fetches default top feed and maps items with body", async () => {
     const ids = [1, 2, 3];
     const items = ids.map((id) => makeHNItem(id, { score: 50 + id }));
-    fetchMock.mockImplementation(async (url: string) => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
       if (url.includes("topstories.json")) return makeIdsResponse(ids);
       const match = url.match(/item\/(\d+)\.json/);
       if (match) {
@@ -72,7 +57,7 @@ describe("hackernews", () => {
       return makeItemResponse(null);
     });
 
-    const results = await hackernewsAdapter.fetch(defaultCfg);
+    const results = await hackernewsAdapter.fetch(hnCfg());
 
     expect(results).toHaveLength(3);
     expect(results[0].id).toBe("hn:1");
@@ -84,7 +69,7 @@ describe("hackernews", () => {
 
   test("supports feed aliases (newest, frontpage, ask_hn, show_hn, jobs)", async () => {
     const ids = [10];
-    fetchMock.mockImplementation(async (url: string) => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
       if (url.includes("stories.json")) {
         return makeIdsResponse(ids);
       }
@@ -93,25 +78,25 @@ describe("hackernews", () => {
       return makeItemResponse(null);
     });
 
-    const r1 = await hackernewsAdapter.fetch({ type: "hackernews", params: { feed: "newest" } });
+    const r1 = await hackernewsAdapter.fetch(hnCfg({ feed: "newest" }));
     expect(r1[0].source).toBe("hackernews:new");
 
-    const r2 = await hackernewsAdapter.fetch({ type: "hackernews", params: { stories: "frontpage" } });
+    const r2 = await hackernewsAdapter.fetch(hnCfg({ stories: "frontpage" }));
     expect(r2[0].source).toBe("hackernews:top");
 
-    const r3 = await hackernewsAdapter.fetch({ type: "hackernews", params: { feed: "ask_hn" } });
+    const r3 = await hackernewsAdapter.fetch(hnCfg({ feed: "ask_hn" }));
     expect(r3[0].source).toBe("hackernews:ask");
 
-    const r4 = await hackernewsAdapter.fetch({ type: "hackernews", params: { feed: "show_hn" } });
+    const r4 = await hackernewsAdapter.fetch(hnCfg({ feed: "show_hn" }));
     expect(r4[0].source).toBe("hackernews:show");
 
-    const r5 = await hackernewsAdapter.fetch({ type: "hackernews", params: { feed: "jobs" } });
+    const r5 = await hackernewsAdapter.fetch(hnCfg({ feed: "jobs" }));
     expect(r5[0].source).toBe("hackernews:job");
   });
 
   test("applies minScore by fetching extra items then filtering + respects limit", async () => {
     const ids = [1, 2, 3, 4, 5];
-    fetchMock.mockImplementation(async (url: string) => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
       if (url.includes("topstories.json")) return makeIdsResponse(ids);
       const match = url.match(/item\/(\d+)\.json/);
       if (match) {
@@ -123,10 +108,7 @@ describe("hackernews", () => {
       return makeItemResponse(null);
     });
 
-    const cfg: AdapterConfig = {
-      type: "hackernews",
-      params: { min_score: 50, limit: 2 },
-    };
+    const cfg = hnCfg({ min_score: 50, limit: 2 });
     const results = await hackernewsAdapter.fetch(cfg);
 
     // should have fetched extra (limit*3=6 but only 5), filtered to >=50 (3 items), then limited to 2
@@ -136,42 +118,42 @@ describe("hackernews", () => {
 
   test("respects limit after score filter", async () => {
     const ids = [1, 2, 3];
-    fetchMock.mockImplementation(async (url: string) => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
       if (url.includes("topstories")) return makeIdsResponse(ids);
       const m = url.match(/item\/(\d+)/);
       return makeItemResponse(m ? makeHNItem(parseInt(m[1])) : null);
     });
 
-    const cfg: AdapterConfig = { type: "hackernews", params: { limit: 1 } };
+    const cfg = hnCfg({ limit: 1 });
     const results = await hackernewsAdapter.fetch(cfg);
     expect(results).toHaveLength(1);
   });
 
   test("throws on HTTP !ok for feed list with exact prefixed message", async () => {
-    fetchMock.mockResolvedValue(new Response("[]", { status: 500 }));
+    mocks.fetchMock.mockResolvedValue(new Response("[]", { status: 500 }));
 
-    const cfg: AdapterConfig = { type: "hackernews", params: { feed: "top" } };
+    const cfg = hnCfg({ feed: "top" });
     await expect(hackernewsAdapter.fetch(cfg)).rejects.toThrow(
       /hackernews: failed to fetch topstories: HTTP error 500/,
     );
   });
 
   test("throws on network/fetch reject (wrapped via errorMessage)", async () => {
-    fetchMock.mockRejectedValue(new Error("DNS fail"));
+    mocks.fetchMock.mockRejectedValue(new Error("DNS fail"));
 
-    await expect(hackernewsAdapter.fetch(defaultCfg)).rejects.toThrow(
+    await expect(hackernewsAdapter.fetch(hnCfg())).rejects.toThrow(
       /hackernews: error fetching stories: DNS fail/,
     );
   });
 
   test("handles items with missing optional fields (title fallback, no url, no score)", async () => {
     const ids = [99];
-    fetchMock.mockImplementation(async (url: string) => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
       if (url.includes("topstories")) return makeIdsResponse(ids);
       return makeItemResponse({ id: 99 });
     });
 
-    const results = await hackernewsAdapter.fetch(defaultCfg);
+    const results = await hackernewsAdapter.fetch(hnCfg());
     expect(results[0].title).toBe("(untitled)");
     expect(results[0].url).toBe("https://news.ycombinator.com/item?id=99");
     expect(results[0].body).toBe(""); // no parts
@@ -179,29 +161,29 @@ describe("hackernews", () => {
 
   test("batches large id lists (BATCH_SIZE internal)", async () => {
     const ids = Array.from({ length: 25 }, (_, i) => i + 1);
-    fetchMock.mockImplementation(async (url: string) => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
       if (url.includes("topstories.json")) return makeIdsResponse(ids);
       const m = url.match(/item\/(\d+)\.json/);
       if (m) return makeItemResponse(makeHNItem(parseInt(m[1])));
       return makeItemResponse(null);
     });
 
-    const cfg: AdapterConfig = { type: "hackernews", params: { limit: 25 } };
+    const cfg = hnCfg({ limit: 25 });
     const results = await hackernewsAdapter.fetch(cfg);
     expect(results).toHaveLength(25);
     // at least 3 batch calls for items (10+10+5)
-    const itemCalls = fetchMock.mock.calls.filter((c: unknown[]) =>
+    const itemCalls = mocks.fetchMock.mock.calls.filter((c: unknown[]) =>
       String(c[0]).includes("/item/"),
     ).length;
     expect(itemCalls).toBe(25);
   });
 
   test("errorMessage on !ok", async () => {
-    fetchMock.mockResolvedValue(new Response("[]", { status: 500 }));
+    mocks.fetchMock.mockResolvedValue(new Response("[]", { status: 500 }));
 
     const emSpy = spyOn(typesMod, "errorMessage");
     try {
-      const cfg: AdapterConfig = { type: "hackernews", params: { feed: "top" } };
+      const cfg = hnCfg({ feed: "top" });
       await expect(hackernewsAdapter.fetch(cfg)).rejects.toThrow(
         /hackernews: failed to fetch topstories: HTTP error 500/,
       );
