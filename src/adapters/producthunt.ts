@@ -2,10 +2,11 @@ import { XMLParser } from "fast-xml-parser";
 import {
   extractAtomLink,
   extractFeedEntryTitle,
-  extractXmlText,
+  extractFeedItemBody,
   FEED_XML_PARSER_OPTIONS,
   normalizeXmlList,
   type AtomLinkField,
+  type FeedItemBodyFields,
   type XmlTextField,
 } from "./atom";
 import { parseFeedDate } from "./dates";
@@ -43,10 +44,9 @@ const EXCLUDED_MAKER_HANDLES = new Set(["producthunt", "product_hunt"]);
 
 const parser = new XMLParser(FEED_XML_PARSER_OPTIONS);
 
-interface PHEntry {
+interface PHEntry extends FeedItemBodyFields {
   id?: string;
   title?: XmlTextField;
-  content?: XmlTextField;
   link?: AtomLinkField;
   published?: string;
   updated?: string;
@@ -68,7 +68,7 @@ interface EnrichedData {
 }
 
 function extractContent(entry: PHEntry): { tagline: string; productLink: string } {
-  const raw = extractXmlText(entry.content) ?? "";
+  const raw = extractFeedItemBody(entry) ?? "";
   if (!raw) return { tagline: "", productLink: "" };
 
   // The content has HTML structure:
