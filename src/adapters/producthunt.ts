@@ -312,10 +312,7 @@ const adapter: Adapter = {
       });
     }
 
-    // Limit after filtering
-    const limited = sliceToLimit(filtered, limit);
-
-    return limited.map((item) => {
+    return filtered.map((item) => {
       const enriched = enrichedMap.get(item.id) ?? null;
 
       return {
