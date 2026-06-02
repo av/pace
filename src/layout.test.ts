@@ -1,8 +1,24 @@
 import { describe, it, expect } from "bun:test";
 import { renderDashboard, type PanelData } from "./layout";
-import type { LayoutNodeConfig } from "./config";
+import type { FlexContainerConfig, LayoutNodeConfig, PanelConfig, SourceValue } from "./config";
 import type { ContentItemRow } from "./db";
 import { resolvePanelId } from "./config";
+
+function panelCfg(
+  panel: string,
+  source: SourceValue,
+  extra?: Partial<Omit<PanelConfig, "panel" | "source">>,
+): PanelConfig {
+  return { panel, source, ...extra };
+}
+
+function flexCfg(
+  direction: FlexContainerConfig["direction"],
+  children: LayoutNodeConfig[],
+  extra?: Partial<Omit<FlexContainerConfig, "direction" | "children">>,
+): FlexContainerConfig {
+  return { direction, children, ...extra };
+}
 
 function makeItem(overrides: Partial<ContentItemRow> = {}): ContentItemRow {
   const now = new Date().toISOString();
@@ -22,7 +38,7 @@ function makeItem(overrides: Partial<ContentItemRow> = {}): ContentItemRow {
 
 describe("renderDashboard", () => {
   it("renders full HTML5 doctype + basic shell with title, footer, and stylesheet link", () => {
-    const layout: LayoutNodeConfig = { direction: "row", children: [] } as any;
+    const layout = flexCfg("row", []);
     const panelData = new Map<string, PanelData>();
     const html = renderDashboard({ layout, panelData, updatedAt: "2026-05-21 12:34" });
     expect(html.startsWith("<!DOCTYPE html>")).toBe(true);
@@ -40,7 +56,7 @@ describe("renderDashboard", () => {
       source: "mysrc",
       timestamp: new Date(now - 10000).toISOString(), // ~10s ago -> just now
     });
-    const layout: LayoutNodeConfig = { panel: "My Panel", source: "mysrc" } as any;
+    const layout = panelCfg("My Panel", "mysrc");
     const panelData = new Map<string, PanelData>([["My Panel", { items: [item] }]]);
     const html = renderDashboard({ layout, panelData, updatedAt: "now" });
     expect(html).toContain("<h2>My Panel</h2>");
@@ -55,7 +71,7 @@ describe("renderDashboard", () => {
   it("renders item without safe url as plain span (no anchor) for ftp:// and invalid", () => {
     const itemBad = makeItem({ title: "Bad Link", url: "ftp://bad.com" });
     const itemInvalid = makeItem({ title: "No Link", url: "not-a-url" });
-    const layout: LayoutNodeConfig = { panel: "P", source: "s" } as any;
+    const layout = panelCfg("P", "s");
     const panelData = new Map<string, PanelData>([["P", { items: [itemBad, itemInvalid] }]]);
     const html = renderDashboard({ layout, panelData, updatedAt: "now" });
     expect(html).not.toContain('href="ftp://bad.com"');
@@ -65,7 +81,7 @@ describe("renderDashboard", () => {
 
   it("renders mailto: links as safe anchors", () => {
     const item = makeItem({ title: "Contact", url: "mailto:me@example.com" });
-    const layout: LayoutNodeConfig = { panel: "P", source: "s" } as any;
+    const layout = panelCfg("P", "s");
     const panelData = new Map<string, PanelData>([["P", { items: [item] }]]);
     const html = renderDashboard({ layout, panelData, updatedAt: "now" });
     expect(html).toContain('href="mailto:me@example.com"');
@@ -75,7 +91,7 @@ describe("renderDashboard", () => {
   it("renders item summary when present, omits when null/empty", () => {
     const withSum = makeItem({ title: "S", summary: "This is the summary text." });
     const without = makeItem({ title: "NoS", summary: null });
-    const layout: LayoutNodeConfig = { panel: "P", source: "s" } as any;
+    const layout = panelCfg("P", "s");
     const panelData = new Map<string, PanelData>([["P", { items: [withSum, without] }]]);
     const html = renderDashboard({ layout, panelData, updatedAt: "now" });
     expect(html).toContain('<div class="item-summary">This is the summary text.</div>');
@@ -84,7 +100,7 @@ describe("renderDashboard", () => {
   });
 
   it("shows empty state when panel has no items", () => {
-    const layout: LayoutNodeConfig = { panel: "EmptyP", source: "s" } as any;
+    const layout = panelCfg("EmptyP", "s");
     const panelData = new Map<string, PanelData>([["EmptyP", { items: [] }]]);
     const html = renderDashboard({ layout, panelData, updatedAt: "now" });
     expect(html).toContain('<div class="empty-state">No content yet</div>');
@@ -94,7 +110,7 @@ describe("renderDashboard", () => {
     const now = Date.now();
     const refreshed = new Date(now - 3 * 60000).toISOString(); // 3m ago
     const item = makeItem();
-    const layout: LayoutNodeConfig = { panel: "P", source: "s" } as any;
+    const layout = panelCfg("P", "s");
     const panelData = new Map<string, PanelData>([["P", { items: [item], lastRefreshedAt: refreshed }]]);
     const html = renderDashboard({ layout, panelData, updatedAt: "now" });
     expect(html).toContain("3m ago");
@@ -102,9 +118,9 @@ describe("renderDashboard", () => {
   });
 
   it("renders flex container (row) with multiple child panels recursively", () => {
-    const p1: LayoutNodeConfig = { panel: "A", source: "s" } as any;
-    const p2: LayoutNodeConfig = { panel: "B", source: "s" } as any;
-    const layout: LayoutNodeConfig = { direction: "row", children: [p1, p2] } as any;
+    const p1 = panelCfg("A", "s");
+    const p2 = panelCfg("B", "s");
+    const layout = flexCfg("row", [p1, p2]);
     const panelData = new Map<string, PanelData>([
       ["A", { items: [makeItem({ title: "ItemA" })] }],
       ["B", { items: [makeItem({ title: "ItemB" })] }],
@@ -118,8 +134,8 @@ describe("renderDashboard", () => {
   });
 
   it("renders flex container (column) and respects explicit flex values in styles", () => {
-    const child: LayoutNodeConfig = { panel: "C", source: "s", flex: 2 } as any;
-    const layout: LayoutNodeConfig = { direction: "column", gap: "2rem", flex: 3, children: [child] } as any;
+    const child = panelCfg("C", "s", { flex: 2 });
+    const layout = flexCfg("column", [child], { gap: "2rem", flex: 3 });
     const panelData = new Map<string, PanelData>([["C", { items: [] }]]);
     const html = renderDashboard({ layout, panelData, updatedAt: "now" });
     expect(html).toContain('flex-direction:column');
@@ -129,11 +145,11 @@ describe("renderDashboard", () => {
   });
 
   it("uses explicit panel id in refresh form action (not hashed)", () => {
-    const layout: LayoutNodeConfig = { panel: "Named", id: "my-explicit-id", source: "s" } as any;
+    const layout = panelCfg("Named", "s", { id: "my-explicit-id" });
     const panelData = new Map<string, PanelData>([["Named", { items: [] }]]);
     const html = renderDashboard({ layout, panelData, updatedAt: "now" });
     expect(html).toContain('action="/refresh/my-explicit-id"');
-    expect(html).not.toContain('action="/refresh/' + resolvePanelId({ panel: "Named", source: "s" } as any)); // would be hash if no id
+    expect(html).not.toContain('action="/refresh/' + resolvePanelId(panelCfg("Named", "s"))); // would be hash if no id
   });
 
   it("renders relativeTime edge buckets (m/h/d) and NaN timestamp as empty", () => {
@@ -142,7 +158,7 @@ describe("renderDashboard", () => {
     const h5 = new Date(now - 5 * 3600000).toISOString();
     const d2 = new Date(now - 2 * 86400000).toISOString();
     const bad = makeItem({ timestamp: "not-a-date", title: "BadTime" });
-    const layout: LayoutNodeConfig = { panel: "T", source: "s" } as any;
+    const layout = panelCfg("T", "s");
     const panelData = new Map<string, PanelData>([["T", {
       items: [
         makeItem({ timestamp: m59, title: "M" }),
@@ -161,7 +177,7 @@ describe("renderDashboard", () => {
   });
 
   it("renders compact footer with Pace hyperlink to github, updatedAt UTC, document title 'pace', and omits deprecated header/updated span per layout facts (gp9,r3s,swp,c00)", () => {
-    const layout: LayoutNodeConfig = { direction: "row", children: [] } as any;
+    const layout = flexCfg("row", []);
     const panelData = new Map<string, PanelData>();
     const html = renderDashboard({ layout, panelData, updatedAt: "2026-05-31 00:42" });
     expect(html).toContain("<title>pace</title>");
