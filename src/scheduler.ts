@@ -279,7 +279,7 @@ function addPipelineSourcesTo(names: Set<string>, pipelines: readonly PipelineEn
   }
 }
 
-/** Pipelines named in `seed` plus any whose sources intersect `adapterNames`. */
+/** `seed` pipeline names plus pipelines whose sources overlap the refresh scope (adapter names and sources from pipelines in `seed`). */
 function dependentPipelineNames(adapterNames: Set<string>, seed: Set<string>): Set<string> {
   const names = new Set(seed);
   for (const pipeline of pipelineEntries) {
