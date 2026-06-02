@@ -1,4 +1,4 @@
-import { joinBodyParts } from "./engagement";
+import { formatViews, joinBodyParts } from "./engagement";
 import { fetchJson } from "./fetch";
 import { stripHtml } from "./html";
 import { dedupeByKey, sliceToLimit } from "./merge";
@@ -37,12 +37,6 @@ interface WikiOnThisDay {
 interface WikiNewsItem {
   story: string;
   links: WikiArticle[];
-}
-
-function formatViews(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}m views`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k views`;
-  return `${n} views`;
 }
 
 function buildBody(article: WikiMostReadArticle): string {

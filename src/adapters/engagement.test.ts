@@ -12,6 +12,7 @@ import {
   formatSite,
   formatStars,
   formatTopics,
+  formatViews,
   joinBodyParts,
   parseFirstIntMatch,
   RE_POINTS_OR_UPVOTES,
@@ -36,6 +37,12 @@ describe("engagement format helpers", () => {
   test("formatStars for github trending bodies", () => {
     expect(formatStars(123456)).toBe("123,456 stars");
     expect(extractEngagementScore(formatStars(99))).toBe(99);
+  });
+
+  test("formatViews for wikipedia most-read bodies", () => {
+    expect(formatViews(1_500_000)).toBe("1.5m views");
+    expect(formatViews(42_500)).toBe("42.5k views");
+    expect(formatViews(500)).toBe("500 views");
   });
 
   test("formatLanguage, formatTopics, formatSite for adapter metadata", () => {
