@@ -138,4 +138,18 @@ describe("mastodon adapter", () => {
       globalThis.fetch = orig;
     }
   });
+
+  test("throws on network error with adapter prefix", async () => {
+    const orig = globalThis.fetch;
+    globalThis.fetch = async () => {
+      throw new Error("network boom for mastodon test");
+    };
+    try {
+      await expect(
+        adapter.fetch({ params: { instance: "example.invalid" } } as any),
+      ).rejects.toThrow(/mastodon: error fetching from example.invalid/);
+    } finally {
+      globalThis.fetch = orig;
+    }
+  });
 });

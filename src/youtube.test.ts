@@ -119,4 +119,16 @@ describe("youtube adapter", () => {
     } as AdapterConfig);
     expect(items.length).toBe(1);
   });
+
+  it("throws on network error with adapter prefix", async () => {
+    globalThis.fetch = async () => {
+      throw new Error("network boom for youtube test");
+    };
+    await expect(
+      adapter.fetch({
+        type: "youtube",
+        params: { channels: ["UCtestchannel"] },
+      } as AdapterConfig),
+    ).rejects.toThrow(/youtube: error fetching.*network boom for youtube test/);
+  });
 });
