@@ -222,7 +222,7 @@ function pruneOldItems(): void {
       console.log(`scheduler: pruned ${changes} items older than 30 days`);
     }
   } catch (err) {
-    console.warn("scheduler: prune error:", err);
+    console.warn(`scheduler: prune error: ${errorMessage(err)}`);
   }
 }
 
