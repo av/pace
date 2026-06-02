@@ -109,6 +109,35 @@ describe("youtube adapter", () => {
     expect(items.length).toBe(3); // 2 channel + 1 playlist
   });
 
+  it("dedupes the same video id across channel and playlist feeds", async () => {
+    const overlapPlaylistXml = `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns:media="http://search.yahoo.com/mrss/">
+  <title>Overlap Playlist</title>
+  <entry>
+    <yt:videoId>vid1</yt:videoId>
+    <title>Video 1 From Playlist</title>
+    <published>2024-03-01T00:00:00Z</published>
+  </entry>
+</feed>`;
+    fetchMock.mockImplementation(async (url: string | URL) => {
+      const urlStr = String(url);
+      if (urlStr.includes("channel_id=CH1")) {
+        return new Response(channelXml, { status: 200 });
+      }
+      if (urlStr.includes("playlist_id=OVERLAP")) {
+        return new Response(overlapPlaylistXml, { status: 200 });
+      }
+      return new Response("not found", { status: 404 });
+    });
+
+    const items = await adapter.fetch(
+      youtubeCfg({ channels: ["CH1"], playlists: ["OVERLAP"], limit: 10 }),
+    );
+    expect(items.length).toBe(2);
+    expect(items.filter((i) => i.id === "youtube:vid1")).toHaveLength(1);
+    expect(items[0].title).toBe("Video 1 Title");
+  });
+
   it("throws when any configured feed fails (!ok), even if others would succeed", async () => {
     await expect(
       adapter.fetch(youtubeCfg({ channels: ["ERR"], playlists: ["PL1"] })),

@@ -2,6 +2,7 @@ import { XMLParser } from "fast-xml-parser";
 import { extractAtomLink, type AtomLinkField } from "./atom";
 import { parseFeedDate, sliceToLimit } from "./dates";
 import { fetchWithTimeout } from "./fetch";
+import { dedupeByKey } from "./merge";
 import { decodeHtmlEntities, stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
@@ -349,7 +350,7 @@ const adapter: Adapter = {
     const results = await Promise.all(
       feeds.map((url) => fetchPodcastFeed(url, limit)),
     );
-    return results.flat();
+    return dedupeByKey(results.flat(), (item) => item.url || item.id);
   },
 };
 

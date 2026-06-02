@@ -118,7 +118,7 @@ describe("podcast adapter (DRY quality + test coverage)", () => {
     expect(items[0].title).toBe("Episode One Title");
   });
 
-  test("fetches multiple feeds and flattens results (Promise.all)", async () => {
+  test("fetches multiple feeds and dedupes episodes by url", async () => {
     fetchMock.mockImplementation(async () =>
       new Response(makePodcastFeedFixture(), { status: 200 }),
     );
@@ -128,7 +128,12 @@ describe("podcast adapter (DRY quality + test coverage)", () => {
     );
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(items.length).toBe(6); // 3 items per feed x 2 feeds (flat)
+    expect(items.length).toBe(3);
+    expect(items.map((i) => i.url)).toEqual([
+      "https://example.com/ep1",
+      "https://audio.com/ep2.mp3",
+      "",
+    ]);
   });
 
   test("throws on HTTP !ok from feed (contract; no swallow)", async () => {

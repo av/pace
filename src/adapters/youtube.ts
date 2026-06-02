@@ -2,6 +2,7 @@ import { XMLParser } from "fast-xml-parser";
 import { extractAtomLink } from "./atom";
 import { parseFeedDate, sliceToLimit } from "./dates";
 import { fetchWithTimeout } from "./fetch";
+import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 
@@ -104,7 +105,7 @@ const adapter: Adapter = {
       ...channels.map((ch) => fetchYoutubeFeed("channel", ch, limit)),
       ...playlists.map((pl) => fetchYoutubeFeed("playlist", pl, limit)),
     ]);
-    return results.flat();
+    return dedupeByKey(results.flat(), (item) => item.id);
   },
 };
 
