@@ -1,4 +1,4 @@
-import { formatBy, formatScore, formatViews, joinBodyParts } from "./engagement";
+import { formatBy, formatScore, formatTags, formatViews, joinBodyParts } from "./engagement";
 import { parseUnixEpochSeconds } from "./dates";
 import { fetchJson } from "./fetch";
 import { dedupeByKey, fetchAndConcat, sliceToLimit } from "./merge";
@@ -45,7 +45,7 @@ function buildBody(question: SEQuestion): string {
     formatScore(question.score),
     answerStr,
     formatViews(question.view_count),
-    question.tags.length > 0 ? `tags: ${question.tags.join(", ")}` : undefined,
+    formatTags(question.tags),
     question.owner?.display_name ? formatBy(question.owner.display_name) : undefined,
   );
 }

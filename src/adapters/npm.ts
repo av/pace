@@ -1,4 +1,4 @@
-import { formatBy, formatPercent, joinBodyParts } from "./engagement";
+import { formatBy, formatPercent, formatTags, joinBodyParts } from "./engagement";
 import { fetchJson } from "./fetch";
 import { titleWithTagline } from "./title";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -46,7 +46,7 @@ function buildBody(result: NpmPackageResult): string {
     `quality: ${formatPercent(scores.quality)}`,
     `popularity: ${formatPercent(scores.popularity)}`,
     `maintenance: ${formatPercent(scores.maintenance)}`,
-    pkg.keywords && pkg.keywords.length > 0 ? `tags: ${pkg.keywords.slice(0, 5).join(", ")}` : undefined,
+    formatTags((pkg.keywords ?? []).slice(0, 5)),
     pkg.links.repository ? `repo: ${pkg.links.repository}` : undefined,
   );
 }
