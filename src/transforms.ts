@@ -202,6 +202,104 @@ function incrementCount(counts: Map<string, number>, key: string): void {
   counts.set(key, (counts.get(key) ?? 0) + 1);
 }
 
+function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 || b.size === 0) return 0;
+  let intersection = 0;
+  for (const kw of a) {
+    if (b.has(kw)) intersection++;
+  }
+  const union = a.size + b.size - intersection;
+  return union === 0 ? 0 : intersection / union;
+}
+
+const CLUSTER_DOMAIN_LABELS: Record<string, string> = {
+  "github.com": "GitHub",
+  "reddit.com": "Reddit",
+  "news.ycombinator.com": "Hacker News",
+  "lobste.rs": "Lobsters",
+  "arxiv.org": "ArXiv Papers",
+  "stackoverflow.com": "Stack Overflow",
+  "dev.to": "Dev.to",
+  "youtube.com": "YouTube",
+  "medium.com": "Medium",
+  "twitter.com": "Twitter/X",
+  "x.com": "Twitter/X",
+};
+
+interface ClusterItemSignals {
+  domain: string;
+  keywords: Set<string>;
+  source: string;
+}
+
+function formatClusterDomainLabel(domain: string): string {
+  const mapped = CLUSTER_DOMAIN_LABELS[domain];
+  if (mapped) return mapped;
+  const base = domain.split(".")[0];
+  return base.charAt(0).toUpperCase() + base.slice(1);
+}
+
+function getMajorityClusterLabel<T extends string>(
+  counts: Map<T, number>,
+  total: number,
+  format?: (key: T) => string
+): string | undefined {
+  const top = topMapEntry(counts);
+  if (top && top[1] >= total * 0.6) {
+    const key = top[0];
+    return format ? format(key) : key;
+  }
+  return undefined;
+}
+
+function tallyFromIndices(
+  counts: Map<string, number>,
+  indices: number[],
+  getKeys: (idx: number) => Iterable<string | undefined>
+): void {
+  for (const idx of indices) {
+    for (const key of getKeys(idx)) {
+      if (key) incrementCount(counts, key);
+    }
+  }
+}
+
+function getTopKeywordsClusterLabel(counts: Map<string, number>, total: number): string | undefined {
+  const minCount = Math.ceil(total * 0.4);
+  const top = [...counts.entries()]
+    .filter(([, count]) => count >= minCount)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([kw]) => kw);
+  if (top.length === 0) return undefined;
+  return top.map((kw) => kw.charAt(0).toUpperCase() + kw.slice(1)).join("/");
+}
+
+function generateClusterLabel(
+  indices: number[],
+  signals: ClusterItemSignals[],
+  clusterCount: number
+): string {
+  const domainCounts = new Map<string, number>();
+  const keywordCounts = new Map<string, number>();
+
+  tallyFromIndices(domainCounts, indices, (idx) => [signals[idx].domain]);
+  tallyFromIndices(keywordCounts, indices, (idx) => signals[idx].keywords);
+
+  const domainLabel = getMajorityClusterLabel(domainCounts, indices.length, formatClusterDomainLabel);
+  if (domainLabel) return domainLabel;
+
+  const kwLabel = getTopKeywordsClusterLabel(keywordCounts, indices.length);
+  if (kwLabel) return kwLabel;
+
+  const sourceCounts = new Map<string, number>();
+  tallyFromIndices(sourceCounts, indices, (idx) => [signals[idx].source]);
+  const sourceLabel = getMajorityClusterLabel(sourceCounts, indices.length);
+  if (sourceLabel) return sourceLabel;
+
+  return `Cluster ${clusterCount + 1}`;
+}
+
 function sortRowsByInputOrder(rows: ContentItemRow[], order: ContentItemRow[]): ContentItemRow[] {
   const orderMap = new Map<string, number>();
   order.forEach((item, i) => {
@@ -611,13 +709,7 @@ const transforms: Record<string, TransformFn> = {
         .filter((w) => w.length >= 3 && !STOP_WORDS.has(w) && !/^\d+$/.test(w));
     }
 
-    interface ItemSignals {
-      domain: string;
-      keywords: Set<string>;
-      source: string;
-    }
-
-    const signals: ItemSignals[] = items.map((item) => {
+    const signals: ClusterItemSignals[] = items.map((item) => {
       const titleKeywords = extractKeywords(item.title ?? "");
       // For body, extract only descriptive keywords:
       // 1. Strip URLs (they contain domain noise like "ycombinator", "lobste", etc.)
@@ -640,7 +732,7 @@ const transforms: Record<string, TransformFn> = {
       };
     });
 
-    function domainSimilarity(a: ItemSignals, b: ItemSignals): number {
+    function domainSimilarity(a: ClusterItemSignals, b: ClusterItemSignals): number {
       if (!a.domain || !b.domain) return 0;
       if (a.domain === b.domain) return 1.0;
       const aParts = a.domain.split(".");
@@ -651,33 +743,22 @@ const transforms: Record<string, TransformFn> = {
       return 0;
     }
 
-    function keywordSimilarity(a: ItemSignals, b: ItemSignals): number {
-      if (a.keywords.size === 0 || b.keywords.size === 0) return 0;
-      let intersection = 0;
-      for (const kw of a.keywords) {
-        if (b.keywords.has(kw)) intersection++;
-      }
-      const union = a.keywords.size + b.keywords.size - intersection;
-      if (union === 0) return 0;
-      return intersection / union;
-    }
-
-    function sourceSimilarity(a: ItemSignals, b: ItemSignals): number {
+    function sourceSimilarity(a: ClusterItemSignals, b: ClusterItemSignals): number {
       return !a.source || !b.source ? 0 : a.source === b.source ? 1.0 : 0;
     }
 
-    function computeSimilarity(a: ItemSignals, b: ItemSignals): number {
+    function computeSimilarity(a: ClusterItemSignals, b: ClusterItemSignals): number {
       switch (strategy) {
         case "domain":
           return domainSimilarity(a, b);
         case "keywords":
-          return keywordSimilarity(a, b);
+          return jaccardSimilarity(a.keywords, b.keywords);
         case "source":
           return sourceSimilarity(a, b);
         case "auto":
         default: {
           const domain = domainSimilarity(a, b) * 0.5;
-          const keywords = keywordSimilarity(a, b) * 0.45;
+          const keywords = jaccardSimilarity(a.keywords, b.keywords) * 0.45;
           const source = sourceSimilarity(a, b) * 0.05;
           return domain + keywords + source;
         }
@@ -728,90 +809,9 @@ const transforms: Record<string, TransformFn> = {
       clusters.splice(maxClusters);
     }
 
-    function getMajorityLabel<T extends string>(
-      counts: Map<T, number>,
-      total: number,
-      format?: (key: T) => string
-    ): string | undefined {
-      const top = topMapEntry(counts);
-      if (top && top[1] >= total * 0.6) {
-        const key = top[0];
-        return format ? format(key) : key;
-      }
-      return undefined;
-    }
-
-    function tallyFromSignals(
-      counts: Map<string, number>,
-      indices: number[],
-      getKey: (sig: ItemSignals) => string | undefined
-    ): void {
-      for (const idx of indices) {
-        const key = getKey(signals[idx]);
-        if (key) incrementCount(counts, key);
-      }
-    }
-
-    function tallyKeywords(counts: Map<string, number>, indices: number[]): void {
-      for (const idx of indices) {
-        for (const kw of signals[idx].keywords) {
-          incrementCount(counts, kw);
-        }
-      }
-    }
-
-    function getTopKeywordsLabel(counts: Map<string, number>, total: number): string | undefined {
-      const minCount = Math.ceil(total * 0.4);
-      const top = [...counts.entries()]
-        .filter(([, count]) => count >= minCount)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 3)
-        .map(([kw]) => kw);
-      if (top.length === 0) return undefined;
-      return top
-        .map((kw) => kw.charAt(0).toUpperCase() + kw.slice(1))
-        .join("/");
-    }
-
-    function generateLabel(indices: number[]): string {
-      const domainCounts = new Map<string, number>();
-      const keywordCounts = new Map<string, number>();
-
-      tallyFromSignals(domainCounts, indices, (sig) => sig.domain);
-      tallyKeywords(keywordCounts, indices);
-
-      const domainLabel = getMajorityLabel(domainCounts, indices.length, (domain) => {
-        const domainLabels: Record<string, string> = {
-          "github.com": "GitHub",
-          "reddit.com": "Reddit",
-          "news.ycombinator.com": "Hacker News",
-          "lobste.rs": "Lobsters",
-          "arxiv.org": "ArXiv Papers",
-          "stackoverflow.com": "Stack Overflow",
-          "dev.to": "Dev.to",
-          "youtube.com": "YouTube",
-          "medium.com": "Medium",
-          "twitter.com": "Twitter/X",
-          "x.com": "Twitter/X",
-        };
-        return domainLabels[domain] ?? domain.split(".")[0].charAt(0).toUpperCase() + domain.split(".")[0].slice(1);
-      });
-      if (domainLabel) return domainLabel;
-
-      const kwLabel = getTopKeywordsLabel(keywordCounts, indices.length);
-      if (kwLabel) return kwLabel;
-
-      const sourceCounts = new Map<string, number>();
-      tallyFromSignals(sourceCounts, indices, (sig) => sig.source);
-      const sourceLabel = getMajorityLabel(sourceCounts, indices.length);
-      if (sourceLabel) return sourceLabel;
-
-      return `Cluster ${clusters.length + 1}`;
-    }
-
     const result: ContentItemRow[] = [];
     for (const cluster of clusters) {
-      cluster.label = generateLabel(cluster.indices);
+      cluster.label = generateClusterLabel(cluster.indices, signals, clusters.length);
       sortByScoreDesc(cluster.indices, (idx) => extractEngagementScore(items[idx].body));
       for (const idx of cluster.indices) {
         const item = items[idx];
