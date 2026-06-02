@@ -97,6 +97,25 @@ describe("llm utils (DRY quality + test coverage)", () => {
       expect(res).toEqual(items);
     });
 
+    test("filterItemsByLlm warns on JSON parse failure and returns items unchanged", async () => {
+      const completeSpy = spyOn(piAi, "complete").mockResolvedValue({
+        content: [{ type: "text", text: "not valid json {{{" }],
+      } as Awaited<ReturnType<typeof piAi.complete>>);
+      const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+      try {
+        const items = [makeItem({ id: "x" })];
+        const res = await filterItemsByLlm(fakeThrowingModel, items, "keep tech");
+        expect(res).toEqual(items);
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        expect(warnSpy).toHaveBeenCalledWith(
+          expect.stringMatching(/^llm: JSON parse failed: /),
+        );
+      } finally {
+        completeSpy.mockRestore();
+        warnSpy.mockRestore();
+      }
+    });
+
     test("lensItems returns input unchanged for empty items or interests", async () => {
       const items = [makeItem()];
       expect(await lensItems(fakeThrowingModel, [], ["ai"])).toEqual([]);
@@ -118,6 +137,24 @@ describe("llm utils (DRY quality + test coverage)", () => {
       };
       const res = await safeComplete(fakeThrowingModel, ctx);
       expect(res).toBe(null);
+    });
+
+    test("warns with errorMessage on complete failure", async () => {
+      const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+      try {
+        const ctx: Context = {
+          systemPrompt: "test",
+          messages: [{ role: "user", content: "hi", timestamp: Date.now() }],
+        };
+        const res = await safeComplete(fakeThrowingModel, ctx);
+        expect(res).toBe(null);
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        expect(warnSpy).toHaveBeenCalledWith(
+          expect.stringMatching(/^llm: complete failed: /),
+        );
+      } finally {
+        warnSpy.mockRestore();
+      }
     });
 
     test("returns null for context with empty-ish prompt (still exercises path)", async () => {
