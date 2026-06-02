@@ -61,6 +61,15 @@ describe("reddit", () => {
     expect(mocks.fetchMock).not.toHaveBeenCalled();
   });
 
+  test("decodes HTML entities in post titles from API", async () => {
+    const posts = [makePost("ent1", "A &amp; B &#8364; C")];
+    mocks.fetchMock.mockResolvedValue(makeListingResponse(posts));
+
+    const items = await redditAdapter.fetch(redditCfg({ subreddits: ["test"] }));
+
+    expect(items[0].title).toBe("A & B € C");
+  });
+
   test("fetches default hot feed for a subreddit and maps items with correct source/body/url", async () => {
     const posts = [makePost("abc123", "Hello Reddit", false, 42, "programming")];
     mocks.fetchMock.mockResolvedValue(makeListingResponse(posts));
