@@ -3,7 +3,7 @@ import rssAdapter from "./adapters/rss";
 import * as typesMod from "./adapters/types";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
-const mocks = useFetchMockSuite({ restoreAllMocks: true });
+const mocks = useFetchMockSuite();
 const rssCfg = (params: Record<string, unknown> = {}) => adapterCfg("rss", params);
 
 function makeResponse(body: string, ok = true, status = 200): Response {

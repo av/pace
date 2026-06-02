@@ -3,7 +3,7 @@ import lemmyAdapter from "./adapters/lemmy";
 import * as typesMod from "./adapters/types";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
-const mocks = useFetchMockSuite({ restoreAllMocks: true });
+const mocks = useFetchMockSuite();
 const lemmyCfg = (params: Record<string, unknown> = {}) => adapterCfg("lemmy", params);
 
 function makePostView(overrides: Partial<Record<string, unknown>> = {}): Record<string, unknown> {

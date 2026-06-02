@@ -3,7 +3,7 @@ import stackexchangeAdapter from "./adapters/stackexchange";
 import * as typesMod from "./adapters/types";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
-const mocks = useFetchMockSuite({ restoreAllMocks: true });
+const mocks = useFetchMockSuite();
 const seCfg = (params: Record<string, unknown> = {}) => adapterCfg("stackexchange", params);
 
 describe("stackexchange", () => {

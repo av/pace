@@ -3,7 +3,7 @@ import githubReleasesAdapter from "./adapters/github-releases";
 import * as typesMod from "./adapters/types";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
-const mocks = useFetchMockSuite({ restoreAllMocks: true });
+const mocks = useFetchMockSuite();
 const githubReleasesCfg = (params: Record<string, unknown> = {}) =>
   adapterCfg("github-releases", params);
 

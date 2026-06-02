@@ -3,7 +3,7 @@ import wikipediaAdapter from "./adapters/wikipedia";
 import * as typesMod from "./adapters/types";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
-const mocks = useFetchMockSuite({ restoreAllMocks: true });
+const mocks = useFetchMockSuite();
 const wikiCfg = (params: Record<string, unknown> = {}) => adapterCfg("wikipedia", params);
 
 function makeMostReadArticle(overrides: Partial<Record<string, unknown>> = {}) {

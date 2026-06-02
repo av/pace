@@ -3,7 +3,7 @@ import podcastAdapter from "./adapters/podcast";
 import * as typesMod from "./adapters/types";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
-const mocks = useFetchMockSuite({ restoreAllMocks: true });
+const mocks = useFetchMockSuite();
 const podcastCfg = (params: Record<string, unknown> = {}) => adapterCfg("podcast", params);
 
 function makeErrorResponse(status: number): Response {

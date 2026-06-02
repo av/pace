@@ -3,7 +3,7 @@ import arxivAdapter from "./adapters/arxiv";
 import * as typesMod from "./adapters/types";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
-const mocks = useFetchMockSuite({ restoreAllMocks: true });
+const mocks = useFetchMockSuite();
 const arxivCfg = (params: Record<string, unknown> = {}) => adapterCfg("arxiv", params);
 
 function makeArxivFixture(title: string, arxivId: string, author = "Test Author", cat = "cs.AI"): string {

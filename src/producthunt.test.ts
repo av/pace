@@ -3,7 +3,7 @@ import producthuntAdapter from "./adapters/producthunt";
 import * as typesMod from "./adapters/types";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
-const mocks = useFetchMockSuite({ restoreAllMocks: true });
+const mocks = useFetchMockSuite();
 const producthuntCfg = (params: Record<string, unknown> = {}) => adapterCfg("producthunt", params);
 
 function makePHFeedFixture(): string {

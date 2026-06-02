@@ -3,7 +3,7 @@ import devtoAdapter from "./adapters/devto";
 import * as typesMod from "./adapters/types";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
-const mocks = useFetchMockSuite({ restoreAllMocks: true });
+const mocks = useFetchMockSuite();
 const devtoCfg = (params: Record<string, unknown> = {}) => adapterCfg("devto", params);
 
 function devtoFetchCalls(): Array<{ url: string; init?: RequestInit }> {

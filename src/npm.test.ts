@@ -3,7 +3,7 @@ import npmAdapter from "./adapters/npm";
 import * as typesMod from "./adapters/types";
 import { useFetchMockSuite } from "./test/adapter-mocks";
 
-const mocks = useFetchMockSuite({ restoreAllMocks: true });
+const mocks = useFetchMockSuite();
 
 describe("npm", () => {
   test("ngb contract", () => {

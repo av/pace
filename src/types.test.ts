@@ -7,7 +7,7 @@ import producthuntAdapter from "./adapters/producthunt";
 import { useFetchMockSuite } from "./test/adapter-mocks";
 
 const TYPES_TS = path.join(import.meta.dir, "adapters", "types.ts");
-const mocks = useFetchMockSuite({ restoreAllMocks: true });
+const mocks = useFetchMockSuite();
 
 function adapterFetchJsDoc(): string {
   const src = fs.readFileSync(TYPES_TS, "utf8");
