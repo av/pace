@@ -97,6 +97,10 @@ function extractContent(entry: PHEntry): { tagline: string; productLink: string 
   return { tagline, productLink };
 }
 
+function warnEnrichFailed(url: string, detail: unknown): void {
+  console.warn(`producthunt: enrich failed for ${url}: ${errorMessage(detail)}`);
+}
+
 function extractId(entry: PHEntry): string {
   // id format: "tag:www.producthunt.com,2005:Post/1143406"
   if (entry.id) {
@@ -115,9 +119,7 @@ async function enrichProduct(url: string): Promise<EnrichedData | null> {
       accept: "text/html",
     });
     if (!res.ok) {
-      console.warn(
-        `producthunt: enrich failed for ${url}: ${errorMessage({ message: String(res.status) })}`,
-      );
+      warnEnrichFailed(url, { message: String(res.status) });
       return null;
     }
     const html = await res.text();
@@ -187,7 +189,7 @@ async function enrichProduct(url: string): Promise<EnrichedData | null> {
 
     return data;
   } catch (err) {
-    console.warn(`producthunt: enrich failed for ${url}: ${errorMessage(err)}`);
+    warnEnrichFailed(url, err);
     return null;
   }
 }
@@ -294,7 +296,7 @@ const adapter: Adapter = {
     // Optionally enrich with page scraping for upvotes/topics
     let enrichedMap = new Map<string, EnrichedData | null>();
     if (enrich) {
-      console.log(
+      console.warn(
         `producthunt: enriching ${items.length} items (this may take a moment)...`,
       );
       for (let i = 0; i < items.length; i += ENRICH_BATCH_SIZE) {
