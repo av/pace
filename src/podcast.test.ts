@@ -178,7 +178,7 @@ describe("podcast", () => {
     ).rejects.toThrow(/podcast: failed to fetch .*404/);
 
     expect(emSpy.mock.calls.length).toBeGreaterThanOrEqual(1);
-    expect(emSpy).toHaveBeenCalledWith({ message: "404" });
+    expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 404" });
     emSpy.mockRestore();
   });
 });

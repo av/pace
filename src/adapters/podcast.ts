@@ -1,11 +1,10 @@
 import { XMLParser } from "fast-xml-parser";
 import { extractAtomLink, type AtomLinkField } from "./atom";
 import { parseFeedDate } from "./dates";
-import { fetchWithTimeout } from "./fetch";
+import { fetchText } from "./fetch";
 import { dedupeByKey, sliceToLimit } from "./merge";
 import { decodeHtmlEntities, stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
-import { errorMessage } from "./types";
 
 /** Parsed text/CDATA node from fast-xml-parser. */
 type XmlTextField = string | number | { "#text"?: string; __cdata?: string };
@@ -281,46 +280,35 @@ async function fetchPodcastFeed(
   feedUrl: string,
   limit: number,
 ): Promise<ContentItem[]> {
-  try {
-    const res = await fetchWithTimeout(feedUrl, {
-      userAgent: "pace/1.0 (podcast aggregator)",
-      accept: "application/rss+xml, application/xml, text/xml, */*",
-      timeoutMs: 20_000,
-    });
-    if (!res.ok) {
-      throw new Error(`podcast: failed to fetch ${feedUrl}: ${errorMessage({ message: String(res.status) })}`);
-    }
-    const xml = await res.text();
-    const parsed = parser.parse(xml) as PodcastFeedParsed;
+  const xml = await fetchText("podcast", feedUrl, feedUrl, {
+    userAgent: "pace/1.0 (podcast aggregator)",
+    accept: "application/rss+xml, application/xml, text/xml, */*",
+    timeoutMs: 20_000,
+  });
+  const parsed = parser.parse(xml) as PodcastFeedParsed;
 
-    const channel = parsed.rss?.channel;
-    if (!channel) {
-      console.warn(`podcast: no channel found in feed ${feedUrl}`);
-      return [];
-    }
-
-    const showName = extractChannelTitle(channel);
-    const channelLink = typeof channel.link === "string" ? channel.link : "";
-
-    let items = channel.item;
-    if (!items) return [];
-    if (!Array.isArray(items)) items = [items];
-
-    const episodes: ContentItem[] = [];
-    for (const item of sliceToLimit(items, limit)) {
-      const ep = parseEpisode(item, showName, channelLink);
-      if (ep) {
-        episodes.push(episodeToContentItem(ep));
-      }
-    }
-
-    return episodes;
-  } catch (err) {
-    if (err instanceof Error && err.message.startsWith("podcast: failed to fetch")) {
-      throw err;
-    }
-    throw new Error(`podcast: error fetching ${feedUrl}: ${errorMessage(err)}`);
+  const channel = parsed.rss?.channel;
+  if (!channel) {
+    console.warn(`podcast: no channel found in feed ${feedUrl}`);
+    return [];
   }
+
+  const showName = extractChannelTitle(channel);
+  const channelLink = typeof channel.link === "string" ? channel.link : "";
+
+  let items = channel.item;
+  if (!items) return [];
+  if (!Array.isArray(items)) items = [items];
+
+  const episodes: ContentItem[] = [];
+  for (const item of sliceToLimit(items, limit)) {
+    const ep = parseEpisode(item, showName, channelLink);
+    if (ep) {
+      episodes.push(episodeToContentItem(ep));
+    }
+  }
+
+  return episodes;
 }
 
 const adapter: Adapter = {
