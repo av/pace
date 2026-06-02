@@ -1,4 +1,11 @@
-import { formatBy, formatScore, formatTags, formatViews, joinBodyParts } from "./engagement";
+import {
+  formatAnswers,
+  formatBy,
+  formatScore,
+  formatTags,
+  formatViews,
+  joinBodyParts,
+} from "./engagement";
 import { parseUnixEpochSeconds } from "./dates";
 import { fetchJson } from "./fetch";
 import { dedupeByKey, fetchAndConcat, sliceToLimit } from "./merge";
@@ -38,12 +45,9 @@ interface SEResponse {
 }
 
 function buildBody(question: SEQuestion): string {
-  const answerStr = question.accepted_answer_id
-    ? `${question.answer_count} answers (accepted)`
-    : `${question.answer_count} answers`;
   return joinBodyParts(
     formatScore(question.score),
-    answerStr,
+    formatAnswers(question.answer_count, !!question.accepted_answer_id),
     formatViews(question.view_count),
     formatTags(question.tags),
     question.owner?.display_name ? formatBy(question.owner.display_name) : undefined,

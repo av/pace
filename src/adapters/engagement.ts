@@ -68,6 +68,11 @@ export function formatComments(count: number): string {
   return `${count} comments`;
 }
 
+/** Stack Exchange question answer counts in body metadata. */
+export function formatAnswers(count: number, accepted = false): string {
+  return accepted ? `${count} answers (accepted)` : `${count} answers`;
+}
+
 export function formatReactions(count: number): string {
   return `${count} reactions`;
 }
@@ -104,6 +109,11 @@ export function formatFavorites(count: number): string {
 
 export function formatReplies(count: number): string {
   return `${count} replies`;
+}
+
+/** Dev.to reading_time_minutes in body metadata (e.g. "5 min read"). */
+export function formatReadingTime(minutes: number): string {
+  return `${minutes} min read`;
 }
 
 /** Mastodon account handle in body metadata (@user@instance or remote @user@host). */

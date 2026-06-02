@@ -9,6 +9,8 @@ import {
   formatPercent,
   formatPoints,
   formatReactions,
+  formatReadingTime,
+  formatAnswers,
   formatCategories,
   formatLanguage,
   formatMastodonAcct,
@@ -33,6 +35,16 @@ describe("engagement format helpers", () => {
 
   test("formatReactions for devto-style bodies", () => {
     expect(formatReactions(7)).toBe("7 reactions");
+  });
+
+  test("formatAnswers for stackexchange bodies", () => {
+    expect(formatAnswers(5, true)).toBe("5 answers (accepted)");
+    expect(formatAnswers(3)).toBe("3 answers");
+  });
+
+  test("formatReadingTime for devto-style bodies", () => {
+    expect(formatReadingTime(5)).toBe("5 min read");
+    expect(formatReadingTime(1)).toBe("1 min read");
   });
 
   test("formatPercent for npm registry fractional scores", () => {
