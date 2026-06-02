@@ -7,8 +7,8 @@
  *   non-2xx HTTP (`!res.ok`). Throw this directly after status check; do not
  *   wrap it again in an outer catch.
  * - **`error fetching`** — transport-layer failure before a definitive HTTP
- *   status: network errors, DNS, timeouts (`AbortSignal.timeout`), etc. Use in
- *   catch blocks around `fetchWithTimeout` / body read.
+ *   status: network errors, DNS, timeouts (`AbortSignal.timeout`), etc. Emitted
+ *   by `fetchText`/`fetchJson` via `fetchOkResponse` / `fetchBody`.
  * - **`error reading`** — `res.ok` but reading/parsing the body failed.
  *
  * Avoid double-wrapped messages (`error fetching … failed to fetch …`): in a
