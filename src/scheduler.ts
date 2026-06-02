@@ -36,6 +36,12 @@ let pruneTimer: ReturnType<typeof setInterval> | null = null;
 /** Delay before first pipeline run (adapters fetch immediately on startup). */
 export const PIPELINE_INITIAL_DELAY_MS = 5000;
 
+/** Default adapter/pipeline refresh when `refresh_interval` is omitted (minutes). */
+export const DEFAULT_REFRESH_INTERVAL_MIN = 15;
+
+/** Floor for configured `refresh_interval` (minutes). */
+export const MIN_REFRESH_INTERVAL_MIN = 1;
+
 export interface RefreshResult {
   kind: "adapter" | "pipeline";
   name: string;
@@ -69,9 +75,11 @@ async function executeWithRunningGuard(
   }
 }
 
-/** Default 15m refresh, minimum 1m. */
 function computeRefreshInterval(refreshInterval?: number): { intervalMin: number; intervalMs: number } {
-  const intervalMin = Math.max(refreshInterval ?? 15, 1);
+  const intervalMin = Math.max(
+    refreshInterval ?? DEFAULT_REFRESH_INTERVAL_MIN,
+    MIN_REFRESH_INTERVAL_MIN,
+  );
   const intervalMs = intervalMin * 60 * 1000;
   return { intervalMin, intervalMs };
 }
