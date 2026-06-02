@@ -1,4 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
+import { extractAtomLink } from "./atom";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 
@@ -39,17 +40,9 @@ function parseEntry(entry: YTEntry, channelTitle: string): ContentItem {
       ? entry.title
       : entry.title?.["#text"] ?? "(untitled)";
 
-  let link = "";
-  if (videoId) {
-    link = `https://www.youtube.com/watch?v=${videoId}`;
-  } else if (entry.link) {
-    if (Array.isArray(entry.link)) {
-      const alt = entry.link.find((l) => l["@_rel"] === "alternate");
-      link = alt?.["@_href"] ?? entry.link[0]?.["@_href"] ?? "";
-    } else {
-      link = entry.link["@_href"] ?? "";
-    }
-  }
+  const link = videoId
+    ? `https://www.youtube.com/watch?v=${videoId}`
+    : extractAtomLink(entry.link);
 
   const dateStr = entry.published ?? "";
   const parsed = dateStr ? new Date(dateStr) : new Date();
@@ -81,8 +74,7 @@ async function fetchYoutubeFeed(
       signal: AbortSignal.timeout(15000),
     });
     if (!res.ok) {
-      console.warn(`youtube: failed to fetch ${label} ${id}: ${res.status}`);
-      return [];
+      throw new Error(`youtube: failed to fetch ${label} ${id}: ${errorMessage({ message: String(res.status) })}`);
     }
     const xml = await res.text();
     const parsed = parser.parse(xml);
@@ -90,8 +82,7 @@ async function fetchYoutubeFeed(
     const entries = extractEntries(parsed);
     return entries.slice(0, limit).map((entry) => parseEntry(entry, channelTitle));
   } catch (err) {
-    console.warn(`youtube: error fetching ${label} ${id}: ${errorMessage(err)}`);
-    return [];
+    throw new Error(`youtube: error fetching ${label} ${id}: ${errorMessage(err)}`);
   }
 }
 

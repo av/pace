@@ -1,4 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
+import { extractAtomLink } from "./atom";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 
@@ -22,15 +23,6 @@ interface AtomEntry {
   updated?: string;
   published?: string;
   content?: string | { "#text": string };
-}
-
-function extractAtomLink(link: AtomEntry["link"]): string {
-  if (!link) return "";
-  if (Array.isArray(link)) {
-    const alt = link.find((l) => l["@_rel"] === "alternate");
-    return alt?.["@_href"] ?? link[0]?.["@_href"] ?? "";
-  }
-  return link["@_href"] ?? "";
 }
 
 function extractTextContent(val: string | { "#text": string } | undefined): string {
@@ -76,14 +68,12 @@ async function fetchGithubResource(
     });
 
     if (!res.ok) {
-      console.warn(`github: failed to fetch ${context}: ${errorMessage({ message: `${res.status}` })}`);
-      return null;
+      throw new Error(`github: failed to fetch ${context}: ${errorMessage({ message: `${res.status}` })}`);
     }
 
     return await res.text();
   } catch (err) {
-    console.warn(`github: error fetching ${context}: ${errorMessage(err)}`);
-    return null;
+    throw new Error(`github: error fetching ${context}: ${errorMessage(err)}`);
   }
 }
 
@@ -137,8 +127,7 @@ async function fetchReleasesFeed(repo: string, limit: number): Promise<ContentIt
 
     return items;
   } catch (err) {
-    console.warn(`github: error fetching releases for ${repo}: ${errorMessage(err)}`);
-    return [];
+    throw new Error(`github: error fetching releases for ${repo}: ${errorMessage(err)}`);
   }
 }
 
@@ -242,8 +231,7 @@ async function fetchTrending(
       };
     });
   } catch (err) {
-    console.warn(`github: error fetching trending: ${errorMessage(err)}`);
-    return [];
+    throw new Error(`github: error fetching trending: ${errorMessage(err)}`);
   }
 }
 

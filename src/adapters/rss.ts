@@ -1,4 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
+import { extractAtomLink } from "./atom";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 // from "./types" errorMessage helper (verifier s7s for bugbash-iter11)
@@ -62,16 +63,7 @@ function parseItem(raw: any, source: string): ContentItem {
   // title
   const title = extractText(raw.title) ?? "(untitled)";
 
-  // link — RSS uses <link>, Atom uses <link href="...">
-  let link = "";
-  if (typeof raw.link === "string") {
-    link = raw.link;
-  } else if (raw.link?.["@_href"]) {
-    link = raw.link["@_href"];
-  } else if (Array.isArray(raw.link)) {
-    const alt = raw.link.find((l: any) => l["@_rel"] === "alternate");
-    link = alt?.["@_href"] ?? raw.link[0]?.["@_href"] ?? "";
-  }
+  const link = extractAtomLink(raw.link);
 
   const dateStr = raw.pubDate ?? raw.updated ?? raw.published ?? "";
   const parsed = dateStr ? new Date(dateStr) : new Date();
