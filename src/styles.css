@@ -22,7 +22,6 @@
   --font-mono: ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
 }
 
-/* shared typography (DRY repeated mono font declarations across panel/item/footer) */
 .footer,
 .panel-refreshed,
 .item-source,
@@ -30,7 +29,6 @@
   font-family: var(--font-mono);
 }
 
-/* shared small font sizes (DRY repeated font-size declarations; 0.85rem x3, 0.75rem x1, 0.7rem x2, 0.65rem x2 consolidated to grouped selectors as single source of truth) */
 .panel-header h2,
 .refresh-btn,
 .empty-state {
@@ -77,7 +75,6 @@ a:hover {
 }
 
 
-/* flex layout (DRY: common min-height:0 / display:flex / flex-dir:column / overflow:hidden grouped as single source of truth across .flex-* rules; specific props kept in original selectors) */
 .flex-root,
 .flex-panel > .panel {
   display: flex;
