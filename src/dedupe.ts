@@ -1,3 +1,5 @@
+import { errorMessage } from "./utils";
+
 /**
  * Deduplication utilities for the dedupe transform.
  *
@@ -65,8 +67,8 @@ export function normalizeUrl(url: string): string {
     }
 
     return parsed.toString();
-  } catch {
-    // If URL parsing fails, return as-is lowercased
+  } catch (err) {
+    console.warn(`dedupe: normalizeUrl failed for "${url}": ${errorMessage(err)}`);
     return url.toLowerCase().trim();
   }
 }
