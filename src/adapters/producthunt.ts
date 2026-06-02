@@ -15,6 +15,15 @@ const PH_FEED_URL = "https://www.producthunt.com/feed";
 const ENRICH_BATCH_SIZE = 5;
 const ENRICH_DELAY_MS = 500;
 
+/** Enrich-page scrape patterns (global + capture group 1). */
+const RE_ENRICH_UPVOTES = /(\d+)\s*(?:points|upvotes?)/i;
+const RE_ENRICH_COMMENTS = /commentsCount":\s*(\d+)/;
+const RE_ENRICH_TOPIC_LABEL = /data-test="topic[^"]*"[^>]*>([^<]+)</gi;
+const RE_ENRICH_TOPIC_SLUG = /href="\/topics\/([^"]+)"/gi;
+const RE_ENRICH_PROFILE = /href="\/@([a-zA-Z0-9_]{2,30})"/gi;
+
+const EXCLUDED_MAKER_HANDLES = new Set(["producthunt", "product_hunt"]);
+
 const parser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "@_",
@@ -102,6 +111,51 @@ function warnEnrichFailed(url: string, detail: unknown): void {
   console.warn(`producthunt: enrich failed for ${url}: ${errorMessage(detail)}`);
 }
 
+function matchCaptures(html: string, re: RegExp): string[] {
+  return [...html.matchAll(re)].map((m) => m[1]).filter(Boolean);
+}
+
+function topicLabelFromSlug(slug: string): string {
+  return slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function extractTopics(html: string): string[] {
+  const labels = matchCaptures(html, RE_ENRICH_TOPIC_LABEL)
+    .map((t) => t.trim())
+    .filter(Boolean);
+  if (labels.length > 0) return labels;
+
+  const slugs = [...new Set(matchCaptures(html, RE_ENRICH_TOPIC_SLUG))];
+  return slugs.map(topicLabelFromSlug).filter(Boolean);
+}
+
+function extractMakers(html: string): string[] {
+  const handles = [...new Set(
+    matchCaptures(html, RE_ENRICH_PROFILE).filter(
+      (h) => !EXCLUDED_MAKER_HANDLES.has(h.toLowerCase()),
+    ),
+  )].slice(0, 3);
+  return handles.map((h) => `@${h}`);
+}
+
+function parseEnrichedData(html: string): EnrichedData {
+  const data: EnrichedData = {};
+
+  const upvoteMatch = html.match(RE_ENRICH_UPVOTES);
+  if (upvoteMatch) data.upvotes = parseInt(upvoteMatch[1], 10);
+
+  const topics = extractTopics(html);
+  if (topics.length > 0) data.topics = topics;
+
+  const commentMatch = html.match(RE_ENRICH_COMMENTS);
+  if (commentMatch) data.comments = parseInt(commentMatch[1], 10);
+
+  const makers = extractMakers(html);
+  if (makers.length > 0) data.makers = makers;
+
+  return data;
+}
+
 function extractId(entry: PHEntry): string {
   // id format: "tag:www.producthunt.com,2005:Post/1143406"
   if (entry.id) {
@@ -124,71 +178,7 @@ async function enrichProduct(url: string): Promise<EnrichedData | null> {
       return null;
     }
     const html = await res.text();
-
-    const data: EnrichedData = {};
-
-    // Extract upvote count - look for patterns like "Upvote • 215 points" or just numbers near upvote text
-    const upvoteMatch = html.match(
-      /(\d+)\s*(?:points|upvotes?)/i,
-    );
-    if (upvoteMatch) {
-      data.upvotes = parseInt(upvoteMatch[1], 10);
-    }
-
-    // Extract topics/categories from the page
-    const topicMatches = html.match(
-      /data-test="topic[^"]*"[^>]*>([^<]+)</g,
-    );
-    if (topicMatches) {
-      data.topics = topicMatches.map((m) => {
-        const textMatch = m.match(/>([^<]+)$/);
-        return textMatch ? textMatch[1].trim() : "";
-      }).filter(Boolean);
-    }
-
-    // Alternative topic extraction from links like /topics/artificial-intelligence
-    if (!data.topics || data.topics.length === 0) {
-      const topicLinks = html.match(
-        /href="\/topics\/([^"]+)"/g,
-      );
-      if (topicLinks) {
-        data.topics = [...new Set(topicLinks.map((m) => {
-          const href = m.match(/\/topics\/([^"]+)/);
-          return href
-            ? href[1].replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
-            : "";
-        }).filter(Boolean))];
-      }
-    }
-
-    // Extract comment count from embedded JSON (commentsCount":68)
-    const commentJsonMatch = html.match(
-      /commentsCount":\s*(\d+)/,
-    );
-    if (commentJsonMatch) {
-      data.comments = parseInt(commentJsonMatch[1], 10);
-    }
-
-    // Extract makers from profile links like href="/@username"
-    const profileLinkMatches = html.match(
-      /href="\/@([a-zA-Z0-9_]{2,30})"/g,
-    );
-    if (profileLinkMatches) {
-      const EXCLUDED_HANDLES = new Set([
-        "producthunt", "product_hunt",
-      ]);
-      const handles = [...new Set(
-        profileLinkMatches.map((m) => {
-          const match = m.match(/\/@([a-zA-Z0-9_]{2,30})/);
-          return match ? match[1] : "";
-        }).filter((h) => h && !EXCLUDED_HANDLES.has(h.toLowerCase())),
-      )].slice(0, 3);
-      if (handles.length > 0) {
-        data.makers = handles.map((h) => `@${h}`);
-      }
-    }
-
-    return data;
+    return parseEnrichedData(html);
   } catch (err) {
     warnEnrichFailed(url, err);
     return null;
@@ -206,22 +196,23 @@ function buildBody(
   enriched: EnrichedData | null,
 ): string {
   const parts: string[] = [];
+  const push = (part: string | undefined) => {
+    if (part) parts.push(part);
+  };
 
-  if (tagline) parts.push(tagline);
-  if (enriched?.upvotes !== undefined) parts.push(`${enriched.upvotes} upvotes`);
-  if (enriched?.comments !== undefined)
-    parts.push(`${enriched.comments} comments`);
-  if (enriched?.topics && enriched.topics.length > 0) {
-    parts.push(`topics: ${enriched.topics.join(", ")}`);
-  }
-  if (enriched?.makers && enriched.makers.length > 0) {
-    parts.push(`by ${enriched.makers.join(", ")}`);
-  } else if (author) {
-    parts.push(`by ${author}`);
-  }
-  if (productLink) {
-    parts.push(`site: ${productLink}`);
-  }
+  push(tagline || undefined);
+  if (enriched?.upvotes !== undefined) push(`${enriched.upvotes} upvotes`);
+  if (enriched?.comments !== undefined) push(`${enriched.comments} comments`);
+  if (enriched?.topics?.length) push(`topics: ${enriched.topics.join(", ")}`);
+
+  const byLine = enriched?.makers?.length
+    ? `by ${enriched.makers.join(", ")}`
+    : author
+      ? `by ${author}`
+      : undefined;
+  push(byLine);
+
+  if (productLink) push(`site: ${productLink}`);
 
   return parts.join(" | ");
 }
