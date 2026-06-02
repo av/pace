@@ -193,3 +193,4 @@
 - label: bunfig.toml contains no [jsx] section (Cargo-Cult unused runtime config copied from templates; the file-local /** jsx */ and /** Fragment */ pragmas in src/layout.tsx plus import from "hono/jsx" suffice for classic JSX transform under Bun direct .ts runs) (verifiable by: ! test -f bunfig.toml || ! grep -q '^\[jsx\]' bunfig.toml )
   command: test ! -f bunfig.toml || ! grep -q '^\[jsx\]' bunfig.toml
   tags: [jsx, jsxFrag, implemented]
+- package.json contains no "type": "module" field (Cargo-Cult unused config copied from node/TS templates; never exercised by the project's actual runtime paths: bun direct .ts execution, "bun run" package scripts, Dockerfile which COPYs package.json then bun install --production then later src/ and uses direct bun ENTRYPOINT on cli.ts with no tsc dist step; verifiable by: ! grep -q "\"type\": \"module\"" package.json ) @implemented
