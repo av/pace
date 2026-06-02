@@ -8,7 +8,12 @@ import {
 } from "./engagement";
 import { fetchJson, HN_ITEM_FETCH_TIMEOUT_MS } from "./fetch";
 import { decodeHtmlEntities, stripHtml } from "./html";
-import { normalizeOptionalString, normalizeStringList, sliceToLimit } from "../utils";
+import {
+  normalizeNonNegativeNumber,
+  normalizeOptionalString,
+  normalizeStringList,
+  sliceToLimit,
+} from "../utils";
 import { dedupeByKey, fetchAndConcat, sortByCreatedAtDesc } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
@@ -200,6 +205,7 @@ const adapter: Adapter = {
       (config.params?.accounts as string[]) ?? [],
     );
     const limit = Math.min((config.params?.limit as number) ?? 20, 40);
+    const minFavourites = normalizeNonNegativeNumber(config.params?.min_favourites);
     const onlyMedia = (config.params?.only_media as boolean) ?? false;
 
     let mode: Mode;
@@ -240,6 +246,12 @@ const adapter: Adapter = {
       }
 
       allStatuses = dedupeByKey(allStatuses, (status) => status.id);
+
+      if (minFavourites > 0) {
+        allStatuses = allStatuses.filter(
+          (status) => status.favourites_count >= minFavourites,
+        );
+      }
 
       sortByCreatedAtDesc(allStatuses);
 

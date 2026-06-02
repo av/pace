@@ -249,6 +249,45 @@ describe("mastodon", () => {
     expect(items).toHaveLength(1);
   });
 
+  test("applies min_favourites filter and limit after fetch", async () => {
+    const statuses = [
+      makeStatus("low", "<p>low favs</p>", "2024-05-01T00:00:00Z"),
+      makeStatus("mid", "<p>mid favs</p>", "2024-05-02T00:00:00Z"),
+      makeStatus("high", "<p>high favs</p>", "2024-05-03T00:00:00Z"),
+    ];
+    statuses[0].favourites_count = 3;
+    statuses[1].favourites_count = 12;
+    statuses[2].favourites_count = 50;
+    mocks.fetchMock.mockImplementation(async () =>
+      new Response(JSON.stringify(statuses), { status: 200 }),
+    );
+
+    const items = await adapter.fetch(
+      mastodonCfg({ instance: "ex.com", min_favourites: 10, limit: 1 }),
+    );
+
+    expect(items).toHaveLength(1);
+    expect(items[0].title).toContain("high favs");
+  });
+
+  test("invalid min_favourites treated as 0 (no filter)", async () => {
+    const statuses = [
+      makeStatus("a", "<p>one</p>", "2024-05-01T00:00:00Z"),
+      makeStatus("b", "<p>two</p>", "2024-05-02T00:00:00Z"),
+    ];
+    statuses[0].favourites_count = 1;
+    statuses[1].favourites_count = 2;
+    mocks.fetchMock.mockImplementation(async () =>
+      new Response(JSON.stringify(statuses), { status: 200 }),
+    );
+
+    const items = await adapter.fetch(
+      mastodonCfg({ instance: "ex.com", min_favourites: "nope" as unknown as number }),
+    );
+
+    expect(items).toHaveLength(2);
+  });
+
   test("passes only_media query when configured", async () => {
     await adapter.fetch(mastodonCfg({ only_media: true }));
     expect(fetchUrls().some((u) => u.includes("only_media=true"))).toBe(true);

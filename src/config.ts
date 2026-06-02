@@ -691,7 +691,7 @@ const ADAPTER_PARAM_KEYS: Readonly<Record<string, readonly string[]>> = {
   github: ["mode", "language", "since", "limit", "repos", "token"],
   "github-releases": ["repos", "token"],
   devto: ["tags", "username", "limit", "min_reactions", "top"],
-  mastodon: ["instance", "hashtags", "accounts", "limit", "only_media"],
+  mastodon: ["instance", "hashtags", "accounts", "limit", "min_favourites", "only_media"],
   youtube: ["channels", "playlists", "limit"],
   arxiv: ["categories", "query", "limit"],
   stackexchange: ["site", "tags", "sort", "limit", "min_score"],
