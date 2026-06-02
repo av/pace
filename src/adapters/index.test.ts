@@ -30,11 +30,13 @@ describe("discoverAdapters", () => {
   let warnSpy: ReturnType<typeof spyOn>;
 
   beforeEach(() => {
-    warnSpy = spyOn(console, "warn");
+    warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+    warnSpy.mockClear();
   });
 
   afterEach(() => {
     warnSpy.mockRestore();
+    mock.restore();
   });
 
   test("returns Map with adapters having name and fetch", async () => {

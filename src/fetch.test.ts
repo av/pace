@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { fetchJson, fetchText, fetchWithTimeout } from "./adapters/fetch";
 import { useFetchMockSuite } from "./test/adapter-mocks";
 
-const mocks = useFetchMockSuite({ restoreAllMocks: false });
+const mocks = useFetchMockSuite();
 
 describe("fetchWithTimeout", () => {
   beforeEach(() => {
