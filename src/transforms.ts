@@ -186,6 +186,19 @@ function sortByScoreDesc<T>(arr: T[], getScore: (x: T) => number): void {
   arr.sort((a, b) => getScore(b) - getScore(a));
 }
 
+type KeywordField = "title" | "body" | "source";
+
+function keywordFieldValue(item: ContentItemRow, field: KeywordField): string | null {
+  switch (field) {
+    case "title":
+      return item.title;
+    case "body":
+      return item.body;
+    case "source":
+      return item.source;
+  }
+}
+
 /**
  * Shared helper to test whether an item matches any of the (lowercased) keywords
  * in any of the specified fields. Eliminates duplication between filter/exclude.
@@ -193,12 +206,12 @@ function sortByScoreDesc<T>(arr: T[], getScore: (x: T) => number): void {
 function matchesAnyKeyword(
   item: ContentItemRow,
   lowerKeywords: string[],
-  checkFields: readonly string[]
+  checkFields: readonly KeywordField[]
 ): boolean {
   return lowerKeywords.some((kw) =>
     checkFields.some((f) => {
-      const val = (item as any)[f];
-      return val ? String(val).toLowerCase().includes(kw) : false;
+      const val = keywordFieldValue(item, f);
+      return val ? val.toLowerCase().includes(kw) : false;
     })
   );
 }
@@ -210,7 +223,7 @@ function matchesAnyKeyword(
  */
 function makeKeywordPredicate(
   keywords: string[],
-  fields?: readonly ("title" | "body" | "source")[]
+  fields?: readonly KeywordField[]
 ): (item: ContentItemRow) => boolean {
   const checkFields = fields ?? ["title", "body"];
   const lowerKeywords = keywords.map((k) => k.toLowerCase());
