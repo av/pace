@@ -34,11 +34,9 @@ Facts with good validation commands are self-enforcing — they catch regression
 
 ## Process
 
+See AGENTS.md (the "Start of work — always do this first", numbered workflow steps, and "facts list --tags "draft"" guidance) and the main facts skill (`facts skills show facts`, its "Agent workflows" section with common list/check commands and example blocks) for the canonical common workflow instructions. Do not reimplement the boilerplate here.
+
 ### 1. Load the current fact sheet
-
-Run `facts list` to see all current facts. Note which sections exist and what they cover.
-
-Run `facts check` to see which command-facts pass and which fail. Failing facts are candidates for removal or correction.
 
 For each manual fact (`?` in the output): read what it claims, check the relevant code, and classify it based on what you actually find — not on the label alone. Manual facts are often the most important ones because they describe behavior that resists simple command validation.
 
