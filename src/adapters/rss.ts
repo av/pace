@@ -110,7 +110,10 @@ const adapter: Adapter = {
   name: "rss",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
     const urls = (config.params?.urls as string[]) ?? [];
-    if (urls.length === 0) return [];
+    if (urls.length === 0) {
+      console.warn("rss: no urls configured");
+      return [];
+    }
 
     const results = await Promise.all(urls.map(fetchFeed));
     return dedupeByKey(results.flat(), (item) => item.url || item.id);

@@ -88,6 +88,7 @@ describe("rss", () => {
     const items = await rssAdapter.fetch(rssCfg({ urls: [] }));
     expect(items).toEqual([]);
     expect(mocks.fetchMock).not.toHaveBeenCalled();
+    expect(mocks.warnSpy).toHaveBeenCalledWith("rss: no urls configured");
   });
 
   test("fetches single RSS 2.0 feed and maps fields correctly (string titles/links)", async () => {
