@@ -1,7 +1,21 @@
-import { getModel, complete, type Model, type Api, type Context } from "@mariozechner/pi-ai";
+import {
+  getModels,
+  getProviders,
+  complete,
+  type KnownProvider,
+  type Model,
+  type Api,
+  type Context,
+} from "@mariozechner/pi-ai";
 import type { LlmConfig } from "./config";
 import type { ContentItem } from "./adapters/types";
 import { errorMessage } from "./utils";
+
+const KNOWN_PROVIDERS = new Set<string>(getProviders());
+
+function isKnownProvider(provider: string): provider is KnownProvider {
+  return KNOWN_PROVIDERS.has(provider);
+}
 
 // Map provider names to their env var for the API key
 const PROVIDER_ENV_KEYS: Record<string, string> = {
@@ -26,29 +40,27 @@ export function createModel(config: LlmConfig): Model<Api> | null {
     process.env[envKey] = config.api_key;
   }
 
-  // For known providers, use getModel
-  try {
-    const model = getModel(config.provider as any, config.model as any);
-    return model as Model<Api>;
-  } catch (err) {
-    console.warn(
-      `llm: unknown provider/model (${config.provider}/${config.model}), using OpenAI-compatible fallback: ${errorMessage(err)}`
-    );
-    // Unknown provider/model combo — build a custom model for OpenAI-compatible endpoints
-    const customModel: Model<"openai-completions"> = {
-      id: config.model,
-      name: config.model,
-      api: "openai-completions",
-      provider: config.provider,
-      baseUrl: config.base_url ?? "http://localhost:11434/v1",
-      reasoning: false,
-      input: ["text"],
-      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-      contextWindow: 128000,
-      maxTokens: 4096,
-    };
-    return customModel as Model<Api>;
+  if (isKnownProvider(config.provider)) {
+    const model = getModels(config.provider).find((m) => m.id === config.model);
+    if (model) return model;
   }
+
+  console.warn(
+    `llm: unknown provider/model (${config.provider}/${config.model}), using OpenAI-compatible fallback`
+  );
+  const customModel: Model<"openai-completions"> = {
+    id: config.model,
+    name: config.model,
+    api: "openai-completions",
+    provider: config.provider,
+    baseUrl: config.base_url ?? "http://localhost:11434/v1",
+    reasoning: false,
+    input: ["text"],
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    contextWindow: 128000,
+    maxTokens: 4096,
+  };
+  return customModel as Model<Api>;
 }
 
 /**
