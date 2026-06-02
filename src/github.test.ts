@@ -1,6 +1,26 @@
 import { beforeEach, afterEach, describe, test, expect, mock, spyOn } from "bun:test";
 import adapter from "./adapters/github";
+import type { AdapterConfig } from "./adapters/types";
 import * as typesMod from "./adapters/types";
+
+const originalFetch = globalThis.fetch;
+
+const defaultCfg: AdapterConfig = { type: "github" };
+
+function githubCfg(params: Record<string, unknown> = {}): AdapterConfig {
+  return { ...defaultCfg, params };
+}
+
+function makeTextResponse(body: string, status = 200): Response {
+  return new Response(body, {
+    status,
+    headers: { "Content-Type": "text/html; charset=utf-8" },
+  });
+}
+
+function makeErrorResponse(status: number): Response {
+  return new Response("", { status });
+}
 
 const releasesXml = `<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
@@ -37,49 +57,38 @@ const trendingHtml = `
 `;
 
 describe("github adapter", () => {
-  let originalFetch: typeof fetch;
-  let originalWarn: typeof console.warn;
   let fetchMock: ReturnType<typeof mock>;
-  let warnSpy: ReturnType<typeof mock>;
+  let warnSpy: ReturnType<typeof spyOn>;
 
   beforeEach(() => {
-    originalFetch = globalThis.fetch;
-    originalWarn = console.warn;
-
     fetchMock = mock();
-    globalThis.fetch = fetchMock as unknown as typeof fetch;
-
-    warnSpy = mock(() => {});
-    console.warn = warnSpy as unknown as typeof console.warn;
+    globalThis.fetch = fetchMock as typeof fetch;
+    warnSpy = spyOn(console, "warn").mockImplementation(() => {});
   });
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
-    console.warn = originalWarn;
+    warnSpy.mockRestore();
   });
 
   test("returns empty with warning when releases mode has no repos configured", async () => {
-    const items = await adapter.fetch({ params: { mode: "releases" } } as any);
+    const items = await adapter.fetch(githubCfg({ mode: "releases" }));
     expect(items).toEqual([]);
-    expect(warnSpy.mock.calls.length).toBeGreaterThan(0);
-    expect(String(warnSpy.mock.calls[0][0])).toContain("no repos configured for releases mode");
+    expect(warnSpy).toHaveBeenCalledWith("github: no repos configured for releases mode");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   test("fetches releases for repos, parses atom, maps items with correct fields, id, source, body stripped, timestamp", async () => {
     fetchMock.mockImplementation(async (url: string) => {
       if (String(url).includes("releases.atom")) {
-        return {
-          ok: true,
-          status: 200,
-          text: async () => releasesXml,
-        } as any;
+        return makeTextResponse(releasesXml);
       }
       throw new Error("unexpected url in test");
     });
 
-    const items = await adapter.fetch({
-      params: { mode: "releases", repos: ["facebook/react"], limit: 10 },
-    } as any);
+    const items = await adapter.fetch(
+      githubCfg({ mode: "releases", repos: ["facebook/react"], limit: 10 }),
+    );
 
     expect(fetchMock.mock.calls.length).toBe(1);
     expect(items.length).toBe(2);
@@ -89,40 +98,30 @@ describe("github adapter", () => {
     expect(items[0].id).toBe("github:facebook/react:v19.0.0");
     expect(items[0].body).toContain("Bug fixes and new features in React 19");
     expect(items[0].timestamp).toBeInstanceOf(Date);
-    // second item older
     expect(items[1].title).toContain("v18.3.0");
   });
 
   test("releases respects per-repo limit then outer cap", async () => {
-    fetchMock.mockImplementation(async (url: string) => ({
-      ok: true,
-      status: 200,
-      text: async () => releasesXml,
-    } as any));
+    fetchMock.mockImplementation(async () => makeTextResponse(releasesXml));
 
-    const items = await adapter.fetch({
-      params: { mode: "releases", repos: ["facebook/react", "vercel/next.js"], limit: 1 },
-    } as any);
+    const items = await adapter.fetch(
+      githubCfg({ mode: "releases", repos: ["facebook/react", "vercel/next.js"], limit: 1 }),
+    );
 
-    // 2 per feed but outer slice(0, 1*2=2) but since 4 total? wait 2 feeds x 1 =2, but code slices after flat+sort to limit*len
     expect(items.length).toBeLessThanOrEqual(2);
   });
 
   test("fetches trending with language and since, parses html, maps stars/gained/desc", async () => {
     fetchMock.mockImplementation(async (url: string) => {
       if (String(url).includes("trending")) {
-        return {
-          ok: true,
-          status: 200,
-          text: async () => trendingHtml,
-        } as any;
+        return makeTextResponse(trendingHtml);
       }
       throw new Error("unexpected");
     });
 
-    const items = await adapter.fetch({
-      params: { mode: "trending", language: "typescript", since: "daily", limit: 5 },
-    } as any);
+    const items = await adapter.fetch(
+      githubCfg({ mode: "trending", language: "typescript", since: "daily", limit: 5 }),
+    );
 
     expect(items.length).toBe(2);
     expect(items[0].title).toBe("vercel/next.js");
@@ -134,31 +133,19 @@ describe("github adapter", () => {
   });
 
   test("trending default (no lang, daily) works and respects limit", async () => {
-    fetchMock.mockImplementation(async (url: string) => ({
-      ok: true,
-      status: 200,
-      text: async () => trendingHtml,
-    } as any));
+    fetchMock.mockImplementation(async () => makeTextResponse(trendingHtml));
 
-    const items = await adapter.fetch({
-      params: { mode: "trending", limit: 1 },
-    } as any);
+    const items = await adapter.fetch(githubCfg({ mode: "trending", limit: 1 }));
 
     expect(items.length).toBe(1);
     expect(items[0].source).toBe("github:trending");
   });
 
   test("throws on !ok for releases feed (contract; no swallow)", async () => {
-    fetchMock.mockImplementation(async () => ({
-      ok: false,
-      status: 404,
-      text: async () => "",
-    } as any));
+    fetchMock.mockImplementation(async () => makeErrorResponse(404));
 
     await expect(
-      adapter.fetch({
-        params: { mode: "releases", repos: ["bad/repo"], limit: 10 },
-      } as any),
+      adapter.fetch(githubCfg({ mode: "releases", repos: ["bad/repo"], limit: 10 })),
     ).rejects.toThrow(/github:.*failed to fetch releases for bad\/repo.*404/);
   });
 
@@ -167,42 +154,31 @@ describe("github adapter", () => {
       throw new Error("network boom");
     });
 
-    await expect(
-      adapter.fetch({
-        params: { mode: "trending" },
-      } as any),
-    ).rejects.toThrow(/github: error fetching trending.*network boom/);
+    await expect(adapter.fetch(githubCfg({ mode: "trending" }))).rejects.toThrow(
+      /github: error fetching trending.*network boom/,
+    );
   });
 
   test("uses errorMessage helper in !ok and network error paths per mmu/sh1", async () => {
     const emSpy = spyOn(typesMod, "errorMessage");
+    try {
+      fetchMock.mockImplementation(async () => makeErrorResponse(404));
 
-    fetchMock.mockImplementation(async () => ({
-      ok: false,
-      status: 404,
-      text: async () => "",
-    } as any));
+      await expect(
+        adapter.fetch(githubCfg({ mode: "releases", repos: ["bad/repo"], limit: 10 })),
+      ).rejects.toThrow(/github:/);
+      expect(emSpy).toHaveBeenCalledWith({ message: "404" });
 
-    await expect(
-      adapter.fetch({
-        params: { mode: "releases", repos: ["bad/repo"], limit: 10 },
-      } as any),
-    ).rejects.toThrow(/github:/);
-    expect(emSpy.mock.calls.some((c: any[]) =>
-      c[0] && c[0].message === "404"
-    )).toBe(true);
+      fetchMock.mockImplementation(async () => {
+        throw new Error("network boom");
+      });
 
-    fetchMock.mockImplementation(async () => {
-      throw new Error("network boom");
-    });
-
-    await expect(
-      adapter.fetch({
-        params: { mode: "trending" },
-      } as any),
-    ).rejects.toThrow(/github: error fetching trending/);
-    expect(emSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
-
-    emSpy.mockRestore();
+      await expect(adapter.fetch(githubCfg({ mode: "trending" }))).rejects.toThrow(
+        /github: error fetching trending/,
+      );
+      expect(emSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
+    } finally {
+      emSpy.mockRestore();
+    }
   });
 });
