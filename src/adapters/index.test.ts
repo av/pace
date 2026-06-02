@@ -16,10 +16,30 @@ function mockAdapterModule(file: string, exports: Record<string, unknown>): void
   mock.module(adapterModulePath(file), () => exports);
 }
 
-function mockReaddir(entries: unknown[]): void {
+function mockReaddir(entries: unknown): void {
   mock.module("node:fs/promises", () => ({
     readdir: async () => entries,
   }));
+}
+
+function mockReaddirThrows(err: Error): void {
+  mock.module("node:fs/promises", () => ({
+    readdir: async () => {
+      throw err;
+    },
+  }));
+}
+
+function readdirWithRss(...entries: unknown[]): unknown[] {
+  return ["rss.ts", ...entries, ...FILTER_NOISE];
+}
+
+function readdirOnly(...entries: unknown[]): unknown[] {
+  return [...entries, ...FILTER_NOISE];
+}
+
+function mockAdapterDefault(file: string, adapter: Record<string, unknown>): void {
+  mockAdapterModule(file, { default: adapter });
 }
 
 function warnsContaining(spy: ReturnType<typeof spyOn>, fragment: string): string[] {
@@ -91,9 +111,7 @@ describe("discoverAdapters", () => {
   });
 
   test("readdir failure returns empty Map and warns", async () => {
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => { throw new Error("readdir boom for direct edge test"); },
-    }));
+    mockReaddirThrows(new Error("readdir boom for direct edge test"));
     const adapters = await discoverAdapters();
     expect(adapters).toBeInstanceOf(Map);
     expect(adapters.size).toBe(0);
@@ -103,16 +121,7 @@ describe("discoverAdapters", () => {
 
   test("readdir filter and import error warn", async () => {
     const nonExistent = "nonexistent-direct-import-err-test-xyz.ts";
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => [
-        "rss.ts",
-        nonExistent,
-        "foo.test.ts",
-        "types.ts",
-        "bar.js",
-        "index.ts",
-      ],
-    }));
+    mockReaddir(readdirWithRss(nonExistent));
     const adapters = await discoverAdapters();
     expect(adapters.has("rss")).toBe(true);
     expect(adapters.has("nonexistent-direct-import-err-test-xyz")).toBe(false);
@@ -123,20 +132,8 @@ describe("discoverAdapters", () => {
 
   test("bad shape default emits bad mod warn", async () => {
     const badName = "badshape-direct-filter-26.ts";
-    const badAbs = adapterModulePath(badName);
-    mock.module(badAbs, () => ({
-      default: { foo: "bad shape, no name/fetch fn" },
-    }));
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => [
-        "rss.ts",
-        badName,
-        "foo.test.ts",
-        "types.ts",
-        "index.ts",
-        "bar.js",
-      ],
-    }));
+    mockAdapterDefault(badName, { foo: "bad shape, no name/fetch fn" });
+    mockReaddir(readdirWithRss(badName));
     const adapters = await discoverAdapters();
     expect(adapters.has("rss")).toBe(true);
     expect(adapters.has("badshape-direct-filter-26")).toBe(false);
@@ -152,26 +149,20 @@ describe("discoverAdapters", () => {
     const dupName = "dup-adapter-edge-30";
     const f1 = "dup-edge-1-30.ts";
     const f2 = "dup-edge-2-30.ts";
-    const abs1 = adapterModulePath(f1);
-    const abs2 = adapterModulePath(f2);
-    mock.module(abs1, () => ({ default: { name: dupName, fetch: emptyFetch } }));
-    mock.module(abs2, () => ({
-      default: {
-        name: dupName,
-        fetch: async (_config: AdapterConfig): Promise<ContentItem[]> => [
-          {
-            id: "last-wins",
-            title: "dup",
-            url: "https://example.com/last-wins",
-            source: dupName,
-            timestamp: new Date(0),
-          },
-        ],
-      },
-    }));
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => [f1, f2, "rss.ts", "types.ts", "index.ts", "foo.test.ts"],
-    }));
+    mockAdapterDefault(f1, { name: dupName, fetch: emptyFetch });
+    mockAdapterDefault(f2, {
+      name: dupName,
+      fetch: async (_config: AdapterConfig): Promise<ContentItem[]> => [
+        {
+          id: "last-wins",
+          title: "dup",
+          url: "https://example.com/last-wins",
+          source: dupName,
+          timestamp: new Date(0),
+        },
+      ],
+    });
+    mockReaddir([f1, f2, "rss.ts", "types.ts", "index.ts", "foo.test.ts"]);
     const adapters = await discoverAdapters();
     expect(adapters.has("rss")).toBe(true);
     expect(adapters.has(dupName)).toBe(true);
@@ -183,18 +174,8 @@ describe("discoverAdapters", () => {
 
   test("missing default export emits bad mod warn", async () => {
     const noDefName = "nodefault-direct-34-edge.ts";
-    const absNo = adapterModulePath(noDefName);
-    mock.module(absNo, () => ({}));
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => [
-        "rss.ts",
-        noDefName,
-        "foo.test.ts",
-        "types.ts",
-        "index.ts",
-        "bar.js",
-      ],
-    }));
+    mockAdapterModule(noDefName, {});
+    mockReaddir(readdirWithRss(noDefName));
     const adapters = await discoverAdapters();
     expect(adapters.has("rss")).toBe(true);
     expect(adapters.has(noDefName)).toBe(false);
@@ -207,20 +188,8 @@ describe("discoverAdapters", () => {
 
   test("non-string name emits bad mod warn", async () => {
     const badNameFile = "badnamenum-direct-35-edge.ts";
-    const absBad = adapterModulePath(badNameFile);
-    mock.module(absBad, () => ({
-      default: { name: 123, fetch: emptyFetch },
-    }));
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => [
-        "rss.ts",
-        badNameFile,
-        "foo.test.ts",
-        "types.ts",
-        "index.ts",
-        "bar.js",
-      ],
-    }));
+    mockAdapterDefault(badNameFile, { name: 123, fetch: emptyFetch });
+    mockReaddir(readdirWithRss(badNameFile));
     const adapters = await discoverAdapters();
     expect(adapters.has("rss")).toBe(true);
     expect(adapters.has(123)).toBe(false);
@@ -234,20 +203,8 @@ describe("discoverAdapters", () => {
 
   test("whitespace-only name emits bad mod warn", async () => {
     const wsNameFile = "badnamews-direct-36-edge.ts";
-    const absWs = adapterModulePath(wsNameFile);
-    mock.module(absWs, () => ({
-      default: { name: "   ", fetch: emptyFetch },
-    }));
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => [
-        "rss.ts",
-        wsNameFile,
-        "foo.test.ts",
-        "types.ts",
-        "index.ts",
-        "bar.js",
-      ],
-    }));
+    mockAdapterDefault(wsNameFile, { name: "   ", fetch: emptyFetch });
+    mockReaddir(readdirWithRss(wsNameFile));
     const adapters = await discoverAdapters();
     expect(adapters.has("rss")).toBe(true);
     expect(adapters.has("   ")).toBe(false);
@@ -261,20 +218,8 @@ describe("discoverAdapters", () => {
 
   test("padded name emits bad mod warn", async () => {
     const paddedNameFile = "paddedws-direct-50-edge.ts";
-    const absPadded = adapterModulePath(paddedNameFile);
-    mock.module(absPadded, () => ({
-      default: { name: " padded-ngb-edge-50 ", fetch: emptyFetch },
-    }));
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => [
-        "rss.ts",
-        paddedNameFile,
-        "foo.test.ts",
-        "types.ts",
-        "index.ts",
-        "bar.js",
-      ],
-    }));
+    mockAdapterDefault(paddedNameFile, { name: " padded-ngb-edge-50 ", fetch: emptyFetch });
+    mockReaddir(readdirWithRss(paddedNameFile));
     const adapters = await discoverAdapters();
     expect(adapters.has("rss")).toBe(true);
     expect(adapters.has(" padded-ngb-edge-50 ")).toBe(false);
@@ -289,7 +234,6 @@ describe("discoverAdapters", () => {
 
   test("function default emits bad mod warn", async () => {
     const fnDefName = "funcdefault-direct-51-edge.ts";
-    const absFn = adapterModulePath(fnDefName);
     function badFnDefault() {}
     Object.defineProperty(badFnDefault, "name", {
       value: "func-default-ngb-edge-51",
@@ -298,17 +242,8 @@ describe("discoverAdapters", () => {
       configurable: true,
     });
     const badFnExport = Object.assign(badFnDefault, { fetch: emptyFetch });
-    mock.module(absFn, () => ({ default: badFnExport }));
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => [
-        "rss.ts",
-        fnDefName,
-        "foo.test.ts",
-        "types.ts",
-        "index.ts",
-        "bar.js",
-      ],
-    }));
+    mockAdapterModule(fnDefName, { default: badFnExport });
+    mockReaddir(readdirWithRss(fnDefName));
     const adapters = await discoverAdapters();
     expect(adapters.has("rss")).toBe(true);
     expect(adapters.has("func-default-ngb-edge-51")).toBe(false);
@@ -321,20 +256,8 @@ describe("discoverAdapters", () => {
 
   test("dot-prefixed ts files are skipped", async () => {
     const dotName = ".dot-direct-52-edge.ts";
-    const absDot = adapterModulePath(dotName);
-    mock.module(absDot, () => ({
-      default: { name: "dot-should-not-appear", fetch: emptyFetch },
-    }));
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => [
-        "rss.ts",
-        dotName,
-        "foo.test.ts",
-        "types.ts",
-        "index.ts",
-        "bar.js",
-      ],
-    }));
+    mockAdapterDefault(dotName, { name: "dot-should-not-appear", fetch: emptyFetch });
+    mockReaddir(readdirWithRss(dotName));
     const adapters = await discoverAdapters();
     expect(adapters.has("rss")).toBe(true);
     expect(adapters.has("dot-should-not-appear")).toBe(false);
@@ -347,8 +270,7 @@ describe("discoverAdapters", () => {
 
   test("class instance default emits bad mod warn", async () => {
     const ciName = "classinst-direct-53-edge.ts";
-    const absCi = adapterModulePath(ciName);
-    mock.module(absCi, () => ({
+    mockAdapterModule(ciName, {
       default: (() => {
         class CIAdapter {
           name = "classinst-should-not-appear";
@@ -356,17 +278,8 @@ describe("discoverAdapters", () => {
         }
         return new CIAdapter();
       })(),
-    }));
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => [
-        "rss.ts",
-        ciName,
-        "foo.test.ts",
-        "types.ts",
-        "index.ts",
-        "bar.js",
-      ],
-    }));
+    });
+    mockReaddir(readdirWithRss(ciName));
     const adapters = await discoverAdapters();
     expect(adapters.has("rss")).toBe(true);
     expect(adapters.has("classinst-should-not-appear")).toBe(false);
@@ -380,20 +293,8 @@ describe("discoverAdapters", () => {
 
   test("mixed-case TEST.ts test files are skipped", async () => {
     const leakyName = "leaky-test.TEST.ts";
-    const absLeaky = adapterModulePath(leakyName);
-    mock.module(absLeaky, () => ({
-      default: { name: "leaky-test-should-not-appear", fetch: emptyFetch },
-    }));
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => [
-        "rss.ts",
-        leakyName,
-        "foo.test.ts",
-        "types.ts",
-        "index.ts",
-        "bar.js",
-      ],
-    }));
+    mockAdapterDefault(leakyName, { name: "leaky-test-should-not-appear", fetch: emptyFetch });
+    mockReaddir(readdirWithRss(leakyName));
     const adapters = await discoverAdapters();
     expect(adapters.has("rss")).toBe(true);
     expect(adapters.has("leaky-test-should-not-appear")).toBe(false);
@@ -406,25 +307,10 @@ describe("discoverAdapters", () => {
 
   test("mixed-case excluded files are skipped", async () => {
     const exclName = "TYPES.TS";
-    const absExcl = adapterModulePath(exclName);
     const goodName = "good-adapter-edge-55.ts";
-    const absGood = adapterModulePath(goodName);
-    mock.module(absExcl, () => ({
-      default: { name: "leaky-excluded-should-not-appear", fetch: emptyFetch },
-    }));
-    mock.module(absGood, () => ({
-      default: { name: "good-adapter-ngb-55", fetch: emptyFetch },
-    }));
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => [
-        goodName,
-        exclName,
-        "foo.test.ts",
-        "types.ts",
-        "index.ts",
-        "bar.js",
-      ],
-    }));
+    mockAdapterDefault(exclName, { name: "leaky-excluded-should-not-appear", fetch: emptyFetch });
+    mockAdapterDefault(goodName, { name: "good-adapter-ngb-55", fetch: emptyFetch });
+    mockReaddir(readdirOnly(goodName, exclName));
     const adapters = await discoverAdapters();
     expect(adapters.has("good-adapter-ngb-55")).toBe(true);
     expect(adapters.has("leaky-excluded-should-not-appear")).toBe(false);
@@ -437,25 +323,10 @@ describe("discoverAdapters", () => {
 
   test("d.ts declaration files are skipped", async () => {
     const dtsName = "foo-direct-dts-56-edge.d.ts";
-    const absDts = adapterModulePath(dtsName);
     const goodName = "good-adapter-edge-56.ts";
-    const absGood = adapterModulePath(goodName);
-    mock.module(absDts, () => ({
-      default: { name: "leaky-dts-should-not-appear", fetch: emptyFetch },
-    }));
-    mock.module(absGood, () => ({
-      default: { name: "good-adapter-ngb-56", fetch: emptyFetch },
-    }));
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => [
-        goodName,
-        dtsName,
-        "foo.test.ts",
-        "types.ts",
-        "index.ts",
-        "bar.js",
-      ],
-    }));
+    mockAdapterDefault(dtsName, { name: "leaky-dts-should-not-appear", fetch: emptyFetch });
+    mockAdapterDefault(goodName, { name: "good-adapter-ngb-56", fetch: emptyFetch });
+    mockReaddir(readdirOnly(goodName, dtsName));
     const adapters = await discoverAdapters();
     expect(adapters.has("good-adapter-ngb-56")).toBe(true);
     expect(adapters.has("leaky-dts-should-not-appear")).toBe(false);
@@ -469,20 +340,8 @@ describe("discoverAdapters", () => {
   test("directory entries without ts extension are skipped", async () => {
     const dirName = "subdir-direct-57-edge";
     const goodName = "good-adapter-edge-57.ts";
-    const absGood = adapterModulePath(goodName);
-    mock.module(absGood, () => ({
-      default: { name: "good-adapter-ngb-57", fetch: emptyFetch },
-    }));
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => [
-        goodName,
-        dirName,
-        "foo.test.ts",
-        "types.ts",
-        "index.ts",
-        "bar.js",
-      ],
-    }));
+    mockAdapterDefault(goodName, { name: "good-adapter-ngb-57", fetch: emptyFetch });
+    mockReaddir(readdirOnly(goodName, dirName));
     const adapters = await discoverAdapters();
     expect(adapters.has("good-adapter-ngb-57")).toBe(true);
     expect(adapters.has("subdir-direct-57-edge")).toBe(false);
@@ -496,22 +355,10 @@ describe("discoverAdapters", () => {
   test("Dirent isFile skips non-files", async () => {
     const dirName = "subdir-withfile-58-edge";
     const goodName = "good-adapter-edge-58.ts";
-    const absGood = adapterModulePath(goodName);
-    mock.module(absGood, () => ({
-      default: { name: "good-adapter-ngb-58", fetch: emptyFetch },
-    }));
+    mockAdapterDefault(goodName, { name: "good-adapter-ngb-58", fetch: emptyFetch });
     const direntDir = { name: dirName, isFile: () => false, isDirectory: () => true };
     const direntGood = { name: goodName, isFile: () => true, isDirectory: () => false };
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => [
-        direntDir,
-        direntGood,
-        "foo.test.ts",
-        "types.ts",
-        "index.ts",
-        "bar.js",
-      ],
-    }));
+    mockReaddir(readdirOnly(direntDir, direntGood));
     const adapters = await discoverAdapters();
     expect(adapters.has("good-adapter-ngb-58")).toBe(true);
     expect(adapters.has("subdir-withfile-58-edge")).toBe(false);
@@ -525,22 +372,10 @@ describe("discoverAdapters", () => {
   test("symlink Dirent entries are skipped", async () => {
     const symName = "symlink-direct-59-edge.ts";
     const goodName = "good-adapter-edge-59.ts";
-    const absGood = adapterModulePath(goodName);
-    mock.module(absGood, () => ({
-      default: { name: "good-adapter-ngb-59", fetch: emptyFetch },
-    }));
+    mockAdapterDefault(goodName, { name: "good-adapter-ngb-59", fetch: emptyFetch });
     const direntSym = { name: symName, isFile: () => false, isSymbolicLink: () => true, isDirectory: () => false };
     const direntGood = { name: goodName, isFile: () => true, isSymbolicLink: () => false, isDirectory: () => false };
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => [
-        direntSym,
-        direntGood,
-        "foo.test.ts",
-        "types.ts",
-        "index.ts",
-        "bar.js",
-      ],
-    }));
+    mockReaddir(readdirOnly(direntSym, direntGood));
     const adapters = await discoverAdapters();
     expect(adapters.has("good-adapter-ngb-59")).toBe(true);
     expect(adapters.has("symlink-direct-59-edge")).toBe(false);
@@ -553,26 +388,10 @@ describe("discoverAdapters", () => {
 
   test("non-function fetch emits bad mod warn", async () => {
     const badFetchName = "badfetch-direct-60-edge.ts";
-    const absBad = adapterModulePath(badFetchName);
-    mock.module(absBad, () => ({
-      default: { name: "badfetch-should-not-appear", fetch: 42 },
-    }));
+    mockAdapterDefault(badFetchName, { name: "badfetch-should-not-appear", fetch: 42 });
     const goodName = "good-adapter-edge-60.ts";
-    const absGood = adapterModulePath(goodName);
-    mock.module(absGood, () => ({
-      default: { name: "good-adapter-ngb-60", fetch: emptyFetch },
-    }));
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => [
-        "rss.ts",
-        badFetchName,
-        goodName,
-        "foo.test.ts",
-        "types.ts",
-        "index.ts",
-        "bar.js",
-      ],
-    }));
+    mockAdapterDefault(goodName, { name: "good-adapter-ngb-60", fetch: emptyFetch });
+    mockReaddir(readdirWithRss(badFetchName, goodName));
     const adapters = await discoverAdapters();
     expect(adapters.has("rss")).toBe(true);
     expect(adapters.has("good-adapter-ngb-60")).toBe(true);
@@ -586,26 +405,10 @@ describe("discoverAdapters", () => {
 
   test("null default export emits bad mod warn", async () => {
     const nullDefName = "nulldefault-direct-61-edge.ts";
-    const absNull = adapterModulePath(nullDefName);
-    mock.module(absNull, () => ({
-      default: null,
-    }));
+    mockAdapterModule(nullDefName, { default: null });
     const goodName = "good-adapter-edge-61.ts";
-    const absGood = adapterModulePath(goodName);
-    mock.module(absGood, () => ({
-      default: { name: "good-adapter-ngb-61", fetch: emptyFetch },
-    }));
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => [
-        "rss.ts",
-        nullDefName,
-        goodName,
-        "foo.test.ts",
-        "types.ts",
-        "index.ts",
-        "bar.js",
-      ],
-    }));
+    mockAdapterDefault(goodName, { name: "good-adapter-ngb-61", fetch: emptyFetch });
+    mockReaddir(readdirWithRss(nullDefName, goodName));
     const adapters = await discoverAdapters();
     expect(adapters.has("rss")).toBe(true);
     expect(adapters.has("good-adapter-ngb-61")).toBe(true);
@@ -619,26 +422,10 @@ describe("discoverAdapters", () => {
 
   test("string-only readdir compat branch", async () => {
     const stringGoodName = "stringonly-good-direct-62-edge.ts";
-    const absStringGood = adapterModulePath(stringGoodName);
     const stringBadName = "stringonly-badshape-direct-62-edge.ts";
-    const absStringBad = adapterModulePath(stringBadName);
-    mock.module(absStringBad, () => ({
-      default: { foo: "bad shape, no name/fetch fn" },
-    }));
-    mock.module(absStringGood, () => ({
-      default: { name: "good-adapter-ngb-string-62", fetch: emptyFetch },
-    }));
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => [
-        "rss.ts",
-        stringGoodName,
-        stringBadName,
-        "foo.test.ts",
-        "types.ts",
-        "index.ts",
-        "bar.js",
-      ],
-    }));
+    mockAdapterDefault(stringBadName, { foo: "bad shape, no name/fetch fn" });
+    mockAdapterDefault(stringGoodName, { name: "good-adapter-ngb-string-62", fetch: emptyFetch });
+    mockReaddir(readdirWithRss(stringGoodName, stringBadName));
     const adapters = await discoverAdapters();
     expect(adapters.has("rss")).toBe(true);
     expect(adapters.has("good-adapter-ngb-string-62")).toBe(true);
@@ -652,26 +439,10 @@ describe("discoverAdapters", () => {
 
   test("internal whitespace in name is accepted", async () => {
     const internalWsGoodName = "internalws-good-direct-63-edge.ts";
-    const absInternalWsGood = adapterModulePath(internalWsGoodName);
     const internalWsBadName = "internalws-badshape-direct-63-edge.ts";
-    const absInternalWsBad = adapterModulePath(internalWsBadName);
-    mock.module(absInternalWsBad, () => ({
-      default: { foo: "bad shape, no name/fetch fn" },
-    }));
-    mock.module(absInternalWsGood, () => ({
-      default: { name: "internal-ws-adapter-ngb-63", fetch: emptyFetch },
-    }));
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => [
-        "rss.ts",
-        internalWsGoodName,
-        internalWsBadName,
-        "foo.test.ts",
-        "types.ts",
-        "index.ts",
-        "bar.js",
-      ],
-    }));
+    mockAdapterDefault(internalWsBadName, { foo: "bad shape, no name/fetch fn" });
+    mockAdapterDefault(internalWsGoodName, { name: "internal-ws-adapter-ngb-63", fetch: emptyFetch });
+    mockReaddir(readdirWithRss(internalWsGoodName, internalWsBadName));
     const adapters = await discoverAdapters();
     expect(adapters.has("rss")).toBe(true);
     expect(adapters.has("internal-ws-adapter-ngb-63")).toBe(true);
@@ -685,26 +456,10 @@ describe("discoverAdapters", () => {
 
   test("embedded space in name is accepted", async () => {
     const spaceGoodName = "space-good-direct-64-edge.ts";
-    const absSpaceGood = adapterModulePath(spaceGoodName);
     const spaceBadName = "space-badshape-direct-64-edge.ts";
-    const absSpaceBad = adapterModulePath(spaceBadName);
-    mock.module(absSpaceBad, () => ({
-      default: { foo: "bad shape, no name/fetch fn" },
-    }));
-    mock.module(absSpaceGood, () => ({
-      default: { name: "good adapter with space 64", fetch: emptyFetch },
-    }));
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => [
-        "rss.ts",
-        spaceGoodName,
-        spaceBadName,
-        "foo.test.ts",
-        "types.ts",
-        "index.ts",
-        "bar.js",
-      ],
-    }));
+    mockAdapterDefault(spaceBadName, { foo: "bad shape, no name/fetch fn" });
+    mockAdapterDefault(spaceGoodName, { name: "good adapter with space 64", fetch: emptyFetch });
+    mockReaddir(readdirWithRss(spaceGoodName, spaceBadName));
     const adapters = await discoverAdapters();
     expect(adapters.has("rss")).toBe(true);
     expect(adapters.has("good adapter with space 64")).toBe(true);
@@ -718,32 +473,16 @@ describe("discoverAdapters", () => {
 
   test("null-proto object emits bad mod warn", async () => {
     const nullProtoName = "nullproto-direct-65-edge.ts";
-    const absNullProto = adapterModulePath(nullProtoName);
     const badNullProto = Object.create(null) as {
       name: string;
       fetch: (_config: AdapterConfig) => Promise<ContentItem[]>;
     };
     badNullProto.name = "nullproto-should-not-appear";
     badNullProto.fetch = emptyFetch;
-    mock.module(absNullProto, () => ({
-      default: badNullProto,
-    }));
+    mockAdapterModule(nullProtoName, { default: badNullProto });
     const goodName = "good-adapter-ngb-65.ts";
-    const absGood = adapterModulePath(goodName);
-    mock.module(absGood, () => ({
-      default: { name: "good-adapter-ngb-65", fetch: emptyFetch },
-    }));
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => [
-        "rss.ts",
-        nullProtoName,
-        goodName,
-        "foo.test.ts",
-        "types.ts",
-        "index.ts",
-        "bar.js",
-      ],
-    }));
+    mockAdapterDefault(goodName, { name: "good-adapter-ngb-65", fetch: emptyFetch });
+    mockReaddir(readdirWithRss(nullProtoName, goodName));
     const adapters = await discoverAdapters();
     expect(adapters.has("rss")).toBe(true);
     expect(adapters.has("good-adapter-ngb-65")).toBe(true);
@@ -758,23 +497,10 @@ describe("discoverAdapters", () => {
   test("dotfile Dirent entries are skipped", async () => {
     const dotName = ".dotdirent-direct-66-edge.ts";
     const goodName = "good-adapter-edge-66.ts";
-    const absGood = adapterModulePath(goodName);
-    mock.module(absGood, () => ({
-      default: { name: "good-adapter-ngb-66", fetch: emptyFetch },
-    }));
+    mockAdapterDefault(goodName, { name: "good-adapter-ngb-66", fetch: emptyFetch });
     const direntDot = { name: dotName, isFile: () => true, isDirectory: () => false, isSymbolicLink: () => false };
     const direntGood = { name: goodName, isFile: () => true, isDirectory: () => false, isSymbolicLink: () => false };
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => [
-        direntDot,
-        "rss.ts",
-        direntGood,
-        "foo.test.ts",
-        "types.ts",
-        "index.ts",
-        "bar.js",
-      ],
-    }));
+    mockReaddir([direntDot, "rss.ts", direntGood, ...FILTER_NOISE]);
     const adapters = await discoverAdapters();
     expect(adapters.has("rss")).toBe(true);
     expect(adapters.has("good-adapter-ngb-66")).toBe(true);
@@ -790,32 +516,18 @@ describe("discoverAdapters", () => {
     const mixedDirentGoodName = "good-mixed-d67-edge.ts";
     const mixedStringGoodName = "good-mixed-s67-edge.ts";
     const badMixedName = "bad-mixed-shape-67-edge.ts";
-    const absBadMixed = adapterModulePath(badMixedName);
-    mock.module(absBadMixed, () => ({
-      default: { name: "bad-mixed-67", fetch: "not-a-fn" },
-    }));
-    const absMixedDirentGood = adapterModulePath(mixedDirentGoodName);
-    mock.module(absMixedDirentGood, () => ({
-      default: { name: "good-mixed-d67", fetch: emptyFetch },
-    }));
-    const absMixedStringGood = adapterModulePath(mixedStringGoodName);
-    mock.module(absMixedStringGood, () => ({
-      default: { name: "good-mixed-s67", fetch: emptyFetch },
-    }));
+    mockAdapterDefault(badMixedName, { name: "bad-mixed-67", fetch: "not-a-fn" });
+    mockAdapterDefault(mixedDirentGoodName, { name: "good-mixed-d67", fetch: emptyFetch });
+    mockAdapterDefault(mixedStringGoodName, { name: "good-mixed-s67", fetch: emptyFetch });
     const direntMixedGood = { name: mixedDirentGoodName, isFile: () => true, isDirectory: () => false, isSymbolicLink: () => false };
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => [
-        direntMixedGood,
-        mixedStringGoodName,
-        badMixedName,
-        "rss.ts",
-        ".dot-hidden-67.ts",
-        "foo.test.ts",
-        "types.ts",
-        "index.ts",
-        "bar.js",
-      ],
-    }));
+    mockReaddir([
+      direntMixedGood,
+      mixedStringGoodName,
+      badMixedName,
+      "rss.ts",
+      ".dot-hidden-67.ts",
+      ...FILTER_NOISE,
+    ]);
     const adapters = await discoverAdapters();
     expect(adapters.has("rss")).toBe(true);
     expect(adapters.has("good-mixed-d67")).toBe(true);
@@ -829,9 +541,7 @@ describe("discoverAdapters", () => {
   });
 
   test("non-iterable readdir returns empty Map and warns", async () => {
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => null,
-    }));
+    mockReaddir(null);
     const adapters = await discoverAdapters();
     expect(adapters).toBeInstanceOf(Map);
     expect(adapters.size).toBe(0);
@@ -842,20 +552,8 @@ describe("discoverAdapters", () => {
 
   test("accepts mixed-case TS extension", async () => {
     const goodTsName = "good-mixedcase-ts-69.TS";
-    const absGoodTs = adapterModulePath(goodTsName);
-    mock.module(absGoodTs, () => ({
-      default: { name: "good-mixedcase-ts-69", fetch: emptyFetch },
-    }));
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => [
-        "rss.ts",
-        goodTsName,
-        "foo.test.ts",
-        "types.ts",
-        "index.ts",
-        "bar.js",
-      ],
-    }));
+    mockAdapterDefault(goodTsName, { name: "good-mixedcase-ts-69", fetch: emptyFetch });
+    mockReaddir(readdirWithRss(goodTsName));
     const adapters = await discoverAdapters();
     expect(adapters.has("rss")).toBe(true);
     expect(adapters.has("good-mixedcase-ts-69")).toBe(true);
@@ -868,21 +566,8 @@ describe("discoverAdapters", () => {
   test("excludes mixed-case DTS declarations", async () => {
     const dtsName = "leaky-mixed-dts-70-edge.D.TS";
     const goodName = "good-adapter-edge-70.ts";
-    const absGood = adapterModulePath(goodName);
-    mock.module(absGood, () => ({
-      default: { name: "good-adapter-ngb-70", fetch: emptyFetch },
-    }));
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => [
-        "rss.ts",
-        goodName,
-        dtsName,
-        "foo.test.ts",
-        "types.ts",
-        "index.ts",
-        "bar.js",
-      ],
-    }));
+    mockAdapterDefault(goodName, { name: "good-adapter-ngb-70", fetch: emptyFetch });
+    mockReaddir(readdirWithRss(goodName, dtsName));
     const adapters = await discoverAdapters();
     expect(adapters.has("rss")).toBe(true);
     expect(adapters.has("good-adapter-ngb-70")).toBe(true);
@@ -895,20 +580,12 @@ describe("discoverAdapters", () => {
 
   test("accepts mixed-case TS via Dirent", async () => {
     const goodTsName = "good-mixedcase-ts-dirent-71.TS";
-    const absGoodTs = adapterModulePath(goodTsName);
-    mock.module(absGoodTs, () => ({
-      default: { name: "good-mixedcase-ts-dirent-71", fetch: emptyFetch },
-    }));
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => [
-        { name: "rss.ts", isFile: () => true },
-        { name: goodTsName, isFile: () => true },
-        { name: "foo.test.ts", isFile: () => true },
-        { name: "types.ts", isFile: () => true },
-        { name: "index.ts", isFile: () => true },
-        { name: "bar.js", isFile: () => true },
-      ],
-    }));
+    mockAdapterDefault(goodTsName, { name: "good-mixedcase-ts-dirent-71", fetch: emptyFetch });
+    mockReaddir([
+      { name: "rss.ts", isFile: () => true },
+      { name: goodTsName, isFile: () => true },
+      ...FILTER_NOISE.map((f) => ({ name: f, isFile: () => true })),
+    ]);
     const adapters = await discoverAdapters();
     expect(adapters.has("rss")).toBe(true);
     expect(adapters.has("good-mixedcase-ts-dirent-71")).toBe(true);
@@ -921,21 +598,8 @@ describe("discoverAdapters", () => {
   test("excludes mixed-case TEST.ts files", async () => {
     const testTsName = "leaky-mixed-test-ts-72-edge.TEST.TS";
     const goodName = "good-adapter-edge-72.ts";
-    const absGood = adapterModulePath(goodName);
-    mock.module(absGood, () => ({
-      default: { name: "good-adapter-ngb-72", fetch: emptyFetch },
-    }));
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => [
-        "rss.ts",
-        goodName,
-        testTsName,
-        "foo.test.ts",
-        "types.ts",
-        "index.ts",
-        "bar.js",
-      ],
-    }));
+    mockAdapterDefault(goodName, { name: "good-adapter-ngb-72", fetch: emptyFetch });
+    mockReaddir(readdirWithRss(goodName, testTsName));
     const adapters = await discoverAdapters();
     expect(adapters.has("rss")).toBe(true);
     expect(adapters.has("good-adapter-ngb-72")).toBe(true);
@@ -949,21 +613,13 @@ describe("discoverAdapters", () => {
   test("excludes mixed-case DTS via Dirent", async () => {
     const dtsName = "leaky-mixed-dts-73-edge.D.TS";
     const goodName = "good-adapter-edge-73.ts";
-    const absGood = adapterModulePath(goodName);
-    mock.module(absGood, () => ({
-      default: { name: "good-adapter-ngb-73", fetch: emptyFetch },
-    }));
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => [
-        { name: "rss.ts", isFile: () => true },
-        { name: goodName, isFile: () => true },
-        { name: dtsName, isFile: () => true },
-        { name: "foo.test.ts", isFile: () => true },
-        { name: "types.ts", isFile: () => true },
-        { name: "index.ts", isFile: () => true },
-        { name: "bar.js", isFile: () => true },
-      ],
-    }));
+    mockAdapterDefault(goodName, { name: "good-adapter-ngb-73", fetch: emptyFetch });
+    mockReaddir([
+      { name: "rss.ts", isFile: () => true },
+      { name: goodName, isFile: () => true },
+      { name: dtsName, isFile: () => true },
+      ...FILTER_NOISE.map((f) => ({ name: f, isFile: () => true })),
+    ]);
     const adapters = await discoverAdapters();
     expect(adapters.has("rss")).toBe(true);
     expect(adapters.has("good-adapter-ngb-73")).toBe(true);
@@ -976,24 +632,14 @@ describe("discoverAdapters", () => {
 
   test("corrupt readdir entries skipped with warn", async () => {
     const goodName = "good-adapter-edge-74.ts";
-    const absGood = adapterModulePath(goodName);
-    mock.module(absGood, () => ({
-      default: { name: "good-adapter-ngb-74", fetch: emptyFetch },
-    }));
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => [
-        "rss.ts",
-        goodName,
-        42,
-        null,
-        { foo: "no-name-or-isfile" },
-        { name: "bad-dirent-missing-isfile" },
-        "foo.test.ts",
-        "types.ts",
-        "index.ts",
-        "bar.js",
-      ],
-    }));
+    mockAdapterDefault(goodName, { name: "good-adapter-ngb-74", fetch: emptyFetch });
+    mockReaddir(readdirWithRss(
+      goodName,
+      42,
+      null,
+      { foo: "no-name-or-isfile" },
+      { name: "bad-dirent-missing-isfile" },
+    ));
     const adapters = await discoverAdapters();
     expect(adapters.has("rss")).toBe(true);
     expect(adapters.has("good-adapter-ngb-74")).toBe(true);
@@ -1008,22 +654,17 @@ describe("discoverAdapters", () => {
 
   test("non-ts filenames filtered without extra warns", async () => {
     const goodName = "good-adapter-edge-75.ts";
-    const absGood = adapterModulePath(goodName);
-    mock.module(absGood, () => ({
-      default: { name: "good-adapter-ngb-75", fetch: emptyFetch },
-    }));
-    mock.module("node:fs/promises", () => ({
-      readdir: async () => [
-        "rss.ts",
-        goodName,
-        "bar.js",
-        "subdir-noext",
-        ".dot.ts",
-        "foo.test.ts",
-        "TYPES.TS",
-        "index.ts",
-      ],
-    }));
+    mockAdapterDefault(goodName, { name: "good-adapter-ngb-75", fetch: emptyFetch });
+    mockReaddir([
+      "rss.ts",
+      goodName,
+      "bar.js",
+      "subdir-noext",
+      ".dot.ts",
+      "foo.test.ts",
+      "TYPES.TS",
+      "index.ts",
+    ]);
     const adapters = await discoverAdapters();
     expect(adapters.has("rss")).toBe(true);
     expect(adapters.has("good-adapter-ngb-75")).toBe(true);
