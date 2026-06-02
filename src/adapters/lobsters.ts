@@ -34,7 +34,6 @@ function buildBody(item: LobstersItem): string {
     parts.push(`tags: ${item.tags.join(", ")}`);
   }
 
-  // Include discussion link for external URLs
   if (item.url && !item.url.includes("lobste.rs")) {
     parts.push(`discuss: ${item.comments_url}`);
   }
@@ -61,7 +60,6 @@ const adapter: Adapter = {
     const minScore = (config.params?.min_score as number) ?? 0;
     const tags = (config.params?.tags as string[]) ?? [];
 
-    // Resolve feed type
     let feedType: FeedType;
     const feedLower = feed.toLowerCase();
     if (VALID_FEEDS.has(feedLower as FeedType)) {
@@ -85,27 +83,22 @@ const adapter: Adapter = {
 
         items = dedupeByKey(items, (item) => item.short_id);
 
-        // Sort merged tag results based on feed type preference
         if (feedType === "hottest") {
           items.sort((a, b) => b.score - a.score);
         } else if (feedType === "newest") {
           sortByCreatedAtDesc(items);
         } else {
-          // active: sort by comment count as proxy
           items.sort((a, b) => b.comment_count - a.comment_count);
         }
       } else {
-        // Fetch the standard feed
         const feedUrl = `${LOBSTERS_BASE}/${feedType}.json`;
         items = await fetchLobstersJson(feedUrl, feedType);
       }
 
-      // Apply score filter
       if (minScore > 0) {
         items = items.filter((item) => item.score >= minScore);
       }
 
-      // Apply limit
       const limited = sliceToLimit(items, limit);
 
       return limited.map((item) => ({
