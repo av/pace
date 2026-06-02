@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "bun run src/cli.ts serve",
-    "start": "bun run src/cli.ts serve"
+    "start": "bun run dev"
   },
   "dependencies": {
     "@mariozechner/pi-ai": "^0.73.0",
