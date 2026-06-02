@@ -355,7 +355,7 @@ describe("transforms - cluster", () => {
       const steps = transformPipeline({ type: "cluster", min_cluster_size: 2, max_clusters: 5, annotate: true });
       const result = await runPipeline(items, steps, ctx);
       expect(result.length).toBe(2);
-      // clustered githubs , annotated with GitHub from domain majority (exercises topDomain + 0.6 threshold + domainLabels)
+      // clustered GitHub items, annotated with GitHub from domain majority (exercises topDomain + 0.6 threshold + domainLabels)
       expect(result[0].body).toMatch(/^\[GitHub\] /);
       expect(result[1].body).toMatch(/^\[GitHub\] /);
       expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('transforms: cluster strategy=auto, 1 cluster(s): "GitHub" (2 items), 0 unclustered'));
