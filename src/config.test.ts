@@ -13,8 +13,9 @@ import {
   type LayoutNodeConfig,
 } from "./config";
 
-describe("config pure helpers", () => {
-  test("isPanel detects PanelConfig and rejects containers", () => {
+describe("config", () => {
+  describe("helpers", () => {
+  test("isPanel", () => {
     const panel: PanelConfig = { panel: "p1", source: "all" };
     const container: LayoutNodeConfig = { direction: "row", children: [] };
     expect(isPanel(panel)).toBe(true);
@@ -23,7 +24,7 @@ describe("config pure helpers", () => {
     expect(isPanel(null)).toBe(false);
   });
 
-  test("isContainer detects FlexContainerConfig and rejects panels", () => {
+  test("isContainer", () => {
     const container = { direction: "column" as const, children: [] };
     const panel = { panel: "p", source: "all" };
     expect(isContainer(container)).toBe(true);
@@ -31,7 +32,7 @@ describe("config pure helpers", () => {
     expect(isContainer({ direction: "row" })).toBe(false);
   });
 
-  test("normalizeSource handles string, string[], object, and mixed array", () => {
+  test("normalizeSource", () => {
     expect(normalizeSource("rss")).toEqual([{ adapter: "rss" }]);
     expect(normalizeSource(["a", "b"])).toEqual([{ adapter: "a" }, { adapter: "b" }]);
     const obj = { adapter: "hn", params: { foo: 1 } };
@@ -40,7 +41,7 @@ describe("config pure helpers", () => {
     expect(normalizeSource(arr)).toEqual([{ adapter: "s1" }, { adapter: "s2" }, { adapter: "s3" }]);
   });
 
-  test("collectPanels flattens nested layout tree to list of panels only", () => {
+  test("collectPanels", () => {
     const leaf: PanelConfig = { panel: "leaf", source: "all", limit: 10 };
     const single = leaf;
     expect(collectPanels(single)).toEqual([leaf]);
@@ -63,7 +64,7 @@ describe("config pure helpers", () => {
     expect(panels[1].id).toBe("id2");
   });
 
-  test("resolvePanelId returns explicit id when present, else stable 8-char hex hash", () => {
+  test("resolvePanelId", () => {
     const withId = { panel: "x", source: "all", id: "myid123" };
     expect(resolvePanelId(withId)).toBe("myid123");
 
@@ -75,9 +76,9 @@ describe("config pure helpers", () => {
     expect(resolvePanelId(p2)).toBe(id1);
     expect(resolvePanelId(p3)).not.toBe(id1);
   });
-});
+  });
 
-describe("config validation via loadConfig (hermetic temp files)", () => {
+  describe("loadConfig", () => {
   let tmpDir: string;
   let cfgPath: string;
   let origEnv: string | undefined;
@@ -101,7 +102,7 @@ describe("config validation via loadConfig (hermetic temp files)", () => {
     process.env.PACE_CONFIG = cfgPath;
   }
 
-  test("loadConfig succeeds for minimal valid config using 'all' source", () => {
+  test("minimal valid config with all source", () => {
     const yaml = `
 layout:
   direction: row
@@ -122,7 +123,7 @@ layout:
     }
   });
 
-  test("rejects panel with empty panel name (validateLayoutNode)", () => {
+  test("rejects empty panel name", () => {
     const yaml = `
 layout:
   direction: row
@@ -134,7 +135,7 @@ layout:
     expect(() => loadConfig()).toThrow(/config: layout.children\[0\].panel must be a non-empty string/);
   });
 
-  test("rejects source object with empty adapter (validateSource)", () => {
+  test("rejects empty source adapter", () => {
     const yaml = `
 layout:
   direction: row
@@ -147,7 +148,7 @@ layout:
     expect(() => loadConfig()).toThrow(/config: layout.children\[0\].source.adapter must be a non-empty string/);
   });
 
-  test("rejects adapter entry with empty type (validateAdapterConfig)", () => {
+  test("rejects empty adapter type", () => {
     const yaml = `
 adapters:
   - type: ""
@@ -161,7 +162,7 @@ layout:
     expect(() => loadConfig()).toThrow(/config: adapters\[0\].type must be a non-empty string/);
   });
 
-  test("rejects adapter with empty name when provided (optional non-empty)", () => {
+  test("rejects empty adapter name", () => {
     const yaml = `
 adapters:
   - type: rss
@@ -176,7 +177,7 @@ layout:
     expect(() => loadConfig()).toThrow(/config: adapters\[0\].name must be a non-empty string/);
   });
 
-  test("rejects pipeline with empty name (validatePipelineConfig)", () => {
+  test("rejects empty pipeline name", () => {
     const yaml = `
 pipelines:
   - name: ""
@@ -191,7 +192,7 @@ layout:
     expect(() => loadConfig()).toThrow(/config: pipelines\[0\].name must be a non-empty string/);
   });
 
-  test("rejects source string in pipeline with empty (inline in validatePipelineConfig)", () => {
+  test("rejects empty pipeline source string", () => {
     const yaml = `
 pipelines:
   - name: pl
@@ -206,7 +207,7 @@ layout:
     expect(() => loadConfig()).toThrow(/config: pipelines\[0\].sources\[0\] must be a non-empty string/);
   });
 
-  test("rejects transform with empty type (validateTransforms)", () => {
+  test("rejects empty transform type", () => {
     const yaml = `
 adapters:
   - type: rss
@@ -222,7 +223,7 @@ layout:
     expect(() => loadConfig()).toThrow(/config: adapters\[0\].transforms\[0\].type must be a non-empty string/);
   });
 
-  test("rejects keyword-score with empty term (validateKeywordScoreEntries)", () => {
+  test("rejects keyword-score empty term", () => {
     const yaml = `
 adapters:
   - type: rss
@@ -241,7 +242,7 @@ layout:
     expect(() => loadConfig()).toThrow(/config: adapters\[0\].transforms\[0\].keywords\[0\].term must be a non-empty string/);
   });
 
-  test("rejects filter keywords list containing empty string (validateStringList)", () => {
+  test("rejects filter keyword empty string", () => {
     const yaml = `
 adapters:
   - type: rss
@@ -258,7 +259,7 @@ layout:
     expect(() => loadConfig()).toThrow(/config: adapters\[0\].transforms\[0\].keywords\[1\] must be a non-empty string/);
   });
 
-  test("rejects latest with non-positive count (validatePositiveInteger)", () => {
+  test("rejects latest non-positive count", () => {
     const yaml = `
 adapters:
   - type: rss
@@ -275,7 +276,7 @@ layout:
     expect(() => loadConfig()).toThrow(/config: adapters\[0\].transforms\[0\].count must be a positive integer/);
   });
 
-  test("rejects unknown top-level key (validateTopLevelKeys)", () => {
+  test("rejects unknown top-level key", () => {
     const yaml = `
 foo: bar
 layout:
@@ -288,7 +289,7 @@ layout:
     expect(() => loadConfig()).toThrow(/config: unknown top-level key "foo"/);
   });
 
-  test("rejects layout panel and pipeline references to unknown adapter source", () => {
+  test("rejects unknown adapter source references", () => {
     const layoutYaml = `
 adapters:
   - type: rss
@@ -335,7 +336,7 @@ layout:
     );
   });
 
-  test("rejects filter with empty keywords list (validateStringList)", () => {
+  test("rejects filter empty keywords list", () => {
     const yaml = `
 adapters:
   - type: rss
@@ -352,7 +353,7 @@ layout:
     expect(() => loadConfig()).toThrow(/config: adapters\[0\].transforms\[0\].keywords must not be empty/);
   });
 
-  test("rejects keyword-score with empty keywords list (validateKeywordScoreEntries)", () => {
+  test("rejects keyword-score empty keywords list", () => {
     const yaml = `
 adapters:
   - type: rss
@@ -369,7 +370,7 @@ layout:
     expect(() => loadConfig()).toThrow(/config: adapters\[0\].transforms\[0\].keywords must not be empty/);
   });
 
-  test("rejects filter with empty fields list (validateNonEmptyArray via fields)", () => {
+  test("rejects filter empty fields list", () => {
     const yaml = `
 adapters:
   - type: rss
@@ -387,7 +388,7 @@ layout:
     expect(() => loadConfig()).toThrow(/config: adapters\[0\].transforms\[0\].fields must not be empty/);
   });
 
-  test("rejects cluster with non-positive min_cluster_size (validateOptionalPositiveInteger)", () => {
+  test("rejects cluster non-positive min_cluster_size", () => {
     const yaml = `
 adapters:
   - type: rss
@@ -404,7 +405,7 @@ layout:
     expect(() => loadConfig()).toThrow(/config: adapters\[0\].transforms\[0\].min_cluster_size must be a positive integer/);
   });
 
-  test("rejects cluster with non-positive max_clusters and non-integer (validateOptionalPositiveInteger)", () => {
+  test("rejects cluster non-positive max_clusters", () => {
     const yaml = `
 adapters:
   - type: rss
@@ -421,7 +422,7 @@ layout:
     expect(() => loadConfig()).toThrow(/config: adapters\[0\].transforms\[0\].max_clusters must be a positive integer/);
   });
 
-  test("rejects keyword-score with non-number min_score (validateOptionalFiniteNumber)", () => {
+  test("rejects keyword-score non-number min_score", () => {
     const yaml = `
 adapters:
   - type: rss
@@ -441,7 +442,7 @@ layout:
     expect(() => loadConfig()).toThrow(/config: adapters\[0\].transforms\[0\].min_score must be a number/);
   });
 
-  test("rejects time-decay with non-finite recency_weight (validateOptionalFiniteNumber)", () => {
+  test("rejects time-decay non-finite recency_weight", () => {
     const yaml = `
 adapters:
   - type: rss
@@ -458,7 +459,7 @@ layout:
     expect(() => loadConfig()).toThrow(/config: adapters\[0\].transforms\[0\].recency_weight must be a number/);
   });
 
-  test("rejects pipeline with non-list sources (uses validateNonEmptyArray)", () => {
+  test("rejects pipeline sources not a list", () => {
     const yaml = `
 pipelines:
   - name: pl
@@ -473,7 +474,7 @@ layout:
     expect(() => loadConfig()).toThrow(/config: pipelines\[0\].sources must be a list/);
   });
 
-  test("rejects pipeline with empty sources list (uses validateNonEmptyArray)", () => {
+  test("rejects pipeline empty sources list", () => {
     const yaml = `
 pipelines:
   - name: pl
@@ -488,7 +489,7 @@ layout:
     expect(() => loadConfig()).toThrow(/config: pipelines\[0\].sources must not be empty/);
   });
 
-  test("rejects top-level adapters that is not a list", () => {
+  test("rejects adapters not a list", () => {
     const yaml = `
 adapters: "not-a-list"
 layout:
@@ -501,7 +502,7 @@ layout:
     expect(() => loadConfig()).toThrow(/config: adapters must be a list/);
   });
 
-  test("rejects top-level pipelines that is not a list", () => {
+  test("rejects pipelines not a list", () => {
     const yaml = `
 pipelines: 123
 layout:
@@ -514,7 +515,7 @@ layout:
     expect(() => loadConfig()).toThrow(/config: pipelines must be a list/);
   });
 
-  test("loadConfig recursively expands ${VAR} when env value contains further ${REF} (supports chained substitution per wyp; exercises before validation e.g. in adapter params; depth guard for safety vs cycles)", () => {
+  test("expands chained ${VAR} in adapter params", () => {
     const outerKey = "TEST_REC_OUTER_" + Date.now().toString(36);
     const innerKey = "TEST_REC_INNER_" + Date.now().toString(36);
     const origOuter = process.env[outerKey];
@@ -541,4 +542,5 @@ layout:
       if (origInner === undefined) { delete process.env[innerKey]; } else { process.env[innerKey] = origInner; }
     }
   });
+});
 });
