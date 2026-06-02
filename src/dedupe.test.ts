@@ -1,4 +1,4 @@
-import { describe, test, expect } from "bun:test";
+import { describe, test, expect, spyOn } from "bun:test";
 import {
   normalizeUrl,
   levenshteinDistance,
@@ -29,6 +29,20 @@ describe("dedupe utils (DRY quality + test coverage)", () => {
     test("falls back to lowercased+trimmed original on parse failure (invalid URL)", () => {
       expect(normalizeUrl("not a valid url at all")).toBe("not a valid url at all");
       expect(normalizeUrl("HTTP://Bad Host With Spaces")).toBe("http://bad host with spaces");
+    });
+
+    test("warns with errorMessage on parse failure", () => {
+      const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+      try {
+        const bad = "not a valid url at all";
+        expect(normalizeUrl(bad)).toBe(bad);
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        expect(warnSpy).toHaveBeenCalledWith(
+          expect.stringMatching(/^dedupe: normalizeUrl failed for "not a valid url at all": /),
+        );
+      } finally {
+        warnSpy.mockRestore();
+      }
     });
   });
 
