@@ -55,7 +55,8 @@ function extractFeedTitle(parsed: any, url: string): string {
   }
   try {
     return new URL(url).hostname;
-  } catch {
+  } catch (err) {
+    console.warn(`rss: extractFeedTitle could not parse url "${url}": ${errorMessage(err)}`);
     return url;
   }
 }
