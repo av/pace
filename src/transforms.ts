@@ -3,13 +3,9 @@ import type { TransformConfig, LlmConfig, KeywordScoreEntry, KeywordField } from
 import type { ContentItemRow } from "./db";
 import type { ContentItem } from "./adapters/types";
 import { summarizeItem, lensItems, mergeItems, filterItemsByLlm } from "./llm";
-import { extractEngagementScore } from "./adapters/engagement";
-import {
-  normalizeUrl,
-  levenshteinSimilarity,
-  extractScore,
-  type DedupeStrategy,
-} from "./dedupe";
+import { extractEngagementScore, extractScore } from "./adapters/engagement";
+import { normalizeUrl, levenshteinSimilarity } from "./dedupe";
+import type { DedupeStrategy, DedupeKeep } from "./config";
 
 export { extractEngagementScore };
 import { compareIsoTimestamp, errorMessage } from "./utils";
@@ -53,8 +49,6 @@ function pickByTimestamp(group: ContentItemRow[], direction: "asc" | "desc"): Co
     compareIsoTimestamp(a.timestamp, b.timestamp, direction) <= 0 ? a : b
   );
 }
-
-type DedupeKeep = "highest-score" | "earliest" | "latest";
 
 function pickWinner(group: ContentItemRow[], keep: DedupeKeep): ContentItemRow {
   if (group.length === 1) return group[0];
@@ -300,6 +294,26 @@ function generateClusterLabel(
   return `Cluster ${clusterCount + 1}`;
 }
 
+function dedupeGroupedByKey(
+  items: ContentItemRow[],
+  keyOf: (item: ContentItemRow) => string,
+  keep: DedupeKeep,
+  formatRemoved: (loser: ContentItemRow, winner: ContentItemRow) => string,
+): { result: ContentItemRow[]; removed: string[] } {
+  const groups = new Map<string, ContentItemRow[]>();
+  for (const item of items) {
+    pushToGroup(groups, keyOf(item), item);
+  }
+  const result: ContentItemRow[] = [];
+  const removed: string[] = [];
+  for (const [, group] of groups) {
+    const winner = pickWinner(group, keep);
+    result.push(winner);
+    removed.push(...collectLosers(group, winner, formatRemoved));
+  }
+  return { result: sortRowsByInputOrder(result, items), removed };
+}
+
 function sortRowsByInputOrder(rows: ContentItemRow[], order: ContentItemRow[]): ContentItemRow[] {
   const orderMap = new Map<string, number>();
   order.forEach((item, i) => {
@@ -415,23 +429,14 @@ const transforms: Record<string, TransformFn> = {
     }
 
     if (strategy === "domain-normalized") {
-      const groups = new Map<string, ContentItemRow[]>();
-      for (const item of items) {
-        pushToGroup(groups, normalizeUrl(item.url), item);
-      }
-      const result: ContentItemRow[] = [];
-      const removed: string[] = [];
-      for (const [, group] of groups) {
-        const winner = pickWinner(group, keep);
-        result.push(winner);
-        removed.push(
-          ...collectLosers(group, winner, (item, w) =>
-            `"${item.title}" (${item.url}) -> kept "${w.title}"`
-          )
-        );
-      }
+      const { result, removed } = dedupeGroupedByKey(
+        items,
+        (item) => normalizeUrl(item.url),
+        keep,
+        (item, w) => `"${item.title}" (${item.url}) -> kept "${w.title}"`,
+      );
       maybeLogRemoved("domain-normalized", removed);
-      return sortRowsByInputOrder(result, items);
+      return result;
     }
 
     if (strategy === "title-similarity") {

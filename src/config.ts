@@ -39,12 +39,18 @@ export type KeywordField = "title" | "body" | "source";
 
 export const KEYWORD_FIELDS: readonly KeywordField[] = ["title", "body", "source"];
 
+export const DEDUPE_STRATEGIES = ["url", "domain-normalized", "title-similarity"] as const;
+export type DedupeStrategy = (typeof DEDUPE_STRATEGIES)[number];
+
+export const DEDUPE_KEEP_OPTIONS = ["highest-score", "earliest", "latest"] as const;
+export type DedupeKeep = (typeof DEDUPE_KEEP_OPTIONS)[number];
+
 export type TransformConfig =
   | { type: "latest"; count: number }
   | { type: "filter"; keywords: string[]; fields?: KeywordField[] }
   | { type: "exclude"; keywords: string[]; fields?: KeywordField[] }
   | { type: "sort"; field: "timestamp" | "title" | "source"; direction?: "asc" | "desc" }
-  | { type: "dedupe"; strategy?: "url" | "domain-normalized" | "title-similarity"; threshold?: number; keep?: "highest-score" | "earliest" | "latest"; log?: boolean }
+  | { type: "dedupe"; strategy?: DedupeStrategy; threshold?: number; keep?: DedupeKeep; log?: boolean }
   | { type: "keyword-score"; keywords: KeywordScoreEntry[]; min_score?: number; annotate?: boolean }
   | { type: "time-decay"; half_life?: string; engagement_weight?: number; recency_weight?: number; decay?: "exponential" | "linear"; annotate?: boolean; min_score?: number }
   | { type: "cluster"; strategy?: "domain" | "keywords" | "source" | "auto"; min_cluster_size?: number; max_clusters?: number; similarity_threshold?: number; annotate?: boolean }
@@ -435,13 +441,9 @@ function validateTransform(transform: Record<string, unknown>, path: string): vo
       break;
     case "dedupe":
       validateAllowedKeys(transform, ["type", "strategy", "threshold", "keep", "log"], unknownField);
-      validateOptionalEnum(
-        transform.strategy,
-        ["url", "domain-normalized", "title-similarity"],
-        `${path}.strategy`,
-      );
+      validateOptionalEnum(transform.strategy, DEDUPE_STRATEGIES, `${path}.strategy`);
       validateOptionalUnitNumber(transform.threshold, `${path}.threshold`);
-      validateOptionalEnum(transform.keep, ["highest-score", "earliest", "latest"], `${path}.keep`);
+      validateOptionalEnum(transform.keep, DEDUPE_KEEP_OPTIONS, `${path}.keep`);
       validateOptionalBoolean(transform.log, `${path}.log`);
       break;
     case "keyword-score":

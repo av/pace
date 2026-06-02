@@ -1,7 +1,5 @@
 import { errorMessage } from "./utils";
 
-export type DedupeStrategy = "url" | "domain-normalized" | "title-similarity";
-
 const TRACKING_PARAMS = new Set([
   "utm_source",
   "utm_medium",
@@ -93,5 +91,3 @@ export function levenshteinSimilarity(a: string, b: string): number {
   const distance = levenshteinDistance(a, b);
   return 1 - distance / maxLen;
 }
-
-export { extractScore } from "./adapters/engagement";
