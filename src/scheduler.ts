@@ -6,26 +6,28 @@ import type { AppConfig, IngestAdapterConfig, PipelineConfig, TransformConfig } 
 import { runPipeline, type TransformContext } from "./transforms";
 import type { ContentItemRow } from "./db";
 
-interface AdapterEntry {
-  name: string;
-  panelIds: string[];
-  adapterConfig: IngestAdapterConfig;
-  adapter: Adapter;
-  intervalMs: number;
-  timer: ReturnType<typeof setInterval> | null;
+interface RunningGuarded {
   running: boolean;
   lastError?: string;
 }
 
-interface PipelineEntry {
-  config: PipelineConfig;
+interface TimedEntryBase extends RunningGuarded {
   panelIds: string[];
-  readKeys: Map<string, string>;
   intervalMs: number;
   timer: ReturnType<typeof setInterval> | null;
+  initialTimer?: ReturnType<typeof setTimeout> | null;
+}
+
+interface AdapterEntry extends TimedEntryBase {
+  name: string;
+  adapterConfig: IngestAdapterConfig;
+  adapter: Adapter;
+}
+
+interface PipelineEntry extends TimedEntryBase {
+  config: PipelineConfig;
+  readKeys: Map<string, string>;
   initialTimer: ReturnType<typeof setTimeout> | null;
-  running: boolean;
-  lastError?: string;
 }
 
 const adapterEntries: AdapterEntry[] = [];
@@ -55,9 +57,9 @@ export interface SourcePanelMap {
 }
 
 async function executeWithRunningGuard(
-  entry: { running: boolean; lastError?: string },
+  entry: RunningGuarded,
   name: string,
-  kind: "adapter" | "pipeline",
+  kind: RefreshResult["kind"],
   work: () => Promise<void>,
 ): Promise<RefreshResult> {
   if (entry.running) return { kind, name, status: "skipped" };
@@ -285,15 +287,15 @@ export async function refreshSources(sourceNames: string[]): Promise<RefreshResu
   return adapterResults.concat(pipelineResults);
 }
 
+function clearScheduledTimers(entry: TimedEntryBase): void {
+  if (entry.timer) clearInterval(entry.timer);
+  if (entry.initialTimer) clearTimeout(entry.initialTimer);
+}
+
 export function stopScheduler(): void {
-  for (const entry of adapterEntries) {
-    if (entry.timer) clearInterval(entry.timer);
-  }
+  for (const entry of adapterEntries) clearScheduledTimers(entry);
   adapterEntries.length = 0;
-  for (const entry of pipelineEntries) {
-    if (entry.timer) clearInterval(entry.timer);
-    if (entry.initialTimer) clearTimeout(entry.initialTimer);
-  }
+  for (const entry of pipelineEntries) clearScheduledTimers(entry);
   pipelineEntries.length = 0;
   if (pruneTimer) {
     clearInterval(pruneTimer);
