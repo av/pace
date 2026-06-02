@@ -148,6 +148,24 @@ layout:
     expect(() => loadConfig()).toThrow(/config: layout.children\[0\].source.adapter must be a non-empty string/);
   });
 
+  test("rejects refresh_interval on panel source object (belongs on adapters[])", () => {
+    const yaml = `
+adapters:
+  - type: rss
+layout:
+  direction: row
+  children:
+    - panel: p1
+      source:
+        adapter: rss
+        refresh_interval: 10
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: layout.children\[0\].source.refresh_interval is not a valid source field/,
+    );
+  });
+
   test("rejects empty adapter type", () => {
     const yaml = `
 adapters:

@@ -26,7 +26,6 @@ export type SourceValue = string | string[] | SourceConfig | SourceConfig[];
 export interface SourceConfig {
   adapter: string;
   params?: Record<string, unknown>;
-  refresh_interval?: number;
 }
 
 export interface KeywordScoreEntry {
@@ -167,6 +166,16 @@ function validateSource(source: unknown, path: string): void {
   }
 
   validateNonEmptyString(source.adapter, `${path}.adapter`);
+  if (source.params !== undefined && !isRecord(source.params)) {
+    throw new Error(`config: ${path}.params must be an object`);
+  }
+  for (const key of Object.keys(source)) {
+    if (key !== "adapter" && key !== "params") {
+      throw new Error(
+        `config: ${path}.${key} is not a valid source field (set refresh_interval on adapters[], not panel source)`,
+      );
+    }
+  }
 }
 
 function validateLayoutNode(node: unknown, path = "layout"): asserts node is LayoutNodeConfig {
@@ -217,7 +226,7 @@ function validatePanelIds(node: LayoutNodeConfig): void {
   const idToPanels = new Map<string, string[]>();
   for (const p of panels) {
     const id = resolvePanelId(p);
-    const list = idToPanels.get(id) || [];
+    const list = idToPanels.get(id) ?? [];
     list.push(p.panel);
     idToPanels.set(id, list);
     if (list.length > 1) {
