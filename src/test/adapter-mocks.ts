@@ -10,6 +10,7 @@ export type FetchMockSuite = {
 
 /** Install fetch + console.warn mocks for adapter tests. Call once per describe(). */
 export function useFetchMockSuite(options?: { restoreAllMocks?: boolean }): FetchMockSuite {
+  const restoreAllMocks = options?.restoreAllMocks ?? true;
   let fetchMock!: ReturnType<typeof mock>;
   let warnSpy!: ReturnType<typeof spyOn>;
 
@@ -22,7 +23,7 @@ export function useFetchMockSuite(options?: { restoreAllMocks?: boolean }): Fetc
   afterEach(() => {
     globalThis.fetch = originalFetch;
     warnSpy.mockRestore();
-    if (options?.restoreAllMocks) mock.restore();
+    if (restoreAllMocks) mock.restore();
   });
 
   return {
