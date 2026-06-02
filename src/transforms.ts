@@ -16,7 +16,7 @@ export interface TransformContext {
   llmConfig?: LlmConfig;
 }
 
-export function rowToContentItem(row: ContentItemRow): ContentItem {
+function rowToContentItem(row: ContentItemRow): ContentItem {
   return {
     id: row.id,
     title: row.title,
@@ -27,7 +27,7 @@ export function rowToContentItem(row: ContentItemRow): ContentItem {
   };
 }
 
-export function contentItemToRow(item: ContentItem, base?: ContentItemRow): ContentItemRow {
+function contentItemToRow(item: ContentItem, base?: ContentItemRow): ContentItemRow {
   return {
     id: item.id,
     panel_id: base?.panel_id ?? "merged",
@@ -60,7 +60,6 @@ function pickWinner(
   if (keep === "latest") {
     return group.reduce((a, b) => (a.timestamp >= b.timestamp ? a : b));
   }
-  // highest-score: extract score from body metadata, fall back to earliest
   let best = group[0];
   let bestScore = extractScore(best.body);
   for (let i = 1; i < group.length; i++) {
@@ -70,17 +69,12 @@ function pickWinner(
       bestScore = score;
     }
   }
-  // If all scores are 0 (no score info), fall back to earliest
   if (bestScore === 0) {
     return pickEarliest(group);
   }
   return best;
 }
 
-/**
- * Parse a human-readable duration string into milliseconds.
- * Supports: "30m", "6h", "12h", "1d", "3d", "1w", "2w" etc.
- */
 function parseHalfLife(str: string): number {
   const match = str.trim().match(/^(\d+(?:\.\d+)?)\s*(m|min|h|hr|d|day|w|wk)s?$/i);
   if (!match) {
@@ -111,10 +105,6 @@ function parseHalfLife(str: string): number {
   }
 }
 
-/**
- * Patterns for numeric engagement signals parsed from item bodies.
- * Used by extractEngagementScore (DRY) and referenced in time-decay scoring + dedupe clustering.
- */
 const ENGAGEMENT_PATTERNS: Array<{ re: RegExp; weight: number }> = [
   { re: /(\d+)\s*points?/i, weight: 1 }, // HN, Lobsters
   { re: /score:\s*(\d+)/i, weight: 1 },
@@ -126,12 +116,7 @@ const ENGAGEMENT_PATTERNS: Array<{ re: RegExp; weight: number }> = [
   { re: /(\d+)\s*comments?/i, weight: 0.5 }, // secondary, half value
 ];
 
-/**
- * Extract a numeric engagement score from body metadata.
- * Parses patterns like "N points", "N boosts", "N stars", "N favorites", "N upvotes", etc.
- * Similar to extractScore from dedupe.ts but broader in scope.
- * Now DRY via ENGAGEMENT_PATTERNS + loop (single source of truth).
- */
+/** Engagement signals parsed from body metadata (HN points, boosts, comments, etc.). */
 export function extractEngagementScore(body: string | null): number {
   if (!body) return 0;
   let total = 0;
@@ -145,11 +130,6 @@ export function extractEngagementScore(body: string | null): number {
   return total;
 }
 
-/**
- * Shared post-processing helper for min_score filtering + logging used by
- * the keyword-score and time-decay scoring transforms (DRYed from duplicated
- * blocks that differed only in score field and log prefix).
- */
 function filterByMinScore<T extends { score?: number; finalScore?: number }>(
   scored: T[],
   minScore: number | undefined,
@@ -167,21 +147,11 @@ function filterByMinScore<T extends { score?: number; finalScore?: number }>(
   return filtered;
 }
 
-/**
- * Shared helper for conditional body annotation used by scoring transforms
- * (keyword-score + time-decay). Eliminates the duplicated `{ ...row, body: (row.body ?? "") + ann }` + if(annotate) map logic
- * (differing only in generated annotation text).
- */
 function annotateRow<T extends { body?: string }>(row: T, annotation: string | undefined): T {
   if (!annotation) return row;
   return { ...row, body: (row.body ?? "") + annotation } as T;
 }
 
-/**
- * Sorts an array of scored items in-place by descending score using the provided getter.
- * Single source of truth eliminating the duplicated inline sort expressions
- * (differing only in the score field name) in the keyword-score and time-decay handlers.
- */
 function sortByScoreDesc<T>(arr: T[], getScore: (x: T) => number): void {
   arr.sort((a, b) => getScore(b) - getScore(a));
 }
@@ -199,10 +169,6 @@ function keywordFieldValue(item: ContentItemRow, field: KeywordField): string | 
   }
 }
 
-/**
- * Shared helper to test whether an item matches any of the (lowercased) keywords
- * in any of the specified fields. Eliminates duplication between filter/exclude.
- */
 function matchesAnyKeyword(
   item: ContentItemRow,
   lowerKeywords: string[],
@@ -216,11 +182,6 @@ function matchesAnyKeyword(
   );
 }
 
-/**
- * Shared helper to prepare the lowered keywords + default fields and return
- * a predicate for use in filter/exclude. Eliminates the duplicated prep logic
- * (destructure was type-specific so kept at call sites; prep+map now single source).
- */
 function makeKeywordPredicate(
   keywords: string[],
   fields?: readonly KeywordField[]
@@ -230,12 +191,6 @@ function makeKeywordPredicate(
   return (item) => matchesAnyKeyword(item, lowerKeywords, checkFields);
 }
 
-/**
- * Shared passthrough guard for the 4 LLM-powered transforms.
- * If no llmModel present in context, immediately returns the input items (no-op path used
- * when LLM features are disabled). Otherwise delegates to the provided work fn with the
- * guaranteed non-null model. Single source of truth eliminating the verbatim 4x guard.
- */
 function withLlmModel<T extends ContentItemRow>(
   ctx: TransformContext,
   items: T[],
@@ -310,11 +265,6 @@ const transforms: Record<string, TransformFn> = {
       if (removed.length > 10) console.log(`  ... and ${removed.length - 10} more`);
     };
 
-    /**
-     * Single source of truth for the repeated conditional logging of removed duplicates
-     * across url/domain-normalized/title-similarity strategies (eliminates 3x inline
-     * `if (shouldLog && removed.length > 0) { logRemovedDups(...) }`).
-     */
     const maybeLogRemoved = (label: string, removed: string[], extra: string = "") => {
       if (shouldLog && removed.length > 0) {
         logRemovedDups(label, removed, extra);
@@ -322,7 +272,6 @@ const transforms: Record<string, TransformFn> = {
     };
 
     if (strategy === "url") {
-      // Simple exact URL dedup
       const seen = new Set<string>();
       const removed: string[] = [];
       const result = items.filter((item) => {
@@ -338,7 +287,6 @@ const transforms: Record<string, TransformFn> = {
     }
 
     if (strategy === "domain-normalized") {
-      // Normalize URLs then dedup
       const groups = new Map<string, ContentItemRow[]>();
       for (const item of items) {
         const key = normalizeUrl(item.url);
@@ -358,14 +306,12 @@ const transforms: Record<string, TransformFn> = {
         }
       }
       maybeLogRemoved("domain-normalized", removed);
-      // Preserve original ordering based on first occurrence
       const orderMap = new Map<string, number>();
       items.forEach((item, i) => { if (!orderMap.has(item.id)) orderMap.set(item.id, i); });
       return result.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
     }
 
     if (strategy === "title-similarity") {
-      // Fuzzy title matching using Levenshtein similarity
       const kept: ContentItemRow[] = [];
       const removed: string[] = [];
       for (const item of items) {
@@ -379,10 +325,8 @@ const transforms: Record<string, TransformFn> = {
             existing.title.toLowerCase()
           );
           if (similarity >= threshold) {
-            // Found a near-duplicate — decide which to keep
             const winner = pickWinner([existing, item], keep);
             if (winner === item) {
-              // Replace existing with current item
               const idx = kept.indexOf(existing);
               kept[idx] = item;
               removed.push(
@@ -405,7 +349,6 @@ const transforms: Record<string, TransformFn> = {
       return kept;
     }
 
-    // Fallback for unknown strategy
     console.warn(`[dedupe] unknown strategy "${strategy}", passing items through`);
     return items;
   },
@@ -818,30 +761,15 @@ const transforms: Record<string, TransformFn> = {
       clusters.splice(maxClusters);
     }
 
-    /**
-     * Returns the [key, count] entry with the highest count from a Map, or undefined if empty.
-     * Single source of truth eliminating the duplicated [...entries().sort((a,b)=>b[1]-a[1])[0] pattern
-     * used for domain and source majority voting inside generateLabel.
-     */
     function getTopByCount<T>(counts: Map<T, number>): [T, number] | undefined {
       if (counts.size === 0) return undefined;
       return [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
     }
 
-    /**
-     * Increment the count for a key in the given map (initializes to 1 if absent).
-     * Single source of truth eliminating the repeated `(map.get(key) ?? 0) + 1` boilerplate
-     * when tallying domain, keyword and source signals inside generateLabel.
-     */
     function increment(counts: Map<string, number>, key: string): void {
       counts.set(key, (counts.get(key) ?? 0) + 1);
     }
 
-    /**
-     * Returns the formatted majority label if the top entry meets the 60% threshold of total,
-     * otherwise undefined. Single source of truth for the duplicated `top && count >= total*0.6`
-     * majority checks (with optional formatter) used for domain and source in generateLabel.
-     */
     function getMajorityLabel<T extends string>(
       counts: Map<T, number>,
       total: number,
@@ -855,12 +783,6 @@ const transforms: Record<string, TransformFn> = {
       return undefined;
     }
 
-    /**
-     * Tally occurrences of a signal key (domain or source) across the given indices into the counts map
-     * using the shared increment helper. Single source of truth eliminating the duplicated
-     * "for (const idx of indices) { const val = getter(signals[idx]); if (val) increment(counts, val); }"
-     * boilerplate used for domain and source in generateLabel (keywords tally stays specialized for multi-value).
-     */
     function tallyFromSignals(
       counts: Map<string, number>,
       indices: number[],
@@ -874,11 +796,6 @@ const transforms: Record<string, TransformFn> = {
       }
     }
 
-    /**
-     * Tally keyword occurrences (multi-value per signal) across the given indices into the counts map
-     * using the shared increment helper. Single source of truth for the inline for-of + nested keywords loop
-     * in generateLabel (complements tallyFromSignals used for single-value domain/source).
-     */
     function tallyKeywords(counts: Map<string, number>, indices: number[]): void {
       for (const idx of indices) {
         for (const kw of signals[idx].keywords) {
@@ -887,13 +804,6 @@ const transforms: Record<string, TransformFn> = {
       }
     }
 
-    /**
-     * Selects and formats the top 2-3 keywords (those meeting the 40% min count threshold)
-     * for use as a cluster label when no dominant domain. Single source of truth eliminating
-     * the previous inline [...entries().filter().sort().slice(0,3).map() + capitalize/join]
-     * selection+formatting logic inside generateLabel (complements getMajorityLabel for domain/source
-     * and uses the existing tallyKeywords counts).
-     */
     function getTopKeywordsLabel(counts: Map<string, number>, total: number): string | undefined {
       const minCount = Math.ceil(total * 0.4);
       const top = [...counts.entries()]
@@ -907,16 +817,13 @@ const transforms: Record<string, TransformFn> = {
         .join("/");
     }
 
-    // --- Label generation ---
     function generateLabel(indices: number[]): string {
-      // Find the most common domain in the cluster
       const domainCounts = new Map<string, number>();
       const keywordCounts = new Map<string, number>();
 
       tallyFromSignals(domainCounts, indices, (sig) => sig.domain);
       tallyKeywords(keywordCounts, indices);
 
-      // If majority share a domain, use that
       const domainLabel = getMajorityLabel(domainCounts, indices.length, (domain) => {
         const domainLabels: Record<string, string> = {
           "github.com": "GitHub",
@@ -935,11 +842,9 @@ const transforms: Record<string, TransformFn> = {
       });
       if (domainLabel) return domainLabel;
 
-      // Otherwise, use top 2-3 shared keywords (now via single helper)
       const kwLabel = getTopKeywordsLabel(keywordCounts, indices.length);
       if (kwLabel) return kwLabel;
 
-      // Fallback: use source if consistent
       const sourceCounts = new Map<string, number>();
       tallyFromSignals(sourceCounts, indices, (sig) => sig.source);
       const sourceLabel = getMajorityLabel(sourceCounts, indices.length);
@@ -948,13 +853,11 @@ const transforms: Record<string, TransformFn> = {
       return `Cluster ${clusters.length + 1}`;
     }
 
-    // Generate labels + sort within clusters by engagement score (combined loop; single source of truth eliminating adjacent for-of dups over clusters post-collection)
     for (const cluster of clusters) {
       cluster.label = generateLabel(cluster.indices);
       sortByScoreDesc(cluster.indices, (idx) => extractEngagementScore(items[idx].body));
     }
 
-    // --- Flatten: clusters first (in order of size), then unclustered ---
     const result: ContentItemRow[] = [];
 
     for (const cluster of clusters) {

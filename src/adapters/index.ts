@@ -1,4 +1,5 @@
-import { readdir, type Dirent } from "node:fs/promises";
+import type { Dirent } from "node:fs";
+import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { errorMessage, type Adapter } from "./types";
 
