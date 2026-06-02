@@ -4,11 +4,11 @@ import * as typesMod from "./adapters/types";
 
 const originalFetch = globalThis.fetch;
 
-describe("stackexchange adapter", () => {
+describe("stackexchange", () => {
   let fetchMock: ReturnType<typeof mock>;
   let warnSpy: ReturnType<typeof spyOn>;
 
-  test("satisfies ngb contract: default export has .name and .fetch", () => {
+  test("ngb contract", () => {
     expect(stackexchangeAdapter.name).toBe("stackexchange");
     expect(typeof stackexchangeAdapter.fetch).toBe("function");
   });
@@ -42,7 +42,7 @@ describe("stackexchange adapter", () => {
     };
   }
 
-  test("fetches default site when no/empty params", async () => {
+  test("default site", async () => {
     const q = makeQuestion();
     fetchMock.mockResolvedValue(
       new Response(
@@ -68,7 +68,7 @@ describe("stackexchange adapter", () => {
     expect(calledUrl).not.toContain("tagged=");
   });
 
-  test("fetches one tag per request when multiple tags configured", async () => {
+  test("one tag per request", async () => {
     const q1 = makeQuestion({ question_id: 1, tags: ["typescript"] });
     const q2 = makeQuestion({ question_id: 2, tags: ["bun"] });
     fetchMock
@@ -106,7 +106,7 @@ describe("stackexchange adapter", () => {
     expect(url0).toContain("pagesize=5");
   });
 
-  test("deduplicates questions that appear in multiple tag fetches", async () => {
+  test("dedupe across tags", async () => {
     const shared = makeQuestion({ question_id: 99, title: "Shared question" });
     const onlyTs = makeQuestion({ question_id: 1, title: "TS only" });
     fetchMock
@@ -134,7 +134,7 @@ describe("stackexchange adapter", () => {
     );
   });
 
-  test("applies min_score filter and limit after fetch", async () => {
+  test("min_score and limit", async () => {
     const questions = [
       makeQuestion({ question_id: 10, score: 5 }),
       makeQuestion({ question_id: 20, score: 100 }),
@@ -155,7 +155,7 @@ describe("stackexchange adapter", () => {
     expect(items[0].id).toBe("se:stackoverflow:20");
   });
 
-  test("builds rich body including accepted answers, views formatted, tags, owner", async () => {
+  test("body fields", async () => {
     const q = makeQuestion({
       view_count: 2500,
       answer_count: 5,
@@ -175,7 +175,7 @@ describe("stackexchange adapter", () => {
     expect(item.body).toContain("by dev");
   });
 
-  test("throws on HTTP !ok response", async () => {
+  test("!ok throws", async () => {
     fetchMock.mockResolvedValue(
       new Response("too many", { status: 429, statusText: "Too Many Requests" }),
     );
@@ -185,7 +185,7 @@ describe("stackexchange adapter", () => {
     ).rejects.toThrow(/stackexchange: failed to fetch from meta.stackexchange.com: 429 Too Many Requests/);
   });
 
-  test("warns on low quota but still returns results", async () => {
+  test("low quota warns", async () => {
     const q = makeQuestion({ question_id: 777 });
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ items: [q], has_more: false, quota_remaining: 3 }), { status: 200 }),
@@ -197,7 +197,7 @@ describe("stackexchange adapter", () => {
     expect(warnSpy).toHaveBeenCalledWith("stackexchange: API quota low (3 remaining)");
   });
 
-  test("throws on network/fetch rejection", async () => {
+  test("network throws", async () => {
     fetchMock.mockRejectedValue(new Error("connection refused"));
 
     await expect(
@@ -205,7 +205,7 @@ describe("stackexchange adapter", () => {
     ).rejects.toThrow(/stackexchange: error fetching from bad.site: connection refused/);
   });
 
-  test("defaults sort to hot when invalid, handles large view counts", async () => {
+  test("invalid sort and view format", async () => {
     const q = makeQuestion({ view_count: 1234567 });
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ items: [q], quota_remaining: 100 }), { status: 200 }),
@@ -220,7 +220,7 @@ describe("stackexchange adapter", () => {
     expect(items[0].body).toContain("1.2m views");
   });
 
-  test("uses errorMessage helper in !ok and network error paths", async () => {
+  test("errorMessage on !ok and network", async () => {
     const emSpy = spyOn(typesMod, "errorMessage");
     try {
       fetchMock.mockResolvedValue(
