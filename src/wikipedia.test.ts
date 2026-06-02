@@ -210,6 +210,32 @@ describe("wikipedia", () => {
     expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  test("trims whitespace from comma-separated mode string", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
+    );
+
+    const items = await wikipediaAdapter.fetch(
+      wikiCfg({ mode: "  featured ,  news  " }),
+    );
+
+    expect(items).toHaveLength(2);
+    expect(items.map((i) => i.source)).toEqual(["wikipedia:featured", "wikipedia:news"]);
+    expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  test("whitespace-only mode string falls back to most_read", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
+    );
+
+    const items = await wikipediaAdapter.fetch(wikiCfg({ mode: "   " }));
+
+    expect(items).toHaveLength(2);
+    expect(items[0].source).toBe("wikipedia:most_read");
+    expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   test("merges modes array param from one featured feed", async () => {
     mocks.fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),

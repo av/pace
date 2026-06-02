@@ -154,10 +154,10 @@ function resolveModes(config: AdapterConfig): Mode[] {
   if (Array.isArray(modesParam)) {
     tokens.push(...normalizeStringList(modesParam as string[]));
   } else {
-    const modeParam = (config.params?.mode as string) ?? "most_read";
-    tokens.push(
-      ...modeParam.split(",").map((part) => part.trim()).filter(Boolean),
-    );
+    const modeRaw = (config.params?.mode as string) ?? "most_read";
+    const modeStr = typeof modeRaw === "string" ? modeRaw : "most_read";
+    const modeParam = normalizeOptionalString(modeStr) ?? "most_read";
+    tokens.push(...normalizeStringList(modeParam.split(",")));
   }
 
   const resolved = tokens
