@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from "./fetch";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 
@@ -74,12 +75,9 @@ async function fetchLemmyPosts(
   const query = new URLSearchParams(params);
   const url = `https://${instance}/api/v3/post/list?${query.toString()}`;
 
-  const res = await fetch(url, {
-    headers: {
-      "User-Agent": "pace:feed-aggregator/1.0 (github.com/everlier/pace)",
-      Accept: "application/json",
-    },
-    signal: AbortSignal.timeout(15000),
+  const res = await fetchWithTimeout(url, {
+    userAgent: "pace:feed-aggregator/1.0 (github.com/everlier/pace)",
+    accept: "application/json",
   });
   if (!res.ok) {
     throw new Error(`lemmy: failed to fetch ${context}: ${errorMessage({ message: `${res.status}` })}`);

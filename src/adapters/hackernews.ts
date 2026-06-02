@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from "./fetch";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 // from "./types" errorMessage helper (verifier s7s for bugbash-iter11)
@@ -32,9 +33,7 @@ const FEED_ENDPOINTS: Record<FeedType, string> = {
  * so callers can decide error handling (list throws, items swallow to null).
  */
 async function fetchHN<T>(subpath: string, timeout: number, errorContext?: string): Promise<T> {
-  const res = await fetch(`${HN_API}/${subpath}`, {
-    signal: AbortSignal.timeout(timeout),
-  });
+  const res = await fetchWithTimeout(`${HN_API}/${subpath}`, { timeoutMs: timeout });
   if (!res.ok) {
     const ctx = errorContext ?? subpath;
     throw new Error(`hackernews: failed to fetch ${ctx}: ${errorMessage({ message: String(res.status) })}`);

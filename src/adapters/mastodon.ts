@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from "./fetch";
 import { stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
@@ -94,9 +95,9 @@ async function lookupAccount(
   username: string,
 ): Promise<MastodonAccount | null> {
   try {
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `https://${instance}/api/v1/accounts/lookup?acct=${encodeURIComponent(username)}`,
-      { signal: AbortSignal.timeout(10000) },
+      { timeoutMs: 10_000 },
     );
     if (!res.ok) return null;
     return await res.json();
@@ -109,7 +110,7 @@ async function fetchMastodonStatuses(
   url: string,
   context: string,
 ): Promise<MastodonStatus[]> {
-  const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+  const res = await fetchWithTimeout(url);
   if (!res.ok) {
     throw new Error(`mastodon: failed to fetch ${context}: ${errorMessage({ message: String(res.status) })}`);
   }

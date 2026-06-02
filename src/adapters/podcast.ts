@@ -1,4 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
+import { fetchWithTimeout } from "./fetch";
 import { decodeHtmlEntities, stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
@@ -259,12 +260,10 @@ async function fetchPodcastFeed(
   limit: number,
 ): Promise<ContentItem[]> {
   try {
-    const res = await fetch(feedUrl, {
-      headers: {
-        "User-Agent": "pace/1.0 (podcast aggregator)",
-        Accept: "application/rss+xml, application/xml, text/xml, */*",
-      },
-      signal: AbortSignal.timeout(20000),
+    const res = await fetchWithTimeout(feedUrl, {
+      userAgent: "pace/1.0 (podcast aggregator)",
+      accept: "application/rss+xml, application/xml, text/xml, */*",
+      timeoutMs: 20_000,
     });
     if (!res.ok) {
       throw new Error(`podcast: failed to fetch ${feedUrl}: ${errorMessage({ message: String(res.status) })}`);

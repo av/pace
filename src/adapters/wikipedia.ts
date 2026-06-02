@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from "./fetch";
 import { stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
@@ -63,9 +64,8 @@ async function fetchFeaturedFeed(
   day: string,
 ): Promise<WikiFeaturedResponse> {
   const url = `https://${language}.wikipedia.org/api/rest_v1/feed/featured/${year}/${month}/${day}`;
-  const res = await fetch(url, {
-    headers: { "User-Agent": "pace:feed-aggregator/1.0 (github.com/everlier/pace)" },
-    signal: AbortSignal.timeout(15000),
+  const res = await fetchWithTimeout(url, {
+    userAgent: "pace:feed-aggregator/1.0 (github.com/everlier/pace)",
   });
   if (!res.ok) {
     throw new Error(`wikipedia: failed to fetch featured feed: ${errorMessage({ message: `${res.status}` })}`);

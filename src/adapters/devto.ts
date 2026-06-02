@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from "./fetch";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 
@@ -50,12 +51,9 @@ async function fetchDevToArticles(
   const url = `${DEVTO_API}?${params.toString()}`;
 
   try {
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": "pace:feed-aggregator/1.0",
-        Accept: "application/json",
-      },
-      signal: AbortSignal.timeout(15000),
+    const res = await fetchWithTimeout(url, {
+      userAgent: "pace:feed-aggregator/1.0",
+      accept: "application/json",
     });
 
     if (!res.ok) {

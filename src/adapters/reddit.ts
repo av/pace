@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from "./fetch";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 
@@ -94,10 +95,7 @@ async function fetchRedditListing(
   }
 
   try {
-    const res = await fetch(url, {
-      headers: { "User-Agent": USER_AGENT },
-      signal: AbortSignal.timeout(15000),
-    });
+    const res = await fetchWithTimeout(url, { userAgent: USER_AGENT });
 
     if (!res.ok) {
       throw new Error(`reddit: failed to fetch ${path}/${sort}: ${errorMessage({ message: String(res.status) })}`);

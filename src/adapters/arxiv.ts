@@ -1,6 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
+import { fetchText } from "./fetch";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
-import { errorMessage } from "./types";
 
 const ARXIV_API = "http://export.arxiv.org/api/query";
 const RATE_LIMIT_DELAY = 3000; // ArXiv requests 3-second delay between requests
@@ -119,25 +119,12 @@ async function fetchArxivQuery(
 ): Promise<ArxivEntry[]> {
   const url = `${ARXIV_API}?search_query=${encodeURIComponent(queryStr)}&sortBy=submittedDate&sortOrder=descending&max_results=${limit}`;
 
-  try {
-    const res = await fetch(url, {
-      headers: { "User-Agent": "pace/1.0" },
-      signal: AbortSignal.timeout(30000),
-    });
+  const xml = await fetchText("arxiv", url, `query "${queryStr}"`, { timeoutMs: 30_000 });
+  const parsed = parser.parse(xml);
 
-    if (!res.ok) {
-      throw new Error(`arxiv: failed to fetch query "${queryStr}": ${errorMessage({ message: `HTTP error ${res.status}` })}`);
-    }
-
-    const xml = await res.text();
-    const parsed = parser.parse(xml);
-
-    const entries = parsed?.feed?.entry;
-    if (!entries) return [];
-    return Array.isArray(entries) ? entries : [entries];
-  } catch (err) {
-    throw new Error(`arxiv: error fetching query "${queryStr}": ${errorMessage(err)}`);
-  }
+  const entries = parsed?.feed?.entry;
+  if (!entries) return [];
+  return Array.isArray(entries) ? entries : [entries];
 }
 
 function buildBody(entry: ArxivEntry): string {
