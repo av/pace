@@ -21,13 +21,9 @@ Do NOT silently bulk-edit the fact sheet. Every change should be discussed with 
 
 ## Process
 
-### 1. Load and identify @draft facts
+See AGENTS.md (the "Start of work — always do this first", numbered workflow steps, and "facts list --tags "draft"" guidance) and the main facts skill (`facts skills show facts`, its "Agent workflows" section with common list/check commands and example blocks) for the canonical common workflow instructions. Do not reimplement the boilerplate here.
 
-```
-facts list
-facts list --tags "draft"
-facts check
-```
+### 1. Load and identify @draft facts
 
 Read the full fact sheet for context, then focus on `@draft` facts — these are your primary work items. Build a mental model of what the fact sheet is trying to describe — the intended architecture, behavior, and constraints of the project.
 
