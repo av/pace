@@ -1,10 +1,12 @@
 import { XMLParser } from "fast-xml-parser";
 import {
   extractAtomLink,
+  extractFeedItemBody,
   extractXmlText,
   FEED_XML_PARSER_OPTIONS,
   normalizeXmlList,
   type AtomLinkField,
+  type FeedItemBodyFields,
   type XmlTextField,
 } from "./atom";
 import { parseFeedDate } from "./dates";
@@ -23,13 +25,12 @@ const VALID_PERIODS = new Set<TrendingPeriod>(["daily", "weekly", "monthly"]);
 
 const parser = new XMLParser(FEED_XML_PARSER_OPTIONS);
 
-interface GHAtomEntry {
+interface GHAtomEntry extends FeedItemBodyFields {
   id?: string;
   title?: XmlTextField;
   link?: AtomLinkField;
   updated?: string;
   published?: string;
-  content?: XmlTextField;
 }
 
 /** Parsed Atom feed root from fast-xml-parser (attributeNamePrefix "@_"). */
@@ -62,8 +63,8 @@ async function fetchReleasesFeed(
     const tagMatch = link.match(/\/releases\/tag\/(.+)$/);
     const tag = tagMatch ? tagMatch[1] : "";
 
-    const rawContent = extractXmlText(entry.content) ?? "";
-    const body = rawContent ? stripHtml(rawContent).slice(0, 500) : undefined;
+    const rawBody = extractFeedItemBody(entry);
+    const body = rawBody ? stripHtml(rawBody).slice(0, 500) : undefined;
 
     const releaseTitle = tag && title !== tag
       ? `${repo}: ${tag} | ${title}`
