@@ -99,7 +99,6 @@ describe("discoverAdapters", () => {
     expect(adapters.size).toBe(0);
     const readdirWarns = warnsContaining(warnSpy, "discoverAdapters: failed to read");
     expect(readdirWarns.length).toBe(1);
-    mock.restore();
   });
 
   test("readdir filter and import error warn", async () => {
@@ -120,7 +119,6 @@ describe("discoverAdapters", () => {
     const loadFailCalls = warnsContaining(warnSpy, "failed to import");
     expect(loadFailCalls.length).toBeGreaterThanOrEqual(1);
     expect(loadFailCalls[0] ?? "").toContain(nonExistent);
-    mock.restore();
   });
 
   test("bad shape default emits bad mod warn", async () => {
@@ -147,7 +145,6 @@ describe("discoverAdapters", () => {
     const badModWarns = warnsContaining(warnSpy, "invalid default export");
     expect(badModWarns.length).toBe(1);
     expect(badModWarns[0] ?? "").toContain(badName);
-    mock.restore();
   });
 
 
@@ -182,7 +179,6 @@ describe("discoverAdapters", () => {
     expect(dups.length).toBe(1);
     expect(dups[0] ?? "").toContain(dupName);
     expect(dups[0] ?? "").toContain("config source types");
-    mock.restore();
   });
 
   test("missing default export emits bad mod warn", async () => {
@@ -207,7 +203,6 @@ describe("discoverAdapters", () => {
     const badModWarns = warnsContaining(warnSpy, "invalid default export");
     expect(badModWarns.length).toBe(1);
     expect(badModWarns[0] ?? "").toContain(noDefName);
-    mock.restore();
   });
 
   test("non-string name emits bad mod warn", async () => {
@@ -235,7 +230,6 @@ describe("discoverAdapters", () => {
     const badModWarns = warnsContaining(warnSpy, "invalid default export");
     expect(badModWarns.length).toBe(1);
     expect(badModWarns[0] ?? "").toContain(badNameFile);
-    mock.restore();
   });
 
   test("whitespace-only name emits bad mod warn", async () => {
@@ -263,7 +257,6 @@ describe("discoverAdapters", () => {
     const badModWarns = warnsContaining(warnSpy, "invalid default export");
     expect(badModWarns.length).toBe(1);
     expect(badModWarns[0] ?? "").toContain(wsNameFile);
-    mock.restore();
   });
 
   test("padded name emits bad mod warn", async () => {
@@ -292,7 +285,6 @@ describe("discoverAdapters", () => {
     const badModWarns = warnsContaining(warnSpy, "invalid default export");
     expect(badModWarns.length).toBe(1);
     expect(badModWarns[0] ?? "").toContain(paddedNameFile);
-    mock.restore();
   });
 
   test("function default emits bad mod warn", async () => {
@@ -325,7 +317,6 @@ describe("discoverAdapters", () => {
     const badModWarns = warnsContaining(warnSpy, "invalid default export");
     expect(badModWarns.length).toBe(1);
     expect(badModWarns[0] ?? "").toContain(fnDefName);
-    mock.restore();
   });
 
   test("dot-prefixed ts files are skipped", async () => {
@@ -352,7 +343,6 @@ describe("discoverAdapters", () => {
     expect(loadFailCalls.length).toBe(0);
     const badModWarns = warnsContaining(warnSpy, "invalid default export");
     expect(badModWarns.length).toBe(0);
-    mock.restore();
   });
 
   test("class instance default emits bad mod warn", async () => {
@@ -386,7 +376,6 @@ describe("discoverAdapters", () => {
     const badModWarns = warnsContaining(warnSpy, "invalid default export");
     expect(badModWarns.length).toBe(1);
     expect(badModWarns[0] ?? "").toContain(ciName);
-    mock.restore();
   });
 
   test("mixed-case TEST.ts test files are skipped", async () => {
@@ -413,7 +402,6 @@ describe("discoverAdapters", () => {
     expect(loadFailCalls.length).toBe(0);
     const badModWarns = warnsContaining(warnSpy, "invalid default export");
     expect(badModWarns.length).toBe(0);
-    mock.restore();
   });
 
   test("mixed-case excluded files are skipped", async () => {
@@ -445,7 +433,6 @@ describe("discoverAdapters", () => {
     expect(loadFailCalls.length).toBe(0);
     const badModWarns = warnsContaining(warnSpy, "invalid default export");
     expect(badModWarns.length).toBe(0);
-    mock.restore();
   });
 
   test("d.ts declaration files are skipped", async () => {
@@ -477,7 +464,6 @@ describe("discoverAdapters", () => {
     expect(loadFailCalls.length).toBe(0);
     const badModWarns = warnsContaining(warnSpy, "invalid default export");
     expect(badModWarns.length).toBe(0);
-    mock.restore();
   });
 
   test("directory entries without ts extension are skipped", async () => {
@@ -505,7 +491,6 @@ describe("discoverAdapters", () => {
     expect(loadFailCalls.length).toBe(0);
     const badModWarns = warnsContaining(warnSpy, "invalid default export");
     expect(badModWarns.length).toBe(0);
-    mock.restore();
   });
 
   test("Dirent isFile skips non-files", async () => {
@@ -535,7 +520,6 @@ describe("discoverAdapters", () => {
     expect(loadFailCalls.length).toBe(0);
     const badModWarns = warnsContaining(warnSpy, "invalid default export");
     expect(badModWarns.length).toBe(0);
-    mock.restore();
   });
 
   test("symlink Dirent entries are skipped", async () => {
@@ -565,7 +549,6 @@ describe("discoverAdapters", () => {
     expect(loadFailCalls.length).toBe(0);
     const badModWarns = warnsContaining(warnSpy, "invalid default export");
     expect(badModWarns.length).toBe(0);
-    mock.restore();
   });
 
   test("non-function fetch emits bad mod warn", async () => {
@@ -599,7 +582,6 @@ describe("discoverAdapters", () => {
     const badModWarns = warnsContaining(warnSpy, "invalid default export");
     expect(badModWarns.length).toBe(1);
     expect(badModWarns[0] ?? "").toContain(badFetchName);
-    mock.restore();
   });
 
   test("null default export emits bad mod warn", async () => {
@@ -633,7 +615,6 @@ describe("discoverAdapters", () => {
     const badModWarns = warnsContaining(warnSpy, "invalid default export");
     expect(badModWarns.length).toBe(1);
     expect(badModWarns[0] ?? "").toContain(nullDefName);
-    mock.restore();
   });
 
   test("string-only readdir compat branch", async () => {
@@ -667,7 +648,6 @@ describe("discoverAdapters", () => {
     const badModWarns = warnsContaining(warnSpy, "invalid default export");
     expect(badModWarns.length).toBe(1);
     expect(badModWarns[0] ?? "").toContain(stringBadName);
-    mock.restore();
   });
 
   test("internal whitespace in name is accepted", async () => {
@@ -701,7 +681,6 @@ describe("discoverAdapters", () => {
     const badModWarns = warnsContaining(warnSpy, "invalid default export");
     expect(badModWarns.length).toBe(1);
     expect(badModWarns[0] ?? "").toContain(internalWsBadName);
-    mock.restore();
   });
 
   test("embedded space in name is accepted", async () => {
@@ -735,7 +714,6 @@ describe("discoverAdapters", () => {
     const badModWarns = warnsContaining(warnSpy, "invalid default export");
     expect(badModWarns.length).toBe(1);
     expect(badModWarns[0] ?? "").toContain(spaceBadName);
-    mock.restore();
   });
 
   test("null-proto object emits bad mod warn", async () => {
@@ -775,7 +753,6 @@ describe("discoverAdapters", () => {
     const badModWarns = warnsContaining(warnSpy, "invalid default export");
     expect(badModWarns.length).toBe(1);
     expect(badModWarns[0] ?? "").toContain(nullProtoName);
-    mock.restore();
   });
 
   test("dotfile Dirent entries are skipped", async () => {
@@ -807,7 +784,6 @@ describe("discoverAdapters", () => {
     expect(loadFailCalls.length).toBe(0);
     const badModWarns = warnsContaining(warnSpy, "invalid default export");
     expect(badModWarns.length).toBe(0);
-    mock.restore();
   });
 
   test("mixed string and Dirent readdir compat", async () => {
@@ -850,7 +826,6 @@ describe("discoverAdapters", () => {
     const badModWarns = warnsContaining(warnSpy, "invalid default export");
     expect(badModWarns.length).toBe(1);
     expect(badModWarns[0] ?? "").toContain(badMixedName);
-    mock.restore();
   });
 
   test("non-iterable readdir returns empty Map and warns", async () => {
@@ -863,7 +838,6 @@ describe("discoverAdapters", () => {
     const readdirWarns = warnsContaining(warnSpy, "non-iterable");
     expect(readdirWarns.length).toBe(1);
     expect(readdirWarns[0]).toContain("discoverAdapters:");
-    mock.restore();
   });
 
   test("accepts mixed-case TS extension", async () => {
@@ -889,7 +863,6 @@ describe("discoverAdapters", () => {
     expect(loadFailCalls.length).toBe(0);
     const badModWarns = warnsContaining(warnSpy, "invalid default export");
     expect(badModWarns.length).toBe(0);
-    mock.restore();
   });
 
   test("excludes mixed-case DTS declarations", async () => {
@@ -918,7 +891,6 @@ describe("discoverAdapters", () => {
     expect(loadFailCalls.length).toBe(0);
     const badModWarns = warnsContaining(warnSpy, "invalid default export");
     expect(badModWarns.length).toBe(0);
-    mock.restore();
   });
 
   test("accepts mixed-case TS via Dirent", async () => {
@@ -944,7 +916,6 @@ describe("discoverAdapters", () => {
     expect(loadFailCalls.length).toBe(0);
     const badModWarns = warnsContaining(warnSpy, "invalid default export");
     expect(badModWarns.length).toBe(0);
-    mock.restore();
   });
 
   test("excludes mixed-case TEST.ts files", async () => {
@@ -973,7 +944,6 @@ describe("discoverAdapters", () => {
     expect(loadFailCalls.length).toBe(0);
     const badModWarns = warnsContaining(warnSpy, "invalid default export");
     expect(badModWarns.length).toBe(0);
-    mock.restore();
   });
 
   test("excludes mixed-case DTS via Dirent", async () => {
@@ -1002,7 +972,6 @@ describe("discoverAdapters", () => {
     expect(loadFailCalls.length).toBe(0);
     const badModWarns = warnsContaining(warnSpy, "invalid default export");
     expect(badModWarns.length).toBe(0);
-    mock.restore();
   });
 
   test("corrupt readdir entries skipped with warn", async () => {
@@ -1035,7 +1004,6 @@ describe("discoverAdapters", () => {
     expect(badModWarns.length).toBe(0);
     const badEntryWarns = warnsContaining(warnSpy, "invalid readdir entry");
     expect(badEntryWarns.length).toBeGreaterThanOrEqual(1);
-    mock.restore();
   });
 
   test("non-ts filenames filtered without extra warns", async () => {
@@ -1068,6 +1036,5 @@ describe("discoverAdapters", () => {
     expect(badEntryWarns.length).toBe(0);
     const anyDup = warnsContaining(warnSpy, "duplicate adapter");
     expect(anyDup.length).toBe(0);
-    mock.restore();
   });
 });
