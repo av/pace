@@ -178,6 +178,30 @@ describe("reddit", () => {
     expect(url).toContain("/top.json?limit=25&raw_json=1&t=week");
   });
 
+  test("blank-only time uses default day for top sort", async () => {
+    const posts = [makePost("blanktime1")];
+    mocks.fetchMock.mockResolvedValue(makeListingResponse(posts));
+
+    await redditAdapter.fetch(
+      redditCfg({ subreddits: ["x"], sort: "top", time: "   " }),
+    );
+
+    const url = mocks.fetchMock.mock.calls[0][0] as string;
+    expect(url).toContain("/top.json?limit=25&raw_json=1&t=day");
+  });
+
+  test("trims whitespace from configured time", async () => {
+    const posts = [makePost("trimtime1")];
+    mocks.fetchMock.mockResolvedValue(makeListingResponse(posts));
+
+    await redditAdapter.fetch(
+      redditCfg({ subreddits: ["x"], sort: "top", time: "  month  " }),
+    );
+
+    const url = mocks.fetchMock.mock.calls[0][0] as string;
+    expect(url).toContain("/top.json?limit=25&raw_json=1&t=month");
+  });
+
   test("merges and deduplicates posts across multiple subreddits (including multireddit + syntax)", async () => {
     const postA = makePost("dup", "Dup", false, 10, "a");
     const postB = makePost("unique", "Unique", false, 20, "b");

@@ -113,10 +113,18 @@ const adapter: Adapter = {
         : undefined) ?? "hot";
     const limit = Math.min((config.params?.limit as number) ?? 25, 100);
     const minScore = (config.params?.min_score as number) ?? 0;
-    const timePeriod = (config.params?.time as string) ?? "day";
+    const timeRaw = config.params?.time;
+    const timePeriod =
+      (typeof timeRaw === "string"
+        ? normalizeOptionalString(timeRaw)
+        : undefined) ?? "day";
 
     const effectiveSort = resolveValidOption(sort, VALID_SORTS, "hot" as const);
-    const effectivePeriod = resolveValidOption(timePeriod, VALID_PERIODS, "day" as const);
+    const effectivePeriod = resolveValidOption(
+      timePeriod,
+      VALID_PERIODS,
+      "day" as const,
+    );
 
     if (subreddits.length === 0) {
       console.warn("reddit: no subreddits configured");
