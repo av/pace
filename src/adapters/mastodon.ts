@@ -1,4 +1,4 @@
-import { sliceToLimit } from "./dates";
+import { sliceToLimit, sortByCreatedAtDesc } from "./dates";
 import { fetchWithTimeout } from "./fetch";
 import { stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -227,10 +227,7 @@ const adapter: Adapter = {
         return true;
       });
 
-      // Sort by timestamp (newest first)
-      allStatuses.sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-      );
+      sortByCreatedAtDesc(allStatuses);
 
       // Apply limit
       const limited = sliceToLimit(allStatuses, limit);

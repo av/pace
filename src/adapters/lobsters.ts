@@ -1,4 +1,4 @@
-import { sliceToLimit } from "./dates";
+import { sliceToLimit, sortByCreatedAtDesc } from "./dates";
 import { fetchWithTimeout } from "./fetch";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
@@ -96,11 +96,7 @@ const adapter: Adapter = {
         if (feedType === "hottest") {
           items.sort((a, b) => b.score - a.score);
         } else if (feedType === "newest") {
-          items.sort(
-            (a, b) =>
-              new Date(b.created_at).getTime() -
-              new Date(a.created_at).getTime(),
-          );
+          sortByCreatedAtDesc(items);
         } else {
           // active: sort by comment count as proxy
           items.sort((a, b) => b.comment_count - a.comment_count);
