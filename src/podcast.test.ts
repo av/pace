@@ -44,6 +44,25 @@ function makeNoChannelFixture(): string {
   return `<?xml version="1.0"?><rss><foo>no channel</foo></rss>`;
 }
 
+function makeMultiEpisodeFeedFixture(episodeCount: number): string {
+  const items = Array.from({ length: episodeCount }, (_, i) => {
+    const n = episodeCount - i;
+    return `    <item>
+      <title>Episode ${n}</title>
+      <link>https://example.com/ep${n}</link>
+      <pubDate>Mon, ${String(n).padStart(2, "0")} Jan 2024 10:00:00 GMT</pubDate>
+    </item>`;
+  }).join("\n");
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Limit Test Show</title>
+    <link>https://example.com/podcast</link>
+${items}
+  </channel>
+</rss>`;
+}
+
 describe("podcast", () => {
   test("ngb contract", () => {
     expect(podcastAdapter.name).toBe("podcast");
@@ -107,6 +126,48 @@ describe("podcast", () => {
 
     expect(items.length).toBe(1);
     expect(items[0].title).toBe("Episode One Title");
+  });
+
+  test.each([NaN, "10", Infinity, -5, 0] as unknown[])(
+    "invalid limit (%s) uses default slice of 10 per feed",
+    async (limit) => {
+      mocks.fetchMock.mockResolvedValue(
+        new Response(makeMultiEpisodeFeedFixture(15), { status: 200 }),
+      );
+
+      const items = await podcastAdapter.fetch(
+        podcastCfg({ feeds: ["https://ex.com/f.xml"], limit }),
+      );
+
+      expect(items.length).toBe(10);
+      expect(items[0].title).toBe("Episode 15");
+    },
+  );
+
+  test("caps limit at 50 per feed", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      new Response(makeMultiEpisodeFeedFixture(60), { status: 200 }),
+    );
+
+    const items = await podcastAdapter.fetch(
+      podcastCfg({ feeds: ["https://ex.com/f.xml"], limit: 500 }),
+    );
+
+    expect(items.length).toBe(50);
+  });
+
+  test("floors fractional limit per feed", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      new Response(makeMultiEpisodeFeedFixture(5), { status: 200 }),
+    );
+
+    const items = await podcastAdapter.fetch(
+      podcastCfg({ feeds: ["https://ex.com/f.xml"], limit: 2.9 }),
+    );
+
+    expect(items.length).toBe(2);
+    expect(items[0].title).toBe("Episode 5");
+    expect(items[1].title).toBe("Episode 4");
   });
 
   test("fetches multiple feeds and dedupes episodes by url", async () => {
