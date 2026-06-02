@@ -77,15 +77,22 @@ async function fetchLemmyPosts(
   const query = new URLSearchParams(params);
   const url = `https://${instance}/api/v3/post/list?${query.toString()}`;
 
-  const res = await fetchWithTimeout(url, {
-    userAgent: "pace:feed-aggregator/1.0 (github.com/everlier/pace)",
-    accept: "application/json",
-  });
-  if (!res.ok) {
-    throw new Error(`lemmy: failed to fetch ${context}: ${errorMessage({ message: `${res.status}` })}`);
+  try {
+    const res = await fetchWithTimeout(url, {
+      userAgent: "pace:feed-aggregator/1.0 (github.com/everlier/pace)",
+      accept: "application/json",
+    });
+    if (!res.ok) {
+      throw new Error(`lemmy: failed to fetch ${context}: ${errorMessage({ message: `${res.status}` })}`);
+    }
+    const json: LemmyPostListResponse = await res.json();
+    return json.posts ?? [];
+  } catch (err) {
+    if (err instanceof Error && err.message.startsWith("lemmy: failed to fetch")) {
+      throw err;
+    }
+    throw new Error(`lemmy: error fetching ${context}: ${errorMessage(err)}`);
   }
-  const json: LemmyPostListResponse = await res.json();
-  return json.posts ?? [];
 }
 
 const adapter: Adapter = {
@@ -97,53 +104,49 @@ const adapter: Adapter = {
     const limit = Math.min((config.params?.limit as number) ?? 25, 50);
     const minScore = (config.params?.min_score as number) ?? 0;
 
-    try {
-      const allPosts: LemmyPostView[] = [];
+    const allPosts: LemmyPostView[] = [];
 
-      if (communities.length === 0) {
+    if (communities.length === 0) {
+      const posts = await fetchLemmyPosts(
+        instance,
+        { sort, limit: String(limit) },
+        `${instance} frontpage`,
+      );
+      allPosts.push(...posts);
+    } else {
+      for (const community of communities) {
         const posts = await fetchLemmyPosts(
           instance,
-          { sort, limit: String(limit) },
-          `${instance} frontpage`,
+          { community_name: community, sort, limit: String(limit) },
+          `c/${community}@${instance}`,
         );
         allPosts.push(...posts);
-      } else {
-        for (const community of communities) {
-          const posts = await fetchLemmyPosts(
-            instance,
-            { community_name: community, sort, limit: String(limit) },
-            `c/${community}@${instance}`,
-          );
-          allPosts.push(...posts);
-        }
       }
-
-      let deduped = dedupeByKey(allPosts, (view) => view.post.id);
-
-      if (minScore > 0) {
-        deduped = deduped.filter((view) => view.counts.score >= minScore);
-      }
-
-      deduped.sort((a, b) => b.counts.score - a.counts.score);
-
-      const limited = sliceToLimit(deduped, limit);
-
-      const sourceLabel =
-        communities.length === 1
-          ? `lemmy:${instance}:c/${communities[0]}`
-          : `lemmy:${instance}`;
-
-      return limited.map((view) => ({
-        id: `lemmy:${instance}:${view.post.id}`,
-        title: view.post.name,
-        url: view.post.url ?? view.post.ap_id,
-        source: sourceLabel,
-        timestamp: new Date(view.post.published),
-        body: buildBody(view),
-      }));
-    } catch (err) {
-      throw new Error(`lemmy: error fetching from ${instance}: ${errorMessage(err)}`);
     }
+
+    let deduped = dedupeByKey(allPosts, (view) => view.post.id);
+
+    if (minScore > 0) {
+      deduped = deduped.filter((view) => view.counts.score >= minScore);
+    }
+
+    deduped.sort((a, b) => b.counts.score - a.counts.score);
+
+    const limited = sliceToLimit(deduped, limit);
+
+    const sourceLabel =
+      communities.length === 1
+        ? `lemmy:${instance}:c/${communities[0]}`
+        : `lemmy:${instance}`;
+
+    return limited.map((view) => ({
+      id: `lemmy:${instance}:${view.post.id}`,
+      title: view.post.name,
+      url: view.post.url ?? view.post.ap_id,
+      source: sourceLabel,
+      timestamp: new Date(view.post.published),
+      body: buildBody(view),
+    }));
   },
 };
 

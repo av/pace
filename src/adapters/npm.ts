@@ -72,15 +72,22 @@ async function searchNpm(
   const params = new URLSearchParams(query);
   const url = `${NPM_REGISTRY}/-/v1/search?${params.toString()}`;
 
-  const res = await fetchWithTimeout(url, {
-    userAgent: "pace:feed-aggregator/1.0 (github.com/everlier/pace)",
-    accept: "application/json",
-  });
-  if (!res.ok) {
-    throw new Error(`npm: failed to search ${context}: ${errorMessage({ message: `${res.status}` })}`);
+  try {
+    const res = await fetchWithTimeout(url, {
+      userAgent: "pace:feed-aggregator/1.0 (github.com/everlier/pace)",
+      accept: "application/json",
+    });
+    if (!res.ok) {
+      throw new Error(`npm: failed to search ${context}: ${errorMessage({ message: `${res.status}` })}`);
+    }
+    const json: NpmSearchResult = await res.json();
+    return json.objects ?? [];
+  } catch (err) {
+    if (err instanceof Error && err.message.startsWith("npm: failed to search")) {
+      throw err;
+    }
+    throw new Error(`npm: error searching ${context}: ${errorMessage(err)}`);
   }
-  const json: NpmSearchResult = await res.json();
-  return json.objects ?? [];
 }
 
 type SortBy = "optimal" | "quality" | "popularity" | "maintenance";
@@ -144,21 +151,17 @@ const adapter: Adapter = {
       ? `@${scope} ${keywords.join(" ")}`.trim()
       : keywords.join(" ");
 
-    try {
-      const query = buildSearchQuery(keywords, scope, limit, sortBy);
-      const results = await searchNpm(query, context);
+    const query = buildSearchQuery(keywords, scope, limit, sortBy);
+    const results = await searchNpm(query, context);
 
-      return results.map((result) => ({
-        id: `npm:${result.package.name}@${result.package.version}`,
-        title: `${result.package.name} — ${result.package.description ?? ""}`,
-        url: result.package.links.npm,
-        source: scope ? `npm:@${scope}` : `npm:${sortBy}`,
-        timestamp: new Date(result.package.date),
-        body: buildBody(result),
-      }));
-    } catch (err) {
-      throw new Error(`npm: error searching packages: ${errorMessage(err)}`);
-    }
+    return results.map((result) => ({
+      id: `npm:${result.package.name}@${result.package.version}`,
+      title: `${result.package.name} — ${result.package.description ?? ""}`,
+      url: result.package.links.npm,
+      source: scope ? `npm:@${scope}` : `npm:${sortBy}`,
+      timestamp: new Date(result.package.date),
+      body: buildBody(result),
+    }));
   },
 };
 
