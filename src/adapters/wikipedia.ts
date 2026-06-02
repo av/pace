@@ -44,6 +44,10 @@ function formatArticleTitle(title: string): string {
   return decodeHtmlEntities(title.replace(/_/g, " "), { numeric: true });
 }
 
+function formatPlainFeedText(text: string): string {
+  return decodeHtmlEntities(stripHtml(text, { whitespace: "preserve" }), { numeric: true });
+}
+
 function buildBody(article: WikiMostReadArticle): string {
   return joinBodyParts(
     formatViews(article.views),
@@ -71,9 +75,7 @@ async function fetchFeaturedFeed(
   day: string,
 ): Promise<WikiFeaturedResponse> {
   const url = `https://${language}.wikipedia.org/api/rest_v1/feed/featured/${year}/${month}/${day}`;
-  return fetchJson<WikiFeaturedResponse>("wikipedia", url, "featured feed", {
-    userAgent: "pace:feed-aggregator/1.0 (github.com/everlier/pace)",
-  });
+  return fetchJson<WikiFeaturedResponse>("wikipedia", url, "featured feed");
 }
 
 function extractMostRead(data: WikiFeaturedResponse, limit: number): ContentItem[] {
@@ -107,10 +109,11 @@ function extractOnThisDay(data: WikiFeaturedResponse, limit: number): ContentIte
   const events = data.onthisday ?? [];
   return sliceToLimit(events, limit).map((event) => {
     const page = event.pages?.[0];
+    const text = formatPlainFeedText(event.text);
     const url = page?.content_urls?.desktop?.page ?? `https://en.wikipedia.org/wiki/Portal:Current_events`;
     return {
-      id: `wikipedia:otd:${event.year}:${stripHtml(event.text, { whitespace: "preserve" }).slice(0, 40)}`,
-      title: `${event.year}: ${stripHtml(event.text, { whitespace: "preserve" })}`,
+      id: `wikipedia:otd:${event.year}:${text.slice(0, 40)}`,
+      title: `${event.year}: ${text}`,
       url,
       source: "wikipedia:on_this_day",
       timestamp: new Date(),
@@ -126,7 +129,7 @@ function extractNews(data: WikiFeaturedResponse, limit: number): ContentItem[] {
     const url = link?.content_urls?.desktop?.page ?? "https://en.wikipedia.org/wiki/Portal:Current_events";
     return {
       id: `wikipedia:news:${link?.title ?? `untitled-${i}`}`,
-      title: stripHtml(item.story, { whitespace: "preserve" }),
+      title: formatPlainFeedText(item.story),
       url,
       source: "wikipedia:news",
       timestamp: new Date(),

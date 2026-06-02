@@ -274,6 +274,53 @@ describe("wikipedia", () => {
     expect(items[2].body).toContain("500 views");
   });
 
+  test("decodes HTML entities in on_this_day and news titles", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify(
+          makeFeaturedResponse({
+            onthisday: [
+              {
+                text: "Rock &amp; Roll &#8364; <b>happened</b>.",
+                year: 2000,
+                pages: [
+                  {
+                    title: "Event_Page",
+                    content_urls: { desktop: { page: "https://en.wikipedia.org/wiki/Event_Page" } },
+                  },
+                ],
+              },
+            ],
+            news: [
+              {
+                story: "News &amp; updates &#8364; <b>today</b>.",
+                links: [
+                  {
+                    title: "News_Page",
+                    content_urls: { desktop: { page: "https://en.wikipedia.org/wiki/News_Page" } },
+                  },
+                ],
+              },
+            ],
+          }),
+        ),
+        { status: 200 },
+      ),
+    );
+
+    const items = await wikipediaAdapter.fetch(wikiCfg({ mode: "on_this_day,news" }));
+    const otd = items.find((i) => i.source === "wikipedia:on_this_day");
+    const news = items.find((i) => i.source === "wikipedia:news");
+
+    expect(otd?.title).toBe("2000: Rock & Roll € happened.");
+    expect(otd?.title).not.toContain("&amp;");
+    expect(otd?.title).not.toContain("&#8364;");
+
+    expect(news?.title).toBe("News & updates € today.");
+    expect(news?.title).not.toContain("&amp;");
+    expect(news?.title).not.toContain("&#8364;");
+  });
+
   test("decodes HTML entities in article titles from API", async () => {
     const articles = [
       makeMostReadArticle({ title: "Rock_&amp;_Roll_&#8364;" }),
