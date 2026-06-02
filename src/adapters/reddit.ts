@@ -1,8 +1,7 @@
 import { parseUnixEpochSeconds } from "./dates";
-import { fetchWithTimeout } from "./fetch";
+import { fetchJson } from "./fetch";
 import { dedupeByKey, sliceToLimit } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
-import { errorMessage } from "./types";
 
 const REDDIT_BASE = "https://www.reddit.com";
 const USER_AGENT = "pace:feed-aggregator/1.0 (github.com/everlier/pace)";
@@ -88,25 +87,11 @@ async function fetchRedditListing(
     url += `&t=${timePeriod}`;
   }
 
-  let res: Response;
-  try {
-    res = await fetchWithTimeout(url, { userAgent: USER_AGENT });
-  } catch (err) {
-    throw new Error(`reddit: error fetching ${path}/${sort}: ${errorMessage(err)}`);
-  }
-
-  if (!res.ok) {
-    throw new Error(
-      `reddit: failed to fetch ${path}/${sort}: ${errorMessage({ message: String(res.status) })}`,
-    );
-  }
-
-  try {
-    const json: RedditListing = await res.json();
-    return json?.data?.children ?? [];
-  } catch (err) {
-    throw new Error(`reddit: error fetching ${path}/${sort}: ${errorMessage(err)}`);
-  }
+  const context = `${path}/${sort}`;
+  const json = await fetchJson<RedditListing>("reddit", url, context, {
+    userAgent: USER_AGENT,
+  });
+  return json?.data?.children ?? [];
 }
 
 const adapter: Adapter = {

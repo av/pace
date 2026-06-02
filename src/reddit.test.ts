@@ -188,7 +188,7 @@ describe("reddit", () => {
     fetchMock.mockImplementation(async () => makeErrorResponse(403));
 
     await expect(redditAdapter.fetch(redditCfg({ subreddits: ["private"] }))).rejects.toThrow(
-      /reddit: failed to fetch \/r\/private\/hot: 403/,
+      /reddit: failed to fetch \/r\/private\/hot: HTTP error 403/,
     );
   });
 
@@ -209,7 +209,7 @@ describe("reddit", () => {
         /reddit: failed to fetch/,
       );
 
-      expect(emSpy).toHaveBeenCalledWith({ message: "404" });
+      expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 404" });
     } finally {
       emSpy.mockRestore();
     }
