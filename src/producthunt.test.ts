@@ -39,6 +39,24 @@ function makeEnrichHtml(upvotes: number, comments: number, topics: string[] = ["
   </body></html>`;
 }
 
+function makeEnrichHtmlWithTopicLabels(
+  upvotes: number,
+  comments: number,
+  topicLabels: string[],
+  makers: string[] = ["johndoe"],
+): string {
+  const topicsHtml = topicLabels
+    .map((t) => `<span data-test="topic-link">${t}</span>`)
+    .join("");
+  const makersHtml = makers.map((m) => `<a href="/@${m}">@${m}</a>`).join("");
+  return `<html><body>
+    <div>Upvote • ${upvotes} points</div>
+    <script>var x = {"commentsCount": ${comments}};</script>
+    ${topicsHtml}
+    ${makersHtml}
+  </body></html>`;
+}
+
 describe("producthunt", () => {
   test("ngb contract", () => {
     expect(producthuntAdapter.name).toBe("producthunt");
@@ -135,6 +153,26 @@ describe("producthunt", () => {
     expect(items[0].body).toContain("topics: Ai, Devtools");
     expect(items[0].body).toContain("by @johndoe");
     expect(items[0].body).toContain("site: https://www.producthunt.com/r/test-product-123456");
+  });
+
+  test("with enrich decodes HTML entities in topic labels", async () => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
+      const u = String(url);
+      if (u.includes("producthunt.com/feed")) {
+        return new Response(makePHFeedFixture(), { status: 200 });
+      }
+      if (u.includes("123456")) {
+        return new Response(
+          makeEnrichHtmlWithTopicLabels(10, 5, ["AI &amp; ML", "Dev&#39;Tools"]),
+          { status: 200 },
+        );
+      }
+      return new Response(makeEnrichHtml(1, 1), { status: 200 });
+    });
+
+    const items = await producthuntAdapter.fetch(producthuntCfg({ enrich: true }));
+
+    expect(items[0].body).toContain("topics: AI & ML, Dev'Tools");
   });
 
   test("with enrich + min_upvotes filters items below threshold", async () => {
