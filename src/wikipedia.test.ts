@@ -312,7 +312,7 @@ describe("wikipedia", () => {
       await expect(
         wikipediaAdapter.fetch({ type: "wikipedia", params: {} }),
       ).rejects.toThrow("wikipedia:");
-      expect(emSpy).toHaveBeenCalledWith({ message: "404" });
+      expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 404" });
 
       fetchMock.mockRejectedValue(new Error("DNS resolution failed"));
       await expect(

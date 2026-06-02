@@ -16,7 +16,8 @@
  * catch-all around fetch+parse, rethrow when
  * `err.message.startsWith(\`${prefix}: failed to fetch\`)`; otherwise wrap as
  * `error fetching`. Hand-rolled JSON helpers (e.g. lemmy, wikipedia) follow the
- * same pattern. See `Adapter.fetch` in `types.ts` for throw vs warn+[] contract.
+ * same pattern for adapters not yet on `fetchJson`. See `Adapter.fetch` in
+ * `types.ts` for throw vs warn+[] contract.
  */
 import { errorMessage } from "./types";
 

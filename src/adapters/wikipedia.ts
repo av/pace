@@ -1,8 +1,7 @@
-import { fetchWithTimeout } from "./fetch";
+import { fetchJson } from "./fetch";
 import { stripHtml } from "./html";
 import { dedupeByKey, sliceToLimit } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
-import { errorMessage } from "./types";
 
 type Mode = "most_read" | "featured" | "on_this_day" | "news";
 
@@ -65,22 +64,9 @@ async function fetchFeaturedFeed(
   day: string,
 ): Promise<WikiFeaturedResponse> {
   const url = `https://${language}.wikipedia.org/api/rest_v1/feed/featured/${year}/${month}/${day}`;
-  try {
-    const res = await fetchWithTimeout(url, {
-      userAgent: "pace:feed-aggregator/1.0 (github.com/everlier/pace)",
-    });
-    if (!res.ok) {
-      throw new Error(
-        `wikipedia: failed to fetch featured feed: ${errorMessage({ message: `${res.status}` })}`,
-      );
-    }
-    return await res.json();
-  } catch (err) {
-    if (err instanceof Error && err.message.startsWith("wikipedia: failed to fetch")) {
-      throw err;
-    }
-    throw new Error(`wikipedia: error fetching featured feed: ${errorMessage(err)}`);
-  }
+  return fetchJson<WikiFeaturedResponse>("wikipedia", url, "featured feed", {
+    userAgent: "pace:feed-aggregator/1.0 (github.com/everlier/pace)",
+  });
 }
 
 function extractMostRead(data: WikiFeaturedResponse, limit: number): ContentItem[] {
