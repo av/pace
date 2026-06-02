@@ -1,5 +1,12 @@
 import { XMLParser } from "fast-xml-parser";
-import { FEED_XML_PARSER_OPTIONS, normalizeXmlList } from "./atom";
+import {
+  extractFeedEntryTitle,
+  extractFeedItemBody,
+  FEED_XML_PARSER_OPTIONS,
+  normalizeXmlList,
+  type FeedItemBodyFields,
+  type XmlTextField,
+} from "./atom";
 import { parseFeedDate } from "./dates";
 import { formatCategories, joinBodyParts } from "./engagement";
 import { fetchText } from "./fetch";
@@ -26,10 +33,9 @@ interface ArxivLink {
   "@_rel"?: string;
 }
 
-interface ArxivEntry {
+interface ArxivEntry extends FeedItemBodyFields {
   id?: string;
-  title?: string;
-  summary?: string;
+  title?: XmlTextField;
   published?: string;
   updated?: string;
   author?: ArxivAuthor | ArxivAuthor[];
@@ -114,7 +120,7 @@ async function fetchArxivQuery(
 function buildBody(entry: ArxivEntry): string {
   const authors = extractAuthors(entry.author);
   const categories = extractCategories(entry);
-  const abstract = cleanText(entry.summary);
+  const abstract = cleanText(extractFeedItemBody(entry));
   const pdfLink = extractPdfLink(entry.link);
   const arxivId = extractArxivId(entry.id);
   const pdfUrl = pdfLink || (arxivId ? `https://arxiv.org/pdf/${arxivId}` : "");
@@ -129,7 +135,7 @@ function buildBody(entry: ArxivEntry): string {
 
 function entryToItem(entry: ArxivEntry, sourceLabel: string): ContentItem {
   const arxivId = extractArxivId(entry.id);
-  const title = cleanText(entry.title) || "(untitled)";
+  const title = cleanText(extractFeedEntryTitle(entry.title));
   const url = entry.id ?? `https://arxiv.org/abs/${arxivId}`;
   const timestamp = parseFeedDate(entry.published ?? entry.updated ?? "");
 
