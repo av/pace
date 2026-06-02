@@ -299,13 +299,10 @@ function validateLayoutNode(node: unknown, path = "layout"): asserts node is Lay
 }
 
 function validatePanelNames(panels: PanelConfig[]): void {
-  const names = new Set<string>();
-  for (const p of panels) {
-    if (names.has(p.panel)) {
-      throw new Error(`config: duplicate panel name "${p.panel}"`);
-    }
-    names.add(p.panel);
-  }
+  const names = panels.map((p) => p.panel);
+  validateUniqueStrings(names, "layout", "panel name", {
+    formatDuplicateError: (name) => `config: duplicate panel name "${name}"`,
+  });
 }
 
 function validatePanelIds(panels: PanelConfig[]): void {
