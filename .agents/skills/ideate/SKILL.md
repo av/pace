@@ -245,23 +245,8 @@ When the deadline passes, present the top N ideas ranked by critic score:
 
 For ties, prefer the idea with higher frequency (daily > weekly > monthly). For ideas with the same score and frequency, prefer lower scope.
 
-## Quick Reference
+## Guidance References
 
-| Item | Value |
-|---|---|
-| Progress file | `/tmp/ideate-<slug>-<timestamp>.md` |
-| Time check | `date +%s`, compare against deadline, BEFORE every dispatch |
-| Iteration structure | Propose (subagent) then Critique (subagent) |
-| Minimum iteration output | One scored proposal with structured critique |
-| Termination | Deadline passes, present top N |
-| Default top N | 3 |
-| Stall threshold | 3 consecutive scores under 4 |
+See .agents/skills/timeboxed-iterating/SKILL.md for the canonical "Quick Reference" table and .agents/skills/timeboxed-iterating/SKILL.md for the canonical "Red Flags" guidance. The general patterns apply to this skill too.
 
-## Red Flags
-
-- You're about to present results and there's time left
-- You're proposing or critiquing ideas yourself instead of dispatching subagents
-- The last 3 proposals are variations of the same idea
-- You haven't updated the Patterns section in 3+ iterations
-- You haven't run `date +%s` since the last critic returned
-- You're composing a message to the user that isn't the final presentation
+The ideate-specific details remain in the Process, Presenting Results, Steering the Proposer, and ideate-specific additions to Preventing Premature Exit / Stall Recovery (e.g. progress file `/tmp/ideate-<slug>-...`, propose-then-critic dispatch, Patterns tracking, default top N=3, stall threshold of 3 consecutive <4, and red flags for presenting with time left or self-proposing/critiquing).
