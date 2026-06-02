@@ -11,10 +11,10 @@ function githubReleasesCfg(params: Record<string, unknown> = {}): AdapterConfig 
   return { ...defaultCfg, params };
 }
 
-describe("github-releases adapter", () => {
+describe("github-releases", () => {
   let fetchMock: ReturnType<typeof mock>;
 
-  test("satisfies ngb contract: default export has .name and .fetch", () => {
+  test("ngb contract", () => {
     expect(githubReleasesAdapter.name).toBe("github-releases");
     expect(typeof githubReleasesAdapter.fetch).toBe("function");
   });
@@ -29,7 +29,7 @@ describe("github-releases adapter", () => {
     mock.restore();
   });
 
-  test("uses errorMessage helper in !ok HTTP error path", async () => {
+  test("errorMessage on !ok", async () => {
     const emSpy = spyOn(typesMod, "errorMessage");
     const callsBefore = emSpy.mock.calls.length;
     fetchMock.mockResolvedValue(new Response("not found", { status: 404 }));

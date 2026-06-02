@@ -10,7 +10,7 @@ function youtubeCfg(params: Record<string, unknown> = {}): AdapterConfig {
   return { ...defaultCfg, params };
 }
 
-describe("youtube adapter", () => {
+describe("youtube", () => {
   let fetchMock: ReturnType<typeof mock>;
 
   const channelXml = `<?xml version="1.0" encoding="UTF-8"?>

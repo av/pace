@@ -29,7 +29,7 @@ function makeArxivFixture(title: string, arxivId: string, author = "Test Author"
 </feed>`;
 }
 
-describe("arxiv adapter", () => {
+describe("arxiv", () => {
   let fetchMock: ReturnType<typeof mock>;
   let warnSpy: ReturnType<typeof spyOn>;
 

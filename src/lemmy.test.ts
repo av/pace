@@ -4,7 +4,7 @@ import * as typesMod from "./adapters/types";
 
 const originalFetch = globalThis.fetch;
 
-describe("lemmy adapter", () => {
+describe("lemmy", () => {
   let fetchMock: ReturnType<typeof mock>;
 
   test("satisfies ngb contract: default export has .name and .fetch", () => {

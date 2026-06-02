@@ -4,7 +4,7 @@ import * as typesMod from "./adapters/types";
 
 const originalFetch = globalThis.fetch;
 
-describe("wikipedia adapter", () => {
+describe("wikipedia", () => {
   let fetchMock: ReturnType<typeof mock>;
 
   test("satisfies ngb contract: default export has .name and .fetch", () => {

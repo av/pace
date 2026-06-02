@@ -56,7 +56,7 @@ const trendingHtml = `
 </article>
 `;
 
-describe("github adapter", () => {
+describe("github", () => {
   let fetchMock: ReturnType<typeof mock>;
   let warnSpy: ReturnType<typeof spyOn>;
 

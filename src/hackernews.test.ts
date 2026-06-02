@@ -44,7 +44,7 @@ function makeItemResponse(item: HNItemFixture | null, status = 200): Response {
   });
 }
 
-describe("hackernews adapter", () => {
+describe("hackernews", () => {
   let fetchMock: ReturnType<typeof mock>;
   let warnSpy: ReturnType<typeof spyOn>;
 

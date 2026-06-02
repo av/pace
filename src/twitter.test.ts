@@ -8,7 +8,7 @@ function twitterCfg(params?: Record<string, unknown>): AdapterConfig {
   return params === undefined ? defaultCfg : { ...defaultCfg, params };
 }
 
-describe("twitter adapter", () => {
+describe("twitter", () => {
   test("satisfies ngb contract: default export has .name and .fetch", () => {
     expect(adapter.name).toBe("twitter");
     expect(typeof adapter.fetch).toBe("function");

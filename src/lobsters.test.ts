@@ -40,7 +40,7 @@ function makeJsonResponse(items: LobstersFixture[], status = 200): Response {
   });
 }
 
-describe("lobsters adapter", () => {
+describe("lobsters", () => {
   const originalFetch = globalThis.fetch;
 
   beforeEach(() => {

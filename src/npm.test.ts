@@ -4,7 +4,7 @@ import * as typesMod from "./adapters/types";
 
 const originalFetch = globalThis.fetch;
 
-describe("npm adapter", () => {
+describe("npm", () => {
   let fetchMock: ReturnType<typeof mock>;
   let warnSpy: ReturnType<typeof spyOn>;
 

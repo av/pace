@@ -53,7 +53,7 @@ function makeErrorResponse(status: number): Response {
   return new Response(null, { status, headers: { "content-type": "application/json" } });
 }
 
-describe("reddit adapter", () => {
+describe("reddit", () => {
   let fetchMock: ReturnType<typeof mock>;
   let warnSpy: ReturnType<typeof spyOn>;
 

@@ -31,7 +31,7 @@ interface MastodonStatusFixture {
   reblog: null;
 }
 
-describe("mastodon adapter", () => {
+describe("mastodon", () => {
   let originalFetch: typeof globalThis.fetch;
   let fetchCalls: Array<{ url: string; init?: RequestInit }>;
 

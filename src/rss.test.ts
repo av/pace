@@ -56,7 +56,7 @@ const mixedLinkFixture = `<?xml version="1.0"?>
   </channel>
 </rss>`;
 
-describe("rss adapter", () => {
+describe("rss", () => {
   let fetchCalls: string[] = [];
 
   test("satisfies ngb contract: default export has .name and .fetch", () => {
