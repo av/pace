@@ -1,4 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
+import { FEED_XML_PARSER_OPTIONS, normalizeXmlList } from "./atom";
 import { parseFeedDate } from "./dates";
 import { formatCategories, joinBodyParts } from "./engagement";
 import { fetchText } from "./fetch";
@@ -8,10 +9,7 @@ import type { Adapter, AdapterConfig, ContentItem } from "./types";
 const ARXIV_API = "http://export.arxiv.org/api/query";
 const RATE_LIMIT_DELAY = 3000; // ArXiv requests 3-second delay between requests
 
-const parser = new XMLParser({
-  ignoreAttributes: false,
-  attributeNamePrefix: "@_",
-});
+const parser = new XMLParser(FEED_XML_PARSER_OPTIONS);
 
 interface ArxivAuthor {
   name?: string;
@@ -45,12 +43,6 @@ interface ArxivAtomFeedParsed {
   feed?: {
     entry?: ArxivEntry | ArxivEntry[];
   };
-}
-
-function extractEntries(parsed: ArxivAtomFeedParsed): ArxivEntry[] {
-  const entries = parsed.feed?.entry;
-  if (!entries) return [];
-  return Array.isArray(entries) ? entries : [entries];
 }
 
 function extractAuthors(author: ArxivEntry["author"]): string {
@@ -116,7 +108,7 @@ async function fetchArxivQuery(
   const xml = await fetchText("arxiv", url, context, { timeoutMs: 30_000 });
 
   const parsed = parser.parse(xml) as ArxivAtomFeedParsed;
-  return extractEntries(parsed);
+  return normalizeXmlList(parsed.feed?.entry);
 }
 
 function buildBody(entry: ArxivEntry): string {
