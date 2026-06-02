@@ -1,11 +1,12 @@
 import { XMLParser } from "fast-xml-parser";
 import { extractAtomLink, type AtomLinkField } from "./atom";
 import { parseFeedDate } from "./dates";
-import { fetchWithTimeout } from "./fetch";
+import { fetchText } from "./fetch";
 import { dedupeByKey, sliceToLimit } from "./merge";
 import { stripHtml } from "./html";
+import { fetchRepoTagline } from "./github-repo-meta";
+import { joinTitle, truncateForTitle } from "./title";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
-import { errorMessage } from "./types";
 
 type TrendingPeriod = "daily" | "weekly" | "monthly";
 
@@ -47,38 +48,18 @@ function extractEntries(parsed: GHAtomFeedParsed): GHAtomEntry[] {
   return Array.isArray(entries) ? entries : [entries];
 }
 
-async function fetchGithubResource(
-  url: string,
-  context: string,
-  opts: { timeoutMs?: number; accept?: string } = {},
-): Promise<string | null> {
-  try {
-    const res = await fetchWithTimeout(url, {
-      timeoutMs: opts.timeoutMs,
-      accept: opts.accept,
-    });
-
-    if (!res.ok) {
-      throw new Error(`github: failed to fetch ${context}: ${errorMessage({ message: `${res.status}` })}`);
-    }
-
-    return await res.text();
-  } catch (err) {
-    if (err instanceof Error && err.message.startsWith("github: failed to fetch")) {
-      throw err;
-    }
-    throw new Error(`github: error fetching ${context}: ${errorMessage(err)}`);
-  }
-}
-
-async function fetchReleasesFeed(repo: string, limit: number): Promise<ContentItem[]> {
+async function fetchReleasesFeed(
+  repo: string,
+  limit: number,
+  token?: string,
+): Promise<ContentItem[]> {
   const url = `https://github.com/${repo}/releases.atom`;
 
-  const xml = await fetchGithubResource(url, `releases for ${repo}`, { timeoutMs: 15000 });
-  if (!xml) return [];
+  const xml = await fetchText("github", url, `releases for ${repo}`, { timeoutMs: 15000 });
 
   const parsed = parser.parse(xml) as GHAtomFeedParsed;
   const entries = extractEntries(parsed);
+  const tagline = await fetchRepoTagline(repo, "github", token);
 
   const items: ContentItem[] = [];
 
@@ -93,11 +74,14 @@ async function fetchReleasesFeed(repo: string, limit: number): Promise<ContentIt
     const rawContent = extractTextContent(entry.content);
     const body = rawContent ? stripHtml(rawContent).slice(0, 500) : undefined;
 
-    const displayTitle = tag && title !== tag
-      ? `${repo}: ${tag} — ${title}`
+    const releaseTitle = tag && title !== tag
+      ? `${repo}: ${tag} | ${title}`
       : tag
         ? `${repo}: ${tag}`
         : `${repo}: ${title}`;
+    const displayTitle = tagline
+      ? joinTitle(releaseTitle, truncateForTitle(tagline))
+      : releaseTitle;
 
     items.push({
       id: `github:${repo}:${tag || title}`,
@@ -169,11 +153,10 @@ async function fetchTrending(
   const langPath = language ? `/${encodeURIComponent(language)}` : "";
   const url = `https://github.com/trending${langPath}?since=${since}`;
 
-  const html = await fetchGithubResource(url, `trending`, {
+  const html = await fetchText("github", url, "trending", {
     timeoutMs: 20000,
     accept: "text/html",
   });
-  if (!html) return [];
 
   const repos = parseTrendingHtml(html);
 
@@ -184,21 +167,23 @@ async function fetchTrending(
   };
 
   return sliceToLimit(repos, limit).map((repo) => {
+    const titleParts: string[] = [repo.name];
+    if (repo.description) titleParts.push(truncateForTitle(repo.description));
+    if (repo.starsGained > 0) {
+      titleParts.push(`+${repo.starsGained.toLocaleString()} ${periodLabel[since]}`);
+    }
+
     const bodyParts: string[] = [];
-    if (repo.description) bodyParts.push(repo.description);
     if (repo.language) bodyParts.push(`language: ${repo.language}`);
     bodyParts.push(`${repo.stars.toLocaleString()} stars`);
-    if (repo.starsGained > 0) {
-      bodyParts.push(`+${repo.starsGained.toLocaleString()} ${periodLabel[since]}`);
-    }
 
     return {
       id: `github:trending:${repo.name}:${since}`,
-      title: repo.name,
+      title: joinTitle(...titleParts),
       url: repo.url,
       source: language ? `github:trending:${language}` : "github:trending",
       timestamp: new Date(), // trending has no specific timestamp
-      body: bodyParts.join(" | "),
+      body: bodyParts.length > 0 ? bodyParts.join(" | ") : undefined,
     };
   });
 }
@@ -225,8 +210,9 @@ const adapter: Adapter = {
       return [];
     }
 
+    const token = config.params?.token as string | undefined;
     const results = await Promise.all(
-      repos.map((repo) => fetchReleasesFeed(repo, limit)),
+      repos.map((repo) => fetchReleasesFeed(repo, limit, token)),
     );
 
     const deduped = dedupeByKey(results.flat(), (item) => item.url || item.id);

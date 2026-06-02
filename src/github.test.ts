@@ -83,6 +83,12 @@ describe("github", () => {
       if (String(url).includes("releases.atom")) {
         return makeTextResponse(releasesXml);
       }
+      if (String(url).includes("api.github.com/repos/")) {
+        return new Response(
+          JSON.stringify({ description: "The library for web and native user interfaces" }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
       throw new Error("unexpected url in test");
     });
 
@@ -90,19 +96,29 @@ describe("github", () => {
       githubCfg({ mode: "releases", repos: ["facebook/react"], limit: 10 }),
     );
 
-    expect(fetchMock.mock.calls.length).toBe(1);
+    expect(fetchMock.mock.calls.length).toBe(2);
     expect(items.length).toBe(2);
     expect(items[0].title).toContain("facebook/react: v19.0.0");
+    expect(items[0].title).toContain("The library for web and native user interfaces");
     expect(items[0].url).toBe("https://github.com/facebook/react/releases/tag/v19.0.0");
     expect(items[0].source).toBe("github:facebook/react");
     expect(items[0].id).toBe("github:facebook/react:v19.0.0");
     expect(items[0].body).toContain("Bug fixes and new features in React 19");
+    expect(items[0].body).not.toContain("The library for web");
     expect(items[0].timestamp).toBeInstanceOf(Date);
     expect(items[1].title).toContain("v18.3.0");
   });
 
   test("releases respects per-repo limit then outer cap", async () => {
-    fetchMock.mockImplementation(async () => makeTextResponse(releasesXml));
+    fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).includes("api.github.com/repos/")) {
+        return new Response(JSON.stringify({ description: "" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return makeTextResponse(releasesXml);
+    });
 
     const items = await adapter.fetch(
       githubCfg({ mode: "releases", repos: ["facebook/react", "vercel/next.js"], limit: 1 }),
@@ -111,14 +127,42 @@ describe("github", () => {
     expect(items.length).toBeLessThanOrEqual(2);
   });
 
+  test("releases without repo meta still return items when api.github.com fails", async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).includes("releases.atom")) {
+        return makeTextResponse(releasesXml);
+      }
+      return makeErrorResponse(404);
+    });
+
+    const items = await adapter.fetch(
+      githubCfg({ mode: "releases", repos: ["facebook/react"], limit: 10 }),
+    );
+
+    expect(items.length).toBe(2);
+    expect(items[0].body).toContain("Bug fixes and new features in React 19");
+    expect(items[0].body).not.toContain(" | The library");
+  });
+
   test("dedupes duplicate release urls when the same repo is listed twice", async () => {
-    fetchMock.mockImplementation(async () => makeTextResponse(releasesXml));
+    fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).includes("releases.atom")) {
+        return makeTextResponse(releasesXml);
+      }
+      if (String(url).includes("api.github.com/repos/")) {
+        return new Response(JSON.stringify({ description: "React" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      throw new Error("unexpected");
+    });
 
     const items = await adapter.fetch(
       githubCfg({ mode: "releases", repos: ["facebook/react", "facebook/react"], limit: 10 }),
     );
 
-    expect(fetchMock.mock.calls.length).toBe(2);
+    expect(fetchMock.mock.calls.length).toBe(4);
     expect(items.length).toBe(2);
     expect(items.map((i) => i.url)).toEqual([
       "https://github.com/facebook/react/releases/tag/v19.0.0",
@@ -139,12 +183,13 @@ describe("github", () => {
     );
 
     expect(items.length).toBe(2);
-    expect(items[0].title).toBe("vercel/next.js");
+    expect(items[0].title).toContain("vercel/next.js");
+    expect(items[0].title).toContain("The React Framework");
+    expect(items[0].title).toContain("+2,345 today");
     expect(items[0].source).toBe("github:trending:typescript");
-    expect(items[0].body).toContain("The React Framework");
     expect(items[0].body).toContain("123,456 stars");
-    expect(items[0].body).toContain("+2,345 today");
-    expect(items[1].title).toBe("facebook/react");
+    expect(items[1].title).toContain("facebook/react");
+    expect(items[1].title).toContain("declarative JavaScript");
   });
 
   test("trending default (no lang, daily) works and respects limit", async () => {
@@ -182,7 +227,7 @@ describe("github", () => {
       await expect(
         adapter.fetch(githubCfg({ mode: "releases", repos: ["bad/repo"], limit: 10 })),
       ).rejects.toThrow(/github:/);
-      expect(emSpy).toHaveBeenCalledWith({ message: "404" });
+      expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 404" });
 
       fetchMock.mockImplementation(async () => {
         throw new Error("network boom");

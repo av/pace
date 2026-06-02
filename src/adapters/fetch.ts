@@ -14,7 +14,7 @@
  * Avoid double-wrapped messages (`error fetching … failed to fetch …`): in a
  * catch-all around fetch+parse, rethrow when
  * `err.message.startsWith(\`${prefix}: failed to fetch\`)`; otherwise wrap as
- * `error fetching`. Hand-rolled helpers (e.g. `fetchGithubResource`) follow the
+ * `error fetching`. Hand-rolled JSON helpers (e.g. devto, npm) follow the
  * same pattern. See `Adapter.fetch` in `types.ts` for throw vs warn+[] contract.
  */
 import { errorMessage } from "./types";
