@@ -182,9 +182,10 @@ describe("devto", () => {
     expect(items[0].title).toBe("Tag Article One");
   });
 
-  test("fetch with no username or tags returns empty without network calls", async () => {
+  test("returns [] and warns when no tags or username configured", async () => {
     const items = await devtoAdapter.fetch(devtoCfg());
-    expect(items.length).toBe(0);
+    expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith("devto: no tags or username configured");
     expect(mocks.fetchMock).not.toHaveBeenCalled();
   });
 
