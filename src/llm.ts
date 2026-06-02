@@ -13,6 +13,10 @@ import { errorMessage } from "./utils";
 
 const KNOWN_PROVIDERS = new Set<string>(getProviders());
 
+function warnLlm(message: string, err?: unknown): void {
+  console.warn(err !== undefined ? `llm: ${message}: ${errorMessage(err)}` : `llm: ${message}`);
+}
+
 function isKnownProvider(provider: string): provider is KnownProvider {
   return KNOWN_PROVIDERS.has(provider);
 }
@@ -44,8 +48,8 @@ export function createModel(config: LlmConfig): Model<Api> | null {
     if (model) return model;
   }
 
-  console.warn(
-    `llm: unknown provider/model (${config.provider}/${config.model}), using OpenAI-compatible fallback`
+  warnLlm(
+    `unknown provider/model (${config.provider}/${config.model}), using OpenAI-compatible fallback`
   );
   const customModel: Model<"openai-completions"> = {
     id: config.model,
@@ -80,7 +84,7 @@ export async function safeComplete(
       .join("");
     return text || null;
   } catch (err) {
-    console.warn(`llm: complete failed: ${errorMessage(err)}`);
+    warnLlm("complete failed", err);
     return null;
   }
 }
@@ -97,7 +101,7 @@ function parseLlmJsonResponse<T>(text: string | null): T | null {
     const jsonStr = stripJsonCodeFences(text);
     return JSON.parse(jsonStr) as T;
   } catch (err) {
-    console.warn(`llm: JSON parse failed: ${errorMessage(err)}`);
+    warnLlm("JSON parse failed", err);
     return null;
   }
 }
