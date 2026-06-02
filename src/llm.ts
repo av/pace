@@ -50,14 +50,6 @@ export function createModel(config: LlmConfig): Model<Api> | null {
   }
 }
 
-/** Extract text from a pi-ai AssistantMessage response */
-function extractText(content: { type: string; text?: string }[]): string {
-  return content
-    .filter((b): b is { type: "text"; text: string } => b.type === "text")
-    .map((b) => b.text)
-    .join("");
-}
-
 /**
  * Strip markdown code fences (```json ... ``` or ``` ... ```) from LLM text responses
  * prior to JSON.parse. Handles optional language tag and surrounding whitespace.
@@ -79,7 +71,10 @@ export async function safeComplete(
 ): Promise<string | null> {
   try {
     const response = await complete(model, context);
-    const text = extractText(response.content);
+    const text = response.content
+      .filter((b): b is { type: "text"; text: string } => b.type === "text")
+      .map((b) => b.text)
+      .join("");
     return text || null;
   } catch {
     return null;
