@@ -20,11 +20,6 @@ const VALID_PERIODS = new Set<TimePeriod>([
   "all",
 ]);
 
-/**
- * Resolve a user-supplied string value against a set of valid options (case-insensitive).
- * Returns the canonical form if valid, else the fallback.
- * Single source of truth for the duplicated sort/timePeriod resolution logic.
- */
 function resolveValidOption<T extends string>(
   value: string | undefined,
   valid: Set<T>,
@@ -67,7 +62,6 @@ function buildBody(post: RedditPostData): string {
   parts.push(`${post.num_comments} comments`);
   parts.push(`r/${post.subreddit}`);
 
-  // Include discussion link for external URLs
   const discussLink = `https://reddit.com${post.permalink}`;
   if (!post.is_self) {
     parts.push(`discuss: ${discussLink}`);
@@ -77,8 +71,6 @@ function buildBody(post: RedditPostData): string {
 }
 
 function getItemUrl(post: RedditPostData): string {
-  // For self posts, link to the Reddit thread
-  // For link posts, use the external URL
   if (post.is_self) {
     return `https://reddit.com${post.permalink}`;
   }
@@ -134,12 +126,9 @@ const adapter: Adapter = {
       return [];
     }
 
-    // Fetch all configured subreddits
-    // Support multireddits via "+" in name (e.g., "programming+typescript+rust")
     const allPosts: RedditPost[] = [];
 
     for (const sub of subreddits) {
-      // sub can be "programming" or "programming+typescript+rust" (multireddit)
       const path = `/r/${sub}`;
       const posts = await fetchRedditListing(
         path,
@@ -150,22 +139,17 @@ const adapter: Adapter = {
       allPosts.push(...posts);
     }
 
-    // Deduplicate by post ID (possible overlap in multireddits or multiple subs)
     const deduped = dedupeByKey(allPosts, (post) => post.data.id);
 
-    // Apply score filter
     const filtered =
       minScore > 0
         ? deduped.filter((post) => post.data.score >= minScore)
         : deduped;
 
-    // Sort by score descending for consistent ordering across multi-sub fetches
     filtered.sort((a, b) => b.data.score - a.data.score);
 
-    // Apply limit
     const limited = sliceToLimit(filtered, limit);
 
-    // Build source label
     const sourceLabel =
       subreddits.length === 1
         ? `reddit:r/${subreddits[0]}`
