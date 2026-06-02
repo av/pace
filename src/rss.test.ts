@@ -197,6 +197,36 @@ describe("rss adapter", () => {
     );
   });
 
+  test("warns on extractFeedTitle parse failure when feed has no title", async () => {
+    const noTitleFixture = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <item>
+      <title>Item Without Channel Title</title>
+      <link>https://example.com/notitle</link>
+      <pubDate>Mon, 01 Jan 2024 12:00:00 GMT</pubDate>
+      <description>body without channel title</description>
+    </item>
+  </channel>
+</rss>`;
+    const badUrl = "not-a-valid-url";
+    globalThis.fetch = (async () => makeResponse(noTitleFixture)) as typeof fetch;
+
+    const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const cfg: AdapterConfig = { type: "rss", params: { urls: [badUrl] } };
+      const items = await rssAdapter.fetch(cfg);
+      expect(items.length).toBe(1);
+      expect(items[0].source).toBe(badUrl);
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/^rss: extractFeedTitle could not parse url "not-a-valid-url": /),
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
   test("uses errorMessage helper in !ok and network error paths", async () => {
     const emSpy = spyOn(typesMod, "errorMessage");
     try {
