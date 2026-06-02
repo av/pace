@@ -5,14 +5,14 @@ describe("twitter adapter", () => {
   let logSpy: ReturnType<typeof spyOn>;
 
   beforeEach(() => {
-    logSpy = spyOn(console, "log").mockImplementation(() => {});
+    logSpy = spyOn(console, "warn").mockImplementation(() => {});
   });
 
   afterEach(() => {
     logSpy.mockRestore();
   });
 
-  it("returns [] and logs configured message when lists provided", async () => {
+  it("returns [] and warns configured message when lists provided", async () => {
     const items = await adapter.fetch({ params: { lists: ["u1", "u2"] } } as any);
     expect(items).toEqual([]);
     expect(logSpy).toHaveBeenCalledTimes(1);
@@ -21,7 +21,7 @@ describe("twitter adapter", () => {
     );
   });
 
-  it("returns [] and logs configured message when searches provided", async () => {
+  it("returns [] and warns configured message when searches provided", async () => {
     const items = await adapter.fetch({ params: { searches: ["foo"] } } as any);
     expect(items).toEqual([]);
     expect(logSpy).toHaveBeenCalledTimes(1);
@@ -30,7 +30,7 @@ describe("twitter adapter", () => {
     );
   });
 
-  it("returns [] and logs no-config message when neither lists nor searches", async () => {
+  it("returns [] and warns no-config message when neither lists nor searches", async () => {
     const items = await adapter.fetch({ params: {} } as any);
     expect(items).toEqual([]);
     expect(logSpy).toHaveBeenCalledTimes(1);
@@ -39,7 +39,7 @@ describe("twitter adapter", () => {
     );
   });
 
-  it("returns [] and logs no-config message when no params at all", async () => {
+  it("returns [] and warns no-config message when no params at all", async () => {
     const items = await adapter.fetch({} as any);
     expect(items).toEqual([]);
     expect(logSpy).toHaveBeenCalledTimes(1);
