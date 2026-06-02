@@ -12,7 +12,7 @@ import {
 } from "./atom";
 import { parseFeedDate } from "./dates";
 import { sliceToLimit } from "../utils";
-import { fetchText } from "./fetch";
+import { fetchText, HN_ITEM_FETCH_TIMEOUT_MS } from "./fetch";
 import {
   decodeHtmlEntities,
   FEED_BODY_STRIP_OPTIONS,
@@ -34,7 +34,6 @@ import { titleWithTagline } from "./title";
 
 const PH_ENRICH_USER_AGENT =
   "Mozilla/5.0 (compatible; pace/1.0; +https://github.com/nickvdyck/pace)";
-const ENRICH_FETCH_TIMEOUT_MS = 10_000;
 
 const PH_FEED_URL = "https://www.producthunt.com/feed";
 const ENRICH_BATCH_SIZE = 5;
@@ -172,7 +171,7 @@ function extractId(entry: PHEntry): string {
 async function enrichProduct(url: string): Promise<EnrichedData | null> {
   try {
     const html = await fetchText("producthunt", url, url, {
-      timeoutMs: ENRICH_FETCH_TIMEOUT_MS,
+      timeoutMs: HN_ITEM_FETCH_TIMEOUT_MS,
       userAgent: PH_ENRICH_USER_AGENT,
       accept: "text/html",
     });

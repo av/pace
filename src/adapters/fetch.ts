@@ -5,8 +5,7 @@
  *
  * - **15s** (`DEFAULT_FETCH_TIMEOUT_MS`) — default for most feed/API calls.
  * - **10s** (`HN_ITEM_FETCH_TIMEOUT_MS`) — hackernews per-item (`item/{id}.json`);
- *   mastodon account lookup; producthunt enrich (`ENRICH_FETCH_TIMEOUT_MS` in
- *   `producthunt.ts`).
+ *   mastodon account lookup; producthunt enrich HTML scrape.
  * - **20s** (`FEED_FETCH_TIMEOUT_MS`) — github trending HTML; podcast feed XML.
  * - **30s** (`ARXIV_FETCH_TIMEOUT_MS`) — arxiv Atom query.
  *
