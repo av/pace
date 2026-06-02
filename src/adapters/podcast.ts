@@ -13,7 +13,7 @@ import {
 } from "./atom";
 import { parseFeedDate } from "./dates";
 import { joinBodyParts } from "./engagement";
-import { fetchText, PACE_USER_AGENT } from "./fetch";
+import { FEED_FETCH_TIMEOUT_MS, fetchText, PACE_USER_AGENT } from "./fetch";
 import { sliceToLimit } from "../utils";
 import { dedupeByKey } from "./merge";
 import {
@@ -271,7 +271,7 @@ async function fetchPodcastFeed(
   const xml = await fetchText("podcast", feedUrl, feedUrl, {
     userAgent: `${PACE_USER_AGENT} (podcast aggregator)`,
     accept: "application/rss+xml, application/xml, text/xml, */*",
-    timeoutMs: 20_000,
+    timeoutMs: FEED_FETCH_TIMEOUT_MS,
   });
   const parsed = parser.parse(xml) as PodcastFeedParsed;
 

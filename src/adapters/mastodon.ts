@@ -6,7 +6,7 @@ import {
   formatReplies,
   joinBodyParts,
 } from "./engagement";
-import { fetchJson } from "./fetch";
+import { fetchJson, HN_ITEM_FETCH_TIMEOUT_MS } from "./fetch";
 import { decodeHtmlEntities, stripHtml } from "./html";
 import { sliceToLimit } from "../utils";
 import { dedupeByKey, fetchAndConcat, sortByCreatedAtDesc } from "./merge";
@@ -134,7 +134,7 @@ async function lookupAccount(
       "mastodon",
       `https://${instance}/api/v1/accounts/lookup?acct=${encodeURIComponent(username)}`,
       `account lookup ${username}@${instance}`,
-      { timeoutMs: 10_000 },
+      { timeoutMs: HN_ITEM_FETCH_TIMEOUT_MS },
     );
   } catch (err) {
     warnLookupAccountFailed(username, instance, err);
@@ -179,6 +179,10 @@ async function fetchAccountStatuses(
   );
 }
 
+function normalizeConfiguredHashtags(hashtags: string[]): string[] {
+  return hashtags.map((tag) => tag.trim()).filter(Boolean);
+}
+
 function parseAccountHandle(handle: string): { username: string; instance: string } | null {
   // Accepts: @user@instance, user@instance
   const cleaned = handle.startsWith("@") ? handle.slice(1) : handle;
@@ -191,7 +195,9 @@ const adapter: Adapter = {
   name: "mastodon",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
     const instance = (config.params?.instance as string) ?? "mastodon.social";
-    const hashtags = (config.params?.hashtags as string[]) ?? [];
+    const hashtags = normalizeConfiguredHashtags(
+      (config.params?.hashtags as string[]) ?? [],
+    );
     const accounts = (config.params?.accounts as string[]) ?? [];
     const limit = Math.min((config.params?.limit as number) ?? 20, 40);
     const onlyMedia = (config.params?.only_media as boolean) ?? false;
