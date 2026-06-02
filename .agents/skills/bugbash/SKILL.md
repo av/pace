@@ -14,10 +14,8 @@ Identify the **Target** (e.g., a CLI binary, an API base URL, a Python package).
 | Parameter | Default | Example override |
 |-----------|---------|-----------------|
 | **Target** | _(required)_ | `./my-cli`, `http://localhost:8080`, `import mylib` |
-| **Output directory** | `/tmp/dogfood-output/` (illustrative only) | `Output directory: ./qa-reports` |
+| **Output directory** | `/tmp/dogfood-output/` | `Output directory: ./qa-reports` |
 | **Scope** | Full project | `Focus on the auth middleware` |
-
-**Note on fresh directories:** Every bugbash invocation must create and use a **unique fresh output directory** (e.g. `/tmp/bugbash-<target>-<YYYYMMDD-HHMMSS>/` following the observed timestamped convention from usage). The static `/tmp/dogfood-output/` default is an example only and must never be used literally, as it risks report.md/evidence collisions on concurrent runs, re-invocations, or multi-agent sessions. Always generate a timestamped dir in Initialize and use it for all artifacts.
 
 ## Workflow
 
@@ -41,9 +39,7 @@ Create a `report.md` in the output directory and fill in the header fields. Incl
 - Environment Details (OS, language version)
 - Summary Counts (Critical, High, Medium, Low)
 
-If the software needs to be built or started (e.g., `npm run build`, `docker-compose up`, `cargo build`), do that now. Keep track of the startup logs and run servers in the background if necessary.
-
-**Agent/tool harness note (for executions inside this project's subagents, timeboxed runners, etc.):** The literal shell `&` may not be usable inside the run_terminal_command tool (commands containing `&` are rejected with "Remove the '&' ... and set background: true"). Instead, use `run_terminal_command "<cmd>" background:true` (returns task_id), monitor with `get_command_or_subagent_output --task_id <id>`, and stop via `kill_command_or_subagent --task_id <id>` in Wrap up. Always redirect long-running output to files under logs/ or evidence/. The SKILL.md shell `&` examples are for direct human shell use; the harness model must be supported for systematic testing in agent contexts.
+If the software needs to be built or started (e.g., `npm run build`, `docker-compose up -d`, `cargo build`), do that now. Keep track of the startup logs and run servers in the background if necessary (e.g., using `&` and redirecting output for commands that do not support detached mode).
 
 ### 2. Orient
 
@@ -102,19 +98,3 @@ After exploring:
 - **Don't just look for crashes.** Usability matters. Confusing error messages, undocumented required flags, and sluggish performance are all valid issues.
 - **Test like a user, not a robot.** Try common workflows end-to-end. Combine flags or API calls in ways a real user would, passing the output of one command as input to the next.
 - **Check the exit codes and status codes.** A CLI returning `0` on failure, or an API returning `200 OK` for an error payload, is a bug. `echo $?` or `curl -w "%{http_code}"` are your friends.
-
-## Fact-driven Integration (AGENTS.md compliance)
-
-This skill is used inside a fact-driven project (see AGENTS.md and the `## facts` section). 
-
-When bugbash findings identify gaps or bugs that require changes to any file (including this SKILL.md during self-dogfood):
-- **Every change starts with a fact.** Do not edit until facts are added.
-- Use: `facts list --search "..." --light` (or --section relevant) to orient.
-- `facts add "precise testable claim about the required behavior" --section "bugbash" --tags "spec,bugbash-iterX" --command "grep -q 'phrase' .agents/skills/bugbash/SKILL.md || test cmd that proves it"`
-- Implement the minimal doc/code change (search_replace on SKILL.md only for this skill).
-- `facts check --tags "bugbash-iterX"` (never run bare `facts check`).
-- `facts edit <id1> <id2> ... --remove-tag spec --add-tag implemented`
-- Manual `?` facts (if any appear in check) must be verified one-by-one by reading the relevant code/doc and reporting PASS/FAIL + 1-line reason.
-- Note: `facts skills show bugbash` will not list this skill (only facts-* skills are registered that way); use direct read of SKILL.md + README.md instead.
-
-This ensures all bugbash-driven work is verifiable and flows through the fact sheet as source of truth. The 3 facts in this section (and their @implemented state after verification) are the spec for these integration requirements.
