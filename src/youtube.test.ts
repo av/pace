@@ -1,9 +1,17 @@
-import { describe, it, expect, beforeEach, afterEach } from "bun:test";
+import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
 import adapter from "./adapters/youtube";
 import type { AdapterConfig } from "./adapters/types";
 
+const originalFetch = globalThis.fetch;
+
+const defaultCfg: AdapterConfig = { type: "youtube" };
+
+function youtubeCfg(params: Record<string, unknown> = {}): AdapterConfig {
+  return { ...defaultCfg, params };
+}
+
 describe("youtube adapter", () => {
-  let originalFetch: typeof globalThis.fetch;
+  let fetchMock: ReturnType<typeof mock>;
 
   const channelXml = `<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns:media="http://search.yahoo.com/mrss/">
@@ -44,8 +52,7 @@ describe("youtube adapter", () => {
 </feed>`;
 
   beforeEach(() => {
-    originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (url: string | URL) => {
+    fetchMock = mock(async (url: string | URL) => {
       const urlStr = String(url);
       if (urlStr.includes("channel_id=CH1")) {
         return new Response(channelXml, {
@@ -63,7 +70,8 @@ describe("youtube adapter", () => {
         return new Response("not found", { status: 404 });
       }
       return new Response("not found", { status: 404 });
-    }) as any;
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
   });
 
   afterEach(() => {
@@ -71,14 +79,12 @@ describe("youtube adapter", () => {
   });
 
   it("returns empty when no channels or playlists configured", async () => {
-    const items = await adapter.fetch({ params: {} } as AdapterConfig);
+    const items = await adapter.fetch(youtubeCfg());
     expect(items).toEqual([]);
   });
 
   it("fetches from channel and maps items with correct title/source/url/body", async () => {
-    const items = await adapter.fetch({
-      params: { channels: ["CH1"], limit: 10 },
-    } as AdapterConfig);
+    const items = await adapter.fetch(youtubeCfg({ channels: ["CH1"], limit: 10 }));
     expect(items.length).toBe(2);
     expect(items[0].id).toBe("youtube:vid1");
     expect(items[0].title).toBe("Video 1 Title");
@@ -89,9 +95,7 @@ describe("youtube adapter", () => {
   });
 
   it("fetches from playlist and maps items", async () => {
-    const items = await adapter.fetch({
-      params: { playlists: ["PL1"], limit: 5 },
-    } as AdapterConfig);
+    const items = await adapter.fetch(youtubeCfg({ playlists: ["PL1"], limit: 5 }));
     expect(items.length).toBe(1);
     expect(items[0].title).toBe("PL Video 1");
     expect(items[0].source).toBe("youtube:Playlist One");
@@ -99,36 +103,29 @@ describe("youtube adapter", () => {
   });
 
   it("fetches combined channels + playlists (limit passed per feed, total not capped)", async () => {
-    const items = await adapter.fetch({
-      params: { channels: ["CH1"], playlists: ["PL1"], limit: 2 },
-    } as AdapterConfig);
+    const items = await adapter.fetch(
+      youtubeCfg({ channels: ["CH1"], playlists: ["PL1"], limit: 2 }),
+    );
     expect(items.length).toBe(3); // 2 channel + 1 playlist
   });
 
   it("throws when any configured feed fails (!ok), even if others would succeed", async () => {
     await expect(
-      adapter.fetch({
-        params: { channels: ["ERR"], playlists: ["PL1"] },
-      } as AdapterConfig),
+      adapter.fetch(youtubeCfg({ channels: ["ERR"], playlists: ["PL1"] })),
     ).rejects.toThrow(/youtube:.*failed to fetch channel ERR.*404/);
   });
 
   it("respects per-feed limit", async () => {
-    const items = await adapter.fetch({
-      params: { channels: ["CH1"], limit: 1 },
-    } as AdapterConfig);
+    const items = await adapter.fetch(youtubeCfg({ channels: ["CH1"], limit: 1 }));
     expect(items.length).toBe(1);
   });
 
   it("throws on network error with adapter prefix", async () => {
-    globalThis.fetch = async () => {
+    globalThis.fetch = mock(async () => {
       throw new Error("network boom for youtube test");
-    };
+    }) as typeof fetch;
     await expect(
-      adapter.fetch({
-        type: "youtube",
-        params: { channels: ["UCtestchannel"] },
-      } as AdapterConfig),
+      adapter.fetch(youtubeCfg({ channels: ["UCtestchannel"] })),
     ).rejects.toThrow(/youtube: error fetching.*network boom for youtube test/);
   });
 });

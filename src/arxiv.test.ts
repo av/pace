@@ -1,8 +1,15 @@
 import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
 import arxivAdapter from "./adapters/arxiv";
+import type { AdapterConfig } from "./adapters/types";
 import * as typesMod from "./adapters/types";
 
 const originalFetch = globalThis.fetch;
+
+const defaultCfg: AdapterConfig = { type: "arxiv" };
+
+function arxivCfg(params: Record<string, unknown> = {}): AdapterConfig {
+  return { ...defaultCfg, params };
+}
 
 function makeArxivFixture(title: string, arxivId: string, author = "Test Author", cat = "cs.AI"): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -44,7 +51,7 @@ describe("arxiv adapter", () => {
   });
 
   test("warns and returns empty when no categories and no query configured", async () => {
-    const items = await arxivAdapter.fetch({ params: {} } as any);
+    const items = await arxivAdapter.fetch(arxivCfg());
     expect(items).toEqual([]);
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("arxiv: no categories or query configured"));
     expect(fetchMock).not.toHaveBeenCalled();
@@ -58,7 +65,7 @@ describe("arxiv adapter", () => {
       }),
     );
 
-    const items = await arxivAdapter.fetch({ params: { categories: ["cs.LG"] } } as any);
+    const items = await arxivAdapter.fetch(arxivCfg({ categories: ["cs.LG"] }));
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(items.length).toBe(1);
@@ -80,7 +87,7 @@ describe("arxiv adapter", () => {
       }),
     );
 
-    const items = await arxivAdapter.fetch({ params: { query: "quantum computing" } } as any);
+    const items = await arxivAdapter.fetch(arxivCfg({ query: "quantum computing" }));
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const callUrl = String(fetchMock.mock.calls[0][0]);
@@ -104,7 +111,7 @@ describe("arxiv adapter", () => {
       return new Response(queryXml, { status: 200 });
     });
 
-    const items = await arxivAdapter.fetch({ params: { categories: ["cs.AI"], query: "test", limit: 10 } } as any);
+    const items = await arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"], query: "test", limit: 10 }));
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(items.length).toBe(2);
@@ -128,7 +135,7 @@ describe("arxiv adapter", () => {
       ),
     );
 
-    const items = await arxivAdapter.fetch({ params: { categories: ["cs.AI"], limit: 2 } } as any);
+    const items = await arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"], limit: 2 }));
 
     expect(items.length).toBeLessThanOrEqual(2);
   });
@@ -137,7 +144,7 @@ describe("arxiv adapter", () => {
     fetchMock.mockResolvedValue(new Response("rate limit", { status: 429 }));
 
     await expect(
-      arxivAdapter.fetch({ params: { categories: ["cs.AI"] } } as any),
+      arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"] })),
     ).rejects.toThrow(/arxiv: failed to fetch query "cat:cs.AI": HTTP error 429/);
   });
 
@@ -145,7 +152,7 @@ describe("arxiv adapter", () => {
     fetchMock.mockRejectedValue(new Error("DNS fail"));
 
     await expect(
-      arxivAdapter.fetch({ params: { query: "foo bar" } } as any),
+      arxivAdapter.fetch(arxivCfg({ query: "foo bar" })),
     ).rejects.toThrow(/arxiv: error fetching query "all:foo bar": DNS fail/);
   });
 
@@ -158,7 +165,7 @@ describe("arxiv adapter", () => {
       return new Response(makeArxivFixture(`${cat} Paper`, `id-${cat}`, "Multi", cat), { status: 200 });
     });
 
-    const items = await arxivAdapter.fetch({ params: { categories: ["cs.AI", "cs.LG"], limit: 5 } } as any);
+    const items = await arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI", "cs.LG"], limit: 5 }));
 
     expect(calls).toBe(2);
     expect(items.length).toBe(2);
@@ -170,7 +177,7 @@ describe("arxiv adapter", () => {
     try {
       fetchMock.mockResolvedValue(new Response("rate limit", { status: 429 }));
       await expect(
-        arxivAdapter.fetch({ params: { categories: ["cs.AI"] } } as any),
+        arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"] })),
       ).rejects.toThrow(/arxiv: failed to fetch query "cat:cs.AI":/);
       expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 429" });
 
@@ -178,7 +185,7 @@ describe("arxiv adapter", () => {
 
       fetchMock.mockRejectedValue(new Error("DNS fail"));
       await expect(
-        arxivAdapter.fetch({ params: { query: "foo bar" } } as any),
+        arxivAdapter.fetch(arxivCfg({ query: "foo bar" })),
       ).rejects.toThrow(/arxiv: error fetching query "all:foo bar":/);
       expect(emSpy).toHaveBeenCalled();
     } finally {
