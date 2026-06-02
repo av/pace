@@ -1,4 +1,4 @@
-import { fetchJson } from "./fetch";
+import { buildGitHubApiHeaders, fetchJson } from "./fetch";
 import { errorMessage } from "./types";
 
 export interface GitHubRepoMeta {
@@ -11,19 +11,13 @@ export async function fetchRepoTagline(
   token?: string,
 ): Promise<string> {
   const url = `https://api.github.com/repos/${repo}`;
-  const headers: Record<string, string> = {
-    Accept: "application/vnd.github+json",
-  };
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
 
   try {
     const data = await fetchJson<{ description?: string | null }>(
       adapterName,
       url,
       repo,
-      { headers },
+      { headers: buildGitHubApiHeaders(token) },
     );
     return (data.description ?? "").trim();
   } catch (err) {

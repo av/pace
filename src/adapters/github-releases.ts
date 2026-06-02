@@ -1,4 +1,4 @@
-import { fetchJson } from "./fetch";
+import { buildGitHubApiHeaders, fetchJson } from "./fetch";
 import { fetchRepoTagline } from "./github-repo-meta";
 import { decodeHtmlEntities } from "./html";
 import { titleWithTagline } from "./title";
@@ -25,14 +25,9 @@ async function fetchRepoReleases(
   token?: string,
 ): Promise<ContentItem[]> {
   const url = `https://api.github.com/repos/${repo}/releases?per_page=${RELEASES_PER_PAGE}`;
-  const headers: Record<string, string> = {
-    Accept: "application/vnd.github+json",
-  };
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-
-  const releases = await fetchJson<GitHubRelease[]>(ADAPTER_NAME, url, repo, { headers });
+  const releases = await fetchJson<GitHubRelease[]>(ADAPTER_NAME, url, repo, {
+    headers: buildGitHubApiHeaders(token),
+  });
   const tagline = await fetchRepoTagline(repo, ADAPTER_NAME, token);
   return releases.map((r) => {
     const releaseName = decodeReleaseName(r.name ?? r.tag_name);

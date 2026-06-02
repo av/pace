@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import {
+  buildGitHubApiHeaders,
   fetchJson,
   fetchText,
   fetchWithTimeout,
+  GITHUB_API_ACCEPT,
   PACE_FEED_USER_AGENT,
   PACE_USER_AGENT,
 } from "./adapters/fetch";
@@ -27,6 +29,14 @@ describe("fetchWithTimeout", () => {
 
   test("PACE_USER_AGENT is exported for short overrides", () => {
     expect(PACE_USER_AGENT).toBe("pace/1.0");
+  });
+
+  test("buildGitHubApiHeaders sets Accept and optional Bearer token", () => {
+    expect(buildGitHubApiHeaders()).toEqual({ Accept: GITHUB_API_ACCEPT });
+    expect(buildGitHubApiHeaders("ghp_test")).toEqual({
+      Accept: GITHUB_API_ACCEPT,
+      Authorization: "Bearer ghp_test",
+    });
   });
 
   test("merges custom userAgent, headers, and accept", async () => {

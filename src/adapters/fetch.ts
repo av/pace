@@ -25,6 +25,18 @@ export const PACE_USER_AGENT = "pace/1.0";
 export const PACE_FEED_USER_AGENT =
   "pace:feed-aggregator/1.0 (github.com/everlier/pace)";
 
+/** GitHub REST API `Accept` value (api.github.com JSON responses). */
+export const GITHUB_API_ACCEPT = "application/vnd.github+json";
+
+/** Headers for GitHub REST API requests (`Accept` + optional `Authorization`). */
+export function buildGitHubApiHeaders(token?: string): Record<string, string> {
+  const headers: Record<string, string> = { Accept: GITHUB_API_ACCEPT };
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  return headers;
+}
+
 const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
 
 function buildFetchHeaders(options: FetchWithTimeoutOptions): Record<string, string> {
