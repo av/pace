@@ -1,8 +1,21 @@
 import { describe, it, expect } from "bun:test";
+import type { ContentItem, Adapter, AdapterConfig } from "./adapters/types";
+import type {
+  AppConfig,
+  IngestAdapterConfig,
+  LayoutNodeConfig,
+  LlmConfig,
+  PanelConfig,
+  PipelineConfig,
+} from "./config";
+import { isPanel } from "./config";
 
-// Domain fidelity test (ContentItem per .facts tgt, ContentItemRow per qun).
-// Pure test coverage for shape/required/optional fields/summary fidelity gap noted in prior iters.
-// No imports from db/adapters/llm etc to stay in domain-only scope.
+/** Persisted item: ContentItem fields plus panel metadata (DB stores dates as ISO strings). */
+type PersistedContentItem = ContentItem & {
+  panel_id: string;
+  fetched_at: Date;
+  summary?: string;
+};
 
 describe("domain ContentItem fidelity (per .facts)", () => {
   it("ContentItem has required shape {id, title, url, source, timestamp: Date, body?} per tgt", () => {
@@ -34,7 +47,7 @@ describe("domain ContentItem fidelity (per .facts)", () => {
   });
 
   it("ContentItemRow persisted shape includes panel_id, fetched_at + optional LLM summary per qun", () => {
-    const row: any = {
+    const row: PersistedContentItem = {
       id: "hn:123",
       title: "foo",
       url: "https://ex.com",
@@ -77,9 +90,9 @@ describe("domain ContentItem fidelity (per .facts)", () => {
   });
 
   it("Adapter has shape fidelity {name, fetch(config: AdapterConfig): Promise<ContentItem[]>} per 2wm", () => {
-    const adapter = {
+    const adapter: Adapter = {
       name: "hackernews",
-      fetch: async (config: any): Promise<any[]> => [], // satisfies domain 2wm contract (name + fetch returning ContentItem[])
+      fetch: async (_config: AdapterConfig): Promise<ContentItem[]> => [],
     };
     expect(adapter).toHaveProperty("name");
     expect(typeof adapter.name).toBe("string");
@@ -234,17 +247,16 @@ describe("domain ContentItem fidelity (per .facts)", () => {
   });
 
   it("Adapter ngb fidelity: fetch returns Promise<ContentItem[]> (runtime) per 2wm / domain entity contract", () => {
-    const adapter = {
+    const adapter: Adapter = {
       name: "hackernews",
-      fetch: (config: any) => Promise.resolve([]),  // returns Promise to satisfy runtime fidelity per 2wm/ ngb contract (minimal TDD green edit after red + facts add)
+      fetch: (_config: AdapterConfig) => Promise.resolve([]),
     };
     expect(adapter).toHaveProperty("name");
     expect(typeof adapter.name).toBe("string");
     expect(adapter).toHaveProperty("fetch");
     expect(typeof adapter.fetch).toBe("function");
-    const result = adapter.fetch({});
-    expect(result).toBeInstanceOf(Promise);  // FAILs initially: exercises the Promise<ContentItem[]> return per 2wm entity def + ngb basic contract (TDD red before facts add / edit)
-    // once green, adds runtime fidelity coverage for Adapter (ngb) entity in domain.test.ts (pure test, no prod change)
+    const result = adapter.fetch({ type: "hackernews" });
+    expect(result).toBeInstanceOf(Promise);
   });
 
   it("ContentItemRow wk0 fidelity: queried deduplicated (latest timestamp per url-norm or id) per wk0 for Panel to render the Dashboard (pure shape fidelity in domain.test.ts)", () => {
@@ -272,10 +284,11 @@ describe("domain ContentItem fidelity (per .facts)", () => {
         { panel: "pipe", source: "my-pipe" },
       ],
     };
-    expect(layout.children.some((c: any) => c.source === "all")).toBe(true);
-    // initial (will cause red): no bypass selection, empty list
-    const allBypassSources: string[] = layout.children.filter((c: any) => c.source === 'all').map((c: any) => c.source);  // 1-line minimal edit (makes isy 'all' bypass fidelity green; TDD red->green)
-    expect(allBypassSources.length).toBe(1); // FAILs initially (0 != 1, exercises isy Layout reference + 'all' bypass claim for global recent view; TDD red before facts add/edit)
+    expect(layout.children.some((c) => isPanel(c) && c.source === "all")).toBe(true);
+    const allBypassSources = layout.children
+      .filter((c): c is PanelConfig => isPanel(c) && c.source === "all")
+      .map((c) => c.source);
+    expect(allBypassSources.length).toBe(1);
     expect(allBypassSources[0]).toBe("all");
     // isy fidelity: Layout refs Adapters/Pipelines/'all'; 'all' special bypasses normal for global recent (strengthens kb9/frg domain Layout)
   });
@@ -292,31 +305,47 @@ describe("domain ContentItem fidelity (per .facts)", () => {
     expect(appConfig).toHaveProperty("pipelines");
     expect(appConfig).toHaveProperty("layout");
     // initial (will cause red): no drive relation exercised, empty list
-    const declaresAndDrives: any[] = [appConfig.adapters, appConfig.pipelines, appConfig.layout];  // 1-line minimal edit (makes 99y AppConfig declares+drive fidelity green; TDD red->green)
-    expect(declaresAndDrives.length).toBe(3); // FAILs initially (0 != 3, exercises 99y AppConfig declares Adapters/Pipelines/Layout which together drive the Scheduler; TDD red before facts add/edit)
+    const app: AppConfig = appConfig;
+    const declaresAndDrives: [
+      IngestAdapterConfig[],
+      PipelineConfig[] | undefined,
+      LayoutNodeConfig,
+    ] = [app.adapters, app.pipelines, app.layout];
+    expect(declaresAndDrives.length).toBe(3);
     // 99y fidelity: AppConfig declares Adapters, Pipelines and a Layout which together drive the Scheduler (strengthens 0b6/rhq + domain relations 99y/6de/fc3)
   });
 
   it("Scheduler 6de fidelity: invokes Adapter fetch or Pipeline processing then applies ordered Transforms before persisting as ContentItemRows per 6de", () => {
-    const itemsFromAdapter = [{ id: "hn:1", title: "a", url: "u1", source: "hackernews", timestamp: new Date() }];
-    const itemsFromPipe = [{ id: "gh:2", title: "b", url: "u2", source: "github", timestamp: new Date() }];
-    const applyTransforms = (xs: any[]) => xs.map((x: any) => ({ ...x, transformed: true }));
-    const persistRows = (xs: any[]) => xs; // simulate ContentItemRows with panel_id etc
-    // initial (will cause red): no 6de invoke/transform/persist sequence exercised, empty list
-    const processed: any[] = [itemsFromAdapter[0], itemsFromPipe[0]];  // 1-line minimal edit (makes 6de Scheduler invoke fidelity green; TDD red->green)
-    expect(processed.length).toBe(2); // FAILs initially (0 != 2, exercises 6de Scheduler invokes Adapter fetch or Pipeline then applies ordered Transforms before persisting as ContentItemRows; TDD red before facts add/edit)
+    const itemsFromAdapter: ContentItem[] = [
+      { id: "hn:1", title: "a", url: "u1", source: "hackernews", timestamp: new Date() },
+    ];
+    const itemsFromPipe: ContentItem[] = [
+      { id: "gh:2", title: "b", url: "u2", source: "github", timestamp: new Date() },
+    ];
+    type TransformedItem = ContentItem & { transformed: boolean };
+    const applyTransforms = (xs: ContentItem[]): TransformedItem[] =>
+      xs.map((x) => ({ ...x, transformed: true }));
+    const persistRows = (xs: TransformedItem[]): TransformedItem[] => xs;
+    const processed = persistRows(applyTransforms([...itemsFromAdapter, ...itemsFromPipe]));
+    expect(processed.length).toBe(2);
+    expect(processed.every((x) => x.transformed)).toBe(true);
     // 6de fidelity: Scheduler invokes Adapter fetch or Pipeline processing then applies ordered Transforms before persisting as ContentItemRows (strengthens rhq + domain 6de/99y/fc3)
   });
 
   it("fc3 shape fidelity: LLM-powered Transforms and summaries require a valid LLMConfig and model; otherwise they silently degrade to no-op per fc3", () => {
-    const items = [{ id: "hn:1", title: "a", url: "u1", source: "hackernews", timestamp: new Date() }];
-    const hasValidLlm = (cfg: any) => !!(cfg && cfg.model);
-    const applyLlmIfValid = (xs: any[], cfg: any) => hasValidLlm(cfg) ? xs.map((x: any) => ({ ...x, summary: "LLM sum" })) : xs; // degrade = no-op if !valid
-    const validCfg = { provider: "openai", model: "gpt-4o-mini" };
-    const invalidCfg = { provider: "openai" }; // missing model -> degrade per fc3
-    // initial (will cause red): no fc3 degrade exercised for invalid case (non-empty with summary)
-    const noLlmResult: any[] = [];  // 1-line minimal edit (makes fc3 shape fidelity green; TDD red->green)
-    expect(noLlmResult.length).toBe(0); // FAILs initially (1 != 0, exercises fc3: require valid LLMConfig+model else silently degrade to no-op; TDD red before facts add/edit)
+    const items: ContentItem[] = [
+      { id: "hn:1", title: "a", url: "u1", source: "hackernews", timestamp: new Date() },
+    ];
+    const hasValidLlm = (cfg: LlmConfig | undefined) => Boolean(cfg?.model);
+    type SummarizedItem = ContentItem & { summary?: string };
+    const applyLlmIfValid = (xs: ContentItem[], cfg: LlmConfig): SummarizedItem[] =>
+      hasValidLlm(cfg) ? xs.map((x) => ({ ...x, summary: "LLM sum" })) : xs;
+    const validCfg: LlmConfig = { provider: "openai", model: "gpt-4o-mini" };
+    const invalidCfg: LlmConfig = { provider: "openai" };
+    const noLlmResult = applyLlmIfValid(items, invalidCfg);
+    expect(noLlmResult).toEqual(items);
+    const withLlm = applyLlmIfValid(items, validCfg);
+    expect(withLlm[0]?.summary).toBe("LLM sum");
     // fc3 shape fidelity: LLM-powered Transforms and summaries require a valid LLMConfig and model; otherwise they silently degrade to no-op (strengthens wiw + domain fc3/dhu)
   });
 });
