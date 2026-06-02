@@ -152,6 +152,9 @@ describe("transforms - dedupe strategies", () => {
     expect(result.map((r) => r.id)).toContain("2"); // or 1 depending on pick, but one kept + 3
     expect(result).toHaveLength(2);
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("[dedupe:title-similarity] removed 1 duplicate(s) (threshold=0.8):"));
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining('  - "Hello World Update" (u1) -> kept "Hello World Upd8"'),
+    );
   });
 
   test("dedupe log disabled does not emit console.log", async () => {

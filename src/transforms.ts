@@ -453,17 +453,12 @@ const transforms: Record<string, TransformFn> = {
           const similarity = titleSimilarity(item.title, existing.title);
           if (similarity !== null && similarity >= threshold) {
             const winner = pickWinner([existing, item], keep);
+            const loser = winner === item ? existing : item;
             if (winner === item) {
               const idx = kept.indexOf(existing);
               kept[idx] = item;
-              removed.push(
-                `"${existing.title}" (sim=${similarity.toFixed(2)}) -> kept "${item.title}"`
-              );
-            } else {
-              removed.push(
-                `"${item.title}" (sim=${similarity.toFixed(2)}) -> kept "${existing.title}"`
-              );
             }
+            removed.push(formatDedupeRemovedLine(loser, winner));
             isDuplicate = true;
             break;
           }
