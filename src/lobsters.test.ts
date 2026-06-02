@@ -184,6 +184,6 @@ describe("lobsters", () => {
 
     await expect(
       lobstersAdapter.fetch(lobstersCfg({ feed: "active" })),
-    ).rejects.toThrow(/lobsters: error fetching stories.*connection refused/);
+    ).rejects.toThrow(/lobsters: error fetching active.*connection refused/);
   });
 });

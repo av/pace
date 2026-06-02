@@ -1,7 +1,6 @@
-import { fetchWithTimeout } from "./fetch";
+import { fetchJson } from "./fetch";
 import { dedupeByKey, fetchAndConcat, sliceToLimit, sortByCreatedAtDesc } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
-import { errorMessage } from "./types";
 
 const LOBSTERS_BASE = "https://lobste.rs";
 
@@ -40,17 +39,6 @@ function buildBody(item: LobstersItem): string {
   return parts.join(" | ");
 }
 
-async function fetchLobstersJson(
-  url: string,
-  label: string,
-): Promise<LobstersItem[]> {
-  const res = await fetchWithTimeout(url);
-  if (!res.ok) {
-    throw new Error(`lobsters: failed to fetch ${label}: ${errorMessage({ message: String(res.status) })}`);
-  }
-  return (await res.json()) as LobstersItem[];
-}
-
 const adapter: Adapter = {
   name: "lobsters",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
@@ -71,49 +59,42 @@ const adapter: Adapter = {
       feedType = "hottest";
     }
 
-    try {
-      let items: LobstersItem[] = [];
+    let items: LobstersItem[] = [];
 
-      if (tags.length > 0) {
-        items = await fetchAndConcat(tags, (tag) => {
-          const tagUrl = `${LOBSTERS_BASE}/t/${encodeURIComponent(tag)}.json`;
-          return fetchLobstersJson(tagUrl, `tag ${tag}`);
-        });
+    if (tags.length > 0) {
+      items = await fetchAndConcat(tags, (tag) => {
+        const tagUrl = `${LOBSTERS_BASE}/t/${encodeURIComponent(tag)}.json`;
+        return fetchJson<LobstersItem[]>("lobsters", tagUrl, `tag ${tag}`);
+      });
 
-        items = dedupeByKey(items, (item) => item.short_id);
+      items = dedupeByKey(items, (item) => item.short_id);
 
-        if (feedType === "hottest") {
-          items.sort((a, b) => b.score - a.score);
-        } else if (feedType === "newest") {
-          sortByCreatedAtDesc(items);
-        } else {
-          items.sort((a, b) => b.comment_count - a.comment_count);
-        }
+      if (feedType === "hottest") {
+        items.sort((a, b) => b.score - a.score);
+      } else if (feedType === "newest") {
+        sortByCreatedAtDesc(items);
       } else {
-        const feedUrl = `${LOBSTERS_BASE}/${feedType}.json`;
-        items = await fetchLobstersJson(feedUrl, feedType);
+        items.sort((a, b) => b.comment_count - a.comment_count);
       }
-
-      if (minScore > 0) {
-        items = items.filter((item) => item.score >= minScore);
-      }
-
-      const limited = sliceToLimit(items, limit);
-
-      return limited.map((item) => ({
-        id: `lobsters:${item.short_id}`,
-        title: item.title,
-        url: item.url || item.comments_url,
-        source: tags.length > 0 ? `lobsters:${tags.join("+")}` : `lobsters:${feedType}`,
-        timestamp: new Date(item.created_at),
-        body: buildBody(item),
-      }));
-    } catch (err) {
-      if (err instanceof Error && err.message.startsWith("lobsters: failed to fetch")) {
-        throw err;
-      }
-      throw new Error(`lobsters: error fetching stories: ${errorMessage(err)}`);
+    } else {
+      const feedUrl = `${LOBSTERS_BASE}/${feedType}.json`;
+      items = await fetchJson<LobstersItem[]>("lobsters", feedUrl, feedType);
     }
+
+    if (minScore > 0) {
+      items = items.filter((item) => item.score >= minScore);
+    }
+
+    const limited = sliceToLimit(items, limit);
+
+    return limited.map((item) => ({
+      id: `lobsters:${item.short_id}`,
+      title: item.title,
+      url: item.url || item.comments_url,
+      source: tags.length > 0 ? `lobsters:${tags.join("+")}` : `lobsters:${feedType}`,
+      timestamp: new Date(item.created_at),
+      body: buildBody(item),
+    }));
   },
 };
 
