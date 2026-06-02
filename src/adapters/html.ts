@@ -1,17 +1,12 @@
 type StripHtmlWhitespace = "preserve" | "collapse-newlines" | "collapse-all";
 
 interface StripHtmlOptions {
-  /** Convert &lt;br&gt; and &lt;/p&gt; to newlines before stripping tags (Mastodon). */
   blockBreaks?: boolean;
-  /** Whitespace normalization after entity decode. Default: collapse-newlines. */
   whitespace?: StripHtmlWhitespace;
-  /** String inserted where tags were removed. Default: "". */
   tagSeparator?: string;
-  /** Decode &#123; and &#xAB; numeric entities (podcast RSS). */
   numericEntities?: boolean;
 }
 
-/** Decode common HTML/XML named entities; optionally numeric &#…; / &#x…. */
 export function decodeHtmlEntities(
   str: string,
   options?: { numeric?: boolean },
@@ -34,7 +29,6 @@ export function decodeHtmlEntities(
     .replace(/&amp;/g, "&");
 }
 
-/** Strip HTML tags and decode entities; behavior tuned per adapter via options. */
 export function stripHtml(html: string, options?: StripHtmlOptions): string {
   const {
     blockBreaks = false,
