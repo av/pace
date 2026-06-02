@@ -1,4 +1,4 @@
-import { formatBy, formatScore, joinBodyParts } from "./engagement";
+import { formatBy, formatScore, formatViews, joinBodyParts } from "./engagement";
 import { parseUnixEpochSeconds } from "./dates";
 import { fetchJson } from "./fetch";
 import { dedupeByKey, fetchAndConcat, sliceToLimit } from "./merge";
@@ -37,12 +37,6 @@ interface SEResponse {
   quota_remaining: number;
 }
 
-function formatViewCount(count: number): string {
-  if (count >= 1000000) return `${(count / 1000000).toFixed(1)}m`;
-  if (count >= 1000) return `${(count / 1000).toFixed(1)}k`;
-  return String(count);
-}
-
 function buildBody(question: SEQuestion): string {
   const answerStr = question.accepted_answer_id
     ? `${question.answer_count} answers (accepted)`
@@ -50,7 +44,7 @@ function buildBody(question: SEQuestion): string {
   return joinBodyParts(
     formatScore(question.score),
     answerStr,
-    `${formatViewCount(question.view_count)} views`,
+    formatViews(question.view_count),
     question.tags.length > 0 ? `tags: ${question.tags.join(", ")}` : undefined,
     question.owner?.display_name ? formatBy(question.owner.display_name) : undefined,
   );
