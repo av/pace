@@ -310,15 +310,18 @@ function validatePanelNames(panels: PanelConfig[]): void {
 
 function validatePanelIds(panels: PanelConfig[]): void {
   const idToPanels = new Map<string, string[]>();
+  const ids: string[] = [];
   for (const p of panels) {
     const id = resolvePanelId(p);
+    ids.push(id);
     const list = idToPanels.get(id) ?? [];
     list.push(p.panel);
     idToPanels.set(id, list);
-    if (list.length > 1) {
-      throw new Error(`config: duplicate panel ID "${id}" (panels: "${list.join('", "')}")`);
-    }
   }
+  validateUniqueStrings(ids, "layout", "panel ID", {
+    formatDuplicateError: (id) =>
+      `config: duplicate panel ID "${id}" (panels: "${idToPanels.get(id)!.join('", "')}")`,
+  });
 }
 
 function validatePanelSourceRefs(panels: PanelConfig[], sourceNames: Set<string>): void {
@@ -433,6 +436,24 @@ function validateUniqueUnnamedAdapterTypes(adapters: IngestAdapterConfig[]): voi
   }
 }
 
+function validateUniqueStrings(
+  entries: readonly string[],
+  path: string,
+  duplicateLabel: string,
+  options?: { formatDuplicateError?: (entry: string, index: number) => string },
+): void {
+  const seen = new Set<string>();
+  for (let index = 0; index < entries.length; index++) {
+    const entry = entries[index]!;
+    if (seen.has(entry)) {
+      const message = options?.formatDuplicateError?.(entry, index)
+        ?? `config: ${path}[${index}] duplicates ${duplicateLabel} "${entry}"`;
+      throw new Error(message);
+    }
+    seen.add(entry);
+  }
+}
+
 function validateUniqueStringList(
   value: unknown,
   path: string,
@@ -440,17 +461,15 @@ function validateUniqueStringList(
   duplicateLabel = "source",
 ): asserts value is string[] {
   validateStringList(value, path);
-  const seen = new Set<string>();
-  for (let index = 0; index < value.length; index++) {
-    const entry = value[index] as string;
-    const entryPath = `${path}[${index}]`;
-    if (seen.has(entry)) {
-      throw new Error(`config: ${entryPath} duplicates ${duplicateLabel} "${entry}"`);
+  validateUniqueStrings(value, path, duplicateLabel);
+  if (allowed) {
+    for (let index = 0; index < value.length; index++) {
+      const entry = value[index] as string;
+      const entryPath = `${path}[${index}]`;
+      if (!allowed.has(entry)) {
+        throw new Error(`config: ${entryPath} references unknown source "${entry}"`);
+      }
     }
-    if (allowed && !allowed.has(entry)) {
-      throw new Error(`config: ${entryPath} references unknown source "${entry}"`);
-    }
-    seen.add(entry);
   }
 }
 

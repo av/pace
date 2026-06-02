@@ -123,6 +123,24 @@ layout:
     }
   });
 
+  test("rejects duplicate explicit panel id", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - panel: left
+      source: all
+      id: shared
+    - panel: right
+      source: all
+      id: shared
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: duplicate panel ID "shared" \(panels: "left", "right"\)/,
+    );
+  });
+
   test("rejects empty panel name", () => {
     const yaml = `
 layout:
