@@ -1,5 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import { extractAtomLink } from "./atom";
+import { parseFeedDate } from "./dates";
 import { fetchText } from "./fetch";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
@@ -68,8 +69,7 @@ function parseItem(raw: any, source: string): ContentItem {
   const link = extractAtomLink(raw.link);
 
   const dateStr = raw.pubDate ?? raw.updated ?? raw.published ?? "";
-  const parsed = dateStr ? new Date(dateStr) : new Date();
-  const timestamp = isNaN(parsed.getTime()) ? new Date() : parsed;
+  const timestamp = parseFeedDate(dateStr);
 
   const rawDesc = raw.description;
   const rawSummary = raw.summary;

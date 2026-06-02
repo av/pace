@@ -1,4 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
+import { parseFeedDate } from "./dates";
 import { fetchWithTimeout } from "./fetch";
 import { decodeHtmlEntities, stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -158,13 +159,7 @@ function parseEpisode(item: any, showName: string, channelLink: string = ""): Po
   // Publish date — try multiple date fields and formats
   const dateStr =
     item.pubDate ?? item.published ?? item.updated ?? item["dc:date"] ?? "";
-  let publishDate = new Date();
-  if (dateStr) {
-    const parsed = new Date(String(dateStr));
-    if (!isNaN(parsed.getTime())) {
-      publishDate = parsed;
-    }
-  }
+  const publishDate = parseFeedDate(dateStr ? String(dateStr) : "");
 
   // Description — try multiple fields, strip HTML
   const rawDesc =

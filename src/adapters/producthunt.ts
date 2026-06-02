@@ -1,4 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
+import { parseFeedDate } from "./dates";
 import { fetchWithTimeout } from "./fetch";
 import { stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -251,9 +252,7 @@ async function fetchProductHuntFeed(): Promise<
       const url = extractLink(entry);
       const { tagline, productLink } = extractContent(entry);
       const author = entry.author?.name ?? "";
-      const dateStr = entry.published ?? entry.updated ?? "";
-      const date = dateStr ? new Date(dateStr) : new Date();
-      const timestamp = isNaN(date.getTime()) ? new Date() : date;
+      const timestamp = parseFeedDate(entry.published ?? entry.updated ?? "");
 
       return {
         id: extractId(entry),

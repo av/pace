@@ -1,5 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import { extractAtomLink } from "./atom";
+import { parseFeedDate } from "./dates";
 import { fetchWithTimeout } from "./fetch";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
@@ -45,9 +46,7 @@ function parseEntry(entry: YTEntry, channelTitle: string): ContentItem {
     ? `https://www.youtube.com/watch?v=${videoId}`
     : extractAtomLink(entry.link);
 
-  const dateStr = entry.published ?? "";
-  const parsed = dateStr ? new Date(dateStr) : new Date();
-  const timestamp = isNaN(parsed.getTime()) ? new Date() : parsed;
+  const timestamp = parseFeedDate(entry.published ?? "");
 
   const description = entry["media:group"]?.["media:description"] ?? undefined;
 

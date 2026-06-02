@@ -1,5 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import { extractAtomLink } from "./atom";
+import { parseFeedDate } from "./dates";
 import { fetchWithTimeout } from "./fetch";
 import { stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -79,8 +80,7 @@ async function fetchReleasesFeed(repo: string, limit: number): Promise<ContentIt
   for (const entry of entries.slice(0, limit)) {
     const title = extractTextContent(entry.title) || "(untitled release)";
     const link = extractAtomLink(entry.link);
-    const dateStr = entry.updated ?? entry.published ?? "";
-    const timestamp = dateStr ? new Date(dateStr) : new Date();
+    const timestamp = parseFeedDate(entry.updated ?? entry.published ?? "");
 
     // Extract version tag from the link URL (e.g., /facebook/react/releases/tag/v19.0.0)
     const tagMatch = link.match(/\/releases\/tag\/(.+)$/);
@@ -102,7 +102,7 @@ async function fetchReleasesFeed(repo: string, limit: number): Promise<ContentIt
       title: displayTitle,
       url: link || `https://github.com/${repo}/releases`,
       source: `github:${repo}`,
-      timestamp: isNaN(timestamp.getTime()) ? new Date() : timestamp,
+      timestamp,
       body,
     });
   }

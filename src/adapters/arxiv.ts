@@ -1,4 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
+import { parseFeedDate } from "./dates";
 import { fetchText } from "./fetch";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
@@ -149,15 +150,14 @@ function entryToItem(entry: ArxivEntry, sourceLabel: string): ContentItem {
   const arxivId = extractArxivId(entry.id);
   const title = cleanText(entry.title) || "(untitled)";
   const url = entry.id ?? `https://arxiv.org/abs/${arxivId}`;
-  const dateStr = entry.published ?? entry.updated ?? "";
-  const timestamp = dateStr ? new Date(dateStr) : new Date();
+  const timestamp = parseFeedDate(entry.published ?? entry.updated ?? "");
 
   return {
     id: `arxiv:${arxivId}`,
     title,
     url,
     source: sourceLabel,
-    timestamp: isNaN(timestamp.getTime()) ? new Date() : timestamp,
+    timestamp,
     body: buildBody(entry),
   };
 }
