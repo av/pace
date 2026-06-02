@@ -280,7 +280,7 @@ describe("lemmy", () => {
       ).rejects.toThrow("lemmy:");
 
       expect(emSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
-      expect(emSpy).toHaveBeenCalledWith({ message: "500" });
+      expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 500" });
     } finally {
       emSpy.mockRestore();
     }

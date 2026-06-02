@@ -1,7 +1,6 @@
-import { fetchWithTimeout } from "./fetch";
+import { fetchJson } from "./fetch";
 import { dedupeByKey, sliceToLimit } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
-import { errorMessage } from "./types";
 
 type SortType = "Hot" | "New" | "Top" | "Active" | "MostComments";
 
@@ -76,22 +75,11 @@ async function fetchLemmyPosts(
   const query = new URLSearchParams(params);
   const url = `https://${instance}/api/v3/post/list?${query.toString()}`;
 
-  try {
-    const res = await fetchWithTimeout(url, {
-      userAgent: "pace:feed-aggregator/1.0 (github.com/everlier/pace)",
-      accept: "application/json",
-    });
-    if (!res.ok) {
-      throw new Error(`lemmy: failed to fetch ${context}: ${errorMessage({ message: `${res.status}` })}`);
-    }
-    const json: LemmyPostListResponse = await res.json();
-    return json.posts ?? [];
-  } catch (err) {
-    if (err instanceof Error && err.message.startsWith("lemmy: failed to fetch")) {
-      throw err;
-    }
-    throw new Error(`lemmy: error fetching ${context}: ${errorMessage(err)}`);
-  }
+  const json = await fetchJson<LemmyPostListResponse>("lemmy", url, context, {
+    userAgent: "pace:feed-aggregator/1.0 (github.com/everlier/pace)",
+    accept: "application/json",
+  });
+  return json.posts ?? [];
 }
 
 const adapter: Adapter = {
