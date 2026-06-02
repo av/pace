@@ -1,5 +1,6 @@
 import { sliceToLimit } from "./dates";
 import { fetchWithTimeout } from "./fetch";
+import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 
@@ -117,12 +118,7 @@ const adapter: Adapter = {
         }
       }
 
-      const seen = new Set<number>();
-      let deduped = allPosts.filter((view) => {
-        if (seen.has(view.post.id)) return false;
-        seen.add(view.post.id);
-        return true;
-      });
+      let deduped = dedupeByKey(allPosts, (view) => view.post.id);
 
       if (minScore > 0) {
         deduped = deduped.filter((view) => view.counts.score >= minScore);

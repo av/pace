@@ -1,5 +1,6 @@
 import { parseUnixEpochSeconds, sliceToLimit } from "./dates";
 import { fetchWithTimeout } from "./fetch";
+import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 
@@ -151,12 +152,7 @@ const adapter: Adapter = {
     }
 
     // Deduplicate by post ID (possible overlap in multireddits or multiple subs)
-    const seen = new Set<string>();
-    const deduped = allPosts.filter((post) => {
-      if (seen.has(post.data.id)) return false;
-      seen.add(post.data.id);
-      return true;
-    });
+    const deduped = dedupeByKey(allPosts, (post) => post.data.id);
 
     // Apply score filter
     const filtered =

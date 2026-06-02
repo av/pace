@@ -1,6 +1,7 @@
 import { XMLParser } from "fast-xml-parser";
 import { parseFeedDate, sliceToLimit } from "./dates";
 import { fetchText } from "./fetch";
+import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 const ARXIV_API = "http://export.arxiv.org/api/query";
@@ -106,25 +107,6 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/**
- * Add ArXiv entries as ContentItems to the result list, skipping duplicates by stable id.
- * Used by both category and free-text query paths (DRY).
- */
-function addUniqueArxivEntries(
-  entries: ArxivEntry[],
-  sourceLabel: string,
-  seenIds: Set<string>,
-  allItems: ContentItem[],
-): void {
-  for (const entry of entries) {
-    const item = entryToItem(entry, sourceLabel);
-    if (!seenIds.has(item.id)) {
-      seenIds.add(item.id);
-      allItems.push(item);
-    }
-  }
-}
-
 async function fetchArxivQuery(
   queryStr: string,
   limit: number,
@@ -185,7 +167,6 @@ const adapter: Adapter = {
     }
 
     const allItems: ContentItem[] = [];
-    const seenIds = new Set<string>();
 
     // Fetch by categories
     for (let i = 0; i < categories.length; i++) {
@@ -200,7 +181,9 @@ const adapter: Adapter = {
       const entries = await fetchArxivQuery(queryStr, limit);
       const sourceLabel = `arxiv:${cat}`;
 
-      addUniqueArxivEntries(entries, sourceLabel, seenIds, allItems);
+      for (const entry of entries) {
+        allItems.push(entryToItem(entry, sourceLabel));
+      }
     }
 
     // Fetch by keyword query
@@ -212,18 +195,22 @@ const adapter: Adapter = {
       const queryStr = `all:${query}`;
       const entries = await fetchArxivQuery(queryStr, limit);
 
-      addUniqueArxivEntries(entries, "arxiv:search", seenIds, allItems);
+      for (const entry of entries) {
+        allItems.push(entryToItem(entry, "arxiv:search"));
+      }
     }
 
+    const deduped = dedupeByKey(allItems, (item) => item.id);
+
     // Sort by timestamp descending and limit
-    allItems.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    deduped.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
     // If fetching from multiple categories, limit total results
     const totalLimit = categories.length > 1 || (categories.length > 0 && query)
       ? limit * (categories.length + (query ? 1 : 0))
       : limit;
 
-    return sliceToLimit(allItems, totalLimit);
+    return sliceToLimit(deduped, totalLimit);
   },
 };
 
