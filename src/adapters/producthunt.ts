@@ -280,7 +280,7 @@ const adapter: Adapter = {
     if (items.length === 0) return [];
 
     // Apply limit before enriching (enrichment is expensive)
-    items = items.slice(0, limit);
+    items = sliceToLimit(items, limit);
 
     // Optionally enrich with page scraping for upvotes/topics
     let enrichedMap = new Map<string, EnrichedData | null>();
