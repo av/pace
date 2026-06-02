@@ -61,8 +61,26 @@ describe("github", () => {
   test("returns empty with warning when releases mode has no repos configured", async () => {
     const items = await adapter.fetch(githubCfg({ mode: "releases" }));
     expect(items).toEqual([]);
-    expect(mocks.warnSpy).toHaveBeenCalledWith("github: no repos configured for releases mode");
+    expect(mocks.warnSpy).toHaveBeenCalledWith("github: no repos configured");
     expect(mocks.fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("returns empty with warning when releases repos are only blank strings", async () => {
+    const items = await adapter.fetch(
+      githubCfg({ mode: "releases", repos: ["", "  "] }),
+    );
+    expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith("github: no repos configured");
+    expect(mocks.fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("warns and returns [] when trending page has no parseable repos", async () => {
+    mocks.fetchMock.mockImplementation(async () => makeTextResponse("<html></html>"));
+
+    const items = await adapter.fetch(githubCfg({ mode: "trending", limit: 5 }));
+
+    expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith("github: no repos found on trending page");
   });
 
   test("fetches releases for repos, parses atom, maps items with correct fields, id, source, body stripped, timestamp", async () => {

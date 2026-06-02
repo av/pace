@@ -160,6 +160,10 @@ function parseTrendingHtml(html: string): TrendingRepo[] {
   return repos;
 }
 
+function normalizeConfiguredRepos(repos: string[]): string[] {
+  return repos.map((repo) => repo.trim()).filter(Boolean);
+}
+
 async function fetchTrending(
   language: string,
   since: TrendingPeriod,
@@ -174,6 +178,10 @@ async function fetchTrending(
   });
 
   const repos = parseTrendingHtml(html);
+  if (repos.length === 0) {
+    console.warn("github: no repos found on trending page");
+    return [];
+  }
 
   const periodLabel: Record<TrendingPeriod, string> = {
     daily: "today",
@@ -221,9 +229,9 @@ const adapter: Adapter = {
       return fetchTrending(language, since, limit);
     }
 
-    const repos = (config.params?.repos as string[]) ?? [];
+    const repos = normalizeConfiguredRepos((config.params?.repos as string[]) ?? []);
     if (repos.length === 0) {
-      console.warn("github: no repos configured for releases mode");
+      console.warn("github: no repos configured");
       return [];
     }
 
