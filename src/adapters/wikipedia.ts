@@ -182,6 +182,18 @@ function extractForMode(data: WikiFeaturedResponse, mode: Mode, limit: number): 
   }
 }
 
+function warnEmptyFeaturedSection(mode: "most_read" | "featured", language: string): void {
+  if (mode === "most_read") {
+    console.warn(
+      `wikipedia: featured feed has no most_read articles (${language})`,
+    );
+  } else {
+    console.warn(
+      `wikipedia: featured feed has no article of the day (${language})`,
+    );
+  }
+}
+
 const adapter: Adapter = {
   name: "wikipedia",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
@@ -195,7 +207,15 @@ const adapter: Adapter = {
     const data = await fetchFeaturedFeed(language, year, month, day);
 
     if (modes.length === 1) {
-      return extractForMode(data, modes[0], limit);
+      const mode = modes[0];
+      const items = extractForMode(data, mode, limit);
+      if (
+        items.length === 0 &&
+        (mode === "most_read" || mode === "featured")
+      ) {
+        warnEmptyFeaturedSection(mode, language);
+      }
+      return items;
     }
 
     const merged: ContentItem[] = [];

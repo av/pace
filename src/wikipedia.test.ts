@@ -237,7 +237,7 @@ describe("wikipedia", () => {
     await expect(wikipediaAdapter.fetch(wikiCfg())).rejects.toThrow("wikipedia:");
   });
 
-  test("returns empty for featured when tfa is missing", async () => {
+  test("warns and returns empty for featured when tfa is missing (single mode)", async () => {
     mocks.fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makeFeaturedResponse({ tfa: undefined })), { status: 200 }),
     );
@@ -245,9 +245,12 @@ describe("wikipedia", () => {
     const items = await wikipediaAdapter.fetch(wikiCfg({ mode: "featured" }));
 
     expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "wikipedia: featured feed has no article of the day (en)",
+    );
   });
 
-  test("returns empty for most_read when mostread section is missing", async () => {
+  test("warns and returns empty for most_read when mostread section is missing (single mode)", async () => {
     mocks.fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makeFeaturedResponse({ mostread: undefined })), { status: 200 }),
     );
@@ -255,6 +258,24 @@ describe("wikipedia", () => {
     const items = await wikipediaAdapter.fetch(wikiCfg({ mode: "most_read" }));
 
     expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "wikipedia: featured feed has no most_read articles (en)",
+    );
+  });
+
+  test("does not warn on empty most_read when merged with other modes", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify(makeFeaturedResponse({ mostread: undefined })),
+        { status: 200 },
+      ),
+    );
+
+    const items = await wikipediaAdapter.fetch(wikiCfg({ mode: "most_read,news" }));
+
+    expect(items).toHaveLength(1);
+    expect(items[0].source).toBe("wikipedia:news");
+    expect(mocks.warnSpy).not.toHaveBeenCalled();
   });
 
   test("formats view counts correctly", async () => {
