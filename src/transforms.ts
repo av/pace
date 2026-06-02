@@ -109,7 +109,7 @@ function collectLosers(
 function parseHalfLife(str: string): number {
   const match = str.trim().match(/^(\d+(?:\.\d+)?)\s*(m|min|h|hr|d|day|w|wk)s?$/i);
   if (!match) {
-    console.warn(`[time-decay] invalid half_life "${str}", defaulting to 12h`);
+    console.warn(`transforms: invalid half_life "${str}", defaulting to 12h`);
     return 12 * 60 * 60 * 1000;
   }
   const value = parseFloat(match[1]);
@@ -469,7 +469,7 @@ function applySort(
 function applyDedupe(items: ContentItemRow[], config: DedupeTransformConfig): ContentItemRow[] {
   const opts = resolveDedupeOptions(config);
   if (!isDedupeStrategy(opts.strategy)) {
-    console.warn(`[dedupe] unknown strategy "${opts.strategy}", passing items through`);
+    console.warn(`transforms: unknown dedupe strategy "${opts.strategy}", passing items through`);
     return items;
   }
   return dedupeStrategyHandlers[opts.strategy](items, opts);

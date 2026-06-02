@@ -344,7 +344,7 @@ describe("keyword-score and time-decay", () => {
     });
     const result = await runPipeline(items, steps, ctx);
     expect(result.length).toBe(1); // old filtered by min_score (low recency + low eng -> final <0.5)
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("[time-decay] invalid half_life"));
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("transforms: invalid half_life"));
     expect(result[0].body).toContain("[hot-score:");
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("[time-decay] filtered out"));
   });
