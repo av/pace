@@ -1,4 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
+import { extractXmlText, type XmlTextField } from "./atom";
 import { parseFeedDate } from "./dates";
 import { sliceToLimit } from "./merge";
 import { fetchText } from "./fetch";
@@ -39,8 +40,8 @@ const parser = new XMLParser({
 
 interface PHEntry {
   id?: string;
-  title?: string | { "#text": string };
-  content?: string | { "#text": string };
+  title?: XmlTextField;
+  content?: XmlTextField;
   link?:
     | { "@_href"?: string }
     | Array<{ "@_href"?: string; "@_rel"?: string }>;
@@ -70,9 +71,7 @@ function extractEntries(parsed: PHAtomFeedParsed): PHEntry[] {
 }
 
 function extractTitle(entry: PHEntry): string {
-  if (typeof entry.title === "string") return entry.title;
-  if (entry.title?.["#text"]) return entry.title["#text"];
-  return "(untitled)";
+  return extractXmlText(entry.title) ?? "(untitled)";
 }
 
 function extractLink(entry: PHEntry): string {
@@ -85,10 +84,7 @@ function extractLink(entry: PHEntry): string {
 }
 
 function extractContent(entry: PHEntry): { tagline: string; productLink: string } {
-  let raw = "";
-  if (typeof entry.content === "string") raw = entry.content;
-  else if (entry.content?.["#text"]) raw = entry.content["#text"];
-
+  const raw = extractXmlText(entry.content) ?? "";
   if (!raw) return { tagline: "", productLink: "" };
 
   // The content has HTML structure:

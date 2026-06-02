@@ -1,5 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
-import { extractAtomLink } from "./atom";
+import { extractAtomLink, extractXmlText, type XmlTextField } from "./atom";
 import { parseFeedDate } from "./dates";
 import { formatBy, joinBodyParts } from "./engagement";
 import { fetchText } from "./fetch";
@@ -13,7 +13,7 @@ const parser = new XMLParser({
 
 interface YTEntry {
   "yt:videoId"?: string;
-  title?: string | { "#text": string };
+  title?: XmlTextField;
   link?: { "@_href"?: string } | Array<{ "@_href"?: string; "@_rel"?: string }>;
   published?: string;
   "media:group"?: {
@@ -27,7 +27,7 @@ interface YTEntry {
 interface YTAtomFeedParsed {
   feed?: {
     entry?: YTEntry | YTEntry[];
-    title?: string | { "#text": string };
+    title?: XmlTextField;
   };
 }
 
@@ -38,9 +38,7 @@ function extractEntries(parsed: YTAtomFeedParsed): YTEntry[] {
 }
 
 function extractChannelTitle(parsed: YTAtomFeedParsed): string {
-  const title = parsed?.feed?.title;
-  if (!title) return "YouTube";
-  return typeof title === "string" ? title : title["#text"] ?? "YouTube";
+  return extractXmlText(parsed?.feed?.title) ?? "YouTube";
 }
 
 function buildBody(entry: YTEntry): string | undefined {
@@ -55,10 +53,7 @@ function buildBody(entry: YTEntry): string | undefined {
 
 function parseEntry(entry: YTEntry, channelTitle: string): ContentItem {
   const videoId = entry["yt:videoId"] ?? "";
-  const title =
-    typeof entry.title === "string"
-      ? entry.title
-      : entry.title?.["#text"] ?? "(untitled)";
+  const title = extractXmlText(entry.title) ?? "(untitled)";
 
   const link = videoId
     ? `https://www.youtube.com/watch?v=${videoId}`
