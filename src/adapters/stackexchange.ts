@@ -9,7 +9,7 @@ import {
 import { parseUnixEpochSeconds } from "./dates";
 import { fetchJson } from "./fetch";
 import { decodeHtmlEntities } from "./html";
-import { sliceToLimit } from "../utils";
+import { normalizeStringList, sliceToLimit } from "../utils";
 import { dedupeByKey, fetchAndConcat } from "./merge";
 import { type Adapter, type AdapterConfig, type ContentItem } from "./types";
 
@@ -44,10 +44,6 @@ interface SEResponse {
   items: SEQuestion[];
   has_more: boolean;
   quota_remaining: number;
-}
-
-function normalizeConfiguredTags(tags: string[]): string[] {
-  return tags.map((tag) => tag.trim()).filter(Boolean);
 }
 
 function decodeQuestionTitle(title: string): string {
@@ -106,7 +102,7 @@ const adapter: Adapter = {
    */
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
     const site = (config.params?.site as string) ?? "stackoverflow";
-    const tags = normalizeConfiguredTags((config.params?.tags as string[]) ?? []);
+    const tags = normalizeStringList((config.params?.tags as string[]) ?? []);
     const sort = (config.params?.sort as string) ?? "hot";
     const limit = Math.min((config.params?.limit as number) ?? 20, 100);
     const minScore = (config.params?.min_score as number) ?? 0;

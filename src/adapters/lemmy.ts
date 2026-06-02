@@ -8,7 +8,7 @@ import {
 } from "./engagement";
 import { fetchJson } from "./fetch";
 import { decodeHtmlEntities } from "./html";
-import { sliceToLimit } from "../utils";
+import { normalizeStringList, sliceToLimit } from "../utils";
 import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
@@ -94,15 +94,11 @@ async function fetchLemmyPosts(
   return json.posts ?? [];
 }
 
-function normalizeConfiguredCommunities(communities: string[]): string[] {
-  return communities.map((c) => c.trim()).filter(Boolean);
-}
-
 const adapter: Adapter = {
   name: "lemmy",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
     const instance = (config.params?.instance as string) ?? "lemmy.ml";
-    const communities = normalizeConfiguredCommunities(
+    const communities = normalizeStringList(
       (config.params?.communities as string[]) ?? [],
     );
     const sort = resolveSort(config.params?.sort as string);

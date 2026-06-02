@@ -1,6 +1,7 @@
 import { formatBy, formatPercent, formatTags, joinBodyParts } from "./engagement";
 import { fetchJson } from "./fetch";
 import { decodeHtmlEntities } from "./html";
+import { normalizeStringList } from "../utils";
 import { titleWithTagline } from "./title";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
@@ -109,10 +110,6 @@ function buildSearchQuery(
   return query;
 }
 
-function normalizeConfiguredKeywords(keywords: string[]): string[] {
-  return keywords.map((kw) => kw.trim()).filter(Boolean);
-}
-
 function normalizeConfiguredScope(raw: string | undefined): string | undefined {
   const trimmed = (raw ?? "").trim();
   return trimmed || undefined;
@@ -121,7 +118,7 @@ function normalizeConfiguredScope(raw: string | undefined): string | undefined {
 const adapter: Adapter = {
   name: "npm",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const keywords = normalizeConfiguredKeywords(
+    const keywords = normalizeStringList(
       (config.params?.keywords as string[]) ?? [],
     );
     const scope = normalizeConfiguredScope(config.params?.scope as string | undefined);

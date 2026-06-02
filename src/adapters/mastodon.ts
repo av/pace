@@ -8,7 +8,7 @@ import {
 } from "./engagement";
 import { fetchJson, HN_ITEM_FETCH_TIMEOUT_MS } from "./fetch";
 import { decodeHtmlEntities, stripHtml } from "./html";
-import { sliceToLimit } from "../utils";
+import { normalizeStringList, sliceToLimit } from "../utils";
 import { dedupeByKey, fetchAndConcat, sortByCreatedAtDesc } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
@@ -179,10 +179,6 @@ async function fetchAccountStatuses(
   );
 }
 
-function normalizeConfiguredHashtags(hashtags: string[]): string[] {
-  return hashtags.map((tag) => tag.trim()).filter(Boolean);
-}
-
 function normalizeConfiguredAccounts(accounts: string[]): string[] {
   return accounts.map((handle) => handle.trim()).filter(Boolean);
 }
@@ -199,7 +195,7 @@ const adapter: Adapter = {
   name: "mastodon",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
     const instance = (config.params?.instance as string) ?? "mastodon.social";
-    const hashtags = normalizeConfiguredHashtags(
+    const hashtags = normalizeStringList(
       (config.params?.hashtags as string[]) ?? [],
     );
     const accounts = normalizeConfiguredAccounts(

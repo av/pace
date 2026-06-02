@@ -9,7 +9,7 @@ import {
 import { parseUnixEpochSeconds } from "./dates";
 import { fetchJson } from "./fetch";
 import { decodeHtmlEntities } from "./html";
-import { sliceToLimit } from "../utils";
+import { normalizeStringList, sliceToLimit } from "../utils";
 import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
@@ -84,10 +84,6 @@ function getItemUrl(post: RedditPostData): string {
   return post.url;
 }
 
-function normalizeConfiguredSubreddits(subreddits: string[]): string[] {
-  return subreddits.map((sub) => sub.trim()).filter(Boolean);
-}
-
 async function fetchRedditListing(
   path: string,
   sort: SortType,
@@ -107,7 +103,7 @@ async function fetchRedditListing(
 const adapter: Adapter = {
   name: "reddit",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const subreddits = normalizeConfiguredSubreddits(
+    const subreddits = normalizeStringList(
       (config.params?.subreddits as string[]) ?? [],
     );
     const sort = (config.params?.sort as string) ?? "hot";
