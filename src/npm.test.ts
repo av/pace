@@ -52,6 +52,32 @@ describe("npm", () => {
     expect(mocks.fetchMock).not.toHaveBeenCalled();
   });
 
+  test("returns empty list and warns when keywords and scope are only blank strings", async () => {
+    const items = await npmAdapter.fetch({
+      type: "npm",
+      params: { keywords: ["", "  "], scope: "  " },
+    });
+
+    expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith("npm: no keywords or scope configured");
+    expect(mocks.fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("trims whitespace from configured keywords and scope", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makeSearchResponse([makePackageResult()])), { status: 200 }),
+    );
+
+    await npmAdapter.fetch({
+      type: "npm",
+      params: { keywords: ["  typescript  ", ""], scope: "  types  " },
+    });
+
+    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    expect(calledUrl).toContain("text=scope%3Atypes+typescript");
+    expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   test("fetches packages by keywords", async () => {
     const pkg = makePackageResult();
     mocks.fetchMock.mockResolvedValue(

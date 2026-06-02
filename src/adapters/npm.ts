@@ -109,11 +109,22 @@ function buildSearchQuery(
   return query;
 }
 
+function normalizeConfiguredKeywords(keywords: string[]): string[] {
+  return keywords.map((kw) => kw.trim()).filter(Boolean);
+}
+
+function normalizeConfiguredScope(raw: string | undefined): string | undefined {
+  const trimmed = (raw ?? "").trim();
+  return trimmed || undefined;
+}
+
 const adapter: Adapter = {
   name: "npm",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const keywords = (config.params?.keywords as string[]) ?? [];
-    const scope = config.params?.scope as string | undefined;
+    const keywords = normalizeConfiguredKeywords(
+      (config.params?.keywords as string[]) ?? [],
+    );
+    const scope = normalizeConfiguredScope(config.params?.scope as string | undefined);
     const limit = Math.min((config.params?.limit as number) ?? 20, 50);
     const sortParam = (config.params?.sort as string) ?? "optimal";
 
