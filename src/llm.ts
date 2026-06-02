@@ -21,12 +21,9 @@ const PROVIDER_ENV_KEYS: Record<string, string> = {
 export function createModel(config: LlmConfig): Model<Api> | null {
   if (!config.provider || !config.model || !config.api_key) return null;
 
-  // Set the API key in env if provided
-  if (config.api_key) {
-    const envKey = PROVIDER_ENV_KEYS[config.provider];
-    if (envKey) {
-      process.env[envKey] = config.api_key;
-    }
+  const envKey = PROVIDER_ENV_KEYS[config.provider];
+  if (envKey) {
+    process.env[envKey] = config.api_key;
   }
 
   // For known providers, use getModel
