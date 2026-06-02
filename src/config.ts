@@ -368,12 +368,18 @@ function validateKeywordScoreEntries(value: unknown, path: string): void {
 }
 
 function validateTransform(transform: Record<string, unknown>, path: string): void {
-  switch (transform.type) {
+  const transformType = transform.type;
+  const unknownField = (key: string) =>
+    `${path}.${key} is not a valid ${transformType} transform field`;
+
+  switch (transformType) {
     case "latest":
+      validateAllowedKeys(transform, ["type", "count"], unknownField);
       validatePositiveInteger(transform.count, `${path}.count`);
       break;
     case "filter":
     case "exclude":
+      validateAllowedKeys(transform, ["type", "keywords", "fields"], unknownField);
       validateStringList(transform.keywords, `${path}.keywords`);
       if (transform.fields !== undefined) {
         validateNonEmptyArray(transform.fields, `${path}.fields`);
@@ -383,10 +389,12 @@ function validateTransform(transform: Record<string, unknown>, path: string): vo
       }
       break;
     case "sort":
+      validateAllowedKeys(transform, ["type", "field", "direction"], unknownField);
       validateEnum(transform.field, ["timestamp", "title", "source"], `${path}.field`);
       validateOptionalEnum(transform.direction, ["asc", "desc"], `${path}.direction`);
       break;
     case "dedupe":
+      validateAllowedKeys(transform, ["type", "strategy", "threshold", "keep", "log"], unknownField);
       validateOptionalEnum(
         transform.strategy,
         ["url", "domain-normalized", "title-similarity"],
@@ -397,11 +405,17 @@ function validateTransform(transform: Record<string, unknown>, path: string): vo
       validateOptionalBoolean(transform.log, `${path}.log`);
       break;
     case "keyword-score":
+      validateAllowedKeys(transform, ["type", "keywords", "min_score", "annotate"], unknownField);
       validateKeywordScoreEntries(transform.keywords, `${path}.keywords`);
       validateOptionalFiniteNumber(transform.min_score, `${path}.min_score`);
       validateOptionalBoolean(transform.annotate, `${path}.annotate`);
       break;
     case "time-decay":
+      validateAllowedKeys(
+        transform,
+        ["type", "half_life", "engagement_weight", "recency_weight", "decay", "annotate", "min_score"],
+        unknownField,
+      );
       validateOptionalNonEmptyString(transform.half_life, `${path}.half_life`);
       validateOptionalFiniteNumber(transform.engagement_weight, `${path}.engagement_weight`);
       validateOptionalFiniteNumber(transform.recency_weight, `${path}.recency_weight`);
@@ -410,6 +424,11 @@ function validateTransform(transform: Record<string, unknown>, path: string): vo
       validateOptionalFiniteNumber(transform.min_score, `${path}.min_score`);
       break;
     case "cluster":
+      validateAllowedKeys(
+        transform,
+        ["type", "strategy", "min_cluster_size", "max_clusters", "similarity_threshold", "annotate"],
+        unknownField,
+      );
       validateOptionalEnum(transform.strategy, ["domain", "keywords", "source", "auto"], `${path}.strategy`);
       validateOptionalPositiveInteger(transform.min_cluster_size, `${path}.min_cluster_size`);
       validateOptionalPositiveInteger(transform.max_clusters, `${path}.max_clusters`);
@@ -417,21 +436,25 @@ function validateTransform(transform: Record<string, unknown>, path: string): vo
       validateOptionalBoolean(transform.annotate, `${path}.annotate`);
       break;
     case "llm-summarize":
+      validateAllowedKeys(transform, ["type"], unknownField);
       break;
     case "llm-filter":
+      validateAllowedKeys(transform, ["type", "criteria"], unknownField);
       validateOptionalNonEmptyString(transform.criteria, `${path}.criteria`);
       if (transform.criteria === undefined) {
         throw new Error(`config: ${path}.criteria is required`);
       }
       break;
     case "llm-rank":
+      validateAllowedKeys(transform, ["type", "interests"], unknownField);
       validateOptionalStringList(transform.interests, `${path}.interests`);
       break;
     case "llm-merge":
+      validateAllowedKeys(transform, ["type", "prompt"], unknownField);
       validateOptionalNonEmptyString(transform.prompt, `${path}.prompt`);
       break;
     default:
-      throw new Error(`config: ${path}.type references unknown transform "${transform.type}"`);
+      throw new Error(`config: ${path}.type references unknown transform "${transformType}"`);
   }
 }
 

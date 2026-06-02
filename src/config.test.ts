@@ -260,6 +260,26 @@ layout:
     expect(() => loadConfig()).toThrow(/config: pipelines\[0\].sources\[0\] must be a non-empty string/);
   });
 
+  test("rejects unknown transform field", () => {
+    const yaml = `
+adapters:
+  - type: rss
+    transforms:
+      - type: latest
+        count: 5
+        typo_field: true
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: adapters\[0\].transforms\[0\].typo_field is not a valid latest transform field/,
+    );
+  });
+
   test("rejects empty transform type", () => {
     const yaml = `
 adapters:
