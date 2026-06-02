@@ -1,5 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
-import { extractAtomLink, extractXmlText, type XmlTextField } from "./atom";
+import { extractAtomLink, extractXmlText, normalizeXmlList, type XmlTextField } from "./atom";
 import { parseFeedDate } from "./dates";
 import { formatBy, joinBodyParts } from "./engagement";
 import { fetchText } from "./fetch";
@@ -30,12 +30,6 @@ interface YTAtomFeedParsed {
     entry?: YTEntry | YTEntry[];
     title?: XmlTextField;
   };
-}
-
-function extractEntries(parsed: YTAtomFeedParsed): YTEntry[] {
-  const entries = parsed?.feed?.entry;
-  if (!entries) return [];
-  return Array.isArray(entries) ? entries : [entries];
 }
 
 function extractChannelTitle(parsed: YTAtomFeedParsed): string {
@@ -83,7 +77,7 @@ async function fetchYoutubeFeed(
   const xml = await fetchText("youtube", url, `${label} ${id}`);
   const parsed = parser.parse(xml) as YTAtomFeedParsed;
   const channelTitle = extractChannelTitle(parsed);
-  const entries = extractEntries(parsed);
+  const entries = normalizeXmlList(parsed.feed?.entry);
   return sliceToLimit(entries, limit).map((entry) => parseEntry(entry, channelTitle));
 }
 

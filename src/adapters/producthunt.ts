@@ -1,5 +1,11 @@
 import { XMLParser } from "fast-xml-parser";
-import { extractXmlText, type XmlTextField } from "./atom";
+import {
+  extractAtomLink,
+  extractXmlText,
+  normalizeXmlList,
+  type AtomLinkField,
+  type XmlTextField,
+} from "./atom";
 import { parseFeedDate } from "./dates";
 import { sliceToLimit } from "../utils";
 import { fetchText } from "./fetch";
@@ -42,9 +48,7 @@ interface PHEntry {
   id?: string;
   title?: XmlTextField;
   content?: XmlTextField;
-  link?:
-    | { "@_href"?: string }
-    | Array<{ "@_href"?: string; "@_rel"?: string }>;
+  link?: AtomLinkField;
   published?: string;
   updated?: string;
   author?: { name?: string };
@@ -64,23 +68,8 @@ interface EnrichedData {
   makers?: string[];
 }
 
-function extractEntries(parsed: PHAtomFeedParsed): PHEntry[] {
-  const entries = parsed?.feed?.entry;
-  if (!entries) return [];
-  return Array.isArray(entries) ? entries : [entries];
-}
-
 function extractTitle(entry: PHEntry): string {
   return extractXmlText(entry.title) ?? "(untitled)";
-}
-
-function extractLink(entry: PHEntry): string {
-  if (!entry.link) return "";
-  if (Array.isArray(entry.link)) {
-    const alt = entry.link.find((l) => l["@_rel"] === "alternate");
-    return alt?.["@_href"] ?? entry.link[0]?.["@_href"] ?? "";
-  }
-  return entry.link["@_href"] ?? "";
 }
 
 function extractContent(entry: PHEntry): { tagline: string; productLink: string } {
@@ -172,7 +161,7 @@ function extractId(entry: PHEntry): string {
     if (match) return match[1];
     return entry.id;
   }
-  return extractLink(entry);
+  return extractAtomLink(entry.link);
 }
 
 async function enrichProduct(url: string): Promise<EnrichedData | null> {
@@ -231,7 +220,7 @@ async function fetchProductHuntFeed(): Promise<
   });
 
   const parsed = parser.parse(xml) as PHAtomFeedParsed;
-  const entries = extractEntries(parsed);
+  const entries = normalizeXmlList(parsed.feed?.entry);
 
   if (entries.length === 0) {
     console.warn("producthunt: no entries found in feed");
@@ -240,7 +229,7 @@ async function fetchProductHuntFeed(): Promise<
 
   return entries.map((entry) => {
     const title = extractTitle(entry);
-    const url = extractLink(entry);
+    const url = extractAtomLink(entry.link);
     const { tagline, productLink } = extractContent(entry);
     const author = entry.author?.name ?? "";
     const timestamp = parseFeedDate(entry.published ?? entry.updated ?? "");
