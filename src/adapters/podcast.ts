@@ -1,10 +1,12 @@
 import { XMLParser } from "fast-xml-parser";
 import {
   extractAtomLink,
+  extractFeedItemBody,
   extractXmlText,
   FEED_XML_PARSER_OPTIONS,
   normalizeXmlList,
   type AtomLinkField,
+  type FeedItemBodyFields,
   type XmlTextField,
 } from "./atom";
 import { parseFeedDate } from "./dates";
@@ -23,7 +25,7 @@ type PodcastGuidField =
   | string
   | ({ "@_isPermaLink"?: string } & Record<string, unknown>);
 
-interface PodcastFeedItem {
+interface PodcastFeedItem extends FeedItemBodyFields {
   title?: XmlTextField;
   link?: AtomLinkField;
   enclosure?: PodcastEnclosure | PodcastEnclosure[];
@@ -32,10 +34,6 @@ interface PodcastFeedItem {
   published?: string;
   updated?: string;
   "dc:date"?: string;
-  description?: XmlTextField;
-  "itunes:summary"?: XmlTextField;
-  "itunes:subtitle"?: XmlTextField;
-  "content:encoded"?: XmlTextField;
   "itunes:duration"?: string | number;
   "itunes:episode"?: string | number;
   "itunes:season"?: string | number;
@@ -188,12 +186,7 @@ function parseEpisode(
     item.pubDate ?? item.published ?? item.updated ?? item["dc:date"] ?? "";
   const publishDate = parseFeedDate(dateStr ? String(dateStr) : "");
 
-  const rawDesc =
-    extractXmlText(item.description) ??
-    extractXmlText(item["itunes:summary"]) ??
-    extractXmlText(item["itunes:subtitle"]) ??
-    extractXmlText(item["content:encoded"]) ??
-    "";
+  const rawDesc = extractFeedItemBody(item) ?? "";
   const description = stripHtml(rawDesc, {
     tagSeparator: " ",
     whitespace: "collapse-all",

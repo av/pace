@@ -34,7 +34,7 @@ describe("normalizeXmlList", () => {
 });
 
 describe("extractFeedItemBody", () => {
-  test("coalesces description, summary, content, and content:encoded", () => {
+  test("coalesces description, itunes, summary, content, and content:encoded", () => {
     expect(extractFeedItemBody({})).toBeUndefined();
     expect(extractFeedItemBody({ description: "rss desc" })).toBe("rss desc");
     expect(
@@ -53,6 +53,20 @@ describe("extractFeedItemBody", () => {
         "content:encoded": { "#text": "encoded only" },
       }),
     ).toBe("encoded only");
+    expect(
+      extractFeedItemBody({
+        description: "",
+        "itunes:summary": { "#text": "show notes" },
+        "itunes:subtitle": "subtitle",
+      }),
+    ).toBe("show notes");
+    expect(
+      extractFeedItemBody({
+        "itunes:summary": "",
+        "itunes:subtitle": "teaser",
+        "content:encoded": "full html",
+      }),
+    ).toBe("teaser");
   });
 });
 

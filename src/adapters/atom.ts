@@ -7,9 +7,11 @@ export type AtomLinkField =
 /** Parsed text node from fast-xml-parser (attributeNamePrefix "@_"). */
 export type XmlTextField = string | { "#text"?: string; __cdata?: string };
 
-/** RSS 2.0 / Atom item fields commonly used for body text. */
+/** RSS 2.0 / Atom / podcast item fields commonly used for body text. */
 export type FeedItemBodyFields = {
   description?: XmlTextField;
+  "itunes:summary"?: XmlTextField;
+  "itunes:subtitle"?: XmlTextField;
   summary?: XmlTextField;
   content?: XmlTextField;
   "content:encoded"?: XmlTextField;
@@ -37,12 +39,14 @@ export function extractXmlText(
   return typeof text === "string" && text ? text : undefined;
 }
 
-/** First non-empty body among RSS description/summary and Atom content fields. */
+/** First non-empty body among RSS/Atom/podcast description fields. */
 export function extractFeedItemBody(
   item: FeedItemBodyFields,
 ): string | undefined {
   return (
     extractXmlText(item.description) ??
+    extractXmlText(item["itunes:summary"]) ??
+    extractXmlText(item["itunes:subtitle"]) ??
     extractXmlText(item.summary) ??
     extractXmlText(item.content) ??
     extractXmlText(item["content:encoded"])
