@@ -9,7 +9,12 @@ import {
 } from "./engagement";
 import { fetchJson } from "./fetch";
 import { decodeHtmlEntities } from "./html";
-import { normalizeOptionalString, normalizeStringList, sliceToLimit } from "../utils";
+import {
+  normalizeNonNegativeNumber,
+  normalizeOptionalString,
+  normalizeStringList,
+  sliceToLimit,
+} from "../utils";
 import { dedupeByKey, fetchAndConcat } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
@@ -89,7 +94,7 @@ const adapter: Adapter = {
       config.params?.username as string | undefined,
     );
     const limit = Math.min((config.params?.limit as number) ?? 20, 30);
-    const minReactions = (config.params?.min_reactions as number) ?? 0;
+    const minReactions = normalizeNonNegativeNumber(config.params?.min_reactions);
     const top = resolvePeriod(config.params?.top);
 
     if (tags.length === 0 && !username) {

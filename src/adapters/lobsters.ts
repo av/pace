@@ -9,6 +9,7 @@ import {
 import { fetchJson } from "./fetch";
 import { decodeHtmlEntities } from "./html";
 import {
+  normalizeNonNegativeNumber,
   normalizeOptionalString,
   normalizeStringList,
   sliceToLimit,
@@ -62,7 +63,7 @@ const adapter: Adapter = {
         ? normalizeOptionalString(feedRaw)
         : undefined) ?? "hottest";
     const limit = Math.min((config.params?.limit as number) ?? 25, 100);
-    const minScore = (config.params?.min_score as number) ?? 0;
+    const minScore = normalizeNonNegativeNumber(config.params?.min_score);
     const tags = normalizeStringList((config.params?.tags as string[]) ?? []);
 
     let feedType: FeedType;
