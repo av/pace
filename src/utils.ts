@@ -50,3 +50,11 @@ export function sliceToLimit<T>(items: readonly T[], limit: number): T[] {
 export function normalizeStringList(items: readonly string[]): string[] {
   return items.map((item) => item.trim()).filter(Boolean);
 }
+
+/** Trim optional string; return undefined if missing or blank after trim. */
+export function normalizeOptionalString(
+  value: string | undefined,
+): string | undefined {
+  const trimmed = (value ?? "").trim();
+  return trimmed || undefined;
+}

@@ -7,6 +7,7 @@ import {
   sliceToLimit,
   compareIsoTimestamp,
   normalizeStringList,
+  normalizeOptionalString,
 } from "./utils";
 
 describe("errorMessage", () => {
@@ -135,6 +136,19 @@ describe("normalizeStringList", () => {
   test("trims entries and drops blank strings", () => {
     expect(normalizeStringList([" a ", "b", "  ", ""])).toEqual(["a", "b"]);
     expect(normalizeStringList([])).toEqual([]);
+  });
+});
+
+describe("normalizeOptionalString", () => {
+  test("trims and returns undefined for missing or blank values", () => {
+    expect(normalizeOptionalString(undefined)).toBeUndefined();
+    expect(normalizeOptionalString("")).toBeUndefined();
+    expect(normalizeOptionalString("   ")).toBeUndefined();
+  });
+
+  test("returns trimmed non-blank string", () => {
+    expect(normalizeOptionalString("  quantum  ")).toBe("quantum");
+    expect(normalizeOptionalString("types")).toBe("types");
   });
 });
 

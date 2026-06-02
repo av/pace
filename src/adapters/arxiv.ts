@@ -15,7 +15,11 @@ import {
   FEED_BODY_STRIP_OPTIONS,
   stripHtml,
 } from "./html";
-import { normalizeStringList, sliceToLimit } from "../utils";
+import {
+  normalizeOptionalString,
+  normalizeStringList,
+  sliceToLimit,
+} from "../utils";
 import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 const ARXIV_API = "http://export.arxiv.org/api/query";
@@ -105,10 +109,6 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function normalizeConfiguredQuery(query: string): string {
-  return query.trim();
-}
-
 async function fetchArxivQuery(
   queryStr: string,
   limit: number,
@@ -170,7 +170,9 @@ const adapter: Adapter = {
     const categories = normalizeStringList(
       (config.params?.categories as string[]) ?? [],
     );
-    const query = normalizeConfiguredQuery((config.params?.query as string) ?? "");
+    const query = normalizeOptionalString(
+      config.params?.query as string | undefined,
+    );
     const limit = Math.min((config.params?.limit as number) ?? 20, 100);
 
     if (categories.length === 0 && !query) {

@@ -1,7 +1,7 @@
 import { formatBy, formatPercent, formatTags, joinBodyParts } from "./engagement";
 import { fetchJson } from "./fetch";
 import { decodeHtmlEntities } from "./html";
-import { normalizeStringList } from "../utils";
+import { normalizeOptionalString, normalizeStringList } from "../utils";
 import { titleWithTagline } from "./title";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
@@ -110,18 +110,15 @@ function buildSearchQuery(
   return query;
 }
 
-function normalizeConfiguredScope(raw: string | undefined): string | undefined {
-  const trimmed = (raw ?? "").trim();
-  return trimmed || undefined;
-}
-
 const adapter: Adapter = {
   name: "npm",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
     const keywords = normalizeStringList(
       (config.params?.keywords as string[]) ?? [],
     );
-    const scope = normalizeConfiguredScope(config.params?.scope as string | undefined);
+    const scope = normalizeOptionalString(
+      config.params?.scope as string | undefined,
+    );
     const limit = Math.min((config.params?.limit as number) ?? 20, 50);
     const sortParam = (config.params?.sort as string) ?? "optimal";
 
