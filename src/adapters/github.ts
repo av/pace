@@ -6,7 +6,6 @@ import { stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 
-type Mode = "releases" | "trending";
 type TrendingPeriod = "daily" | "weekly" | "monthly";
 
 const VALID_PERIODS = new Set<TrendingPeriod>(["daily", "weekly", "monthly"]);

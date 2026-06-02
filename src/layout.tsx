@@ -1,8 +1,7 @@
 /** @jsx jsx */
-/** @jsxFrag Fragment */
-import { jsx, Fragment } from "hono/jsx";
+import { jsx } from "hono/jsx";
 import type { FC } from "hono/jsx";
-import type { LayoutNodeConfig, PanelConfig, FlexContainerConfig } from "./config";
+import type { LayoutNodeConfig, FlexContainerConfig } from "./config";
 import { isPanel, resolvePanelId } from "./config";
 import type { ContentItemRow } from "./db";
 import { errorMessage } from "./utils";

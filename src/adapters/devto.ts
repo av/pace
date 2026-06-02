@@ -67,8 +67,6 @@ async function fetchDevToArticles(
   }
 }
 
-const VALID_PERIODS = new Set([1, 7, 30, 365, Infinity]);
-
 function resolvePeriod(top: unknown): number {
   if (typeof top === "number") {
     // Map to nearest valid period

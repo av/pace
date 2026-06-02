@@ -997,7 +997,6 @@ describe("discoverAdapters", () => {
 
   test("excludes mixed-case DTS declarations", async () => {
     const dtsName = "leaky-mixed-dts-70-edge.D.TS";
-    const absDts = "/home/everlier/code/pace/src/adapters/" + dtsName;
     const goodName = "good-adapter-edge-70.ts";
     const absGood = "/home/everlier/code/pace/src/adapters/" + goodName;
     mock.module(absGood, () => ({
@@ -1061,7 +1060,6 @@ describe("discoverAdapters", () => {
 
   test("excludes mixed-case TEST.ts files", async () => {
     const testTsName = "leaky-mixed-test-ts-72-edge.TEST.TS";
-    const absTestTs = "/home/everlier/code/pace/src/adapters/" + testTsName;
     const goodName = "good-adapter-edge-72.ts";
     const absGood = "/home/everlier/code/pace/src/adapters/" + goodName;
     mock.module(absGood, () => ({
@@ -1095,7 +1093,6 @@ describe("discoverAdapters", () => {
 
   test("excludes mixed-case DTS via Dirent", async () => {
     const dtsName = "leaky-mixed-dts-73-edge.D.TS";
-    const absDts = "/home/everlier/code/pace/src/adapters/" + dtsName;
     const goodName = "good-adapter-edge-73.ts";
     const absGood = "/home/everlier/code/pace/src/adapters/" + goodName;
     mock.module(absGood, () => ({
