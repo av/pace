@@ -28,3 +28,17 @@ export function isValidPort(n: number): boolean {
 export function getAdapterName(cfg: { name?: string; type: string }): string {
   return cfg.name ?? cfg.type;
 }
+
+/**
+ * Compare ISO-8601 timestamp strings for `Array.sort`.
+ * Ties return 0; with stable sort, equal timestamps keep their prior order
+ * (e.g. source concat order in `runPipelineJob`, or input order in transforms).
+ */
+export function compareIsoTimestamp(
+  a: string,
+  b: string,
+  direction: "asc" | "desc" = "desc",
+): number {
+  const descCmp = b > a ? 1 : b < a ? -1 : 0;
+  return direction === "asc" ? -descCmp : descCmp;
+}

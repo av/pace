@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import type { Adapter, ContentItem } from "./adapters/types";
 import * as dbMod from "./db";
-import { initDb, closeDb, getAllItemsByPanel } from "./db";
+import { initDb, closeDb, getAllItemsByPanel, saveItems } from "./db";
 import * as utilsMod from "./utils";
 import {
   startScheduler,
@@ -196,6 +196,37 @@ describe("scheduler", () => {
     const results = await refreshSources(["nonexistent"]);
     expect(Array.isArray(results)).toBe(true);
     expect(results.length).toBe(0);
+  });
+
+  test("runPipelineJob preserves source concat order when timestamps tie (stable sort)", async () => {
+    const ts = "2024-06-01T12:00:00.000Z";
+    saveItems("srcA", [
+      { id: "a1", title: "A first", url: "https://a/1", source: "srcA", timestamp: new Date(ts) },
+      { id: "a2", title: "A second", url: "https://a/2", source: "srcA", timestamp: new Date(ts) },
+    ]);
+    saveItems("srcB", [
+      { id: "b1", title: "B first", url: "https://b/1", source: "srcB", timestamp: new Date(ts) },
+    ]);
+    const config = schedulerConfig({
+      adapters: [],
+      pipelines: [{
+        name: "merge",
+        sources: ["srcA", "srcB"],
+        transforms: [{ type: "latest", count: 10 }],
+      }],
+    });
+    const pm: SourcePanelMap = {
+      sourceToPanels: new Map([["merge", ["outPanel"]]]),
+      sourceToReadKey: new Map([["srcA", "srcA"], ["srcB", "srcB"]]),
+    };
+    startScheduler(config, new Map(), pm, null);
+    await refreshSources(["merge"]);
+    const out = getAllItemsByPanel("outPanel");
+    expect(out.map((r) => r.id)).toEqual([
+      "pipeline:merge:a1",
+      "pipeline:merge:a2",
+      "pipeline:merge:b1",
+    ]);
   });
 
   test("startScheduler schedules pipelines with 5s initial delay (PIPELINE_INITIAL_DELAY_MS) before first runPipelineJob + setInterval, adapters do immediate fetch; default 15m (min 1) when refresh_interval omitted (t3i)", async () => {

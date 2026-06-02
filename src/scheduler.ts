@@ -1,5 +1,5 @@
 import type { Adapter } from "./adapters/types";
-import { errorMessage, getAdapterName } from "./utils";
+import { compareIsoTimestamp, errorMessage, getAdapterName } from "./utils";
 import type { Model, Api } from "@mariozechner/pi-ai";
 import { saveItems, getAllItemsByPanel, replacePanelItems, pruneOldItems as dbPruneOldItems } from "./db";
 import type { AppConfig, IngestAdapterConfig, PipelineConfig } from "./config";
@@ -192,7 +192,8 @@ async function runPipelineJob(entry: PipelineEntry): Promise<RefreshResult> {
       const readKey = readKeys.get(source) ?? source;
       items = items.concat(getAllItemsByPanel(readKey));
     }
-    items.sort((a, b) => (b.timestamp > a.timestamp ? 1 : b.timestamp < a.timestamp ? -1 : 0));
+    // Newest first; equal timestamps keep concat order (stable sort).
+    items.sort((a, b) => compareIsoTimestamp(a.timestamp, b.timestamp, "desc"));
 
     const transformed = await runPipeline(items, config.transforms, transformCtx);
     const namespaced = transformed.map((item) => ({

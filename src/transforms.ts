@@ -9,7 +9,7 @@ import {
   extractScore,
   type DedupeStrategy,
 } from "./dedupe";
-import { errorMessage } from "./utils";
+import { compareIsoTimestamp, errorMessage } from "./utils";
 
 export interface TransformContext {
   llmModel: Model<Api> | null;
@@ -239,9 +239,13 @@ const transforms: Record<string, TransformFn> = {
       direction?: "asc" | "desc";
     };
     const dir = direction === "asc" ? 1 : -1;
+    const effectiveDirection = direction ?? "desc";
     return [...items].sort((a, b) => {
       const av = a[field] ?? "";
       const bv = b[field] ?? "";
+      if (field === "timestamp") {
+        return compareIsoTimestamp(av, bv, effectiveDirection);
+      }
       return av < bv ? -dir : av > bv ? dir : 0;
     });
   },
