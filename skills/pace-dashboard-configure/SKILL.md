@@ -219,7 +219,6 @@ Transforms run at ingest time on adapter or pipeline results. They apply sequent
 
 ```yaml
 transforms:
-  # Keep the N most recent items
   - type: latest
     count: 50
 
@@ -268,7 +267,6 @@ transforms:
   # --- LLM transforms (require llm config) ---
   # All LLM transforms gracefully degrade (items pass through unchanged) when no LLM is configured.
 
-  # Add LLM-generated summaries
   - type: llm-summarize
 
   # Keep items matching LLM-evaluated criteria
