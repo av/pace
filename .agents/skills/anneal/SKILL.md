@@ -217,10 +217,6 @@ Return a structured summary:
 
 Adapt to the project's specific tooling (test runner, language, framework). The structure is non-negotiable: one fix, safety checks, commit, summary.
 
-## Preventing Premature Exit
-
-See timeboxed-iterating/SKILL.md for the canonical "Preventing Premature Exit" table and guidance.
-
 ## Preventing Sabotaged Runs
 
 See timeboxed-iterating/SKILL.md for the common orchestrator rules against sabotaged runs (the "doing work in the orchestrator" and "one subagent at a time" patterns).
@@ -231,14 +227,6 @@ See timeboxed-iterating/SKILL.md for the common orchestrator rules against sabot
 
 **Scope collapse.** If iteration 1 restructures a module and iteration 15 is renaming a variable, the scope has collapsed. The codebase always has more structural slop — push the subagent toward the catalog's higher-impact patterns.
 
-## Stall Recovery
+## Guidance References
 
-See timeboxed-iterating/SKILL.md for the canonical "Stall Recovery" section.
-
-## Quick Reference
-
-See timeboxed-iterating/SKILL.md for the canonical "Quick Reference" table.
-
-## Red Flags — STOP and Reread This Skill
-
-See timeboxed-iterating/SKILL.md for the canonical "Red Flags" list.
+See timeboxed-iterating/SKILL.md for the canonical "Preventing Premature Exit" table and guidance, "Stall Recovery" section, "Quick Reference" table and "Red Flags" list. The general patterns apply to this skill too.
