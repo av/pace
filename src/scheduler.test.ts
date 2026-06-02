@@ -3,7 +3,9 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import type { Adapter, ContentItem } from "./adapters/types";
+import * as dbMod from "./db";
 import { initDb, closeDb, getAllItemsByPanel } from "./db";
+import * as utilsMod from "./utils";
 import {
   startScheduler,
   stopScheduler,
@@ -150,6 +152,25 @@ describe("scheduler", () => {
       );
       expect(warned).toBe(true);
     } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  test("prune failure on startScheduler warns with errorMessage", () => {
+    const pruneSpy = spyOn(dbMod, "pruneOldItems").mockImplementation(() => {
+      throw new Error("db prune fail");
+    });
+    const emSpy = spyOn(utilsMod, "errorMessage");
+    const warnSpy = spyOn(console, "warn");
+    try {
+      const adapters = new Map<string, Adapter>([["test", makeMockAdapter([])]]);
+      startScheduler(baseConfig, adapters, basePanelMap, null);
+      expect(pruneSpy).toHaveBeenCalledWith(30);
+      expect(emSpy).toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledWith("scheduler: prune error: db prune fail");
+    } finally {
+      pruneSpy.mockRestore();
+      emSpy.mockRestore();
       warnSpy.mockRestore();
     }
   });
