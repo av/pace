@@ -379,6 +379,23 @@ layout:
     expect(() => loadConfig()).toThrow(/config: adapters\[0\].transforms\[0\].count must be a positive integer/);
   });
 
+  test("rejects unknown llm field", () => {
+    const yaml = `
+llm:
+  provider: openai
+  model: gpt-4o-mini
+  api_key: sk-test
+  typo_field: true
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(/config: llm\.typo_field is not a valid llm field/);
+  });
+
   test("rejects unknown top-level key", () => {
     const yaml = `
 foo: bar
