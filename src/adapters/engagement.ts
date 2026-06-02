@@ -96,5 +96,10 @@ export function formatReplies(count: number): string {
   return `${count} replies`;
 }
 
+/** GitHub trending and similar star-count metadata in body text. */
+export function formatStars(count: number): string {
+  return `${count.toLocaleString()} stars`;
+}
+
 /** Join adapter body segments with " | ". */
 export const joinBodyParts = joinTitle;

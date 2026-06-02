@@ -1,6 +1,7 @@
 import { XMLParser } from "fast-xml-parser";
 import { extractAtomLink } from "./atom";
 import { parseFeedDate } from "./dates";
+import { formatBy, joinBodyParts } from "./engagement";
 import { fetchText } from "./fetch";
 import { dedupeByKey, sliceToLimit } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -42,6 +43,16 @@ function extractChannelTitle(parsed: YTAtomFeedParsed): string {
   return typeof title === "string" ? title : title["#text"] ?? "YouTube";
 }
 
+function buildBody(entry: YTEntry): string | undefined {
+  const description = entry["media:group"]?.["media:description"];
+  const author = entry.author?.name?.trim();
+  const body = joinBodyParts(
+    author ? formatBy(author) : undefined,
+    description ? String(description) : undefined,
+  );
+  return body || undefined;
+}
+
 function parseEntry(entry: YTEntry, channelTitle: string): ContentItem {
   const videoId = entry["yt:videoId"] ?? "";
   const title =
@@ -55,15 +66,13 @@ function parseEntry(entry: YTEntry, channelTitle: string): ContentItem {
 
   const timestamp = parseFeedDate(entry.published ?? "");
 
-  const description = entry["media:group"]?.["media:description"] ?? undefined;
-
   return {
     id: `youtube:${videoId || title}`,
     title: String(title),
     url: link,
     source: `youtube:${channelTitle}`,
     timestamp,
-    body: description ? String(description) : undefined,
+    body: buildBody(entry),
   };
 }
 

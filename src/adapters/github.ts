@@ -1,6 +1,7 @@
 import { XMLParser } from "fast-xml-parser";
 import { extractAtomLink, type AtomLinkField } from "./atom";
 import { parseFeedDate } from "./dates";
+import { formatStars, joinBodyParts } from "./engagement";
 import { fetchText } from "./fetch";
 import { dedupeByKey, sliceToLimit } from "./merge";
 import { stripHtml } from "./html";
@@ -165,9 +166,10 @@ async function fetchTrending(
   };
 
   return sliceToLimit(repos, limit).map((repo) => {
-    const bodyParts: string[] = [];
-    if (repo.language) bodyParts.push(`language: ${repo.language}`);
-    bodyParts.push(`${repo.stars.toLocaleString()} stars`);
+    const body = joinBodyParts(
+      repo.language ? `language: ${repo.language}` : undefined,
+      formatStars(repo.stars),
+    );
 
     return {
       id: `github:trending:${repo.name}:${since}`,
@@ -182,7 +184,7 @@ async function fetchTrending(
       url: repo.url,
       source: language ? `github:trending:${language}` : "github:trending",
       timestamp: new Date(), // trending has no specific timestamp
-      body: bodyParts.length > 0 ? bodyParts.join(" | ") : undefined,
+      body: body || undefined,
     };
   });
 }

@@ -8,6 +8,7 @@ import {
   formatPoints,
   formatReactions,
   formatScore,
+  formatStars,
   joinBodyParts,
   parseFirstIntMatch,
   RE_POINTS_OR_UPVOTES,
@@ -27,6 +28,11 @@ describe("engagement format helpers", () => {
   test("formatPercent for npm registry fractional scores", () => {
     expect(formatPercent(0.806)).toBe("81%");
     expect(formatPercent(0)).toBe("0%");
+  });
+
+  test("formatStars for github trending bodies", () => {
+    expect(formatStars(123456)).toBe("123,456 stars");
+    expect(extractEngagementScore(formatStars(99))).toBe(99);
   });
 
   test("joinBodyParts matches adapter metadata layout", () => {

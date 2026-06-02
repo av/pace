@@ -78,7 +78,7 @@ describe("youtube", () => {
     expect(items[0].title).toBe("Video 1 Title");
     expect(items[0].source).toBe("youtube:Channel One");
     expect(items[0].url).toContain("vid1");
-    expect(items[0].body).toBe("Desc 1");
+    expect(items[0].body).toBe("by Chan1 | Desc 1");
     expect(items[1].title).toBe("Video 2 Title");
   });
 
