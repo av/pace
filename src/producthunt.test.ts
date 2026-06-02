@@ -200,4 +200,47 @@ describe("producthunt adapter (DRY quality + test coverage)", () => {
     expect(items[0].body).not.toContain("upvotes");
     expect(items[0].body).toContain("Cool new AI tool tagline");
   });
+
+  test("warns on enrich HTTP failure and still returns items without enrich data", async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      const u = String(url);
+      if (u.includes("feed")) {
+        return new Response(makePHFeedFixture(), { status: 200 });
+      }
+      return new Response("not found", { status: 404 });
+    });
+
+    const items = await producthuntAdapter.fetch(producthuntCfg({ enrich: true }));
+
+    expect(items.length).toBe(2);
+    expect(items[0].body).not.toContain("upvotes");
+    const enrichWarns = warnSpy.mock.calls.filter((call) =>
+      String(call[0]).startsWith("producthunt: enrich failed for"),
+    );
+    expect(enrichWarns).toHaveLength(2);
+    expect(enrichWarns[0][0]).toMatch(
+      /producthunt: enrich failed for https:\/\/www\.producthunt\.com\/posts\/test-product-123456: 404/,
+    );
+  });
+
+  test("warns on enrich network failure and still returns items without enrich data", async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      const u = String(url);
+      if (u.includes("feed")) {
+        return new Response(makePHFeedFixture(), { status: 200 });
+      }
+      throw new Error("enrich connection refused");
+    });
+
+    const items = await producthuntAdapter.fetch(producthuntCfg({ enrich: true }));
+
+    expect(items.length).toBe(2);
+    const enrichWarns = warnSpy.mock.calls.filter((call) =>
+      String(call[0]).startsWith("producthunt: enrich failed for"),
+    );
+    expect(enrichWarns).toHaveLength(2);
+    expect(enrichWarns[0][0]).toBe(
+      "producthunt: enrich failed for https://www.producthunt.com/posts/test-product-123456: enrich connection refused",
+    );
+  });
 });
