@@ -11,6 +11,8 @@ import {
   formatReactions,
   formatCategories,
   formatLanguage,
+  formatMastodonAcct,
+  formatMedia,
   formatScore,
   formatSite,
   formatStars,
@@ -58,6 +60,15 @@ describe("engagement format helpers", () => {
   test("formatCommunity and formatSubreddit for lemmy/reddit bodies", () => {
     expect(formatCommunity("technology")).toBe("c/technology");
     expect(formatSubreddit("programming")).toBe("r/programming");
+  });
+
+  test("formatMastodonAcct and formatMedia for mastodon bodies", () => {
+    expect(formatMastodonAcct("alice", "social.example")).toBe("@alice@social.example");
+    expect(formatMastodonAcct("bob@remote.social", "social.example")).toBe("@bob@remote.social");
+    expect(formatMedia([])).toBeUndefined();
+    expect(formatMedia(["https://ex.com/a.png", "https://ex.com/b.png"])).toBe(
+      "media: https://ex.com/a.png https://ex.com/b.png",
+    );
   });
 
   test("joinBodyParts matches adapter metadata layout", () => {

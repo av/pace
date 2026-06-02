@@ -106,6 +106,20 @@ export function formatReplies(count: number): string {
   return `${count} replies`;
 }
 
+/** Mastodon account handle in body metadata (@user@instance or remote @user@host). */
+export function formatMastodonAcct(acct: string, instance: string): string {
+  if (acct.includes("@")) {
+    return `@${acct}`;
+  }
+  return `@${acct}@${instance}`;
+}
+
+/** Mastodon (and similar) media attachment URLs in body metadata. */
+export function formatMedia(urls: readonly string[]): string | undefined {
+  if (urls.length === 0) return undefined;
+  return `media: ${urls.join(" ")}`;
+}
+
 /** GitHub trending and similar star-count metadata in body text. */
 export function formatStars(count: number): string {
   return `${count.toLocaleString()} stars`;

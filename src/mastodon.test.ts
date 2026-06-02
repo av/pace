@@ -107,6 +107,41 @@ describe("mastodon", () => {
     });
   });
 
+  test("buildBody joins engagement helpers with acct, replies, and optional media", async () => {
+    const withMedia = makeStatus("99", "<p>pic</p>", "2024-06-01T00:00:00Z");
+    Object.assign(withMedia, {
+      media_attachments: [
+        { id: "m1", type: "image", url: "https://ex.com/1.png", preview_url: "", description: null },
+        { id: "m2", type: "image", url: "https://ex.com/2.png", preview_url: "", description: null },
+      ],
+    });
+    mocks.fetchMock.mockImplementation(async () =>
+      new Response(JSON.stringify([withMedia]), { status: 200 }),
+    );
+
+    const items = await adapter.fetch(mastodonCfg({ instance: "ex.com", limit: 5 }));
+
+    expect(items[0].body).toBe(
+      "3 boosts | 7 favorites | @u@ex.com | 1 replies | media: https://ex.com/1.png https://ex.com/2.png",
+    );
+  });
+
+  test("buildBody uses remote acct as-is and omits replies when zero", async () => {
+    const remote = makeStatus("100", "<p>remote</p>", "2024-06-02T00:00:00Z");
+    Object.assign(remote, {
+      account: { ...remote.account, acct: "remote@other.social" },
+      replies_count: 0,
+    });
+    mocks.fetchMock.mockImplementation(async () =>
+      new Response(JSON.stringify([remote]), { status: 200 }),
+    );
+
+    const items = await adapter.fetch(mastodonCfg({ instance: "ex.com", limit: 5 }));
+
+    expect(items[0].body).toBe("3 boosts | 7 favorites | @remote@other.social");
+    expect(items[0].body).not.toContain("replies");
+  });
+
   test("fetches from public timeline (default) and maps items", async () => {
     const items = await adapter.fetch(mastodonCfg({ instance: "ex.com" }));
     expect(items.length).toBeGreaterThan(0);

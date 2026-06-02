@@ -1,6 +1,8 @@
 import {
   formatBoosts,
   formatFavorites,
+  formatMastodonAcct,
+  formatMedia,
   formatReplies,
   joinBodyParts,
 } from "./engagement";
@@ -55,25 +57,13 @@ interface MastodonAccount {
 
 type Mode = "public" | "hashtag" | "account";
 
-function resolveAcct(account: MastodonStatus["account"], instance: string): string {
-  // If acct contains @, it's already fully qualified (remote user)
-  if (account.acct.includes("@")) {
-    return `@${account.acct}`;
-  }
-  // Local user: append the instance
-  return `@${account.acct}@${instance}`;
-}
-
 function buildBody(status: MastodonStatus, instance: string): string {
-  const mediaUrls = status.media_attachments.length > 0
-    ? status.media_attachments.map((m) => m.url).join(" ")
-    : undefined;
   return joinBodyParts(
     formatBoosts(status.reblogs_count),
     formatFavorites(status.favourites_count),
-    resolveAcct(status.account, instance),
+    formatMastodonAcct(status.account.acct, instance),
     status.replies_count > 0 ? formatReplies(status.replies_count) : undefined,
-    mediaUrls ? `media: ${mediaUrls}` : undefined,
+    formatMedia(status.media_attachments.map((m) => m.url)),
   );
 }
 
