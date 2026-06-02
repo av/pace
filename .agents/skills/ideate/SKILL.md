@@ -192,32 +192,6 @@ This is what separates good ideation from random brainstorming. After each itera
 
 **After exhaustion:** When a category of ideas is played out (e.g., "all CLI subcommand ideas score 4/10"), explicitly tell the proposer to think in a different direction. Name the exhausted category and suggest unexplored angles.
 
-## Preventing Premature Exit
-
-See `.agents/skills/timeboxed-iterating/SKILL.md` for the canonical "Preventing Premature Exit" table and guidance. The general traps apply to the ideate orchestrator.
-
-Ideate-specific traps (additions):
-
-- "We have enough good ideas": Check the clock. Time left? Keep going.
-- "The top 3 are clearly the winners": Better ideas might emerge. The critic will sort them.
-- "All the obvious ideas have been tried": That's when the creative ones start. Push harder.
-- "The scores are converging": Try a radically different angle.
-- "I should present what we have": Only after the deadline. Not before.
-- "The last few scored poorly": Learn from the critic. Steer the proposer differently.
-
-## Stall Recovery
-
-See the canonical "Stall Recovery" procedure in `.agents/skills/timeboxed-iterating/SKILL.md`.
-
-Ideate-specific actions (when 3 consecutive scores under 4):
-
-1. **Shift category entirely.** If product features aren't working, try process improvements. If technical ideas are stale, try UX or documentation angles.
-2. **Invert the question.** Instead of "what should we add?", ask "what's currently broken?" or "what do users complain about?"
-3. **Change the critic's lens.** Ask the critic to evaluate from a different persona (new user vs power user, developer vs manager, human vs AI agent).
-4. **Combine previous ideas.** Tell the proposer to take the strongest elements from two mid-scoring ideas and combine them.
-
-If after 3 recovery attempts proposals are still trivial, log it and keep going. Do not stop.
-
 ## Presenting Results
 
 When the deadline passes, present the top N ideas ranked by critic score:
@@ -247,6 +221,24 @@ For ties, prefer the idea with higher frequency (daily > weekly > monthly). For 
 
 ## Guidance References
 
-See .agents/skills/timeboxed-iterating/SKILL.md for the canonical "Quick Reference" table and .agents/skills/timeboxed-iterating/SKILL.md for the canonical "Red Flags" guidance. The general patterns apply to this skill too.
+See .agents/skills/timeboxed-iterating/SKILL.md for the canonical "Preventing Premature Exit" table and guidance, "Stall Recovery" procedure, "Quick Reference" table and "Red Flags" guidance. The general patterns apply to this skill too.
 
-The ideate-specific details remain in the Process, Presenting Results, Steering the Proposer, and ideate-specific additions to Preventing Premature Exit / Stall Recovery (e.g. progress file `/tmp/ideate-<slug>-...`, propose-then-critic dispatch, Patterns tracking, default top N=3, stall threshold of 3 consecutive <4, and red flags for presenting with time left or self-proposing/critiquing).
+Ideate-specific traps (additions to Preventing Premature Exit):
+
+- "We have enough good ideas": Check the clock. Time left? Keep going.
+- "The top 3 are clearly the winners": Better ideas might emerge. The critic will sort them.
+- "All the obvious ideas have been tried": That's when the creative ones start. Push harder.
+- "The scores are converging": Try a radically different angle.
+- "I should present what we have": Only after the deadline. Not before.
+- "The last few scored poorly": Learn from the critic. Steer the proposer differently.
+
+Ideate-specific actions (additions to Stall Recovery, when 3 consecutive scores under 4):
+
+1. **Shift category entirely.** If product features aren't working, try process improvements. If technical ideas are stale, try UX or documentation angles.
+2. **Invert the question.** Instead of "what should we add?", ask "what's currently broken?" or "what do users complain about?"
+3. **Change the critic's lens.** Ask the critic to evaluate from a different persona (new user vs power user, developer vs manager, human vs AI agent).
+4. **Combine previous ideas.** Tell the proposer to take the strongest elements from two mid-scoring ideas and combine them.
+
+If after 3 recovery attempts proposals are still trivial, log it and keep going. Do not stop.
+
+The ideate-specific details remain in the Process, Presenting Results, Steering the Proposer (e.g. progress file `/tmp/ideate-<slug>-...`, propose-then-critic dispatch, Patterns tracking, default top N=3, stall threshold of 3 consecutive <4, and red flags for presenting with time left or self-proposing/critiquing).
