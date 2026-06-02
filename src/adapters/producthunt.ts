@@ -234,7 +234,9 @@ async function fetchProductHuntFeed(): Promise<
   }
 
   return entries.map((entry) => {
-    const title = extractFeedEntryTitle(entry.title);
+    const title = decodeHtmlEntities(extractFeedEntryTitle(entry.title), {
+      numeric: true,
+    });
     const url = extractAtomLink(entry.link);
     const { tagline, productLink } = extractContent(entry);
     const author = entry.author?.name ?? "";
