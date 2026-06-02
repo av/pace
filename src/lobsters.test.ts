@@ -183,6 +183,42 @@ describe("lobsters", () => {
     expect(results[1].id).toBe("lobsters:old");
   });
 
+  test.each([NaN, "25", Infinity, -5, 0] as unknown[])(
+    "invalid limit (%s) uses default slice of 25",
+    async (limit) => {
+      const items = Array.from({ length: 30 }, (_, i) =>
+        makeItem({ short_id: `id${i}`, title: `Post ${i}` }),
+      );
+      mocks.fetchMock.mockResolvedValue(makeJsonResponse(items));
+
+      const results = await lobstersAdapter.fetch(lobstersCfg({ limit }));
+
+      expect(results).toHaveLength(25);
+    },
+  );
+
+  test("caps limit at 100", async () => {
+    const items = Array.from({ length: 120 }, (_, i) =>
+      makeItem({ short_id: `id${i}`, title: `Post ${i}` }),
+    );
+    mocks.fetchMock.mockResolvedValue(makeJsonResponse(items));
+
+    const results = await lobstersAdapter.fetch(lobstersCfg({ limit: 500 }));
+
+    expect(results).toHaveLength(100);
+  });
+
+  test("floors fractional limit", async () => {
+    const items = Array.from({ length: 10 }, (_, i) =>
+      makeItem({ short_id: `id${i}`, title: `Post ${i}` }),
+    );
+    mocks.fetchMock.mockResolvedValue(makeJsonResponse(items));
+
+    const results = await lobstersAdapter.fetch(lobstersCfg({ limit: 7.9 }));
+
+    expect(results).toHaveLength(7);
+  });
+
   test("applies min_score filter and limit after fetch", async () => {
     const items = [
       makeItem({ short_id: "low", score: 3 }),

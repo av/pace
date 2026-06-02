@@ -237,6 +237,51 @@ describe("stackexchange", () => {
     );
   });
 
+  test.each([NaN, "20", Infinity, -5, 0] as unknown[])(
+    "invalid limit (%s) uses default pagesize=20",
+    async (limit) => {
+      mocks.fetchMock.mockResolvedValue(
+        new Response(
+          JSON.stringify({ items: [], has_more: false, quota_remaining: 100 }),
+          { status: 200 },
+        ),
+      );
+
+      await stackexchangeAdapter.fetch(seCfg({ limit }));
+
+      const url = String(mocks.fetchMock.mock.calls[0][0]);
+      expect(url).toContain("pagesize=20");
+    },
+  );
+
+  test("caps limit at 100 in pagesize", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({ items: [], has_more: false, quota_remaining: 100 }),
+        { status: 200 },
+      ),
+    );
+
+    await stackexchangeAdapter.fetch(seCfg({ limit: 500 }));
+
+    const url = String(mocks.fetchMock.mock.calls[0][0]);
+    expect(url).toContain("pagesize=100");
+  });
+
+  test("floors fractional limit in pagesize", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({ items: [], has_more: false, quota_remaining: 100 }),
+        { status: 200 },
+      ),
+    );
+
+    await stackexchangeAdapter.fetch(seCfg({ limit: 7.9 }));
+
+    const url = String(mocks.fetchMock.mock.calls[0][0]);
+    expect(url).toContain("pagesize=7");
+  });
+
   test("min_score and limit", async () => {
     const questions = [
       makeQuestion({ question_id: 10, score: 5 }),

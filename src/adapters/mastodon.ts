@@ -11,6 +11,7 @@ import { decodeHtmlEntities, stripHtml } from "./html";
 import {
   normalizeNonNegativeNumber,
   normalizeOptionalString,
+  normalizePositiveInteger,
   normalizeStringList,
   sliceToLimit,
 } from "../utils";
@@ -204,7 +205,7 @@ const adapter: Adapter = {
     const accounts = normalizeStringList(
       (config.params?.accounts as string[]) ?? [],
     );
-    const limit = Math.min((config.params?.limit as number) ?? 20, 40);
+    const limit = Math.min(normalizePositiveInteger(config.params?.limit, 20), 40);
     const minFavourites = normalizeNonNegativeNumber(config.params?.min_favourites);
     const onlyMedia = (config.params?.only_media as boolean) ?? false;
 

@@ -244,6 +244,30 @@ describe("mastodon", () => {
     expect(fetchUrls().some((u) => u.includes("/statuses"))).toBe(true);
   });
 
+  test.each([NaN, "20", Infinity, -5, 0] as unknown[])(
+    "invalid limit (%s) uses default limit=20 in API URL",
+    async (limit) => {
+      await adapter.fetch(mastodonCfg({ instance: "ex.com", limit }));
+
+      const url = fetchUrls().find((u) => u.includes("/timelines/public"));
+      expect(url ?? "").toContain("limit=20");
+    },
+  );
+
+  test("caps limit at 40 in API URL", async () => {
+    await adapter.fetch(mastodonCfg({ instance: "ex.com", limit: 500 }));
+
+    const url = fetchUrls().find((u) => u.includes("/timelines/public"));
+    expect(url ?? "").toContain("limit=40");
+  });
+
+  test("floors fractional limit in API URL", async () => {
+    await adapter.fetch(mastodonCfg({ instance: "ex.com", limit: 7.9 }));
+
+    const url = fetchUrls().find((u) => u.includes("/timelines/public"));
+    expect(url ?? "").toContain("limit=7");
+  });
+
   test("respects limit param (capped)", async () => {
     const items = await adapter.fetch(mastodonCfg({ limit: 1 }));
     expect(items).toHaveLength(1);
