@@ -1,3 +1,4 @@
+import { sliceToLimit } from "./dates";
 import { fetchWithTimeout } from "./fetch";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
@@ -116,7 +117,7 @@ const adapter: Adapter = {
       }
 
       // Apply limit
-      const limited = items.slice(0, limit);
+      const limited = sliceToLimit(items, limit);
 
       return limited.map((item) => ({
         id: `lobsters:${item.short_id}`,

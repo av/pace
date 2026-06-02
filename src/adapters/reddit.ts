@@ -1,3 +1,4 @@
+import { parseUnixEpochSeconds, sliceToLimit } from "./dates";
 import { fetchWithTimeout } from "./fetch";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
@@ -167,7 +168,7 @@ const adapter: Adapter = {
     filtered.sort((a, b) => b.data.score - a.data.score);
 
     // Apply limit
-    const limited = filtered.slice(0, limit);
+    const limited = sliceToLimit(filtered, limit);
 
     // Build source label
     const sourceLabel =
@@ -180,7 +181,7 @@ const adapter: Adapter = {
       title: post.data.title,
       url: getItemUrl(post.data),
       source: sourceLabel,
-      timestamp: new Date(post.data.created_utc * 1000),
+      timestamp: parseUnixEpochSeconds(post.data.created_utc),
       body: buildBody(post.data),
     }));
   },

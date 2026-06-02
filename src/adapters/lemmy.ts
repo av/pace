@@ -1,3 +1,4 @@
+import { sliceToLimit } from "./dates";
 import { fetchWithTimeout } from "./fetch";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
@@ -129,7 +130,7 @@ const adapter: Adapter = {
 
       deduped.sort((a, b) => b.counts.score - a.counts.score);
 
-      const limited = deduped.slice(0, limit);
+      const limited = sliceToLimit(deduped, limit);
 
       const sourceLabel =
         communities.length === 1

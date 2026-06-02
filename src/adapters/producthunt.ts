@@ -1,5 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
-import { parseFeedDate } from "./dates";
+import { parseFeedDate, sliceToLimit } from "./dates";
 import { fetchWithTimeout } from "./fetch";
 import { stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -313,7 +313,7 @@ const adapter: Adapter = {
     }
 
     // Limit after filtering
-    const limited = filtered.slice(0, limit);
+    const limited = sliceToLimit(filtered, limit);
 
     return limited.map((item) => {
       const enriched = enrichedMap.get(item.id) ?? null;

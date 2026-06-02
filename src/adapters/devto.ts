@@ -1,3 +1,4 @@
+import { sliceToLimit } from "./dates";
 import { fetchWithTimeout } from "./fetch";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
@@ -144,7 +145,7 @@ const adapter: Adapter = {
     );
 
     // Apply limit
-    const limited = filtered.slice(0, limit);
+    const limited = sliceToLimit(filtered, limit);
 
     // Build source label
     let sourceLabel: string;

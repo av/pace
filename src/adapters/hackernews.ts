@@ -1,3 +1,4 @@
+import { parseUnixEpochSeconds, sliceToLimit } from "./dates";
 import { fetchWithTimeout } from "./fetch";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
@@ -132,14 +133,14 @@ const adapter: Adapter = {
       : items;
 
     // Respect limit after filtering
-    const limited = filtered.slice(0, limit);
+    const limited = sliceToLimit(filtered, limit);
 
     return limited.map((item) => ({
       id: `hn:${item.id}`,
       title: item.title ?? "(untitled)",
       url: item.url ?? `https://news.ycombinator.com/item?id=${item.id}`,
       source: `hackernews:${feedType}`,
-      timestamp: item.time ? new Date(item.time * 1000) : new Date(),
+      timestamp: parseUnixEpochSeconds(item.time),
       body: buildBody(item),
     }));
   },

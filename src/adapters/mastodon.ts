@@ -1,3 +1,4 @@
+import { sliceToLimit } from "./dates";
 import { fetchWithTimeout } from "./fetch";
 import { stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -232,7 +233,7 @@ const adapter: Adapter = {
       );
 
       // Apply limit
-      const limited = allStatuses.slice(0, limit);
+      const limited = sliceToLimit(allStatuses, limit);
 
       // Build source label
       let sourceLabel: string;

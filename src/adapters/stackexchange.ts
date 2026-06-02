@@ -1,3 +1,4 @@
+import { parseUnixEpochSeconds, sliceToLimit } from "./dates";
 import { fetchWithTimeout } from "./fetch";
 import { type Adapter, type AdapterConfig, type ContentItem, errorMessage } from "./types";
 
@@ -139,7 +140,7 @@ const adapter: Adapter = {
         : questions;
 
     // Respect limit after filtering
-    const limited = filtered.slice(0, limit);
+    const limited = sliceToLimit(filtered, limit);
 
     // Build source label
     let sourceLabel: string;
@@ -154,7 +155,7 @@ const adapter: Adapter = {
       title: question.title,
       url: question.link,
       source: sourceLabel,
-      timestamp: new Date(question.creation_date * 1000),
+      timestamp: parseUnixEpochSeconds(question.creation_date),
       body: buildBody(question),
     }));
   },
