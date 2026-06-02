@@ -534,6 +534,8 @@ function validateDedupeStrategyFields(transform: Record<string, unknown>, path: 
   }
 }
 
+const KEYWORD_SCORE_ENTRY_FIELDS = ["term", "weight", "regex"] as const;
+
 function validateKeywordScoreEntries(value: unknown, path: string): void {
   validateNonEmptyArray(value, path);
 
@@ -542,6 +544,9 @@ function validateKeywordScoreEntries(value: unknown, path: string): void {
     if (!isRecord(entry)) {
       throw new Error(`config: ${entryPath} must be an object`);
     }
+    validateAllowedKeys(entry, KEYWORD_SCORE_ENTRY_FIELDS, (key) =>
+      `${entryPath}.${key} is not a valid keyword-score entry field`,
+    );
     validateNonEmptyString(entry.term, `${entryPath}.term`);
     validateFiniteNumber(entry.weight, `${entryPath}.weight`);
     validateOptionalBoolean(entry.regex, `${entryPath}.regex`);
@@ -669,10 +674,10 @@ function validateLlmConfig(llm: unknown): asserts llm is LlmConfig | undefined {
   }
 }
 
+const TOP_LEVEL_CONFIG_FIELDS = ["adapters", "pipelines", "layout", "llm"] as const;
+
 function validateTopLevelKeys(config: Record<string, unknown>): void {
-  validateAllowedKeys(config, ["adapters", "pipelines", "layout", "llm"], (key) =>
-    `unknown top-level key "${key}"`,
-  );
+  validateAllowedKeys(config, TOP_LEVEL_CONFIG_FIELDS, (key) => `${key} is not a valid top-level field`);
 }
 
 /** Known adapter types and their allowed `params` keys (from adapter implementations). */

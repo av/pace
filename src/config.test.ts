@@ -543,6 +543,28 @@ layout:
     expect(() => loadConfig()).toThrow(/config: adapters\[0\].transforms\[0\].keywords\[0\].term must be a non-empty string/);
   });
 
+  test("rejects keyword-score entry unknown field", () => {
+    const yaml = `
+adapters:
+  - type: rss
+    transforms:
+      - type: keyword-score
+        keywords:
+          - term: rust
+            weight: 1
+            typo_field: x
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: adapters\[0\].transforms\[0\].keywords\[0\].typo_field is not a valid keyword-score entry field/,
+    );
+  });
+
   test("rejects filter keyword empty string", () => {
     const yaml = `
 adapters:
@@ -682,7 +704,7 @@ layout:
       source: all
 `;
     setConfig(yaml);
-    expect(() => loadConfig()).toThrow(/config: unknown top-level key "foo"/);
+    expect(() => loadConfig()).toThrow(/config: foo is not a valid top-level field/);
   });
 
   test("rejects unknown adapter source references", () => {
