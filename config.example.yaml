@@ -75,6 +75,7 @@ adapters:
   #     limit: 25
   #     min_score: 50
   #   refresh_interval: 15
+  #   Note: public unauth .json now returns 403 (upstream); see facts for reddit adapter status.
 
   # - type: youtube
   #   params:
@@ -185,60 +186,4 @@ layout:
 #     - panel: rss
 #       source: rss
 
-# --- Transform reference ---
-# Transforms run at ingest time (on adapter or pipeline), not at render time.
-#
-# - type: latest          # keep N most recent items
-#   count: 50
-#
-# - type: filter          # keep items matching keywords
-#   keywords: [ai, rust]
-#   fields: [title, body] # optional, default: [title, body]
-#
-# - type: exclude         # remove items matching keywords
-#   keywords: [sponsored]
-#   fields: [title, body]
-#
-# - type: sort            # sort items
-#   field: timestamp      # timestamp, title, or source
-#   direction: desc       # asc or desc
-#
-# - type: dedupe          # deduplicate items
-#   strategy: url         # url, domain-normalized, or title-similarity
-#   threshold: 0.85       # similarity threshold for title-similarity (0-1)
-#   keep: highest-score   # highest-score, earliest, or latest
-#
-# - type: time-decay      # rank by engagement + recency
-#   half_life: "12h"
-#   engagement_weight: 0.7
-#   recency_weight: 0.3
-#   decay: exponential    # exponential or linear
-#
-# - type: keyword-score   # score/rank by keyword relevance
-#   keywords:
-#     - term: "rust"
-#       weight: 10
-#     - term: "AI|machine learning"
-#       weight: 15
-#       regex: true
-#   min_score: 0
-#
-# - type: cluster         # group related items (no LLM)
-#   strategy: auto        # domain, keywords, source, or auto
-#
-# - type: llm-summarize   # add LLM summaries to items
-# - type: llm-filter      # keep items matching LLM criteria
-#   criteria: "relevant to AI research"
-# - type: llm-rank        # reorder by relevance to interests
-# - type: llm-merge       # group/merge related items via LLM
-#   prompt: "Group items about the same topic"
-
-# LLM config (optional — LLM transforms gracefully degrade without it)
-# llm:
-#   provider: openai
-#   model: gpt-4o-mini
-#   api_key: ${OPENAI_API_KEY}
-#   interests:
-#     - systems programming
-#     - web development
-#     - open source
+# see skills/pace-dashboard-configure/SKILL.md for the full reference (adapters, transforms, pipelines, layout, LLM config and examples).
