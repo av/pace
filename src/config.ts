@@ -823,8 +823,14 @@ export function loadConfig(): AppConfig {
   }
   const pipelines = rawPipelines as PipelineConfig[];
 
+  const pipelineNames = pipelines.map((p) => p.name);
+  if (pipelineNames.length > 0) {
+    validateUniqueStringList(pipelineNames, "pipelines", undefined, "pipeline name");
+  }
   for (const p of pipelines) {
-    if (names.has(p.name)) throw new Error(`config: duplicate pipeline/adapter name "${p.name}"`);
+    if (names.has(p.name)) {
+      throw new Error(`config: duplicate pipeline/adapter name "${p.name}"`);
+    }
     names.add(p.name);
   }
 

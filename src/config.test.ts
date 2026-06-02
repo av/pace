@@ -412,6 +412,29 @@ layout:
     );
   });
 
+  test("rejects duplicate pipeline name", () => {
+    const yaml = `
+adapters:
+  - type: hackernews
+pipelines:
+  - name: feed
+    sources: [hackernews]
+    transforms: []
+  - name: feed
+    sources: [hackernews]
+    transforms: []
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: pipelines\[1\] duplicates pipeline name "feed"/,
+    );
+  });
+
   test("rejects unknown transform field", () => {
     const yaml = `
 adapters:
