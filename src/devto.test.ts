@@ -181,7 +181,7 @@ describe("devto", () => {
     ).rejects.toThrow('devto: error fetching tag "javascript": network boom for devto test');
   });
 
-  test("uses errorMessage helper in !ok HTTP error path", async () => {
+  test("errorMessage on !ok", async () => {
     const emSpy = spyOn(typesMod, "errorMessage");
     const callsBefore = emSpy.mock.calls.length;
 

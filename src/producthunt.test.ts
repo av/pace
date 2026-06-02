@@ -159,7 +159,7 @@ describe("producthunt", () => {
     expect(warnSpy).toHaveBeenCalledWith("producthunt: no entries found in feed");
   });
 
-  test("throws on HTTP !ok from feed (propagates with producthunt: prefix)", async () => {
+  test("errorMessage on !ok", async () => {
     const emSpy = spyOn(typesMod, "errorMessage");
     fetchMock.mockResolvedValue(new Response("rate limited", { status: 429 }));
 

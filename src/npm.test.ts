@@ -278,7 +278,7 @@ describe("npm", () => {
     ).rejects.toThrow("npm:");
   });
 
-  test("uses errorMessage helper in !ok and network error paths", async () => {
+  test("errorMessage on !ok and network", async () => {
     const emSpy = spyOn(typesMod, "errorMessage");
     try {
       fetchMock.mockResolvedValue(new Response("Rate limited", { status: 429 }));

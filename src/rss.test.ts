@@ -227,7 +227,7 @@ describe("rss", () => {
     }
   });
 
-  test("uses errorMessage helper in !ok and network error paths", async () => {
+  test("errorMessage on !ok and network", async () => {
     const emSpy = spyOn(typesMod, "errorMessage");
     try {
       const cfg404: AdapterConfig = { type: "rss", params: { urls: ["https://ex.com/badstatus"] } };

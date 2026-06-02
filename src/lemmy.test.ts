@@ -266,7 +266,7 @@ describe("lemmy", () => {
     ).rejects.toThrow("lemmy:");
   });
 
-  test("uses errorMessage helper in !ok and network error paths", async () => {
+  test("errorMessage on !ok and network", async () => {
     const emSpy = spyOn(typesMod, "errorMessage");
     try {
       fetchMock.mockResolvedValue(new Response("Server Error", { status: 500 }));

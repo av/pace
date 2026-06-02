@@ -196,7 +196,7 @@ describe("hackernews", () => {
     expect(itemCalls).toBe(25);
   });
 
-  test("uses errorMessage helper (via sh1 duck) for !ok feed list status errors (mmu contract, closes raw status gap; also ngb shape)", async () => {
+  test("errorMessage on !ok", async () => {
     fetchMock.mockResolvedValue(new Response("[]", { status: 500 }));
 
     const emSpy = spyOn(typesMod, "errorMessage");

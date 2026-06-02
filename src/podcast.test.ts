@@ -169,16 +169,16 @@ describe("podcast", () => {
     ).rejects.toThrow(/podcast: error fetching https:\/\/netfail\.com\/f\.xml.*connection refused/);
   });
 
-  test("uses errorMessage helper in fetch !ok error path", async () => {
-    const errorMessageSpy = spyOn(typesMod, "errorMessage");
+  test("errorMessage on !ok", async () => {
+    const emSpy = spyOn(typesMod, "errorMessage");
     fetchMock.mockResolvedValue(makeErrorResponse(404));
 
     await expect(
       podcastAdapter.fetch(podcastCfg({ feeds: ["https://example.com/podcast.xml"] })),
     ).rejects.toThrow(/podcast: failed to fetch .*404/);
 
-    expect(errorMessageSpy.mock.calls.length).toBeGreaterThanOrEqual(1);
-    expect(errorMessageSpy).toHaveBeenCalledWith({ message: "404" });
-    errorMessageSpy.mockRestore();
+    expect(emSpy.mock.calls.length).toBeGreaterThanOrEqual(1);
+    expect(emSpy).toHaveBeenCalledWith({ message: "404" });
+    emSpy.mockRestore();
   });
 });

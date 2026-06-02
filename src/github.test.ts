@@ -174,7 +174,7 @@ describe("github", () => {
     );
   });
 
-  test("uses errorMessage helper in !ok and network error paths per mmu/sh1", async () => {
+  test("errorMessage on !ok and network", async () => {
     const emSpy = spyOn(typesMod, "errorMessage");
     try {
       fetchMock.mockImplementation(async () => makeErrorResponse(404));

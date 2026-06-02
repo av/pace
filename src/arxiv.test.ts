@@ -172,7 +172,7 @@ describe("arxiv", () => {
     expect(items.map((i) => i.source)).toEqual(expect.arrayContaining(["arxiv:cs.AI", "arxiv:cs.LG"]));
   });
 
-  test("uses errorMessage helper in !ok and network error paths", async () => {
+  test("errorMessage on !ok and network", async () => {
     const emSpy = spyOn(typesMod, "errorMessage");
     try {
       fetchMock.mockResolvedValue(new Response("rate limit", { status: 429 }));

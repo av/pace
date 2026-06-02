@@ -200,7 +200,7 @@ describe("reddit", () => {
     );
   });
 
-  test("uses errorMessage helper in !ok HTTP error path", async () => {
+  test("errorMessage on !ok", async () => {
     const emSpy = spyOn(typesMod, "errorMessage");
     try {
       fetchMock.mockResolvedValue(makeErrorResponse(404));

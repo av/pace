@@ -305,7 +305,7 @@ describe("wikipedia", () => {
     expect(items[0].title).toBe("United States of America");
   });
 
-  test("uses errorMessage helper in !ok and network error paths", async () => {
+  test("errorMessage on !ok and network", async () => {
     const emSpy = spyOn(typesMod, "errorMessage");
     try {
       fetchMock.mockResolvedValue(new Response("Not Found", { status: 404 }));
