@@ -54,25 +54,7 @@ bun run dev
 
 Pace ships with 17 adapters that pull content from public APIs. Each adapter has a `refresh_interval` in minutes (default: 15).
 
-| Adapter | Source | Key params |
-|---------|--------|------------|
-| `hackernews` | Hacker News front page, Ask HN, Show HN, jobs | `feed` (top/new/best/ask/show/job), `limit`, `min_score` |
-| `reddit` | Subreddit posts | `subreddits`, `sort`, `limit`, `min_score` |
-| `rss` | Any RSS or Atom feed | `urls` |
-| `github` | GitHub trending repos or releases | `mode` (trending/releases), `repos`, `language`, `since` |
-| `github-releases` | Track new releases for specific repos | `repos`, `token` |
-| `lobsters` | Lobste.rs stories by feed or tag | `feed` (hottest/newest), `limit`, `min_score`, `tags` |
-| `mastodon` | Mastodon public timeline, hashtags, or accounts | `instance`, `hashtags`, `accounts`, `limit` |
-| `youtube` | YouTube channel and playlist feeds | `channels`, `playlists`, `limit` |
-| `devto` | DEV.to articles by tag or author | `tags`, `username`, `top`, `limit`, `min_reactions` |
-| `arxiv` | Academic papers from arXiv | `categories`, `query`, `limit` |
-| `stackexchange` | StackOverflow and other SE sites | `site`, `tags`, `sort`, `min_score` |
-| `wikipedia` | Featured articles, most-read pages, on-this-day, current news | `mode` (most_read/featured/on_this_day/news), `language`, `limit` |
-| `lemmy` | Posts from any Lemmy instance | `instance`, `communities`, `sort`, `limit`, `min_score` |
-| `npm` | npm package search by keyword, scope, or popularity | `keywords`, `scope`, `sort` (optimal/quality/popularity/maintenance), `limit` |
-| `producthunt` | Product Hunt launches | `limit`, `min_upvotes`, `enrich` |
-| `podcast` | Podcast episodes from RSS feeds | `feeds`, `limit` |
-| `twitter` | Twitter/X lists and searches | `lists`, `searches` |
+See skills/pace-dashboard-configure/SKILL.md for the full adapter table, key params per adapter, and detailed reference.
 
 ## Ingest-time transforms
 
@@ -80,27 +62,13 @@ Transforms process content after fetching — filter, deduplicate, rank, or enri
 
 `latest` `filter` `exclude` `sort` `dedupe` `time-decay` `keyword-score` `cluster` `llm-summarize` `llm-filter` `llm-rank` `llm-merge`
 
-See `config.example.yaml` for full options.
+See skills/pace-dashboard-configure/SKILL.md for full options.
 
 ## Dashboard layout
 
 Arrange panels in a recursive flexbox tree defined in YAML. Each panel displays content from an adapter or pipeline.
 
-```yaml
-layout:
-  direction: row
-  children:
-    - panel: news
-      source: hackernews
-      flex: 2
-    - direction: column
-      flex: 1
-      children:
-        - panel: blogs
-          source: rss
-        - panel: releases
-          source: gh-releases
-```
+See skills/pace-dashboard-configure/SKILL.md for the layout reference and example YAML.
 
 Responsive — collapses to a single column on mobile (below 768px).
 
@@ -108,13 +76,7 @@ Responsive — collapses to a single column on mobile (below 768px).
 
 Connect any LLM provider via [pi-ai](https://github.com/badlogic/pi-mono) to summarize, filter, rank, or merge content based on your interests. Works with OpenAI, Anthropic, Google, Groq, Mistral, and more. Gracefully degrades when unconfigured — no LLM required to use Pace.
 
-```yaml
-llm:
-  provider: openai
-  model: gpt-4o-mini
-  api_key: ${OPENAI_API_KEY}
-  interests: [systems programming, web development]
-```
+See skills/pace-dashboard-configure/SKILL.md for the llm reference and example YAML.
 
 ## Presets
 
