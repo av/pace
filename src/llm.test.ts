@@ -9,7 +9,7 @@ import {
   formatContentItemForLlm,
 } from "./llm";
 import type { ContentItem } from "./adapters/types";
-import type { Model, Api } from "@mariozechner/pi-ai";
+import type { Model, Api, Context } from "@mariozechner/pi-ai";
 import * as piAi from "@mariozechner/pi-ai";
 
 // Minimal fake model that will cause complete() to throw (exercises all catch paths)
@@ -112,19 +112,19 @@ describe("llm utils (DRY quality + test coverage)", () => {
 
   describe("safeComplete (extracted shared error/ctx wrapper)", () => {
     test("returns null on LLM/complete error (via fakeThrowingModel)", async () => {
-      const ctx = {
+      const ctx: Context = {
         systemPrompt: "test",
         messages: [{ role: "user", content: "hi", timestamp: Date.now() }],
-      } as any;
+      };
       const res = await safeComplete(fakeThrowingModel, ctx);
       expect(res).toBe(null);
     });
 
     test("returns null for context with empty-ish prompt (still exercises path)", async () => {
-      const ctx = {
+      const ctx: Context = {
         systemPrompt: "",
         messages: [{ role: "user", content: "", timestamp: Date.now() }],
-      } as any;
+      };
       const res = await safeComplete(fakeThrowingModel, ctx);
       expect(res).toBe(null);
     });
@@ -164,7 +164,7 @@ describe("llm utils (DRY quality + test coverage)", () => {
     test("summarizeItem returns null and does not call complete when model=null (silent; pre-guard reaches via catch)", async () => {
       const completeSpy = spyOn(piAi, "complete");
       const item = makeItem({ title: "Null Model Test" });
-      const res = await summarizeItem(null as any, item);
+      const res = await summarizeItem(null, item);
       expect(res).toBe(null);
       expect(completeSpy.mock.calls.length).toBe(0);
       completeSpy.mockRestore();
@@ -173,7 +173,7 @@ describe("llm utils (DRY quality + test coverage)", () => {
     test("mergeItems returns items unchanged and does not call complete when model=null (silent passthrough b89)", async () => {
       const completeSpy = spyOn(piAi, "complete");
       const items = [makeItem({ id: "n1" }), makeItem({ id: "n2" })];
-      const res = await mergeItems(null as any, items);
+      const res = await mergeItems(null, items);
       expect(res).toEqual(items);
       expect(completeSpy.mock.calls.length).toBe(0);
       completeSpy.mockRestore();
@@ -182,7 +182,7 @@ describe("llm utils (DRY quality + test coverage)", () => {
     test("filterItemsByLlm returns items unchanged and does not call complete when model=null (silent passthrough b89)", async () => {
       const completeSpy = spyOn(piAi, "complete");
       const items = [makeItem({ id: "f1" })];
-      const res = await filterItemsByLlm(null as any, items, "keep all");
+      const res = await filterItemsByLlm(null, items, "keep all");
       expect(res).toEqual(items);
       expect(completeSpy.mock.calls.length).toBe(0);
       completeSpy.mockRestore();
@@ -191,7 +191,7 @@ describe("llm utils (DRY quality + test coverage)", () => {
     test("lensItems returns items unchanged and does not call complete when model=null (silent passthrough b89)", async () => {
       const completeSpy = spyOn(piAi, "complete");
       const items = [makeItem({ id: "l1" })];
-      const res = await lensItems(null as any, items, ["interest"]);
+      const res = await lensItems(null, items, ["interest"]);
       expect(res).toEqual(items);
       expect(completeSpy.mock.calls.length).toBe(0);
       completeSpy.mockRestore();

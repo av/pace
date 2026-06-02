@@ -1,8 +1,15 @@
 import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from "bun:test";
 import githubReleasesAdapter from "./adapters/github-releases";
+import type { AdapterConfig } from "./adapters/types";
 import * as typesMod from "./adapters/types";
 
 const originalFetch = globalThis.fetch;
+
+const defaultCfg: AdapterConfig = { type: "github-releases" };
+
+function githubReleasesCfg(params: Record<string, unknown> = {}): AdapterConfig {
+  return { ...defaultCfg, params };
+}
 
 describe("github-releases adapter", () => {
   let fetchMock: ReturnType<typeof mock>;
@@ -28,7 +35,7 @@ describe("github-releases adapter", () => {
     fetchMock.mockResolvedValue(new Response("not found", { status: 404 }));
 
     await expect(
-      githubReleasesAdapter.fetch({ params: { repos: ["missing/repo"] } } as any),
+      githubReleasesAdapter.fetch(githubReleasesCfg({ repos: ["missing/repo"] })),
     ).rejects.toThrow("github-releases: failed to fetch missing/repo: 404");
 
     expect(emSpy.mock.calls.length - callsBefore).toBe(1);

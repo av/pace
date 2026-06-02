@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn, test } from "bun:test";
 import adapter from "./adapters/twitter";
+import type { AdapterConfig } from "./adapters/types";
+
+const defaultCfg: AdapterConfig = { type: "twitter" };
+
+function twitterCfg(params?: Record<string, unknown>): AdapterConfig {
+  return params === undefined ? defaultCfg : { ...defaultCfg, params };
+}
 
 describe("twitter adapter", () => {
   test("satisfies ngb contract: default export has .name and .fetch", () => {
@@ -18,7 +25,7 @@ describe("twitter adapter", () => {
   });
 
   it("returns [] and warns configured message when lists provided", async () => {
-    const items = await adapter.fetch({ params: { lists: ["u1", "u2"] } } as any);
+    const items = await adapter.fetch(twitterCfg({ lists: ["u1", "u2"] }));
     expect(items).toEqual([]);
     expect(logSpy).toHaveBeenCalledTimes(1);
     expect(logSpy).toHaveBeenCalledWith(
@@ -27,7 +34,7 @@ describe("twitter adapter", () => {
   });
 
   it("returns [] and warns configured message when searches provided", async () => {
-    const items = await adapter.fetch({ params: { searches: ["foo"] } } as any);
+    const items = await adapter.fetch(twitterCfg({ searches: ["foo"] }));
     expect(items).toEqual([]);
     expect(logSpy).toHaveBeenCalledTimes(1);
     expect(logSpy).toHaveBeenCalledWith(
@@ -36,7 +43,7 @@ describe("twitter adapter", () => {
   });
 
   it("returns [] and warns no-config message when neither lists nor searches", async () => {
-    const items = await adapter.fetch({ params: {} } as any);
+    const items = await adapter.fetch(twitterCfg({}));
     expect(items).toEqual([]);
     expect(logSpy).toHaveBeenCalledTimes(1);
     expect(logSpy).toHaveBeenCalledWith(
@@ -45,7 +52,7 @@ describe("twitter adapter", () => {
   });
 
   it("returns [] and warns no-config message when no params at all", async () => {
-    const items = await adapter.fetch({} as any);
+    const items = await adapter.fetch(defaultCfg);
     expect(items).toEqual([]);
     expect(logSpy).toHaveBeenCalledTimes(1);
     expect(logSpy).toHaveBeenCalledWith(
@@ -54,7 +61,7 @@ describe("twitter adapter", () => {
   });
 
   it("prefers lists over searches when both present", async () => {
-    const items = await adapter.fetch({ params: { lists: ["l"], searches: ["s"] } } as any);
+    const items = await adapter.fetch(twitterCfg({ lists: ["l"], searches: ["s"] }));
     expect(items).toEqual([]);
     expect(logSpy).toHaveBeenCalledTimes(1);
     expect(logSpy.mock.calls[0][0]).toContain("configured with 1 source(s)");
