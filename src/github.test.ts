@@ -234,6 +234,27 @@ describe("github", () => {
     expect(items[2].title).toContain("declarative JavaScript");
   });
 
+  test("decodes HTML entities in trending repo name/title", async () => {
+    const entityTrendingHtml = `
+<article class="Box-row">
+  <h2><a href="/acme/lib&amp;tools">acme / lib&amp;tools</a></h2>
+  <p class="col-9">A &amp; &#8364; toolkit</p>
+  <span itemprop="programmingLanguage">TypeScript</span>
+  <svg class="octicon-star">star</svg>  500
+</article>`;
+    mocks.fetchMock.mockImplementation(async () => makeTextResponse(entityTrendingHtml));
+
+    const items = await adapter.fetch(githubCfg({ mode: "trending", limit: 5 }));
+
+    expect(items.length).toBe(1);
+    expect(items[0].title).toContain("acme/lib&tools");
+    expect(items[0].title).toContain("A & € toolkit");
+    expect(items[0].title).not.toContain("&amp;");
+    expect(items[0].title).not.toContain("&#8364;");
+    expect(items[0].id).toBe("github:trending:acme/lib&tools:daily");
+    expect(items[0].url).toBe("https://github.com/acme/lib&tools");
+  });
+
   test("trending default (no lang, daily) works and respects limit", async () => {
     mocks.fetchMock.mockImplementation(async () => makeTextResponse(trendingHtml));
 

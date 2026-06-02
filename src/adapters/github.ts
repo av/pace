@@ -109,9 +109,18 @@ function parseTrendingHtml(html: string): TrendingRepo[] {
   while ((match = articleRegex.exec(html)) !== null) {
     const article = match[1];
 
-    const nameMatch = article.match(/<h2[^>]*>[\s\S]*?<a[^>]*href="\/([^"]+)"[\s\S]*?<\/h2>/);
+    const nameMatch = article.match(
+      /<h2[^>]*>[\s\S]*?<a[^>]*href="\/([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/h2>/,
+    );
     if (!nameMatch) continue;
-    const name = nameMatch[1].trim().replace(/\s+/g, "");
+    const nameFromHref = decodeHtmlEntities(
+      nameMatch[1].trim().replace(/\s+/g, ""),
+      { numeric: true },
+    );
+    const nameFromLink = stripHtml(nameMatch[2] ?? "", FEED_BODY_STRIP_OPTIONS)
+      .replace(/\s*\/\s*/g, "/")
+      .replace(/\s+/g, "");
+    const name = nameFromLink || nameFromHref;
 
     const descMatch = article.match(/<p[^>]*class="[^"]*col-9[^"]*"[^>]*>([\s\S]*?)<\/p>/);
     const description = descMatch
