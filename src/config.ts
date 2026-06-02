@@ -422,6 +422,7 @@ function validateUniqueStringList(
   value: unknown,
   path: string,
   allowed?: Set<string>,
+  duplicateLabel = "source",
 ): asserts value is string[] {
   validateStringList(value, path);
   const seen = new Set<string>();
@@ -429,7 +430,7 @@ function validateUniqueStringList(
     const entry = value[index] as string;
     const entryPath = `${path}[${index}]`;
     if (seen.has(entry)) {
-      throw new Error(`config: ${entryPath} duplicates source "${entry}"`);
+      throw new Error(`config: ${entryPath} duplicates ${duplicateLabel} "${entry}"`);
     }
     if (allowed && !allowed.has(entry)) {
       throw new Error(`config: ${entryPath} references unknown source "${entry}"`);
@@ -793,12 +794,11 @@ export function loadConfig(): AppConfig {
   rawAdapters.forEach(validateAdapterConfig);
   const adapters = rawAdapters as IngestAdapterConfig[];
 
-  const names = new Set<string>();
-  for (const a of adapters) {
-    const n = getAdapterName(a);
-    if (names.has(n)) throw new Error(`config: duplicate adapter name "${n}"`);
-    names.add(n);
+  const adapterNames = adapters.map(getAdapterName);
+  if (adapterNames.length > 0) {
+    validateUniqueStringList(adapterNames, "adapters", undefined, "adapter name");
   }
+  const names = new Set(adapterNames);
 
   const sourceNames = new Set(names);
   for (const [index, p] of rawPipelines.entries()) {

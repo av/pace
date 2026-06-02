@@ -331,6 +331,24 @@ layout:
     expect(() => loadConfig()).toThrow(/config: pipelines\[0\].sources\[0\] must be a non-empty string/);
   });
 
+  test("rejects duplicate adapter name", () => {
+    const yaml = `
+adapters:
+  - type: rss
+  - type: hackernews
+    name: rss
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: adapters\[1\] duplicates adapter name "rss"/,
+    );
+  });
+
   test("rejects duplicate pipeline source", () => {
     const yaml = `
 adapters:
