@@ -48,7 +48,7 @@ describe("producthunt", () => {
   let fetchMock: ReturnType<typeof mock>;
   let warnSpy: ReturnType<typeof spyOn>;
 
-  test("satisfies ngb contract: default export has .name and .fetch", () => {
+  test("ngb contract", () => {
     expect(producthuntAdapter.name).toBe("producthunt");
     expect(typeof producthuntAdapter.fetch).toBe("function");
   });

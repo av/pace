@@ -7,7 +7,7 @@ const originalFetch = globalThis.fetch;
 describe("lemmy", () => {
   let fetchMock: ReturnType<typeof mock>;
 
-  test("satisfies ngb contract: default export has .name and .fetch", () => {
+  test("ngb contract", () => {
     expect(lemmyAdapter.name).toBe("lemmy");
     expect(typeof lemmyAdapter.fetch).toBe("function");
   });

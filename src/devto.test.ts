@@ -14,7 +14,7 @@ function devtoCfg(params: Record<string, unknown> = {}): AdapterConfig {
 describe("devto", () => {
   let fetchCalls: Array<{ url: string; init?: RequestInit }> = [];
 
-  test("satisfies ngb contract: default export has .name and .fetch", () => {
+  test("ngb contract", () => {
     expect(devtoAdapter.name).toBe("devto");
     expect(typeof devtoAdapter.fetch).toBe("function");
   });

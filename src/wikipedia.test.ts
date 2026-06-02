@@ -7,7 +7,7 @@ const originalFetch = globalThis.fetch;
 describe("wikipedia", () => {
   let fetchMock: ReturnType<typeof mock>;
 
-  test("satisfies ngb contract: default export has .name and .fetch", () => {
+  test("ngb contract", () => {
     expect(wikipediaAdapter.name).toBe("wikipedia");
     expect(typeof wikipediaAdapter.fetch).toBe("function");
   });

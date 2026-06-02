@@ -8,7 +8,7 @@ describe("npm", () => {
   let fetchMock: ReturnType<typeof mock>;
   let warnSpy: ReturnType<typeof spyOn>;
 
-  test("satisfies ngb contract: default export has .name and .fetch", () => {
+  test("ngb contract", () => {
     expect(npmAdapter.name).toBe("npm");
     expect(typeof npmAdapter.fetch).toBe("function");
   });

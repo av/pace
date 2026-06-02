@@ -57,7 +57,7 @@ describe("reddit", () => {
   let fetchMock: ReturnType<typeof mock>;
   let warnSpy: ReturnType<typeof spyOn>;
 
-  test("satisfies ngb contract: default export has .name and .fetch", () => {
+  test("ngb contract", () => {
     expect(redditAdapter.name).toBe("reddit");
     expect(typeof redditAdapter.fetch).toBe("function");
   });

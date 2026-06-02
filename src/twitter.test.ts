@@ -9,7 +9,7 @@ function twitterCfg(params?: Record<string, unknown>): AdapterConfig {
 }
 
 describe("twitter", () => {
-  test("satisfies ngb contract: default export has .name and .fetch", () => {
+  test("ngb contract", () => {
     expect(adapter.name).toBe("twitter");
     expect(typeof adapter.fetch).toBe("function");
   });

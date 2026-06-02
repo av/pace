@@ -59,7 +59,7 @@ const mixedLinkFixture = `<?xml version="1.0"?>
 describe("rss", () => {
   let fetchCalls: string[] = [];
 
-  test("satisfies ngb contract: default export has .name and .fetch", () => {
+  test("ngb contract", () => {
     expect(rssAdapter.name).toBe("rss");
     expect(typeof rssAdapter.fetch).toBe("function");
   });
