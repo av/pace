@@ -1,5 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
-import { parseFeedDate, sliceToLimit } from "./dates";
+import { parseFeedDate } from "./dates";
+import { sliceToLimit } from "./merge";
 import { fetchWithTimeout } from "./fetch";
 import { stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";

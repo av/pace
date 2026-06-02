@@ -20,3 +20,15 @@ export function dedupeByKey<T, K>(items: readonly T[], key: (item: T) => K): T[]
     return true;
   });
 }
+
+/** Return at most `limit` items from the start of the array. */
+export function sliceToLimit<T>(items: readonly T[], limit: number): T[] {
+  return items.slice(0, limit);
+}
+
+/** Sort items newest-first by ISO `created_at` timestamp. */
+export function sortByCreatedAtDesc<T extends { created_at: string }>(items: T[]): void {
+  items.sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
+}

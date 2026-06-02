@@ -1,7 +1,6 @@
-import { sliceToLimit, sortByCreatedAtDesc } from "./dates";
 import { fetchWithTimeout } from "./fetch";
 import { stripHtml } from "./html";
-import { dedupeByKey, fetchAndConcat } from "./merge";
+import { dedupeByKey, fetchAndConcat, sliceToLimit, sortByCreatedAtDesc } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 

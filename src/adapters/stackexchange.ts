@@ -1,6 +1,6 @@
-import { parseUnixEpochSeconds, sliceToLimit } from "./dates";
+import { parseUnixEpochSeconds } from "./dates";
 import { fetchWithTimeout } from "./fetch";
-import { dedupeByKey, fetchAndConcat } from "./merge";
+import { dedupeByKey, fetchAndConcat, sliceToLimit } from "./merge";
 import { type Adapter, type AdapterConfig, type ContentItem, errorMessage } from "./types";
 
 const SE_API = "https://api.stackexchange.com/2.3";

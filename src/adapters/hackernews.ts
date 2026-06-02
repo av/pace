@@ -1,4 +1,5 @@
-import { parseUnixEpochSeconds, sliceToLimit } from "./dates";
+import { parseUnixEpochSeconds } from "./dates";
+import { sliceToLimit } from "./merge";
 import { fetchWithTimeout } from "./fetch";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";

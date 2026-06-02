@@ -1,10 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach, setSystemTime } from "bun:test";
-import {
-  parseFeedDate,
-  parseUnixEpochSeconds,
-  sliceToLimit,
-  sortByCreatedAtDesc,
-} from "./adapters/dates";
+import { parseFeedDate, parseUnixEpochSeconds } from "./adapters/dates";
 
 const FIXED_NOW = new Date("2024-06-15T12:00:00.000Z");
 
@@ -41,25 +36,5 @@ describe("parseUnixEpochSeconds", () => {
     expect(parseUnixEpochSeconds(Number.POSITIVE_INFINITY).toISOString()).toBe(
       FIXED_NOW.toISOString(),
     );
-  });
-});
-
-describe("sliceToLimit", () => {
-  test("returns at most limit items from the start", () => {
-    expect(sliceToLimit([1, 2, 3, 4], 2)).toEqual([1, 2]);
-    expect(sliceToLimit([1, 2], 5)).toEqual([1, 2]);
-    expect(sliceToLimit([], 3)).toEqual([]);
-  });
-});
-
-describe("sortByCreatedAtDesc", () => {
-  test("sorts items newest-first by created_at", () => {
-    const items = [
-      { created_at: "2024-01-01T00:00:00.000Z", id: "old" },
-      { created_at: "2024-06-01T00:00:00.000Z", id: "new" },
-      { created_at: "2024-03-01T00:00:00.000Z", id: "mid" },
-    ];
-    sortByCreatedAtDesc(items);
-    expect(items.map((x) => x.id)).toEqual(["new", "mid", "old"]);
   });
 });

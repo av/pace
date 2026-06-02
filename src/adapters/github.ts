@@ -1,8 +1,8 @@
 import { XMLParser } from "fast-xml-parser";
 import { extractAtomLink, type AtomLinkField } from "./atom";
-import { parseFeedDate, sliceToLimit } from "./dates";
+import { parseFeedDate } from "./dates";
 import { fetchWithTimeout } from "./fetch";
-import { dedupeByKey } from "./merge";
+import { dedupeByKey, sliceToLimit } from "./merge";
 import { stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";

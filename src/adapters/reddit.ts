@@ -1,6 +1,6 @@
-import { parseUnixEpochSeconds, sliceToLimit } from "./dates";
+import { parseUnixEpochSeconds } from "./dates";
 import { fetchWithTimeout } from "./fetch";
-import { dedupeByKey } from "./merge";
+import { dedupeByKey, sliceToLimit } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 
