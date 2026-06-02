@@ -1,14 +1,16 @@
 import { XMLParser } from "fast-xml-parser";
-import { extractAtomLink, type AtomLinkField } from "./atom";
+import {
+  extractAtomLink,
+  extractXmlText,
+  type AtomLinkField,
+  type XmlTextField,
+} from "./atom";
 import { parseFeedDate } from "./dates";
 import { joinBodyParts } from "./engagement";
 import { fetchText } from "./fetch";
 import { dedupeByKey, sliceToLimit } from "./merge";
 import { decodeHtmlEntities, stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
-
-/** Parsed text/CDATA node from fast-xml-parser. */
-type XmlTextField = string | number | { "#text"?: string; __cdata?: string };
 
 interface PodcastEnclosure {
   "@_url"?: string;
@@ -57,21 +59,6 @@ const parser = new XMLParser({
   cdataPropName: "__cdata",
   trimValues: true,
 });
-
-/**
- * Extract text content from a field that may be a string, an object with #text or __cdata.
- */
-function extractText(field: unknown): string {
-  if (field == null) return "";
-  if (typeof field === "string") return field;
-  if (typeof field === "number") return String(field);
-  if (typeof field === "object") {
-    const obj = field as Record<string, unknown>;
-    if (obj.__cdata) return String(obj.__cdata);
-    if (obj["#text"]) return String(obj["#text"]);
-  }
-  return String(field);
-}
 
 /**
  * Parse duration from various formats:
@@ -146,8 +133,10 @@ interface PodcastEpisode {
 }
 
 function extractChannelTitle(channel: PodcastChannel): string {
-  const title = channel.title;
-  return decodeHtmlEntities(extractText(title) || "Unknown Podcast", { numeric: true });
+  return decodeHtmlEntities(
+    extractXmlText(channel.title) ?? "Unknown Podcast",
+    { numeric: true },
+  );
 }
 
 function parseEpisode(
@@ -155,7 +144,9 @@ function parseEpisode(
   showName: string,
   channelLink: string = "",
 ): PodcastEpisode | null {
-  const title = decodeHtmlEntities(extractText(item.title), { numeric: true });
+  const title = decodeHtmlEntities(extractXmlText(item.title) ?? "", {
+    numeric: true,
+  });
   if (!title) return null;
 
   let url = extractAtomLink(item.link);
@@ -176,7 +167,7 @@ function parseEpisode(
       // If it looks like a URL, treat it as a permalink
       guidIsPermaLink = guid.startsWith("http");
     } else {
-      guid = extractText(rawGuid);
+      guid = extractXmlText(rawGuid as XmlTextField) ?? "";
       const permaAttr = rawGuid["@_isPermaLink"];
       guidIsPermaLink = permaAttr === "true" || (permaAttr == null && guid.startsWith("http"));
     }
@@ -196,10 +187,10 @@ function parseEpisode(
   const publishDate = parseFeedDate(dateStr ? String(dateStr) : "");
 
   const rawDesc =
-    extractText(item.description) ||
-    extractText(item["itunes:summary"]) ||
-    extractText(item["itunes:subtitle"]) ||
-    extractText(item["content:encoded"]) ||
+    extractXmlText(item.description) ??
+    extractXmlText(item["itunes:summary"]) ??
+    extractXmlText(item["itunes:subtitle"]) ??
+    extractXmlText(item["content:encoded"]) ??
     "";
   const description = stripHtml(rawDesc, {
     tagSeparator: " ",
@@ -213,8 +204,8 @@ function parseEpisode(
   const season = item["itunes:season"] != null ? String(item["itunes:season"]) : null;
 
   const author =
-    extractText(item["itunes:author"]) ||
-    extractText(item.author) ||
+    extractXmlText(item["itunes:author"]) ??
+    extractXmlText(item.author) ??
     null;
 
   return {
