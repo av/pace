@@ -69,3 +69,14 @@ export function normalizeNonNegativeNumber(
   }
   return value;
 }
+
+/** Coerce optional param to a positive integer; invalid values → fallback (default 1). */
+export function normalizePositiveInteger(
+  value: unknown,
+  fallback = 1,
+): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 1) {
+    return fallback;
+  }
+  return Math.floor(value);
+}

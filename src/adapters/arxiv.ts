@@ -17,6 +17,7 @@ import {
 } from "./html";
 import {
   normalizeOptionalString,
+  normalizePositiveInteger,
   normalizeStringList,
   sliceToLimit,
 } from "../utils";
@@ -173,7 +174,7 @@ const adapter: Adapter = {
     const query = normalizeOptionalString(
       config.params?.query as string | undefined,
     );
-    const limit = Math.min((config.params?.limit as number) ?? 20, 100);
+    const limit = Math.min(normalizePositiveInteger(config.params?.limit, 20), 100);
 
     if (categories.length === 0 && !query) {
       console.warn("arxiv: no categories or query configured");

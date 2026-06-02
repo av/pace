@@ -227,6 +227,42 @@ describe("arxiv", () => {
     expect(items.some((i) => i.source === "arxiv:search")).toBe(true);
   });
 
+  test.each([NaN, "20", Infinity, -5, 0] as unknown[])(
+    "invalid limit (%s) uses default max_results=20",
+    async (limit) => {
+      mocks.fetchMock.mockResolvedValue(
+        new Response(makeArxivFixture("Paper", "2401.00099"), { status: 200 }),
+      );
+
+      await arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"], limit }));
+
+      const url = String(mocks.fetchMock.mock.calls[0][0]);
+      expect(url).toContain("max_results=20");
+    },
+  );
+
+  test("caps limit at 100 in max_results", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      new Response(makeArxivFixture("Paper", "2401.00100"), { status: 200 }),
+    );
+
+    await arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"], limit: 500 }));
+
+    const url = String(mocks.fetchMock.mock.calls[0][0]);
+    expect(url).toContain("max_results=100");
+  });
+
+  test("floors fractional limit in max_results", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      new Response(makeArxivFixture("Paper", "2401.00007"), { status: 200 }),
+    );
+
+    await arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"], limit: 7.9 }));
+
+    const url = String(mocks.fetchMock.mock.calls[0][0]);
+    expect(url).toContain("max_results=7");
+  });
+
   test("respects limit (per source scaling when multi)", async () => {
     mocks.fetchMock.mockResolvedValue(
       new Response(
