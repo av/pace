@@ -1,3 +1,5 @@
+import { compareIsoTimestamp } from "../utils";
+
 /** Fetch each key sequentially and concatenate results (multi-tag / multi-endpoint merge). */
 export async function fetchAndConcat<T>(
   keys: readonly string[],
@@ -23,7 +25,5 @@ export function dedupeByKey<T, K>(items: readonly T[], key: (item: T) => K): T[]
 
 /** Sort items newest-first by ISO `created_at` timestamp. */
 export function sortByCreatedAtDesc<T extends { created_at: string }>(items: T[]): void {
-  items.sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-  );
+  items.sort((a, b) => compareIsoTimestamp(a.created_at, b.created_at, "desc"));
 }

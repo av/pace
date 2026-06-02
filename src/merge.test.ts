@@ -4,7 +4,6 @@ import {
   fetchAndConcat,
   sortByCreatedAtDesc,
 } from "./adapters/merge";
-import { sliceToLimit } from "./utils";
 
 describe("dedupeByKey", () => {
   test("keeps first occurrence per key", () => {
@@ -38,14 +37,6 @@ describe("fetchAndConcat", () => {
   test("returns empty array when keys is empty", async () => {
     const out = await fetchAndConcat([], async () => [{ v: 1 }]);
     expect(out).toEqual([]);
-  });
-});
-
-describe("sliceToLimit", () => {
-  test("returns at most limit items from the start", () => {
-    expect(sliceToLimit([1, 2, 3, 4], 2)).toEqual([1, 2]);
-    expect(sliceToLimit([1, 2], 5)).toEqual([1, 2]);
-    expect(sliceToLimit([], 3)).toEqual([]);
   });
 });
 

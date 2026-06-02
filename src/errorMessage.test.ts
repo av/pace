@@ -1,6 +1,11 @@
 import { test, expect, describe } from "bun:test";
 import { errorMessage } from "./adapters/types";
-import { parsePort, isValidPort, getAdapterName } from "./utils";
+import {
+  parsePort,
+  isValidPort,
+  getAdapterName,
+  sliceToLimit,
+} from "./utils";
 
 describe("errorMessage", () => {
   test("returns .message for Error and Error subclasses", () => {
@@ -90,6 +95,14 @@ describe("parsePort / isValidPort", () => {
   test("parsePort handles string from env/CLI and number-like edge cases", () => {
     expect(parsePort("1")).toBe(1);
     expect(parsePort("65535", 7453)).toBe(65535);
+  });
+});
+
+describe("sliceToLimit", () => {
+  test("returns at most limit items from the start", () => {
+    expect(sliceToLimit([1, 2, 3, 4], 2)).toEqual([1, 2]);
+    expect(sliceToLimit([1, 2], 5)).toEqual([1, 2]);
+    expect(sliceToLimit([], 3)).toEqual([]);
   });
 });
 
