@@ -233,33 +233,12 @@ See timeboxed-iterating/SKILL.md for the common orchestrator rules against sabot
 
 ## Stall Recovery
 
-If a subagent returns with "nothing to do" or trivially small output:
-
-1. **Different pattern.** If it was looking for duplication, send it after over-engineering. Rotate through the catalog.
-2. **Different area.** Same pattern, different directory or module.
-3. **Increase depth.** Surface-level slop is gone? Look at test quality, error handling paths, module boundaries.
-4. **Broaden interpretation.** "Convention blindness" can mean import style, error handling style, naming conventions, file organization.
-5. If after 3 consecutive reframes the subagent still returns trivial output, log it and continue trying. Do not stop.
+See timeboxed-iterating/SKILL.md for the canonical "Stall Recovery" section.
 
 ## Quick Reference
 
-| Item | Value |
-|---|---|
-| Progress file | `/tmp/anneal-<timestamp>.md` |
-| Time check | `date +%s`, compare against deadline, BEFORE every dispatch |
-| Subagent scope | ONE slop fix per dispatch |
-| Safety | Tests before + after every change. Revert on failure. |
-| Commit message | `anneal: <pattern> in <location>` |
-| Termination | Soft stop — finish current subagent, then stop |
-| Stall recovery | Different pattern, different area, more depth |
+See timeboxed-iterating/SKILL.md for the canonical "Quick Reference" table.
 
 ## Red Flags — STOP and Reread This Skill
 
-- You're about to write a final summary and there's time left
-- You dispatched a subagent more than 30 minutes ago and it hasn't returned
-- The last 3 iterations fixed the same pattern in the same area
-- You're composing a message to the user that isn't the final summary
-- You're about to edit a file, run a test, or explore code yourself
-- You haven't run `date +%s` since the last subagent returned
-- A subagent committed without running the test suite
-- You're planning which patterns to fix instead of dispatching a subagent to find one
+See timeboxed-iterating/SKILL.md for the canonical "Red Flags" list.
