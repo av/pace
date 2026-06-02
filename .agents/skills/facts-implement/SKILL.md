@@ -20,17 +20,13 @@ Each `@spec` fact is a precise, actionable requirement. Implement all `@spec` fa
 
 ## Process
 
-### 1. Load the full spec
+See AGENTS.md (the "Start of work — always do this first", numbered workflow steps, and "facts list --tags "spec"/"draft"" guidance) and the main facts skill (`facts skills show facts`, its "Agent workflows" section with common list/check commands and example blocks) for the canonical common workflow instructions. Do not reimplement the boilerplate here.
 
-Run `facts list` to see the entire specification. Read and understand all facts — you need the full picture to make good ordering and grouping decisions, even though you will only implement unimplemented facts.
+### 1. Load the full spec
 
 Read the `## domain` section first if it exists (it lives in the main `.facts` file) — it establishes the project's vocabulary. Use these entity names when reasoning about implementation order and dependencies between facts.
 
 ### 2. Identify remaining work
-
-Run `facts check` to see which command-facts pass and which fail. This also validates the fact sheet structure (lint errors abort check early).
-
-Run `facts list --tags "spec"` to see facts ready to implement. This is your implementation target.
 
 Cross-reference: a `@spec` fact may already pass its validation command. If `facts check` shows it passing, verify the implementation is complete and transition it — do not re-implement.
 
