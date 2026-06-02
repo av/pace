@@ -81,7 +81,7 @@ async function start() {
     const now = new Date().toISOString().replace("T", " ").slice(0, 19);
     const panelData = new Map<string, PanelData>();
 
-    for (const { panel, pid, sources, isAll } of enrichedPanels) {
+    for (const { panel, pid, isAll } of enrichedPanels) {
       const limit = panel.limit ?? 50;
       let items: ContentItemRow[];
 
