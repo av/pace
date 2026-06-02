@@ -5,7 +5,7 @@ import { fetchText } from "./fetch";
 import { dedupeByKey, sliceToLimit } from "./merge";
 import { stripHtml } from "./html";
 import { fetchRepoTagline } from "./github-repo-meta";
-import { joinTitle, titleWithTagline, truncateForTitle } from "./title";
+import { joinTitleWithTagline, titleWithTagline } from "./title";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 type TrendingPeriod = "daily" | "weekly" | "monthly";
@@ -165,19 +165,20 @@ async function fetchTrending(
   };
 
   return sliceToLimit(repos, limit).map((repo) => {
-    const titleParts: string[] = [repo.name];
-    if (repo.description) titleParts.push(truncateForTitle(repo.description));
-    if (repo.starsGained > 0) {
-      titleParts.push(`+${repo.starsGained.toLocaleString()} ${periodLabel[since]}`);
-    }
-
     const bodyParts: string[] = [];
     if (repo.language) bodyParts.push(`language: ${repo.language}`);
     bodyParts.push(`${repo.stars.toLocaleString()} stars`);
 
     return {
       id: `github:trending:${repo.name}:${since}`,
-      title: joinTitle(...titleParts),
+      title: joinTitleWithTagline(
+        repo.name,
+        repo.description || null,
+        100,
+        repo.starsGained > 0
+          ? `+${repo.starsGained.toLocaleString()} ${periodLabel[since]}`
+          : null,
+      ),
       url: repo.url,
       source: language ? `github:trending:${language}` : "github:trending",
       timestamp: new Date(), // trending has no specific timestamp

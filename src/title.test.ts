@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { joinTitle, titleWithTagline, truncateForTitle } from "./adapters/title";
+import {
+  joinTitle,
+  joinTitleWithTagline,
+  titleWithTagline,
+  truncateForTitle,
+} from "./adapters/title";
 
 describe("joinTitle", () => {
   test("joins non-empty trimmed parts", () => {
@@ -20,6 +25,24 @@ describe("truncateForTitle", () => {
     const long = "x".repeat(120);
     expect(truncateForTitle(long, 100).length).toBe(100);
     expect(truncateForTitle(long, 100).endsWith("…")).toBe(true);
+  });
+});
+
+describe("joinTitleWithTagline", () => {
+  test("returns primary when tagline and extras absent", () => {
+    expect(joinTitleWithTagline("repo/name")).toBe("repo/name");
+  });
+
+  test("truncates tagline and joins extra segments", () => {
+    const tagline = "d".repeat(150);
+    const title = joinTitleWithTagline("owner/repo", tagline, 100, "+10 today");
+    expect(title.startsWith("owner/repo | ")).toBe(true);
+    expect(title.endsWith("+10 today")).toBe(true);
+    expect(title.length).toBe("owner/repo | ".length + 100 + " | +10 today".length);
+  });
+
+  test("matches titleWithTagline when no extras", () => {
+    expect(joinTitleWithTagline("A", "tag", 50)).toBe(titleWithTagline("A", "tag", 50));
   });
 });
 

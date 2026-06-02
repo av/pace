@@ -12,14 +12,25 @@ export function truncateForTitle(text: string, max = 100): string {
   return `${t.slice(0, max - 1)}…`;
 }
 
+/** Join primary with optional truncated tagline and more title segments. */
+export function joinTitleWithTagline(
+  primary: string,
+  tagline?: string | null,
+  maxTagline = 100,
+  ...extra: (string | undefined | null)[]
+): string {
+  const parts: (string | undefined | null)[] = [primary];
+  const t = (tagline ?? "").trim();
+  if (t) parts.push(maxTagline > 0 ? truncateForTitle(t, maxTagline) : t);
+  parts.push(...extra);
+  return joinTitle(...parts);
+}
+
 /** Primary dashboard title with optional subtitle (repo description, tagline, etc.). */
 export function titleWithTagline(
   primary: string,
   tagline?: string | null,
   maxTagline = 100,
 ): string {
-  const t = (tagline ?? "").trim();
-  if (!t) return primary;
-  const subtitle = maxTagline > 0 ? truncateForTitle(t, maxTagline) : t;
-  return joinTitle(primary, subtitle);
+  return joinTitleWithTagline(primary, tagline, maxTagline);
 }
