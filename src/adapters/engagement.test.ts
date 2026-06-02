@@ -3,7 +3,9 @@ import {
   extractEngagementScore,
   extractScore,
   formatComments,
+  formatCommunity,
   formatDiscuss,
+  formatSubreddit,
   formatPercent,
   formatPoints,
   formatReactions,
@@ -49,6 +51,11 @@ describe("engagement format helpers", () => {
     expect(formatLanguage("TypeScript")).toBe("language: TypeScript");
     expect(formatTopics(["Ai", "Devtools"])).toBe("topics: Ai, Devtools");
     expect(formatSite("https://example.com/p")).toBe("site: https://example.com/p");
+  });
+
+  test("formatCommunity and formatSubreddit for lemmy/reddit bodies", () => {
+    expect(formatCommunity("technology")).toBe("c/technology");
+    expect(formatSubreddit("programming")).toBe("r/programming");
   });
 
   test("joinBodyParts matches adapter metadata layout", () => {

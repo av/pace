@@ -1,6 +1,7 @@
 import {
   formatBy,
   formatComments,
+  formatCommunity,
   formatDiscuss,
   formatPoints,
   joinBodyParts,
@@ -48,7 +49,7 @@ function buildBody(view: LemmyPostView): string {
     formatPoints(view.counts.score),
     formatBy(view.creator.name),
     formatComments(view.counts.comments),
-    `c/${view.community.name}`,
+    formatCommunity(view.community.name),
     view.post.url && !view.post.url.includes(view.post.ap_id)
       ? formatDiscuss(view.post.ap_id)
       : undefined,

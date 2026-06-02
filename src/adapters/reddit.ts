@@ -3,6 +3,7 @@ import {
   formatComments,
   formatDiscuss,
   formatPoints,
+  formatSubreddit,
   joinBodyParts,
 } from "./engagement";
 import { parseUnixEpochSeconds } from "./dates";
@@ -66,7 +67,7 @@ function buildBody(post: RedditPostData): string {
     formatPoints(post.score),
     formatBy(post.author),
     formatComments(post.num_comments),
-    `r/${post.subreddit}`,
+    formatSubreddit(post.subreddit),
     !post.is_self ? formatDiscuss(discussLink) : undefined,
   );
 }

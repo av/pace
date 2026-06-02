@@ -48,6 +48,33 @@ describe("lemmy", () => {
     expect(typeof lemmyAdapter.fetch).toBe("function");
   });
 
+  test("buildBody joins engagement helpers with community and optional discuss", async () => {
+    const view = makePostView();
+    mocks.fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makePostListResponse([view])), { status: 200 }),
+    );
+
+    const items = await lemmyAdapter.fetch(lemmyCfg());
+
+    expect(items[0].body).toBe(
+      "42 points | by testuser | 15 comments | c/technology | discuss: https://lemmy.ml/post/1001",
+    );
+  });
+
+  test("buildBody omits discuss when URL is the ap_id (self post)", async () => {
+    const selfPost = makePostView({
+      post: { id: 8, url: "https://lemmy.ml/post/8", ap_id: "https://lemmy.ml/post/8" },
+    });
+    mocks.fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makePostListResponse([selfPost])), { status: 200 }),
+    );
+
+    const items = await lemmyAdapter.fetch(lemmyCfg());
+
+    expect(items[0].body).toBe("42 points | by testuser | 15 comments | c/technology");
+    expect(items[0].body).not.toContain("discuss:");
+  });
+
   test("fetches frontpage from default instance when no communities specified", async () => {
     const view = makePostView();
     mocks.fetchMock.mockResolvedValue(

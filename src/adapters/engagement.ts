@@ -84,6 +84,16 @@ export function formatDiscuss(url: string): string {
   return `discuss: ${url}`;
 }
 
+/** Lemmy community slug in body metadata (e.g. c/technology). */
+export function formatCommunity(name: string): string {
+  return `c/${name}`;
+}
+
+/** Reddit subreddit slug in body metadata (e.g. r/programming). */
+export function formatSubreddit(name: string): string {
+  return `r/${name}`;
+}
+
 export function formatBoosts(count: number): string {
   return `${count} boosts`;
 }
