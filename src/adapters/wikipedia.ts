@@ -1,3 +1,4 @@
+import { joinBodyParts } from "./engagement";
 import { fetchJson } from "./fetch";
 import { stripHtml } from "./html";
 import { dedupeByKey, sliceToLimit } from "./merge";
@@ -44,6 +45,13 @@ function formatViews(n: number): string {
   return `${n} views`;
 }
 
+function buildBody(article: WikiMostReadArticle): string {
+  return joinBodyParts(
+    formatViews(article.views),
+    article.description ?? article.extract?.slice(0, 150),
+  );
+}
+
 function todayParts(): { year: string; month: string; day: string } {
   const now = new Date();
   return {
@@ -77,12 +85,7 @@ function extractMostRead(data: WikiFeaturedResponse, limit: number): ContentItem
     url: article.content_urls.desktop.page,
     source: "wikipedia:most_read",
     timestamp: new Date(),
-    body: [
-      formatViews(article.views),
-      article.description ?? article.extract?.slice(0, 150),
-    ]
-      .filter(Boolean)
-      .join(" | "),
+    body: buildBody(article),
   }));
 }
 
