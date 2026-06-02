@@ -75,6 +75,46 @@ describe("lobsters", () => {
     );
   });
 
+  test("blank-only tags behave like no tags configured", async () => {
+    const item = makeItem({ short_id: "blank1" });
+    mocks.fetchMock.mockResolvedValue(makeJsonResponse([item]));
+
+    const results = await lobstersAdapter.fetch(
+      lobstersCfg({ tags: ["", "  "], feed: "hottest" }),
+    );
+
+    expect(results).toHaveLength(1);
+    expect(results[0].source).toBe("lobsters:hottest");
+    expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
+    expect(mocks.fetchMock).toHaveBeenCalledWith(
+      "https://lobste.rs/hottest.json",
+      expect.anything(),
+    );
+    expect(mocks.warnSpy).not.toHaveBeenCalled();
+  });
+
+  test("trims whitespace from configured tag names", async () => {
+    const item = makeItem({ short_id: "trim1", title: "Trimmed" });
+    mocks.fetchMock
+      .mockResolvedValueOnce(makeJsonResponse([]))
+      .mockResolvedValueOnce(makeJsonResponse([item]));
+
+    const results = await lobstersAdapter.fetch(
+      lobstersCfg({ tags: ["  foo  ", "bar"], feed: "hottest", limit: 10 }),
+    );
+
+    expect(mocks.fetchMock).toHaveBeenCalledWith(
+      "https://lobste.rs/t/foo.json",
+      expect.anything(),
+    );
+    expect(mocks.fetchMock).toHaveBeenCalledWith(
+      "https://lobste.rs/t/bar.json",
+      expect.anything(),
+    );
+    expect(results).toHaveLength(1);
+    expect(results[0].source).toBe("lobsters:foo+bar");
+  });
+
   test("fetches by tags, merges results, dedupes by short_id, sets composite source, sorts by score for hottest", async () => {
     const foo = makeItem({ short_id: "foo", score: 5, tags: ["foo"] });
     const bar = makeItem({ short_id: "bar", score: 20, tags: ["bar"] });

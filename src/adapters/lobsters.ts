@@ -8,7 +8,7 @@ import {
 } from "./engagement";
 import { fetchJson } from "./fetch";
 import { decodeHtmlEntities } from "./html";
-import { sliceToLimit } from "../utils";
+import { normalizeStringList, sliceToLimit } from "../utils";
 import { dedupeByKey, fetchAndConcat, sortByCreatedAtDesc } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
@@ -55,7 +55,7 @@ const adapter: Adapter = {
     const feed = (config.params?.feed as string) ?? "hottest";
     const limit = Math.min((config.params?.limit as number) ?? 25, 100);
     const minScore = (config.params?.min_score as number) ?? 0;
-    const tags = (config.params?.tags as string[]) ?? [];
+    const tags = normalizeStringList((config.params?.tags as string[]) ?? []);
 
     let feedType: FeedType;
     const feedLower = feed.toLowerCase();
