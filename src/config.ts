@@ -140,7 +140,13 @@ function assertEnvVarsFullyExpanded(value: string): void {
   );
 }
 
-function resolveEnvVars(value: string, depth = 0): string {
+function warnUnsetEnvVar(name: string, warnedUnset: Set<string>): void {
+  if (warnedUnset.has(name)) return;
+  warnedUnset.add(name);
+  console.warn(`config: env var ${name} is unset (expanding to empty)`);
+}
+
+function resolveEnvVars(value: string, depth = 0, warnedUnset = new Set<string>()): string {
   if (depth > MAX_ENV_EXPANSION_DEPTH) {
     const leftover = [...new Set([...value.matchAll(LEFTOVER_ENV_PLACEHOLDER)].map((m) => m[0]))];
     const hint = leftover.length ? `; still contains ${leftover.join(", ")}` : "";
@@ -148,12 +154,16 @@ function resolveEnvVars(value: string, depth = 0): string {
       `config: env var expansion exceeded ${MAX_ENV_EXPANSION_DEPTH} passes (possible cycle)${hint}`,
     );
   }
-  const replaced = value.replace(ENV_VAR_PLACEHOLDER, (_, name) => process.env[name] ?? "");
+  const replaced = value.replace(ENV_VAR_PLACEHOLDER, (_, name) => {
+    const envValue = process.env[name];
+    if (envValue === undefined) warnUnsetEnvVar(name, warnedUnset);
+    return envValue ?? "";
+  });
   if (replaced === value || !replaced.includes("${")) {
     assertEnvVarsFullyExpanded(replaced);
     return replaced;
   }
-  return resolveEnvVars(replaced, depth + 1);
+  return resolveEnvVars(replaced, depth + 1, warnedUnset);
 }
 
 function resolveEnvInObject(obj: unknown): unknown {

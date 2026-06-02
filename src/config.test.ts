@@ -1,4 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { spyConsole } from "./test/console-spy";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
@@ -956,6 +957,38 @@ layout:
     } finally {
       if (origA === undefined) { delete process.env[keyA]; } else { process.env[keyA] = origA; }
       if (origB === undefined) { delete process.env[keyB]; } else { process.env[keyB] = origB; }
+    }
+  });
+
+  test("warns when referenced env var is unset but still expands to empty", async () => {
+    const unsetKey = "TEST_REC_UNSET_" + Date.now().toString(36);
+    const orig = process.env[unsetKey];
+    delete process.env[unsetKey];
+    try {
+      const yaml = `
+adapters:
+  - type: rss
+    params:
+      urls:
+        - "https://example.com/\${${unsetKey}}/feed"
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+      setConfig(yaml);
+      await spyConsole(["warn"], async ({ warn }) => {
+        const cfg = loadConfig();
+        expect(cfg.adapters[0]?.params?.urls).toEqual(["https://example.com//feed"]);
+        expect(
+          warn.mock.calls.some((c) =>
+            String(c[0]).includes(`config: env var ${unsetKey} is unset (expanding to empty)`),
+          ),
+        ).toBe(true);
+      });
+    } finally {
+      if (orig === undefined) { delete process.env[unsetKey]; } else { process.env[unsetKey] = orig; }
     }
   });
 
