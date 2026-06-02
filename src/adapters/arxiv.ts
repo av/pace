@@ -68,8 +68,6 @@ function extractPdfLink(link: ArxivEntry["link"]): string {
   const links = Array.isArray(link) ? link : [link];
   const pdf = links.find((l) => l["@_title"] === "pdf" || l["@_type"] === "application/pdf");
   if (pdf?.["@_href"]) return pdf["@_href"];
-
-  // Fallback: construct from entry ID
   return "";
 }
 
