@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, afterEach, spyOn } from "bun:test";
+import { describe, test, expect, beforeEach } from "bun:test";
 import { spyConsole } from "./test/console-spy";
 import { runPipeline, type TransformContext, extractEngagementScore } from "./transforms";
 import type { TransformConfig } from "./config";
@@ -107,64 +107,61 @@ describe("transforms - runPipeline basics", () => {
 });
 
 describe("transforms - dedupe strategies", () => {
-  let logSpy: ReturnType<typeof spyOn>;
-
-  beforeEach(() => {
-    logSpy = spyOn(console, "log");
-  });
-
-  afterEach(() => {
-    logSpy.mockRestore();
-  });
-
   test("dedupe:url removes exact dups and logs when enabled (default)", async () => {
-    const items = [
-      makeRow({ id: "1", title: "First", url: "https://ex.com/a" }),
-      makeRow({ id: "2", title: "Dup", url: "https://ex.com/a" }),
-      makeRow({ id: "3", title: "Third", url: "https://ex.com/b" }),
-    ];
-    const steps = transformPipeline({ type: "dedupe", strategy: "url", log: true });
-    const result = await runPipeline(items, steps, ctx);
-    expect(result.map((r) => r.id)).toEqual(["1", "3"]);
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("transforms: dedupe:url removed 1 duplicate(s):"));
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('  - "Dup" (https://ex.com/a)'));
+    await spyConsole(["log"], async ({ log: logSpy }) => {
+      const items = [
+        makeRow({ id: "1", title: "First", url: "https://ex.com/a" }),
+        makeRow({ id: "2", title: "Dup", url: "https://ex.com/a" }),
+        makeRow({ id: "3", title: "Third", url: "https://ex.com/b" }),
+      ];
+      const steps = transformPipeline({ type: "dedupe", strategy: "url", log: true });
+      const result = await runPipeline(items, steps, ctx);
+      expect(result.map((r) => r.id)).toEqual(["1", "3"]);
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("transforms: dedupe:url removed 1 duplicate(s):"));
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('  - "Dup" (https://ex.com/a)'));
+    });
   });
 
   test("dedupe:domain-normalized groups by normalized url and logs", async () => {
-    const items = [
-      makeRow({ id: "1", title: "A1", url: "https://www.Example.com/foo/", timestamp: "2024-01-01T00:00:00Z" }),
-      makeRow({ id: "2", title: "A2", url: "https://example.com/foo?utm_source=xx", timestamp: "2024-01-02T00:00:00Z" }),
-      makeRow({ id: "3", title: "B", url: "https://ex.com/other" }),
-    ];
-    const steps = transformPipeline({ type: "dedupe", strategy: "domain-normalized", keep: "latest", log: true });
-    const result = await runPipeline(items, steps, ctx);
-    expect(result.map((r) => r.id)).toEqual(["2", "3"]); // latest of the group kept
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("transforms: dedupe:domain-normalized removed 1 duplicate(s):"));
+    await spyConsole(["log"], async ({ log: logSpy }) => {
+      const items = [
+        makeRow({ id: "1", title: "A1", url: "https://www.Example.com/foo/", timestamp: "2024-01-01T00:00:00Z" }),
+        makeRow({ id: "2", title: "A2", url: "https://example.com/foo?utm_source=xx", timestamp: "2024-01-02T00:00:00Z" }),
+        makeRow({ id: "3", title: "B", url: "https://ex.com/other" }),
+      ];
+      const steps = transformPipeline({ type: "dedupe", strategy: "domain-normalized", keep: "latest", log: true });
+      const result = await runPipeline(items, steps, ctx);
+      expect(result.map((r) => r.id)).toEqual(["2", "3"]); // latest of the group kept
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("transforms: dedupe:domain-normalized removed 1 duplicate(s):"));
+    });
   });
 
   test("dedupe:title-similarity detects near titles, keeps winner, logs with threshold", async () => {
-    const items = [
-      makeRow({ id: "1", title: "Hello World Update", url: "u1", timestamp: "2024-01-01T00:00:00Z" }),
-      makeRow({ id: "2", title: "Hello World Upd8", url: "u2", timestamp: "2024-01-02T00:00:00Z" }),
-      makeRow({ id: "3", title: "Other News", url: "u3" }),
-    ];
-    const steps = transformPipeline({ type: "dedupe", strategy: "title-similarity", threshold: 0.8, keep: "latest", log: true });
-    const result = await runPipeline(items, steps, ctx);
-    expect(result.map((r) => r.id)).toContain("2"); // or 1 depending on pick, but one kept + 3
-    expect(result).toHaveLength(2);
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("transforms: dedupe:title-similarity removed 1 duplicate(s) (threshold=0.8):"));
-    expect(logSpy).toHaveBeenCalledWith(
-      expect.stringContaining('  - "Hello World Update" (u1) -> kept "Hello World Upd8"'),
-    );
+    await spyConsole(["log"], async ({ log: logSpy }) => {
+      const items = [
+        makeRow({ id: "1", title: "Hello World Update", url: "u1", timestamp: "2024-01-01T00:00:00Z" }),
+        makeRow({ id: "2", title: "Hello World Upd8", url: "u2", timestamp: "2024-01-02T00:00:00Z" }),
+        makeRow({ id: "3", title: "Other News", url: "u3" }),
+      ];
+      const steps = transformPipeline({ type: "dedupe", strategy: "title-similarity", threshold: 0.8, keep: "latest", log: true });
+      const result = await runPipeline(items, steps, ctx);
+      expect(result.map((r) => r.id)).toContain("2"); // or 1 depending on pick, but one kept + 3
+      expect(result).toHaveLength(2);
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("transforms: dedupe:title-similarity removed 1 duplicate(s) (threshold=0.8):"));
+      expect(logSpy).toHaveBeenCalledWith(
+        expect.stringContaining('  - "Hello World Update" (u1) -> kept "Hello World Upd8"'),
+      );
+    });
   });
 
   test("dedupe log disabled does not emit console.log", async () => {
-    const items = [makeRow({ url: "x" }), makeRow({ url: "x" })];
-    const steps = transformPipeline({ type: "dedupe", strategy: "url", log: false });
-    await runPipeline(items, steps, ctx);
-    // only possible other logs? but in this run no, check not the dedupe one
-    const dedupeCalls = logSpy.mock.calls.filter((c) => String(c[0]).includes("transforms: dedupe:"));
-    expect(dedupeCalls).toHaveLength(0);
+    await spyConsole(["log"], async ({ log: logSpy }) => {
+      const items = [makeRow({ url: "x" }), makeRow({ url: "x" })];
+      const steps = transformPipeline({ type: "dedupe", strategy: "url", log: false });
+      await runPipeline(items, steps, ctx);
+      const dedupeCalls = logSpy.mock.calls.filter((c) => String(c[0]).includes("transforms: dedupe:"));
+      expect(dedupeCalls).toHaveLength(0);
+    });
   });
 
   test("dedupe unknown strategy warns and passes through", async () => {
@@ -259,36 +256,25 @@ describe("extractEngagementScore", () => {
 });
 
 describe("keyword-score and time-decay", () => {
-  let logSpy: ReturnType<typeof spyOn>;
-  let warnSpy: ReturnType<typeof spyOn>;
-
-  beforeEach(() => {
-    logSpy = spyOn(console, "log");
-    warnSpy = spyOn(console, "warn");
-  });
-
-  afterEach(() => {
-    logSpy.mockRestore();
-    warnSpy.mockRestore();
-  });
-
   test("keyword-score matches literal terms with counts and weights, applies min_score filter, annotates body", async () => {
-    const items = [
-      makeRow({ id: "a", title: "Alpha release", body: "details" }),
-      makeRow({ id: "b", title: "Beta", body: "beta beta update" }),
-      makeRow({ id: "c", title: "Gamma", body: "" }),
-    ];
-    const steps = transformPipeline({
-      type: "keyword-score",
-      keywords: [{ term: "alpha", weight: 2 }, { term: "beta", weight: 1 }],
-      min_score: 2,
-      annotate: true,
+    await spyConsole(["log"], async ({ log: logSpy }) => {
+      const items = [
+        makeRow({ id: "a", title: "Alpha release", body: "details" }),
+        makeRow({ id: "b", title: "Beta", body: "beta beta update" }),
+        makeRow({ id: "c", title: "Gamma", body: "" }),
+      ];
+      const steps = transformPipeline({
+        type: "keyword-score",
+        keywords: [{ term: "alpha", weight: 2 }, { term: "beta", weight: 1 }],
+        min_score: 2,
+        annotate: true,
+      });
+      const result = await runPipeline(items, steps, ctx);
+      expect(result.map(r => r.id)).toEqual(["b", "a"]); // sorted score desc: b=3, a=2
+      expect(result[0].body).toContain("[keyword-score: 3] beta(x3+1)");
+      expect(result[1].body).toContain("[keyword-score: 2] alpha(+2)");
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("transforms: keyword-score scored 3 items, 2 passed"));
     });
-    const result = await runPipeline(items, steps, ctx);
-    expect(result.map(r => r.id)).toEqual(["b", "a"]); // sorted score desc: b=3, a=2
-    expect(result[0].body).toContain("[keyword-score: 3] beta(x3+1)");
-    expect(result[1].body).toContain("[keyword-score: 2] alpha(+2)");
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("transforms: keyword-score scored 3 items, 2 passed"));
   });
 
   test("keyword-score supports regex entries (global count) and falls back on bad regex", async () => {
@@ -311,111 +297,113 @@ describe("keyword-score and time-decay", () => {
   });
 
   test("time-decay combines engagement (via extract) + recency, newer wins on recency, supports exponential/linear", async () => {
-    const now = Date.now();
-    const items = [
-      makeRow({ id: "old-low", body: "5 points", timestamp: new Date(now - 50 * 3600 * 1000).toISOString() }),
-      makeRow({ id: "new-high-rec", body: "1 point", timestamp: new Date(now - 1 * 3600 * 1000).toISOString() }),
-    ];
-    const steps = transformPipeline({
-      type: "time-decay",
-      half_life: "12h",
-      engagement_weight: 0.5,
-      recency_weight: 0.5,
-      decay: "exponential",
+    await spyConsole(["log"], async ({ log: logSpy }) => {
+      const now = Date.now();
+      const items = [
+        makeRow({ id: "old-low", body: "5 points", timestamp: new Date(now - 50 * 3600 * 1000).toISOString() }),
+        makeRow({ id: "new-high-rec", body: "1 point", timestamp: new Date(now - 1 * 3600 * 1000).toISOString() }),
+      ];
+      const steps = transformPipeline({
+        type: "time-decay",
+        half_life: "12h",
+        engagement_weight: 0.5,
+        recency_weight: 0.5,
+        decay: "exponential",
+      });
+      const result = await runPipeline(items, steps, ctx);
+      expect(result.map(r => r.id)).toEqual(["new-high-rec", "old-low"]);
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("transforms: time-decay ranked 2 items"));
     });
-    const result = await runPipeline(items, steps, ctx);
-    expect(result.map(r => r.id)).toEqual(["new-high-rec", "old-low"]);
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("transforms: time-decay ranked 2 items"));
   });
 
   test("time-decay handles invalid half_life (warns, defaults), linear decay, min_score filter and annotate", async () => {
-    const now = Date.now();
-    const items = [
-      makeRow({ id: "recent", body: "10 points", timestamp: new Date(now - 1 * 3600 * 1000).toISOString() }),
-      makeRow({ id: "old", body: "1 point", timestamp: new Date(now - 100 * 3600 * 1000).toISOString() }),
-    ];
-    const steps = transformPipeline({
-      type: "time-decay",
-      half_life: "bad-unit",
-      engagement_weight: 0.7,
-      recency_weight: 0.3,
-      decay: "linear",
-      min_score: 0.5,
-      annotate: true,
+    await spyConsole(["log", "warn"], async ({ log: logSpy, warn: warnSpy }) => {
+      const now = Date.now();
+      const items = [
+        makeRow({ id: "recent", body: "10 points", timestamp: new Date(now - 1 * 3600 * 1000).toISOString() }),
+        makeRow({ id: "old", body: "1 point", timestamp: new Date(now - 100 * 3600 * 1000).toISOString() }),
+      ];
+      const steps = transformPipeline({
+        type: "time-decay",
+        half_life: "bad-unit",
+        engagement_weight: 0.7,
+        recency_weight: 0.3,
+        decay: "linear",
+        min_score: 0.5,
+        annotate: true,
+      });
+      const result = await runPipeline(items, steps, ctx);
+      expect(result.length).toBe(1); // old filtered by min_score (low recency + low eng -> final <0.5)
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("transforms: invalid half_life"));
+      expect(result[0].body).toContain("[hot-score:");
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("transforms: time-decay filtered out"));
     });
-    const result = await runPipeline(items, steps, ctx);
-    expect(result.length).toBe(1); // old filtered by min_score (low recency + low eng -> final <0.5)
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("transforms: invalid half_life"));
-    expect(result[0].body).toContain("[hot-score:");
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("transforms: time-decay filtered out"));
   });
 });
 
 describe("transforms - cluster", () => {
-  let logSpy: ReturnType<typeof spyOn>;
-
-  beforeEach(() => {
-    logSpy = spyOn(console, "log");
-  });
-
-  afterEach(() => {
-    logSpy.mockRestore();
-  });
-
   test("cluster groups items sharing github domain and annotates with [GitHub] label", async () => {
-    const items = [
-      makeRow({ id: "g1", url: "https://github.com/foo/repo", title: "Release v1", source: "github-releases" }),
-      makeRow({ id: "g2", url: "https://github.com/bar/other", title: "Release v2", source: "github-releases" }),
-    ];
-    const steps = transformPipeline({ type: "cluster", min_cluster_size: 2, max_clusters: 5, annotate: true });
-    const result = await runPipeline(items, steps, ctx);
-    expect(result.length).toBe(2);
-    // clustered githubs , annotated with GitHub from domain majority (exercises topDomain + 0.6 threshold + domainLabels)
-    expect(result[0].body).toMatch(/^\[GitHub\] /);
-    expect(result[1].body).toMatch(/^\[GitHub\] /);
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('transforms: cluster strategy=auto, 1 cluster(s): "GitHub" (2 items), 0 unclustered'));
+    await spyConsole(["log"], async ({ log: logSpy }) => {
+      const items = [
+        makeRow({ id: "g1", url: "https://github.com/foo/repo", title: "Release v1", source: "github-releases" }),
+        makeRow({ id: "g2", url: "https://github.com/bar/other", title: "Release v2", source: "github-releases" }),
+      ];
+      const steps = transformPipeline({ type: "cluster", min_cluster_size: 2, max_clusters: 5, annotate: true });
+      const result = await runPipeline(items, steps, ctx);
+      expect(result.length).toBe(2);
+      // clustered githubs , annotated with GitHub from domain majority (exercises topDomain + 0.6 threshold + domainLabels)
+      expect(result[0].body).toMatch(/^\[GitHub\] /);
+      expect(result[1].body).toMatch(/^\[GitHub\] /);
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('transforms: cluster strategy=auto, 1 cluster(s): "GitHub" (2 items), 0 unclustered'));
+    });
   });
 
   test("cluster uses shared keywords for label when no dominant domain", async () => {
-    const items = [
-      makeRow({ id: "k1", url: "https://github.com/a", title: "React Server Components deep dive", source: "blog" }),
-      makeRow({ id: "k2", url: "https://medium.com/b", title: "React performance tips and tricks", source: "blog" }),
-    ];
-    const steps = transformPipeline({ type: "cluster", strategy: "keywords", min_cluster_size: 2, annotate: true });
-    const result = await runPipeline(items, steps, ctx);
-    expect(result.length).toBe(2);
-    // diff domains (no 0.6 majority), keywords "react" wins -> label starts with [React...
-    expect(result[0].body).toMatch(/^\[React/);
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('transforms: cluster strategy=keywords'));
+    await spyConsole(["log"], async ({ log: logSpy }) => {
+      const items = [
+        makeRow({ id: "k1", url: "https://github.com/a", title: "React Server Components deep dive", source: "blog" }),
+        makeRow({ id: "k2", url: "https://medium.com/b", title: "React performance tips and tricks", source: "blog" }),
+      ];
+      const steps = transformPipeline({ type: "cluster", strategy: "keywords", min_cluster_size: 2, annotate: true });
+      const result = await runPipeline(items, steps, ctx);
+      expect(result.length).toBe(2);
+      // diff domains (no 0.6 majority), keywords "react" wins -> label starts with [React...
+      expect(result[0].body).toMatch(/^\[React/);
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('transforms: cluster strategy=keywords'));
+    });
   });
 
   test("cluster forms groups on keyword overlap even with mixed domains and same source", async () => {
-    const items = [
-      makeRow({ id: "s1", url: "https://x.com/1", title: "News update first", source: "twitter" }),
-      makeRow({ id: "s2", url: "https://news.ycombinator.com/2", title: "News update second", source: "twitter" }),
-    ];
-    const steps = transformPipeline({ type: "cluster", min_cluster_size: 2, annotate: false });
-    const result = await runPipeline(items, steps, ctx);
-    expect(result.length).toBe(2);
-    // shared "news"/"update" -> high sim -> cluster forms (diff domains), label via keywords (source top calc still executed inside generateLabel)
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('(2 items)'));
+    await spyConsole(["log"], async ({ log: logSpy }) => {
+      const items = [
+        makeRow({ id: "s1", url: "https://x.com/1", title: "News update first", source: "twitter" }),
+        makeRow({ id: "s2", url: "https://news.ycombinator.com/2", title: "News update second", source: "twitter" }),
+      ];
+      const steps = transformPipeline({ type: "cluster", min_cluster_size: 2, annotate: false });
+      const result = await runPipeline(items, steps, ctx);
+      expect(result.length).toBe(2);
+      // shared "news"/"update" -> high sim -> cluster forms (diff domains), label via keywords (source top calc still executed inside generateLabel)
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('(2 items)'));
+    });
   });
 
   test("cluster respects min_cluster_size and leaves small groups unclustered", async () => {
-    const items = [
-      makeRow({ id: "a1", url: "https://a.com/1", title: "Alpha only here", source: "a" }),
-      makeRow({ id: "a2", url: "https://a.com/2", title: "Alpha second", source: "a" }),
-      makeRow({ id: "b1", url: "https://b.com/1", title: "Beta singleton different", source: "b" }), // singleton < min=2 , no shared
-    ];
-    const steps = transformPipeline({ type: "cluster", min_cluster_size: 2, max_clusters: 10, annotate: true });
-    const result = await runPipeline(items, steps, ctx);
-    expect(result.length).toBe(3);
-    // one cluster a (size2 annotated), one unclustered b (exercises unclustered path + source/domain counts)
-    const clustered = result.filter(r => (r.body ?? "").startsWith("["));
-    expect(clustered.length).toBe(2);
-    const unclustered = result.find(r => r.id === "b1");
-    expect(unclustered).toBeTruthy();
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('1 cluster(s)'));
+    await spyConsole(["log"], async ({ log: logSpy }) => {
+      const items = [
+        makeRow({ id: "a1", url: "https://a.com/1", title: "Alpha only here", source: "a" }),
+        makeRow({ id: "a2", url: "https://a.com/2", title: "Alpha second", source: "a" }),
+        makeRow({ id: "b1", url: "https://b.com/1", title: "Beta singleton different", source: "b" }), // singleton < min=2 , no shared
+      ];
+      const steps = transformPipeline({ type: "cluster", min_cluster_size: 2, max_clusters: 10, annotate: true });
+      const result = await runPipeline(items, steps, ctx);
+      expect(result.length).toBe(3);
+      // one cluster a (size2 annotated), one unclustered b (exercises unclustered path + source/domain counts)
+      const clustered = result.filter(r => (r.body ?? "").startsWith("["));
+      expect(clustered.length).toBe(2);
+      const unclustered = result.find(r => r.id === "b1");
+      expect(unclustered).toBeTruthy();
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('1 cluster(s)'));
+    });
   });
 
   test("cluster warns on extractDomain parse failure for invalid item urls", async () => {
