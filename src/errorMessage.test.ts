@@ -11,6 +11,7 @@ describe("errorMessage (shared DRY helper for runtime/CLI)", () => {
   test("returns String(value) for non-Error primitives (string, number, boolean)", () => {
     expect(errorMessage("plain msg")).toBe("plain msg");
     expect(errorMessage(123)).toBe("123");
+    expect(errorMessage(404)).toBe("404");
     expect(errorMessage(0)).toBe("0");
     expect(errorMessage(true)).toBe("true");
     expect(errorMessage(false)).toBe("false");
@@ -44,6 +45,13 @@ describe("errorMessage (shared DRY helper for runtime/CLI)", () => {
   test("returns .message for plain objects with .message prop (duck type, aids adapters catching custom error objs from fetch libs in network/parse paths)", () => {
     expect(errorMessage({ message: "network timeout" })).toBe("network timeout");
     expect(errorMessage({ message: "parse failed", code: "EBADXML" })).toBe("parse failed");
+  });
+
+  test("ignores non-string .message on duck-typed objects (hasStringMessage guard)", () => {
+    expect(errorMessage({ message: 42 })).toBe("[object Object]");
+    expect(errorMessage({ message: null })).toBe("[object Object]");
+    expect(errorMessage({ message: undefined })).toBe("[object Object]");
+    expect(errorMessage({ message: true })).toBe("[object Object]");
   });
 });
 
