@@ -122,7 +122,10 @@ function buildBody(entry: ArxivEntry): string {
   const categories = extractCategories(entry);
   const rawAbstract = extractFeedItemBody(entry);
   const abstract = rawAbstract
-    ? stripHtml(rawAbstract, FEED_BODY_STRIP_OPTIONS)
+    ? decodeHtmlEntities(
+        stripHtml(rawAbstract, FEED_BODY_STRIP_OPTIONS),
+        { numeric: true },
+      )
     : "";
   const pdfLink = extractPdfLink(entry.link);
   const arxivId = extractArxivId(entry.id);
