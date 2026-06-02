@@ -26,7 +26,7 @@ function runCli(args: string[]): SpawnSyncReturns<string> {
   });
 }
 
-describe("cli.ts (argument handling, validation, early exits, error surfacing)", () => {
+describe("cli", () => {
   let tmpDir: string;
 
   beforeEach(() => {
@@ -39,7 +39,7 @@ describe("cli.ts (argument handling, validation, early exits, error surfacing)",
     }
   });
 
-  test("--help and -h print stable usage text and exit 0", () => {
+  test("--help/-h prints usage", () => {
     const help = expectedCliHelpStdout();
     for (const flag of ["--help", "-h"]) {
       const res = runCli([flag]);
@@ -57,35 +57,35 @@ describe("cli.ts (argument handling, validation, early exits, error surfacing)",
     expect(res.stderr).toBe("");
   });
 
-  test("unknown command prints error + HELP and exits 1", () => {
+  test("unknown command prints HELP", () => {
     const res = runCli(["foo"]);
     expect(res.status).toBe(1);
     expect(res.stderr).toContain("Unknown command: foo");
     expect(res.stdout).toBe(expectedCliHelpStdout());
   });
 
-  test("unknown option is rejected with clear message + HELP + exit 1", () => {
+  test("unknown options rejected with HELP", () => {
     const res = runCli(["--badflag", "--prt"]);
     expect(res.status).toBe(1);
     expect(res.stderr).toContain("Unknown option(s): --badflag, --prt");
     expect(res.stdout).toBe(expectedCliHelpStdout());
   });
 
-  test("invalid --port (out of range) prints exact message and exits 1 before server", () => {
+  test("invalid --port rejected", () => {
     const res = runCli(["--port", "99999"]);
     expect(res.status).toBe(1);
     expect(res.stderr).toContain("Invalid --port value: 99999. Must be an integer between 1 and 65535.");
     expect(res.stdout).toBe("");
   });
 
-  test("--config pointing to directory (non-regular file) prints clean error and exits 1", () => {
+  test("--config non-regular file rejected", () => {
     const res = runCli(["--config", tmpDir]);
     expect(res.status).toBe(1);
     expect(res.stderr).toContain(`config: ${tmpDir} is not a regular file`);
     expect(res.stdout).toBe("");
   });
 
-  test("unknown --preset prints error, Available presets from listPresets, exits 1", () => {
+  test("unknown --preset lists available presets", () => {
     const res = runCli(["--preset", "not-a-real-preset"]);
     expect(res.status).toBe(1);
     expect(res.stderr).toContain("Unknown preset: not-a-real-preset");
@@ -94,7 +94,7 @@ describe("cli.ts (argument handling, validation, early exits, error surfacing)",
     expect(res.stdout).toBe("");
   });
 
-  test("bad config file (parse error) is surfaced cleanly as config: prefixed error + exit 1", () => {
+  test("bad YAML config surfaces config: error", () => {
     const badCfg = join(tmpDir, "bad.yaml");
     writeFileSync(badCfg, "not: valid: yaml: [");
     const res = runCli(["--config", badCfg]);
@@ -103,15 +103,13 @@ describe("cli.ts (argument handling, validation, early exits, error surfacing)",
     expect(res.stderr).toContain(badCfg);
   });
 
-  test("--chdir/-C <dir> is accepted (not unknown opt); chdirs for subsequent loads (e.g. config validation uses target cwd); errors cleanly for invalid dir (nonexistent or not dir) with 'Failed to chdir' message + exit 1 (TDD red-green for td2 chdir quality + new CLI capability)", () => {
-    // invalid dir + --version (version early but if chdir handling placed early before version if, it will error first with clean msg)
+  test("--chdir/-C accepted; invalid dir fails with Failed to chdir", () => {
     const bad = join(tmpDir, "nonexistent-chdir-subdir-xyz");
     const resBad = runCli(["--chdir", bad, "--version"]);
     expect(resBad.status).toBe(1);
     expect(resBad.stderr).toContain("Failed to chdir");
     expect(resBad.stderr).toContain(bad);
     expect(resBad.stdout).toBe("");
-    // valid dir + bad --port (port validation is after chdir handling + unknown check; proves --chdir was accepted not rejected as unknown, processing continued to subsequent validation)
     const resValidThenPort = runCli(["-C", tmpDir, "--port", "99999"]);
     expect(resValidThenPort.status).toBe(1);
     expect(resValidThenPort.stderr).toContain("Invalid --port value: 99999");
@@ -120,13 +118,12 @@ describe("cli.ts (argument handling, validation, early exits, error surfacing)",
   });
 });
 
-describe("server (integration via bg CLI spawn: /health m15, /styles cache m15, /refresh 502 fail igb + 404, yn0+quality headers on all responses)", () => {
-  test("GET /health returns 200+{status:\"ok\"}; GET /styles.css 200+1h cache; POST /refresh/reddit ->502 w/details (igb, reddit fails in this env); /refresh/unknown->404; EVERY resp (200/404/502) includes yn0 security headers + quality Permissions-Policy (test-first TDD for server facts igb/yn0/m15)", async () => {
+describe("cli serve", () => {
+  test("health, styles cache, refresh errors, security headers", async () => {
     const port = 18476 + (process.pid % 200);
     const dbPath = `/tmp/pace-iter6-server-test-${port}.db`;
     const logPath = `/tmp/pace-iter6-server-test-${port}.log`;
     const env = { ...process.env, PACE_DB_PATH: dbPath };
-    // cleanup prior
     try { require("node:fs").unlinkSync(dbPath); } catch {}
     try { require("node:fs").unlinkSync(logPath); } catch {}
     const proc: ChildProcess = spawn(process.execPath, ["src/cli.ts", "--port", String(port), "--preset", "tech-news", "serve"], {
@@ -134,7 +131,6 @@ describe("server (integration via bg CLI spawn: /health m15, /styles cache m15, 
       cwd: process.cwd(),
       env,
     });
-    // wait for listening (or timeout)
     await new Promise<void>((resolve) => {
       let buf = "";
       const timer = setTimeout(() => resolve(), 2800);
@@ -175,7 +171,6 @@ describe("server (integration via bg CLI spawn: /health m15, /styles cache m15, 
     const styles = await req(`${base}/styles.css`);
     expect(styles.status).toBe(200);
     expect(styles.hd["cache-control"] || "").toContain("max-age=3600");
-    // use redirect:manual so fetch does not follow 303; reddit may 502 (fail) or 303 (success) depending on net
     const r502 = await fetch(`${base}/refresh/reddit`, { method: "POST", redirect: "manual" });
     const r502Status = r502.status;
     const r502Body = await r502.text().catch(() => "");
@@ -185,7 +180,6 @@ describe("server (integration via bg CLI spawn: /health m15, /styles cache m15, 
     expect(r404.status).toBe(404);
     const r404Body = await r404.text().catch(() => "");
     expect(r404Body).toContain("Unknown panel:");
-    // verify yn0 + quality header on all responses (the improvement)
     const secKeys = ["x-content-type-options", "x-frame-options", "referrer-policy", "content-security-policy", "permissions-policy"];
     const toCheck = [
       health,
@@ -202,7 +196,6 @@ describe("server (integration via bg CLI spawn: /health m15, /styles cache m15, 
       expect(lowerHd["content-security-policy"]).toContain("default-src 'self'");
       expect(lowerHd["permissions-policy"]).toBe("interest-cohort=()");
     });
-    // cleanup robust
     if (proc.pid) { try { process.kill(proc.pid, "SIGKILL"); } catch {} }
     await new Promise((r) => setTimeout(r, 200));
     try { require("node:fs").unlinkSync(dbPath); } catch {}
