@@ -33,10 +33,10 @@ const { values, positionals } = parseArgs({
   strict: false,
 });
 
-if (values['list-presets'] !== undefined) values.listPresets = values['list-presets'];
+if (values["list-presets"] !== undefined) values.listPresets = values["list-presets"];
 
-if (values.chdir || values['chdir']) {
-  const target = (values.chdir || values['chdir']) as string;
+if (values.chdir) {
+  const target = values.chdir;
   try {
     process.chdir(target);
   } catch (err) {
