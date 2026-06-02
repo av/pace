@@ -1,9 +1,54 @@
 import { XMLParser } from "fast-xml-parser";
+import { extractAtomLink, type AtomLinkField } from "./atom";
 import { parseFeedDate, sliceToLimit } from "./dates";
 import { fetchWithTimeout } from "./fetch";
 import { decodeHtmlEntities, stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
+
+/** Parsed text/CDATA node from fast-xml-parser. */
+type XmlTextField = string | number | { "#text"?: string; __cdata?: string };
+
+interface PodcastEnclosure {
+  "@_url"?: string;
+}
+
+type PodcastGuidField =
+  | string
+  | ({ "@_isPermaLink"?: string } & Record<string, unknown>);
+
+interface PodcastFeedItem {
+  title?: XmlTextField;
+  link?: AtomLinkField;
+  enclosure?: PodcastEnclosure | PodcastEnclosure[];
+  guid?: PodcastGuidField;
+  pubDate?: string;
+  published?: string;
+  updated?: string;
+  "dc:date"?: string;
+  description?: XmlTextField;
+  "itunes:summary"?: XmlTextField;
+  "itunes:subtitle"?: XmlTextField;
+  "content:encoded"?: XmlTextField;
+  "itunes:duration"?: string | number;
+  "itunes:episode"?: string | number;
+  "itunes:season"?: string | number;
+  "itunes:author"?: XmlTextField;
+  author?: XmlTextField;
+}
+
+interface PodcastChannel {
+  title?: XmlTextField;
+  link?: string;
+  item?: PodcastFeedItem | PodcastFeedItem[];
+}
+
+/** Parsed RSS 2.0 podcast feed root from fast-xml-parser (attributeNamePrefix "@_"). */
+interface PodcastFeedParsed {
+  rss?: {
+    channel?: PodcastChannel;
+  };
+}
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -100,26 +145,22 @@ interface PodcastEpisode {
   author: string | null;
 }
 
-function extractChannelTitle(channel: any): string {
-  const title = channel?.title;
+function extractChannelTitle(channel: PodcastChannel): string {
+  const title = channel.title;
   return decodeHtmlEntities(extractText(title) || "Unknown Podcast", { numeric: true });
 }
 
-function parseEpisode(item: any, showName: string, channelLink: string = ""): PodcastEpisode | null {
+function parseEpisode(
+  item: PodcastFeedItem,
+  showName: string,
+  channelLink: string = "",
+): PodcastEpisode | null {
   // Title
   const title = decodeHtmlEntities(extractText(item.title), { numeric: true });
   if (!title) return null;
 
   // Link / URL
-  let url = "";
-  if (typeof item.link === "string") {
-    url = item.link;
-  } else if (item.link?.["@_href"]) {
-    url = item.link["@_href"];
-  } else if (Array.isArray(item.link)) {
-    const alt = item.link.find((l: any) => l["@_rel"] === "alternate");
-    url = alt?.["@_href"] ?? item.link[0]?.["@_href"] ?? "";
-  }
+  let url = extractAtomLink(item.link);
 
   // Audio URL from enclosure
   let audioUrl = "";
@@ -133,14 +174,15 @@ function parseEpisode(item: any, showName: string, channelLink: string = ""): Po
   // GUID — unique identifier for the episode
   let guid = "";
   let guidIsPermaLink = false;
-  if (item.guid) {
-    if (typeof item.guid === "string") {
-      guid = item.guid;
+  const rawGuid = item.guid;
+  if (rawGuid) {
+    if (typeof rawGuid === "string") {
+      guid = rawGuid;
       // If it looks like a URL, treat it as a permalink
       guidIsPermaLink = guid.startsWith("http");
     } else {
-      guid = extractText(item.guid);
-      const permaAttr = item.guid["@_isPermaLink"];
+      guid = extractText(rawGuid);
+      const permaAttr = rawGuid["@_isPermaLink"];
       guidIsPermaLink = permaAttr === "true" || (permaAttr == null && guid.startsWith("http"));
     }
   }
@@ -264,10 +306,10 @@ async function fetchPodcastFeed(
       throw new Error(`podcast: failed to fetch ${feedUrl}: ${errorMessage({ message: String(res.status) })}`);
     }
     const xml = await res.text();
-    const parsed = parser.parse(xml);
+    const parsed = parser.parse(xml) as PodcastFeedParsed;
 
     // Extract channel info (RSS 2.0 structure)
-    const channel = parsed?.rss?.channel;
+    const channel = parsed.rss?.channel;
     if (!channel) {
       console.warn(`podcast: no channel found in feed ${feedUrl}`);
       return [];
