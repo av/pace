@@ -9,7 +9,7 @@ import {
 } from "./atom";
 import { parseFeedDate } from "./dates";
 import { formatCategories, joinBodyParts } from "./engagement";
-import { fetchText } from "./fetch";
+import { ARXIV_FETCH_TIMEOUT_MS, fetchText } from "./fetch";
 import {
   decodeHtmlEntities,
   FEED_BODY_STRIP_OPTIONS,
@@ -111,7 +111,9 @@ async function fetchArxivQuery(
 ): Promise<ArxivEntry[]> {
   const url = `${ARXIV_API}?search_query=${encodeURIComponent(queryStr)}&sortBy=submittedDate&sortOrder=descending&max_results=${limit}`;
   const context = `query "${queryStr}"`;
-  const xml = await fetchText("arxiv", url, context, { timeoutMs: 30_000 });
+  const xml = await fetchText("arxiv", url, context, {
+    timeoutMs: ARXIV_FETCH_TIMEOUT_MS,
+  });
 
   const parsed = parser.parse(xml) as ArxivAtomFeedParsed;
   return normalizeXmlList(parsed.feed?.entry);

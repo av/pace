@@ -6,7 +6,7 @@ import {
   joinBodyParts,
 } from "./engagement";
 import { parseUnixEpochSeconds } from "./dates";
-import { fetchJson } from "./fetch";
+import { fetchJson, HN_ITEM_FETCH_TIMEOUT_MS } from "./fetch";
 import { decodeHtmlEntities } from "./html";
 import { sliceToLimit } from "../utils";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -44,7 +44,7 @@ async function fetchHN<T>(subpath: string, timeout: number, errorContext?: strin
 
 async function fetchItem(id: number): Promise<HNItem | null> {
   try {
-    return await fetchHN<HNItem>(`item/${id}.json`, 10000);
+    return await fetchHN<HNItem>(`item/${id}.json`, HN_ITEM_FETCH_TIMEOUT_MS);
   } catch (err) {
     const msg = errorMessage(err);
     console.warn(

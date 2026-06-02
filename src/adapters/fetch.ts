@@ -4,10 +4,11 @@
  * Adapter-specific `timeoutMs` overrides (omit when equal to `DEFAULT_FETCH_TIMEOUT_MS`):
  *
  * - **15s** (`DEFAULT_FETCH_TIMEOUT_MS`) — default for most feed/API calls.
- * - **10s** — hackernews per-item (`item/{id}.json`); mastodon account lookup;
- *   producthunt enrich (`ENRICH_FETCH_TIMEOUT_MS` in `producthunt.ts`).
- * - **20s** — github trending HTML; podcast feed XML.
- * - **30s** — arxiv Atom query.
+ * - **10s** (`HN_ITEM_FETCH_TIMEOUT_MS`) — hackernews per-item (`item/{id}.json`);
+ *   mastodon account lookup; producthunt enrich (`ENRICH_FETCH_TIMEOUT_MS` in
+ *   `producthunt.ts`).
+ * - **20s** (`FEED_FETCH_TIMEOUT_MS`) — github trending HTML; podcast feed XML.
+ * - **30s** (`ARXIV_FETCH_TIMEOUT_MS`) — arxiv Atom query.
  *
  * Error message prefixes (use `${adapterName}:` consistently):
  *
@@ -47,6 +48,15 @@ export function buildGitHubApiHeaders(token?: string): Record<string, string> {
 
 /** Default AbortSignal.timeout for adapter HTTP (feed/API JSON and text). */
 export const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
+
+/** Hacker News per-item JSON (`item/{id}.json`). */
+export const HN_ITEM_FETCH_TIMEOUT_MS = 10_000;
+
+/** Large HTML/XML feed pages (e.g. GitHub trending, podcast RSS). */
+export const FEED_FETCH_TIMEOUT_MS = 20_000;
+
+/** arxiv Atom API queries (can be slow under load). */
+export const ARXIV_FETCH_TIMEOUT_MS = 30_000;
 
 function buildFetchHeaders(options: FetchWithTimeoutOptions): Record<string, string> {
   const headers: Record<string, string> = {

@@ -1,11 +1,14 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import {
+  ARXIV_FETCH_TIMEOUT_MS,
   buildGitHubApiHeaders,
   DEFAULT_FETCH_TIMEOUT_MS,
+  FEED_FETCH_TIMEOUT_MS,
   fetchJson,
   fetchText,
   fetchWithTimeout,
   GITHUB_API_ACCEPT,
+  HN_ITEM_FETCH_TIMEOUT_MS,
   PACE_FEED_USER_AGENT,
   PACE_USER_AGENT,
 } from "./adapters/fetch";
@@ -34,6 +37,12 @@ describe("fetchWithTimeout", () => {
 
   test("DEFAULT_FETCH_TIMEOUT_MS is exported for adapters matching the default", () => {
     expect(DEFAULT_FETCH_TIMEOUT_MS).toBe(15_000);
+  });
+
+  test("adapter-specific fetch timeouts are exported", () => {
+    expect(HN_ITEM_FETCH_TIMEOUT_MS).toBe(10_000);
+    expect(FEED_FETCH_TIMEOUT_MS).toBe(20_000);
+    expect(ARXIV_FETCH_TIMEOUT_MS).toBe(30_000);
   });
 
   test("buildGitHubApiHeaders sets Accept and optional Bearer token", () => {

@@ -12,7 +12,7 @@ import {
 } from "./atom";
 import { parseFeedDate } from "./dates";
 import { formatLanguage, formatStars, joinBodyParts } from "./engagement";
-import { fetchText } from "./fetch";
+import { FEED_FETCH_TIMEOUT_MS, fetchText } from "./fetch";
 import { sliceToLimit } from "../utils";
 import { dedupeByKey } from "./merge";
 import { decodeHtmlEntities, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
@@ -173,7 +173,7 @@ async function fetchTrending(
   const url = `https://github.com/trending${langPath}?since=${since}`;
 
   const html = await fetchText("github", url, "trending", {
-    timeoutMs: 20000,
+    timeoutMs: FEED_FETCH_TIMEOUT_MS,
     accept: "text/html",
   });
 
