@@ -1,9 +1,11 @@
 import { XMLParser } from "fast-xml-parser";
 import {
   extractAtomLink,
+  extractFeedRootTitle,
   extractXmlText,
   FEED_XML_PARSER_OPTIONS,
   normalizeXmlList,
+  type AtomLinkField,
   type XmlTextField,
 } from "./atom";
 import { parseFeedDate } from "./dates";
@@ -18,7 +20,7 @@ const parser = new XMLParser(FEED_XML_PARSER_OPTIONS);
 interface YTEntry {
   "yt:videoId"?: string;
   title?: XmlTextField;
-  link?: { "@_href"?: string } | Array<{ "@_href"?: string; "@_rel"?: string }>;
+  link?: AtomLinkField;
   published?: string;
   "media:group"?: {
     "media:description"?: string;
@@ -33,10 +35,6 @@ interface YTAtomFeedParsed {
     entry?: YTEntry | YTEntry[];
     title?: XmlTextField;
   };
-}
-
-function extractChannelTitle(parsed: YTAtomFeedParsed): string {
-  return extractXmlText(parsed?.feed?.title) ?? "YouTube";
 }
 
 function buildBody(entry: YTEntry): string | undefined {
@@ -79,7 +77,8 @@ async function fetchYoutubeFeed(
   const url = `https://www.youtube.com/feeds/videos.xml?${param}=${id}`;
   const xml = await fetchText("youtube", url, `${label} ${id}`);
   const parsed = parser.parse(xml) as YTAtomFeedParsed;
-  const channelTitle = extractChannelTitle(parsed);
+  const channelTitle =
+    extractFeedRootTitle(undefined, parsed.feed?.title) ?? "YouTube";
   const entries = normalizeXmlList(parsed.feed?.entry);
   return sliceToLimit(entries, limit).map((entry) => parseEntry(entry, channelTitle));
 }
