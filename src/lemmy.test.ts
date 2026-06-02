@@ -1,16 +1,28 @@
-import { beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
-import adapter from "./lemmy";
-import * as typesMod from "./types";
+import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
+import lemmyAdapter from "./adapters/lemmy";
+import * as typesMod from "./adapters/types";
+
+const originalFetch = globalThis.fetch;
 
 describe("lemmy adapter", () => {
   let fetchMock: ReturnType<typeof mock>;
 
-  beforeEach(() => {
-    fetchMock = mock();
-    globalThis.fetch = fetchMock as any;
+  test("satisfies ngb contract: default export has .name and .fetch", () => {
+    expect(lemmyAdapter.name).toBe("lemmy");
+    expect(typeof lemmyAdapter.fetch).toBe("function");
   });
 
-  function makePostView(overrides: Partial<any> = {}): any {
+  beforeEach(() => {
+    fetchMock = mock();
+    globalThis.fetch = fetchMock as typeof fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    mock.restore();
+  });
+
+  function makePostView(overrides: Partial<Record<string, unknown>> = {}): Record<string, unknown> {
     return {
       post: {
         id: 1001,
@@ -19,40 +31,40 @@ describe("lemmy adapter", () => {
         body: "Post body text",
         ap_id: "https://lemmy.ml/post/1001",
         published: "2025-01-15T10:00:00Z",
-        ...overrides.post,
+        ...(overrides.post as object | undefined),
       },
       creator: {
         name: "testuser",
         actor_id: "https://lemmy.ml/u/testuser",
-        ...overrides.creator,
+        ...(overrides.creator as object | undefined),
       },
       community: {
         name: "technology",
         title: "Technology",
         actor_id: "https://lemmy.ml/c/technology",
-        ...overrides.community,
+        ...(overrides.community as object | undefined),
       },
       counts: {
         score: 42,
         upvotes: 50,
         downvotes: 8,
         comments: 15,
-        ...overrides.counts,
+        ...(overrides.counts as object | undefined),
       },
     };
   }
 
-  function makePostListResponse(posts: any[]) {
+  function makePostListResponse(posts: Record<string, unknown>[]) {
     return { posts };
   }
 
-  it("fetches frontpage from default instance when no communities specified", async () => {
+  test("fetches frontpage from default instance when no communities specified", async () => {
     const view = makePostView();
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makePostListResponse([view])), { status: 200 }),
     );
 
-    const items = await adapter.fetch({ type: "lemmy", params: {} });
+    const items = await lemmyAdapter.fetch({ type: "lemmy", params: {} });
 
     expect(items).toHaveLength(1);
     expect(items[0]).toMatchObject({
@@ -71,7 +83,7 @@ describe("lemmy adapter", () => {
     expect(calledUrl).toContain("sort=Hot");
   });
 
-  it("fetches specific communities", async () => {
+  test("fetches specific communities", async () => {
     const view1 = makePostView({ post: { id: 1 }, community: { name: "linux" } });
     const view2 = makePostView({ post: { id: 2 }, community: { name: "rust" } });
 
@@ -83,7 +95,7 @@ describe("lemmy adapter", () => {
         new Response(JSON.stringify(makePostListResponse([view2])), { status: 200 }),
       );
 
-    const items = await adapter.fetch({
+    const items = await lemmyAdapter.fetch({
       type: "lemmy",
       params: { communities: ["linux", "rust"] },
     });
@@ -97,12 +109,12 @@ describe("lemmy adapter", () => {
     expect(url2).toContain("community_name=rust");
   });
 
-  it("uses custom instance", async () => {
+  test("uses custom instance", async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makePostListResponse([])), { status: 200 }),
     );
 
-    await adapter.fetch({
+    await lemmyAdapter.fetch({
       type: "lemmy",
       params: { instance: "lemmy.world", communities: ["test"] },
     });
@@ -111,40 +123,40 @@ describe("lemmy adapter", () => {
     expect(calledUrl).toContain("lemmy.world");
   });
 
-  it("applies sort parameter (case-insensitive)", async () => {
+  test("applies sort parameter (case-insensitive)", async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makePostListResponse([])), { status: 200 }),
     );
 
-    await adapter.fetch({ type: "lemmy", params: { sort: "new" } });
+    await lemmyAdapter.fetch({ type: "lemmy", params: { sort: "new" } });
 
     const calledUrl = String(fetchMock.mock.calls[0][0]);
     expect(calledUrl).toContain("sort=New");
   });
 
-  it("defaults invalid sort to Hot", async () => {
+  test("defaults invalid sort to Hot", async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makePostListResponse([])), { status: 200 }),
     );
 
-    await adapter.fetch({ type: "lemmy", params: { sort: "invalid" } });
+    await lemmyAdapter.fetch({ type: "lemmy", params: { sort: "invalid" } });
 
     const calledUrl = String(fetchMock.mock.calls[0][0]);
     expect(calledUrl).toContain("sort=Hot");
   });
 
-  it("resolves sort aliases (most_comments -> MostComments)", async () => {
+  test("resolves sort aliases (most_comments -> MostComments)", async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makePostListResponse([])), { status: 200 }),
     );
 
-    await adapter.fetch({ type: "lemmy", params: { sort: "most_comments" } });
+    await lemmyAdapter.fetch({ type: "lemmy", params: { sort: "most_comments" } });
 
     const calledUrl = String(fetchMock.mock.calls[0][0]);
     expect(calledUrl).toContain("sort=MostComments");
   });
 
-  it("applies min_score filter", async () => {
+  test("applies min_score filter", async () => {
     const posts = [
       makePostView({ post: { id: 1 }, counts: { score: 5 } }),
       makePostView({ post: { id: 2 }, counts: { score: 100 } }),
@@ -154,7 +166,7 @@ describe("lemmy adapter", () => {
       new Response(JSON.stringify(makePostListResponse(posts)), { status: 200 }),
     );
 
-    const items = await adapter.fetch({
+    const items = await lemmyAdapter.fetch({
       type: "lemmy",
       params: { min_score: 10 },
     });
@@ -164,7 +176,7 @@ describe("lemmy adapter", () => {
     expect(items[1].id).toBe("lemmy:lemmy.ml:3");
   });
 
-  it("applies limit after filtering", async () => {
+  test("applies limit after filtering", async () => {
     const posts = Array.from({ length: 10 }, (_, i) =>
       makePostView({ post: { id: i + 1 }, counts: { score: 100 - i * 10 } }),
     );
@@ -172,7 +184,7 @@ describe("lemmy adapter", () => {
       new Response(JSON.stringify(makePostListResponse(posts)), { status: 200 }),
     );
 
-    const items = await adapter.fetch({
+    const items = await lemmyAdapter.fetch({
       type: "lemmy",
       params: { limit: 3 },
     });
@@ -180,7 +192,7 @@ describe("lemmy adapter", () => {
     expect(items).toHaveLength(3);
   });
 
-  it("deduplicates posts by ID across communities", async () => {
+  test("deduplicates posts by ID across communities", async () => {
     const samePost = makePostView({ post: { id: 999 } });
 
     fetchMock
@@ -191,7 +203,7 @@ describe("lemmy adapter", () => {
         new Response(JSON.stringify(makePostListResponse([samePost])), { status: 200 }),
       );
 
-    const items = await adapter.fetch({
+    const items = await lemmyAdapter.fetch({
       type: "lemmy",
       params: { communities: ["linux", "opensource"] },
     });
@@ -199,7 +211,7 @@ describe("lemmy adapter", () => {
     expect(items).toHaveLength(1);
   });
 
-  it("uses ap_id as URL for self posts (no external URL)", async () => {
+  test("uses ap_id as URL for self posts (no external URL)", async () => {
     const selfPost = makePostView({
       post: { id: 5, url: undefined, ap_id: "https://lemmy.ml/post/5" },
     });
@@ -207,12 +219,12 @@ describe("lemmy adapter", () => {
       new Response(JSON.stringify(makePostListResponse([selfPost])), { status: 200 }),
     );
 
-    const items = await adapter.fetch({ type: "lemmy", params: {} });
+    const items = await lemmyAdapter.fetch({ type: "lemmy", params: {} });
 
     expect(items[0].url).toBe("https://lemmy.ml/post/5");
   });
 
-  it("includes discuss link for external URLs", async () => {
+  test("includes discuss link for external URLs", async () => {
     const linkPost = makePostView({
       post: { id: 7, url: "https://example.com/article", ap_id: "https://lemmy.ml/post/7" },
     });
@@ -220,17 +232,17 @@ describe("lemmy adapter", () => {
       new Response(JSON.stringify(makePostListResponse([linkPost])), { status: 200 }),
     );
 
-    const items = await adapter.fetch({ type: "lemmy", params: {} });
+    const items = await lemmyAdapter.fetch({ type: "lemmy", params: {} });
 
     expect(items[0].body).toContain("discuss: https://lemmy.ml/post/7");
   });
 
-  it("sets source label for single community", async () => {
+  test("sets source label for single community", async () => {
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makePostListResponse([makePostView()])), { status: 200 }),
     );
 
-    const items = await adapter.fetch({
+    const items = await lemmyAdapter.fetch({
       type: "lemmy",
       params: { communities: ["technology"], instance: "lemmy.world" },
     });
@@ -238,40 +250,36 @@ describe("lemmy adapter", () => {
     expect(items[0].source).toBe("lemmy:lemmy.world:c/technology");
   });
 
-  it("throws on HTTP error with adapter prefix", async () => {
+  test("throws on HTTP error with adapter prefix", async () => {
     fetchMock.mockResolvedValue(new Response("Server Error", { status: 500 }));
 
     await expect(
-      adapter.fetch({ type: "lemmy", params: {} }),
+      lemmyAdapter.fetch({ type: "lemmy", params: {} }),
     ).rejects.toThrow("lemmy:");
   });
 
-  it("throws on network error with adapter prefix", async () => {
+  test("throws on network error with adapter prefix", async () => {
     fetchMock.mockRejectedValue(new Error("connection refused"));
 
     await expect(
-      adapter.fetch({ type: "lemmy", params: {} }),
+      lemmyAdapter.fetch({ type: "lemmy", params: {} }),
     ).rejects.toThrow("lemmy:");
   });
 
-  it("uses errorMessage helper in !ok and network error paths per mmu/sh1 (TDD coverage for lemmy mmu errorMessage use)", async () => {
+  test("uses errorMessage helper in !ok and network error paths", async () => {
     const emSpy = spyOn(typesMod, "errorMessage");
     try {
-      // !ok HTTP error path (exercises fetchLemmyPosts !ok construction + outer catch; will call errorMessage for status duck after quality edit)
       fetchMock.mockResolvedValue(new Response("Server Error", { status: 500 }));
       await expect(
-        adapter.fetch({ type: "lemmy", params: {} }),
+        lemmyAdapter.fetch({ type: "lemmy", params: {} }),
       ).rejects.toThrow("lemmy:");
 
-      // network/fetch reject path (exercises outer catch + errorMessage(err))
-      fetchMock.mockRejectedValue(new Error("connection refused for lemmy mmu test"));
+      fetchMock.mockRejectedValue(new Error("connection refused"));
       await expect(
-        adapter.fetch({ type: "lemmy", params: {} }),
+        lemmyAdapter.fetch({ type: "lemmy", params: {} }),
       ).rejects.toThrow("lemmy:");
 
-      // pre-edit: only catch calls (with Error objs) -> 2 calls but no {message:"500"} duck from !ok site; post-edit >=3 calls + duck call from !ok (red first)
-      const calls = emSpy.mock.calls.length;
-      expect(calls).toBeGreaterThanOrEqual(2);
+      expect(emSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
       expect(emSpy).toHaveBeenCalledWith({ message: "500" });
     } finally {
       emSpy.mockRestore();
