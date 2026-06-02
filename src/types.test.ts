@@ -1,12 +1,13 @@
-import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
 import type { Adapter, AdapterConfig } from "./adapters/types";
 import rssAdapter from "./adapters/rss";
 import producthuntAdapter from "./adapters/producthunt";
+import { useFetchMockSuite } from "./test/adapter-mocks";
 
 const TYPES_TS = path.join(import.meta.dir, "adapters", "types.ts");
-const originalFetch = globalThis.fetch;
+const mocks = useFetchMockSuite({ restoreAllMocks: true });
 
 function adapterFetchJsDoc(): string {
   const src = fs.readFileSync(TYPES_TS, "utf8");
@@ -70,110 +71,72 @@ describe("types", () => {
     });
 
     describe("rss", () => {
-      let fetchCalls: string[];
-
       beforeEach(() => {
-        fetchCalls = [];
-        globalThis.fetch = (async (input: string | URL) => {
-          fetchCalls.push(String(input));
-          if (String(input).includes("badstatus")) {
+        mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+          const url = String(input);
+          if (url.includes("badstatus")) {
             return new Response("", { status: 404 });
           }
           return new Response(rssEmptyChannelFixture(), {
             headers: { "Content-Type": "application/xml" },
           });
-        }) as typeof fetch;
-      });
-
-      afterEach(() => {
-        globalThis.fetch = originalFetch;
+        });
       });
 
       test("empty urls: [] without fetch or throw", async () => {
         const items = await rssAdapter.fetch({ type: "rss", params: { urls: [] } });
         expect(items).toEqual([]);
-        expect(fetchCalls).toHaveLength(0);
+        expect(mocks.fetchMock).not.toHaveBeenCalled();
       });
 
       test("primary HTTP !ok: throws, not warn+[]", async () => {
-        const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
-        try {
-          await expect(
-            rssAdapter.fetch({
-              type: "rss",
-              params: { urls: ["https://ex.com/badstatus"] },
-            }),
-          ).rejects.toThrow(/rss: failed to fetch/);
-          expect(warnSpy).not.toHaveBeenCalled();
-        } finally {
-          warnSpy.mockRestore();
-        }
+        await expect(
+          rssAdapter.fetch({
+            type: "rss",
+            params: { urls: ["https://ex.com/badstatus"] },
+          }),
+        ).rejects.toThrow(/rss: failed to fetch/);
+        expect(mocks.warnSpy).not.toHaveBeenCalled();
       });
     });
 
     describe("producthunt", () => {
-      let fetchMock: ReturnType<typeof mock>;
-
-      beforeEach(() => {
-        fetchMock = mock();
-        globalThis.fetch = fetchMock as typeof fetch;
-      });
-
-      afterEach(() => {
-        globalThis.fetch = originalFetch;
-      });
-
       test("empty feed: [] with misconfiguration warn, no throw", async () => {
-        fetchMock.mockResolvedValue(
+        mocks.fetchMock.mockResolvedValue(
           new Response(
             `<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"></feed>`,
             { status: 200 },
           ),
         );
-        const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
-        try {
-          const items = await producthuntAdapter.fetch({ type: "producthunt" });
-          expect(items).toEqual([]);
-          expect(warnSpy).toHaveBeenCalledWith("producthunt: no entries found in feed");
-        } finally {
-          warnSpy.mockRestore();
-        }
+        const items = await producthuntAdapter.fetch({ type: "producthunt" });
+        expect(items).toEqual([]);
+        expect(mocks.warnSpy).toHaveBeenCalledWith("producthunt: no entries found in feed");
       });
 
       test("primary feed HTTP !ok: throws, not warn+[]", async () => {
-        fetchMock.mockResolvedValue(new Response("rate limited", { status: 429 }));
-        const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
-        try {
-          await expect(producthuntAdapter.fetch({ type: "producthunt" })).rejects.toThrow(
-            /producthunt: failed to fetch feed: HTTP error 429/,
-          );
-          expect(warnSpy).not.toHaveBeenCalled();
-        } finally {
-          warnSpy.mockRestore();
-        }
+        mocks.fetchMock.mockResolvedValue(new Response("rate limited", { status: 429 }));
+        await expect(producthuntAdapter.fetch({ type: "producthunt" })).rejects.toThrow(
+          /producthunt: failed to fetch feed: HTTP error 429/,
+        );
+        expect(mocks.warnSpy).not.toHaveBeenCalled();
       });
 
       test("enrich HTTP !ok: warns per item and returns feed items", async () => {
-        fetchMock.mockImplementation(async (url: string) => {
+        mocks.fetchMock.mockImplementation(async (url: string) => {
           if (String(url).includes("feed")) {
             return new Response(phFeedFixture(), { status: 200 });
           }
           return new Response("not found", { status: 404 });
         });
-        const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
-        try {
-          const items = await producthuntAdapter.fetch({
-            type: "producthunt",
-            params: { enrich: true },
-          });
-          expect(items.length).toBe(1);
-          const enrichWarns = warnSpy.mock.calls.filter((c) =>
-            String(c[0]).startsWith("producthunt: enrich failed for"),
-          );
-          expect(enrichWarns).toHaveLength(1);
-        } finally {
-          warnSpy.mockRestore();
-        }
+        const items = await producthuntAdapter.fetch({
+          type: "producthunt",
+          params: { enrich: true },
+        });
+        expect(items.length).toBe(1);
+        const enrichWarns = mocks.warnSpy.mock.calls.filter((c) =>
+          String(c[0]).startsWith("producthunt: enrich failed for"),
+        );
+        expect(enrichWarns).toHaveLength(1);
       });
     });
   });

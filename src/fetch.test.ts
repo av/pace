@@ -1,25 +1,19 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
 import { fetchJson, fetchText, fetchWithTimeout } from "./adapters/fetch";
+import { useFetchMockSuite } from "./test/adapter-mocks";
 
-const originalFetch = globalThis.fetch;
+const mocks = useFetchMockSuite({ restoreAllMocks: false });
 
 describe("fetchWithTimeout", () => {
-  let fetchMock: ReturnType<typeof mock>;
-
   beforeEach(() => {
-    fetchMock = mock(async () => new Response("ok"));
-    globalThis.fetch = fetchMock as typeof fetch;
-  });
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
+    mocks.fetchMock.mockImplementation(async () => new Response("ok"));
   });
 
   test("sends default User-Agent and AbortSignal.timeout", async () => {
     await fetchWithTimeout("https://example.com/feed");
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = mocks.fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe("https://example.com/feed");
     expect(init.headers).toMatchObject({ "User-Agent": "pace/1.0" });
     expect(init.signal).toBeDefined();
@@ -33,7 +27,7 @@ describe("fetchWithTimeout", () => {
       timeoutMs: 5_000,
     });
 
-    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const [, init] = mocks.fetchMock.mock.calls[0] as [string, RequestInit];
     expect(init.headers).toMatchObject({
       "User-Agent": "custom-agent/2",
       "X-Custom": "1",
@@ -42,7 +36,7 @@ describe("fetchWithTimeout", () => {
   });
 
   test("does not check res.ok — returns non-2xx responses", async () => {
-    fetchMock.mockResolvedValue(new Response("nope", { status: 503 }));
+    mocks.fetchMock.mockResolvedValue(new Response("nope", { status: 503 }));
 
     const res = await fetchWithTimeout("https://example.com/missing");
     expect(res.ok).toBe(false);
@@ -51,26 +45,15 @@ describe("fetchWithTimeout", () => {
 });
 
 describe("fetchText", () => {
-  let fetchMock: ReturnType<typeof mock>;
-
-  beforeEach(() => {
-    fetchMock = mock();
-    globalThis.fetch = fetchMock as typeof fetch;
-  });
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
-  });
-
   test("returns response body on success", async () => {
-    fetchMock.mockResolvedValue(new Response("feed body", { status: 200 }));
+    mocks.fetchMock.mockResolvedValue(new Response("feed body", { status: 200 }));
 
     const text = await fetchText("rss", "https://example.com/feed.xml");
     expect(text).toBe("feed body");
   });
 
   test("throws error fetching on transport failure", async () => {
-    fetchMock.mockRejectedValue(new Error("connection reset"));
+    mocks.fetchMock.mockRejectedValue(new Error("connection reset"));
 
     await expect(fetchText("rss", "https://example.com/feed.xml")).rejects.toThrow(
       "rss: error fetching https://example.com/feed.xml: connection reset",
@@ -78,7 +61,7 @@ describe("fetchText", () => {
   });
 
   test("throws failed to fetch on non-2xx HTTP", async () => {
-    fetchMock.mockResolvedValue(new Response("Not Found", { status: 404 }));
+    mocks.fetchMock.mockResolvedValue(new Response("Not Found", { status: 404 }));
 
     await expect(fetchText("arxiv", "https://example.com/query")).rejects.toThrow(
       /^arxiv: failed to fetch https:\/\/example\.com\/query: HTTP error 404$/,
@@ -86,7 +69,7 @@ describe("fetchText", () => {
   });
 
   test("uses custom context in error messages", async () => {
-    fetchMock.mockRejectedValue(new Error("timeout"));
+    mocks.fetchMock.mockRejectedValue(new Error("timeout"));
 
     await expect(
       fetchText("podcast", "https://example.com/feed.xml", "episode feed"),
@@ -94,7 +77,7 @@ describe("fetchText", () => {
   });
 
   test("throws error reading when body read fails", async () => {
-    fetchMock.mockResolvedValue({
+    mocks.fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
       text: async () => {
@@ -109,19 +92,8 @@ describe("fetchText", () => {
 });
 
 describe("fetchJson", () => {
-  let fetchMock: ReturnType<typeof mock>;
-
-  beforeEach(() => {
-    fetchMock = mock();
-    globalThis.fetch = fetchMock as typeof fetch;
-  });
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
-  });
-
   test("returns parsed JSON on success", async () => {
-    fetchMock.mockResolvedValue(
+    mocks.fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ items: [1, 2] }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -133,7 +105,7 @@ describe("fetchJson", () => {
   });
 
   test("throws error fetching on transport failure", async () => {
-    fetchMock.mockRejectedValue(new Error("connection reset"));
+    mocks.fetchMock.mockRejectedValue(new Error("connection reset"));
 
     await expect(fetchJson("npm", "https://example.com/search")).rejects.toThrow(
       "npm: error fetching https://example.com/search: connection reset",
@@ -141,7 +113,7 @@ describe("fetchJson", () => {
   });
 
   test("throws failed to fetch on non-2xx HTTP", async () => {
-    fetchMock.mockResolvedValue(new Response("Not Found", { status: 404 }));
+    mocks.fetchMock.mockResolvedValue(new Response("Not Found", { status: 404 }));
 
     await expect(fetchJson("github-releases", "https://example.com/releases")).rejects.toThrow(
       /^github-releases: failed to fetch https:\/\/example\.com\/releases: HTTP error 404$/,
@@ -149,7 +121,7 @@ describe("fetchJson", () => {
   });
 
   test("uses custom context in error messages", async () => {
-    fetchMock.mockRejectedValue(new Error("timeout"));
+    mocks.fetchMock.mockRejectedValue(new Error("timeout"));
 
     await expect(
       fetchJson("devto", "https://example.com/api", "articles feed"),
@@ -157,7 +129,7 @@ describe("fetchJson", () => {
   });
 
   test("throws error reading when JSON parse fails", async () => {
-    fetchMock.mockResolvedValue({
+    mocks.fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
       json: async () => {
