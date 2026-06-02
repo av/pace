@@ -1,4 +1,4 @@
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect, spyOn } from "bun:test";
 import { renderDashboard, type PanelData } from "./layout";
 import type { FlexContainerConfig, LayoutNodeConfig, PanelConfig, SourceValue } from "./config";
 import type { ContentItemRow } from "./db";
@@ -77,6 +77,23 @@ describe("renderDashboard", () => {
     expect(html).not.toContain('href="ftp://bad.com"');
     expect(html).toContain("<span>Bad Link</span>");
     expect(html).toContain("<span>No Link</span>");
+  });
+
+  it("warns on safeUrl parse failure; disallowed protocols stay silent", () => {
+    const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const invalid = makeItem({ title: "No Link", url: "not-a-url" });
+      const ftp = makeItem({ title: "Bad Link", url: "ftp://bad.com" });
+      const layout = panelCfg("P", "s");
+      const panelData = new Map<string, PanelData>([["P", { items: [invalid, ftp] }]]);
+      renderDashboard({ layout, panelData, updatedAt: "now" });
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/^layout: safeUrl failed for "not-a-url": /),
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it("renders mailto: links as safe anchors", () => {
