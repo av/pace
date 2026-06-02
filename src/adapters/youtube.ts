@@ -88,6 +88,9 @@ async function fetchYoutubeFeed(
     const entries = extractEntries(parsed);
     return sliceToLimit(entries, limit).map((entry) => parseEntry(entry, channelTitle));
   } catch (err) {
+    if (err instanceof Error && err.message.startsWith("youtube: failed to fetch")) {
+      throw err;
+    }
     throw new Error(`youtube: error fetching ${label} ${id}: ${errorMessage(err)}`);
   }
 }

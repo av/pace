@@ -335,6 +335,9 @@ async function fetchPodcastFeed(
 
     return episodes;
   } catch (err) {
+    if (err instanceof Error && err.message.startsWith("podcast: failed to fetch")) {
+      throw err;
+    }
     throw new Error(`podcast: error fetching ${feedUrl}: ${errorMessage(err)}`);
   }
 }
