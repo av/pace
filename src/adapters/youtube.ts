@@ -23,13 +23,21 @@ interface YTEntry {
   };
 }
 
-function extractEntries(parsed: any): YTEntry[] {
+/** Parsed Atom feed root from fast-xml-parser (attributeNamePrefix "@_"). */
+interface YTAtomFeedParsed {
+  feed?: {
+    entry?: YTEntry | YTEntry[];
+    title?: string | { "#text": string };
+  };
+}
+
+function extractEntries(parsed: YTAtomFeedParsed): YTEntry[] {
   const entries = parsed?.feed?.entry;
   if (!entries) return [];
   return Array.isArray(entries) ? entries : [entries];
 }
 
-function extractChannelTitle(parsed: any): string {
+function extractChannelTitle(parsed: YTAtomFeedParsed): string {
   const title = parsed?.feed?.title;
   if (!title) return "YouTube";
   return typeof title === "string" ? title : title["#text"] ?? "YouTube";
@@ -74,7 +82,7 @@ async function fetchYoutubeFeed(
       throw new Error(`youtube: failed to fetch ${label} ${id}: ${errorMessage({ message: String(res.status) })}`);
     }
     const xml = await res.text();
-    const parsed = parser.parse(xml);
+    const parsed = parser.parse(xml) as YTAtomFeedParsed;
     const channelTitle = extractChannelTitle(parsed);
     const entries = extractEntries(parsed);
     return sliceToLimit(entries, limit).map((entry) => parseEntry(entry, channelTitle));
