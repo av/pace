@@ -1,8 +1,15 @@
 import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from "bun:test";
 import devtoAdapter from "./adapters/devto";
+import type { AdapterConfig } from "./adapters/types";
 import * as typesMod from "./adapters/types";
 
 const originalFetch = globalThis.fetch;
+
+const defaultCfg: AdapterConfig = { type: "devto" };
+
+function devtoCfg(params: Record<string, unknown> = {}): AdapterConfig {
+  return { ...defaultCfg, params };
+}
 
 describe("devto adapter", () => {
   let fetchCalls: Array<{ url: string; init?: RequestInit }> = [];
@@ -80,7 +87,7 @@ describe("devto adapter", () => {
       }
       // default empty
       return new Response("[]", { status: 200 });
-    }) as unknown as typeof fetch;
+    }) as typeof fetch;
   });
 
   afterEach(() => {
@@ -90,14 +97,14 @@ describe("devto adapter", () => {
   test("resolvePeriod maps aliases (month->30, day->1 etc) into query param sent to fetchDevToArticles", async () => {
     // clear calls for this test's beforeEach already ran, but ensure
     fetchCalls.length = 0;
-    await devtoAdapter.fetch({
-      params: { tags: ["typescript"], top: "month", limit: 5 },
-    } as any);
+    await devtoAdapter.fetch(
+      devtoCfg({ tags: ["typescript"], top: "month", limit: 5 }),
+    );
     const tsCall = fetchCalls.find((c) => c.url.includes("tag=typescript"));
     expect(tsCall?.url ?? "").toContain("top=30");
     // also default week
     fetchCalls.length = 0;
-    await devtoAdapter.fetch({ params: { tags: ["react"], limit: 5 } } as any);
+    await devtoAdapter.fetch(devtoCfg({ tags: ["react"], limit: 5 }));
     const reactCall = fetchCalls.find((c) => c.url.includes("tag=react"));
     expect(reactCall?.url ?? "").toContain("top=7");
   });
@@ -108,9 +115,9 @@ describe("devto adapter", () => {
   });
 
   test("fetch with username only calls API with username param and returns mapped item with correct source and body", async () => {
-    const items = await devtoAdapter.fetch({
-      params: { username: "testuser", limit: 20 },
-    } as any);
+    const items = await devtoAdapter.fetch(
+      devtoCfg({ username: "testuser", limit: 20 }),
+    );
     expect(items.length).toBe(1);
     expect(items[0].id).toBe("devto:101");
     expect(items[0].title).toBe("User Article");
@@ -122,23 +129,23 @@ describe("devto adapter", () => {
   });
 
   test("fetch with tags only calls per-tag and aggregates items", async () => {
-    const items = await devtoAdapter.fetch({
-      params: { tags: ["typescript"], limit: 20 },
-    } as any);
+    const items = await devtoAdapter.fetch(
+      devtoCfg({ tags: ["typescript"], limit: 20 }),
+    );
     expect(items.length).toBe(1);
     expect(items[0].source).toBe("devto:typescript");
     expect(fetchCalls.some((c) => c.url.includes("tag=typescript"))).toBe(true);
   });
 
   test("fetch with multiple tags + username dedupes by id and applies min_reactions filter and sorts by reactions desc", async () => {
-    const items = await devtoAdapter.fetch({
-      params: {
+    const items = await devtoAdapter.fetch(
+      devtoCfg({
         username: "testuser",
         tags: ["typescript", "react"],
         min_reactions: 10,
         limit: 5,
-      },
-    } as any);
+      }),
+    );
     // username gives 42, ts gives 100, react 7 (filtered out by min=10)
     // dedup none here, sort 100 then 42
     expect(items.length).toBe(2);
@@ -151,15 +158,15 @@ describe("devto adapter", () => {
   });
 
   test("fetch respects limit after filtering/sorting", async () => {
-    const items = await devtoAdapter.fetch({
-      params: { tags: ["typescript", "react"], limit: 1 },
-    } as any);
+    const items = await devtoAdapter.fetch(
+      devtoCfg({ tags: ["typescript", "react"], limit: 1 }),
+    );
     expect(items.length).toBe(1);
     expect(items[0].title).toBe("Tag Article One"); // highest reactions first
   });
 
   test("fetch with no username or tags returns empty without network calls", async () => {
-    const items = await devtoAdapter.fetch({ params: {} } as any);
+    const items = await devtoAdapter.fetch(devtoCfg());
     expect(items.length).toBe(0);
     expect(fetchCalls.length).toBe(0);
   });
@@ -167,10 +174,10 @@ describe("devto adapter", () => {
   test("throws on network rejection with devto-prefixed message", async () => {
     globalThis.fetch = mock(async () => {
       throw new Error("network boom for devto test");
-    }) as unknown as typeof fetch;
+    }) as typeof fetch;
 
     await expect(
-      devtoAdapter.fetch({ params: { tags: ["javascript"] } } as any),
+      devtoAdapter.fetch(devtoCfg({ tags: ["javascript"] })),
     ).rejects.toThrow('devto: error fetching tag "javascript": network boom for devto test');
   });
 
@@ -181,10 +188,10 @@ describe("devto adapter", () => {
     globalThis.fetch = mock(async () => ({
       ok: false,
       status: 403,
-    })) as unknown as typeof fetch;
+    })) as typeof fetch;
 
     await expect(
-      devtoAdapter.fetch({ params: { tags: ["javascript"] } } as any),
+      devtoAdapter.fetch(devtoCfg({ tags: ["javascript"] })),
     ).rejects.toThrow('devto: failed to fetch tag "javascript": 403');
 
     expect(emSpy.mock.calls.length - callsBefore).toBe(2);

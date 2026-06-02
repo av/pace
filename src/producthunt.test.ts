@@ -1,8 +1,15 @@
 import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from "bun:test";
 import producthuntAdapter from "./adapters/producthunt";
+import type { AdapterConfig } from "./adapters/types";
 import * as typesMod from "./adapters/types";
 
 const originalFetch = globalThis.fetch;
+
+const defaultCfg: AdapterConfig = { type: "producthunt" };
+
+function producthuntCfg(params: Record<string, unknown> = {}): AdapterConfig {
+  return { ...defaultCfg, params };
+}
 
 function makePHFeedFixture(): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -48,7 +55,7 @@ describe("producthunt adapter (DRY quality + test coverage)", () => {
 
   beforeEach(() => {
     fetchMock = mock();
-    globalThis.fetch = fetchMock as any;
+    globalThis.fetch = fetchMock as typeof fetch;
     warnSpy = spyOn(console, "warn").mockImplementation(() => {});
   });
 
@@ -65,7 +72,7 @@ describe("producthunt adapter (DRY quality + test coverage)", () => {
       }),
     );
 
-    const items = await producthuntAdapter.fetch({ params: {} } as any);
+    const items = await producthuntAdapter.fetch(producthuntCfg());
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const callUrl = String(fetchMock.mock.calls[0][0]);
@@ -87,7 +94,7 @@ describe("producthunt adapter (DRY quality + test coverage)", () => {
       new Response(makePHFeedFixture(), { status: 200 }),
     );
 
-    const items = await producthuntAdapter.fetch({ params: { limit: 1 } } as any);
+    const items = await producthuntAdapter.fetch(producthuntCfg({ limit: 1 }));
 
     expect(items.length).toBe(1);
     expect(items[0].title).toBe("Test Product");
@@ -95,7 +102,7 @@ describe("producthunt adapter (DRY quality + test coverage)", () => {
 
   test("with enrich=true performs per-product fetches and includes upvotes/comments/topics/makers in body", async () => {
     let callCount = 0;
-    fetchMock.mockImplementation(async (url: any) => {
+    fetchMock.mockImplementation(async (url: string) => {
       const u = String(url);
       callCount++;
       if (u.includes("producthunt.com/feed")) {
@@ -108,7 +115,7 @@ describe("producthunt adapter (DRY quality + test coverage)", () => {
       return new Response(makeEnrichHtml(42, 12, ["design"], ["janesmith"]), { status: 200 });
     });
 
-    const items = await producthuntAdapter.fetch({ params: { enrich: true } } as any);
+    const items = await producthuntAdapter.fetch(producthuntCfg({ enrich: true }));
 
     expect(callCount).toBe(3); // 1 feed + 2 enrich
     expect(items.length).toBe(2);
@@ -121,7 +128,7 @@ describe("producthunt adapter (DRY quality + test coverage)", () => {
 
   test("with enrich + min_upvotes filters items below threshold", async () => {
     let call = 0;
-    fetchMock.mockImplementation(async (url: any) => {
+    fetchMock.mockImplementation(async (url: string) => {
       const u = String(url);
       call++;
       if (u.includes("feed")) {
@@ -133,9 +140,9 @@ describe("producthunt adapter (DRY quality + test coverage)", () => {
       return new Response(makeEnrichHtml(300, 99), { status: 200 });
     });
 
-    const items = await producthuntAdapter.fetch({
-      params: { enrich: true, min_upvotes: 100, limit: 10 },
-    } as any);
+    const items = await producthuntAdapter.fetch(
+      producthuntCfg({ enrich: true, min_upvotes: 100, limit: 10 }),
+    );
 
     expect(items.length).toBe(1);
     expect(items[0].title).toBe("Another Great Product");
@@ -146,7 +153,7 @@ describe("producthunt adapter (DRY quality + test coverage)", () => {
     const emptyFeed = `<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"></feed>`;
     fetchMock.mockResolvedValue(new Response(emptyFeed, { status: 200 }));
 
-    const items = await producthuntAdapter.fetch({ params: {} } as any);
+    const items = await producthuntAdapter.fetch(producthuntCfg());
 
     expect(items).toEqual([]);
     expect(warnSpy).toHaveBeenCalledWith("producthunt: no entries found in feed");
@@ -157,7 +164,7 @@ describe("producthunt adapter (DRY quality + test coverage)", () => {
     fetchMock.mockResolvedValue(new Response("rate limited", { status: 429 }));
 
     await expect(
-      producthuntAdapter.fetch({ params: {} } as any),
+      producthuntAdapter.fetch(producthuntCfg()),
     ).rejects.toThrow(/producthunt: failed to fetch feed: 429/);
 
     const hasStatusObjCall = emSpy.mock.calls.some((call: unknown[]) => {
@@ -172,13 +179,13 @@ describe("producthunt adapter (DRY quality + test coverage)", () => {
     fetchMock.mockRejectedValue(new Error("connection refused"));
 
     await expect(
-      producthuntAdapter.fetch({ params: { limit: 5 } } as any),
+      producthuntAdapter.fetch(producthuntCfg({ limit: 5 })),
     ).rejects.toThrow(/producthunt: error fetching feed: connection refused/);
   });
 
   test("enrich failures (null) are tolerated and items still returned without extra data", async () => {
     let c = 0;
-    fetchMock.mockImplementation(async (url: any) => {
+    fetchMock.mockImplementation(async (url: string) => {
       const u = String(url);
       c++;
       if (u.includes("feed")) {
@@ -187,7 +194,7 @@ describe("producthunt adapter (DRY quality + test coverage)", () => {
       return new Response("<html>no data</html>", { status: 200 }); // !ok? no, but no matches -> null
     });
 
-    const items = await producthuntAdapter.fetch({ params: { enrich: true } } as any);
+    const items = await producthuntAdapter.fetch(producthuntCfg({ enrich: true }));
 
     expect(items.length).toBe(2);
     expect(items[0].body).not.toContain("upvotes");
