@@ -17,8 +17,8 @@ type PersistedContentItem = ContentItem & {
   summary?: string;
 };
 
-describe("domain ContentItem fidelity (per .facts)", () => {
-  it("ContentItem has required shape {id, title, url, source, timestamp: Date, body?} per tgt", () => {
+describe("domain", () => {
+  it("ContentItem required fields", () => {
     const item = {
       id: "hn:123",
       title: "foo bar",
@@ -46,7 +46,7 @@ describe("domain ContentItem fidelity (per .facts)", () => {
     expect(itemNoBody).not.toHaveProperty("body"); // or undefined ok
   });
 
-  it("ContentItemRow persisted shape includes panel_id, fetched_at + optional LLM summary per qun", () => {
+  it("ContentItemRow persisted fields", () => {
     const row: PersistedContentItem = {
       id: "hn:123",
       title: "foo",
@@ -72,7 +72,7 @@ describe("domain ContentItem fidelity (per .facts)", () => {
     expect(typeof rowWithSummary.summary).toBe("string");
   });
 
-  it("Panel has shape fidelity {name, source, limit?, id?} per qyi", () => {
+  it("Panel shape", () => {
     const panel = {
       name: "tech-news",
       source: "all",
@@ -89,7 +89,7 @@ describe("domain ContentItem fidelity (per .facts)", () => {
     // id optional in some cases; source can be adapter/pipeline/all per qyi
   });
 
-  it("Adapter has shape fidelity {name, fetch(config: AdapterConfig): Promise<ContentItem[]>} per 2wm", () => {
+  it("Adapter shape", () => {
     const adapter: Adapter = {
       name: "hackernews",
       fetch: async (_config: AdapterConfig): Promise<ContentItem[]> => [],
@@ -101,7 +101,7 @@ describe("domain ContentItem fidelity (per .facts)", () => {
     // AdapterConfig and ContentItem[] return per 2wm entity def; pure test no imports per scope
   });
 
-  it("Layout has shape fidelity {direction, children[] (recursive FlexContainerConfig|PanelConfig)} per frg", () => {
+  it("Layout shape", () => {
     const layout = {
       direction: "row",
       gap: "1rem",
@@ -148,7 +148,7 @@ describe("domain ContentItem fidelity (per .facts)", () => {
     // recursive LayoutNodeConfig per frg + config.ts types (FlexContainer | PanelConfig); source string subset of SourceValue; pure test no imports per scope
   });
 
-  it("Transform has shape fidelity per bv5 (TransformConfig union e.g. dedupe per 8eh {type, strategy?, threshold?, keep?, log?} + variants like llm-summarize/filter + PipelineConfig {name, sources, transforms: TransformConfig[]})", () => {
+  it("Transform shape", () => {
     const dedupeXform = {
       type: "dedupe" as const,
       strategy: "title-similarity" as const,
@@ -177,7 +177,7 @@ describe("domain ContentItem fidelity (per .facts)", () => {
     expect(Array.isArray(pipelineEx.transforms)).toBe(true);
   });
 
-  it("Pipeline has shape fidelity per niu {name, sources: string[], transforms: TransformConfig[], refresh_interval?}", () => {
+  it("Pipeline shape", () => {
     const pipeline = {
       name: "news-pipe",
       sources: ["hackernews", "github-releases"],
@@ -193,7 +193,7 @@ describe("domain ContentItem fidelity (per .facts)", () => {
     }
   });
 
-  it("AppConfig has shape fidelity per (kde) {adapters: IngestAdapterConfig[], pipelines?: PipelineConfig[], layout: LayoutNodeConfig, llm?: LlmConfig }", () => {
+  it("AppConfig shape", () => {
     const appConfig = {
       adapters: [{ name: "hackernews" }],
       pipelines: [{ name: "p1", sources: ["hn"], transforms: [] }],
@@ -211,7 +211,7 @@ describe("domain ContentItem fidelity (per .facts)", () => {
     }
   });
 
-  it("Scheduler has shape fidelity per l16 {manages periodic and manual refreshes of adapters and pipelines, persisting results to DB} (covers 99y/6de relations too)", () => {
+  it("Scheduler shape", () => {
     const schedulerShape = {
       manages: ["adapters", "pipelines"],
       persists: "ContentItemRows to DB",
@@ -224,7 +224,7 @@ describe("domain ContentItem fidelity (per .facts)", () => {
     expect(schedulerShape.refreshResult).toHaveProperty("status");
   });
 
-  it("LLMConfig has shape fidelity per dhu {provider?, model?, api_key?, base_url?, interests?: string[]}", () => {
+  it("LLMConfig shape", () => {
     const llmConfig = {
       provider: "openai",
       model: "gpt-4o-mini",
@@ -246,7 +246,7 @@ describe("domain ContentItem fidelity (per .facts)", () => {
     }
   });
 
-  it("Adapter ngb fidelity: fetch returns Promise<ContentItem[]> (runtime) per 2wm / domain entity contract", () => {
+  it("Adapter fetch returns Promise", () => {
     const adapter: Adapter = {
       name: "hackernews",
       fetch: (_config: AdapterConfig) => Promise.resolve([]),
@@ -259,7 +259,7 @@ describe("domain ContentItem fidelity (per .facts)", () => {
     expect(result).toBeInstanceOf(Promise);
   });
 
-  it("ContentItemRow wk0 fidelity: queried deduplicated (latest timestamp per url-norm or id) per wk0 for Panel to render the Dashboard (pure shape fidelity in domain.test.ts)", () => {
+  it("ContentItemRow dedupe shape", () => {
     const rows = [
       { id: "hn:123", title: "foo", url: "https://ex.com/a", source: "hackernews", timestamp: new Date("2026-05-31T10:00:00Z"), panel_id: "p1", fetched_at: new Date() },
       { id: "hn:456", title: "bar", url: "https://ex.com/a", source: "hackernews", timestamp: new Date("2026-05-31T11:00:00Z"), panel_id: "p1", fetched_at: new Date() }, // latest for url
@@ -274,7 +274,7 @@ describe("domain ContentItem fidelity (per .facts)", () => {
     // wk0 fidelity: dedup uses url (norm) + timestamp latest per panel for Dashboard render (strengthens wr4/qun)
   });
 
-  it("Layout references Adapters or Pipelines (or 'all') as Panel sources; 'all' bypasses normal mapping for global recent view per isy", () => {
+  it("Layout panel source all bypass", () => {
     const layout = {
       direction: "column",
       children: [
@@ -292,7 +292,7 @@ describe("domain ContentItem fidelity (per .facts)", () => {
     // isy fidelity: Layout refs Adapters/Pipelines/'all'; 'all' special bypasses normal for global recent (strengthens kb9/frg domain Layout)
   });
 
-  it("AppConfig declares Adapters, Pipelines and a Layout which together drive the Scheduler per 99y", () => {
+  it("AppConfig drives scheduler", () => {
     const appConfig = {
       adapters: [{ name: "hackernews" }],
       pipelines: [{ name: "p1", sources: ["hackernews"], transforms: [] }],
@@ -314,7 +314,7 @@ describe("domain ContentItem fidelity (per .facts)", () => {
     // 99y fidelity: AppConfig declares Adapters, Pipelines and a Layout which together drive the Scheduler (strengthens 0b6/rhq + domain relations 99y/6de/fc3)
   });
 
-  it("Scheduler 6de fidelity: invokes Adapter fetch or Pipeline processing then applies ordered Transforms before persisting as ContentItemRows per 6de", () => {
+  it("Scheduler fetch transform persist", () => {
     const itemsFromAdapter: ContentItem[] = [
       { id: "hn:1", title: "a", url: "u1", source: "hackernews", timestamp: new Date() },
     ];
@@ -331,7 +331,7 @@ describe("domain ContentItem fidelity (per .facts)", () => {
     // 6de fidelity: Scheduler invokes Adapter fetch or Pipeline processing then applies ordered Transforms before persisting as ContentItemRows (strengthens rhq + domain 6de/99y/fc3)
   });
 
-  it("fc3 shape fidelity: LLM-powered Transforms and summaries require a valid LLMConfig and model; otherwise they silently degrade to no-op per fc3", () => {
+  it("LLM transform degrades without model", () => {
     const items: ContentItem[] = [
       { id: "hn:1", title: "a", url: "u1", source: "hackernews", timestamp: new Date() },
     ];
