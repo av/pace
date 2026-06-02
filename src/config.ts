@@ -208,6 +208,9 @@ function validateSource(source: unknown, path: string): void {
   if (source.params !== undefined && !isRecord(source.params)) {
     throw new Error(`config: ${path}.params must be an object`);
   }
+  if (isRecord(source.params)) {
+    validateAdapterParams(source.adapter as string, source.params, path);
+  }
   validateAllowedKeys(source, ["adapter", "params"], (key) =>
     `${path}.${key} is not a valid source field (set refresh_interval on adapters[], not panel source)`,
   );

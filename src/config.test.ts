@@ -262,6 +262,27 @@ layout:
     );
   });
 
+  test("rejects unknown panel source params field", () => {
+    const yaml = `
+adapters:
+  - type: rss
+layout:
+  direction: row
+  children:
+    - panel: p
+      source:
+        adapter: rss
+        params:
+          urls:
+            - https://example.com/feed.xml
+          typo_field: true
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: layout\.children\[0\]\.source\.params\.typo_field is not a valid rss param/,
+    );
+  });
+
   test("rejects unknown pipeline field", () => {
     const yaml = `
 pipelines:
