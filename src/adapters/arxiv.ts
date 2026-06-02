@@ -10,7 +10,7 @@ import {
 import { parseFeedDate } from "./dates";
 import { formatCategories, joinBodyParts } from "./engagement";
 import { fetchText } from "./fetch";
-import { stripHtml } from "./html";
+import { FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
 import { sliceToLimit } from "../utils";
 import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -118,7 +118,7 @@ function buildBody(entry: ArxivEntry): string {
   const categories = extractCategories(entry);
   const rawAbstract = extractFeedItemBody(entry);
   const abstract = rawAbstract
-    ? stripHtml(rawAbstract, { whitespace: "collapse-all" })
+    ? stripHtml(rawAbstract, FEED_BODY_STRIP_OPTIONS)
     : "";
   const pdfLink = extractPdfLink(entry.link);
   const arxivId = extractArxivId(entry.id);
@@ -134,9 +134,10 @@ function buildBody(entry: ArxivEntry): string {
 
 function entryToItem(entry: ArxivEntry, sourceLabel: string): ContentItem {
   const arxivId = extractArxivId(entry.id);
-  const title = stripHtml(extractFeedEntryTitle(entry.title), {
-    whitespace: "collapse-all",
-  });
+  const title = stripHtml(
+    extractFeedEntryTitle(entry.title),
+    FEED_BODY_STRIP_OPTIONS,
+  );
   const url = entry.id ?? `https://arxiv.org/abs/${arxivId}`;
   const timestamp = parseFeedDate(entry.published ?? entry.updated ?? "");
 

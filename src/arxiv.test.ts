@@ -37,6 +37,33 @@ describe("arxiv", () => {
     expect(mocks.fetchMock).not.toHaveBeenCalled();
   });
 
+  test("title and summary use FEED_BODY_STRIP_OPTIONS (tags, links, entities)", async () => {
+    const htmlXml = `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:arxiv="http://arxiv.org/schemas/atom">
+  <entry>
+    <id>http://arxiv.org/abs/2401.00001v1</id>
+    <title>&lt;em&gt;Deep&lt;/em&gt; &amp;amp; Wide</title>
+    <summary>&lt;p&gt;See &lt;a href="https://example.com/paper"&gt;paper&lt;/a&gt; for &#65; details&lt;/p&gt;</summary>
+    <published>2024-05-20T12:00:00Z</published>
+    <author><name>Test Author</name></author>
+    <arxiv:primary_category term="cs.AI" />
+    <category term="cs.AI" />
+    <link href="http://arxiv.org/abs/2401.00001v1" rel="alternate" type="text/html" />
+    <link title="pdf" href="http://arxiv.org/pdf/2401.00001" type="application/pdf" />
+  </entry>
+</feed>`;
+    mocks.fetchMock.mockResolvedValue(new Response(htmlXml, { status: 200 }));
+
+    const items = await arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"] }));
+
+    expect(items.length).toBe(1);
+    expect(items[0].title).toBe("Deep & Wide");
+    expect(items[0].title).not.toContain("<");
+    expect(items[0].body).toContain("Abstract: See paper for A details");
+    expect(items[0].body).not.toContain("example.com");
+    expect(items[0].body).not.toContain("<");
+  });
+
   test("fetches by single category and maps items with correct fields, source, body parts", async () => {
     mocks.fetchMock.mockResolvedValue(
       new Response(makeArxivFixture("Attention Is All You Need", "1706.03762", "Ashish Vaswani", "cs.LG"), {
