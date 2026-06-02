@@ -14,7 +14,7 @@ import { formatLanguage, formatStars, joinBodyParts } from "./engagement";
 import { fetchText } from "./fetch";
 import { sliceToLimit } from "../utils";
 import { dedupeByKey } from "./merge";
-import { FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
+import { decodeHtmlEntities, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
 import { fetchRepoTagline } from "./github-repo-meta";
 import { joinTitleWithTagline, titleWithTagline } from "./title";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -56,7 +56,10 @@ async function fetchReleasesFeed(
   const items: ContentItem[] = [];
 
   for (const entry of sliceToLimit(entries, limit)) {
-    const title = extractFeedEntryTitle(entry.title, "(untitled release)");
+    const title = decodeHtmlEntities(
+      extractFeedEntryTitle(entry.title, "(untitled release)"),
+      { numeric: true },
+    );
     const link = extractAtomLink(entry.link);
     const timestamp = parseFeedDate(entry.updated ?? entry.published ?? "");
 
