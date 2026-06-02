@@ -1,6 +1,7 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import rssAdapter from "./rss";
-import type { AdapterConfig } from "./types";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
+import rssAdapter from "./adapters/rss";
+import type { AdapterConfig } from "./adapters/types";
+import * as typesMod from "./adapters/types";
 
 const originalFetch = globalThis.fetch;
 
@@ -55,12 +56,17 @@ const mixedLinkFixture = `<?xml version="1.0"?>
   </channel>
 </rss>`;
 
-describe("rss adapter (fresh TDD coverage for iter18)", () => {
+describe("rss adapter", () => {
   let fetchCalls: string[] = [];
+
+  test("satisfies ngb contract: default export has .name and .fetch", () => {
+    expect(rssAdapter.name).toBe("rss");
+    expect(typeof rssAdapter.fetch).toBe("function");
+  });
 
   beforeEach(() => {
     fetchCalls = [];
-    globalThis.fetch = (async (input: string | URL, init?: RequestInit) => {
+    globalThis.fetch = (async (input: string | URL) => {
       const url = String(input);
       fetchCalls.push(url);
       if (url.includes("atom")) {
@@ -76,7 +82,7 @@ describe("rss adapter (fresh TDD coverage for iter18)", () => {
         return makeResponse("<?xml><invalid>not closed");
       }
       return makeResponse(rssFixture);
-    }) as any;
+    }) as typeof fetch;
   });
 
   afterEach(() => {
@@ -118,7 +124,7 @@ describe("rss adapter (fresh TDD coverage for iter18)", () => {
     });
   });
 
-  test("merges multiple urls (RSS + Atom) with flat results and dedup not required here", async () => {
+  test("merges multiple urls (RSS + Atom) with flat results", async () => {
     const cfg: AdapterConfig = { type: "rss", params: { urls: ["https://ex.com/rss", "https://ex.com/atom"] } };
     const items = await rssAdapter.fetch(cfg);
     expect(fetchCalls.length).toBe(2);
@@ -136,31 +142,44 @@ describe("rss adapter (fresh TDD coverage for iter18)", () => {
   test("throws wrapped error on network/reject with 'rss: error fetching ...' prefix", async () => {
     globalThis.fetch = (async () => {
       throw new Error("connection refused");
-    }) as any;
+    }) as typeof fetch;
     const cfg: AdapterConfig = { type: "rss", params: { urls: ["https://ex.com/neterr"] } };
     await expect(rssAdapter.fetch(cfg)).rejects.toThrow(
-      /rss: error fetching https:\/\/ex.com\/neterr: connection refused/
+      /rss: error fetching https:\/\/ex.com\/neterr: connection refused/,
     );
   });
 
   test("throws on non-ok response with 'rss: failed to fetch ...' prefix", async () => {
     const cfg: AdapterConfig = { type: "rss", params: { urls: ["https://ex.com/badstatus"] } };
     await expect(rssAdapter.fetch(cfg)).rejects.toThrow(
-      /rss: failed to fetch https:\/\/ex.com\/badstatus: HTTP error 404/
+      /rss: failed to fetch https:\/\/ex.com\/badstatus: HTTP error 404/,
     );
   });
 
   test("throws on XML parse failure with 'rss: error parsing xml from ...' prefix", async () => {
     const cfg: AdapterConfig = { type: "rss", params: { urls: ["https://ex.com/badparse"] } };
     await expect(rssAdapter.fetch(cfg)).rejects.toThrow(
-      /rss: error parsing xml from https:\/\/ex.com\/badparse/
+      /rss: error parsing xml from https:\/\/ex.com\/badparse/,
     );
   });
 
-  test("throws on non-ok response using errorMessage helper for the cause (mmu error contract coverage for rss error path)", async () => {
-    const cfg: AdapterConfig = { type: "rss", params: { urls: ["https://ex.com/badstatus"] } };
-    await expect(rssAdapter.fetch(cfg)).rejects.toThrow(
-      /rss: failed to fetch https:\/\/ex.com\/badstatus: HTTP error 404/
-    );
+  test("uses errorMessage helper in !ok and network error paths", async () => {
+    const emSpy = spyOn(typesMod, "errorMessage");
+    try {
+      const cfg404: AdapterConfig = { type: "rss", params: { urls: ["https://ex.com/badstatus"] } };
+      await expect(rssAdapter.fetch(cfg404)).rejects.toThrow(/rss: failed to fetch/);
+      expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 404" });
+
+      emSpy.mockClear();
+
+      globalThis.fetch = (async () => {
+        throw new Error("connection refused");
+      }) as typeof fetch;
+      const cfgNet: AdapterConfig = { type: "rss", params: { urls: ["https://ex.com/neterr"] } };
+      await expect(rssAdapter.fetch(cfgNet)).rejects.toThrow(/rss: error fetching/);
+      expect(emSpy).toHaveBeenCalled();
+    } finally {
+      emSpy.mockRestore();
+    }
   });
 });
