@@ -80,55 +80,51 @@ async function fetchGithubResource(
 async function fetchReleasesFeed(repo: string, limit: number): Promise<ContentItem[]> {
   const url = `https://github.com/${repo}/releases.atom`;
 
-  try {
-    const xml = await fetchGithubResource(url, `releases for ${repo}`, { timeoutMs: 15000 });
-    if (!xml) return [];
+  const xml = await fetchGithubResource(url, `releases for ${repo}`, { timeoutMs: 15000 });
+  if (!xml) return [];
 
-    const parsed = parser.parse(xml);
+  const parsed = parser.parse(xml);
 
-    const entries: AtomEntry[] = (() => {
-      const e = parsed?.feed?.entry;
-      if (!e) return [];
-      return Array.isArray(e) ? e : [e];
-    })();
+  const entries: AtomEntry[] = (() => {
+    const e = parsed?.feed?.entry;
+    if (!e) return [];
+    return Array.isArray(e) ? e : [e];
+  })();
 
-    const items: ContentItem[] = [];
+  const items: ContentItem[] = [];
 
-    for (const entry of entries.slice(0, limit)) {
-      const title = extractTextContent(entry.title) || "(untitled release)";
-      const link = extractAtomLink(entry.link);
-      const dateStr = entry.updated ?? entry.published ?? "";
-      const timestamp = dateStr ? new Date(dateStr) : new Date();
+  for (const entry of entries.slice(0, limit)) {
+    const title = extractTextContent(entry.title) || "(untitled release)";
+    const link = extractAtomLink(entry.link);
+    const dateStr = entry.updated ?? entry.published ?? "";
+    const timestamp = dateStr ? new Date(dateStr) : new Date();
 
-      // Extract version tag from the link URL (e.g., /facebook/react/releases/tag/v19.0.0)
-      const tagMatch = link.match(/\/releases\/tag\/(.+)$/);
-      const tag = tagMatch ? tagMatch[1] : "";
+    // Extract version tag from the link URL (e.g., /facebook/react/releases/tag/v19.0.0)
+    const tagMatch = link.match(/\/releases\/tag\/(.+)$/);
+    const tag = tagMatch ? tagMatch[1] : "";
 
-      // Content is the release body (HTML)
-      const rawContent = extractTextContent(entry.content);
-      const body = rawContent ? stripHtml(rawContent).slice(0, 500) : undefined;
+    // Content is the release body (HTML)
+    const rawContent = extractTextContent(entry.content);
+    const body = rawContent ? stripHtml(rawContent).slice(0, 500) : undefined;
 
-      // Build display title: "repo: tag — title" or just "repo: title"
-      const displayTitle = tag && title !== tag
-        ? `${repo}: ${tag} — ${title}`
-        : tag
-          ? `${repo}: ${tag}`
-          : `${repo}: ${title}`;
+    // Build display title: "repo: tag — title" or just "repo: title"
+    const displayTitle = tag && title !== tag
+      ? `${repo}: ${tag} — ${title}`
+      : tag
+        ? `${repo}: ${tag}`
+        : `${repo}: ${title}`;
 
-      items.push({
-        id: `github:${repo}:${tag || title}`,
-        title: displayTitle,
-        url: link || `https://github.com/${repo}/releases`,
-        source: `github:${repo}`,
-        timestamp: isNaN(timestamp.getTime()) ? new Date() : timestamp,
-        body,
-      });
-    }
-
-    return items;
-  } catch (err) {
-    throw new Error(`github: error fetching releases for ${repo}: ${errorMessage(err)}`);
+    items.push({
+      id: `github:${repo}:${tag || title}`,
+      title: displayTitle,
+      url: link || `https://github.com/${repo}/releases`,
+      source: `github:${repo}`,
+      timestamp: isNaN(timestamp.getTime()) ? new Date() : timestamp,
+      body,
+    });
   }
+
+  return items;
 }
 
 // --- Trending mode ---
@@ -197,42 +193,38 @@ async function fetchTrending(
   const langPath = language ? `/${encodeURIComponent(language)}` : "";
   const url = `https://github.com/trending${langPath}?since=${since}`;
 
-  try {
-    const html = await fetchGithubResource(url, `trending`, {
-      timeoutMs: 20000,
-      accept: "text/html",
-    });
-    if (!html) return [];
+  const html = await fetchGithubResource(url, `trending`, {
+    timeoutMs: 20000,
+    accept: "text/html",
+  });
+  if (!html) return [];
 
-    const repos = parseTrendingHtml(html);
+  const repos = parseTrendingHtml(html);
 
-    const periodLabel: Record<TrendingPeriod, string> = {
-      daily: "today",
-      weekly: "this week",
-      monthly: "this month",
+  const periodLabel: Record<TrendingPeriod, string> = {
+    daily: "today",
+    weekly: "this week",
+    monthly: "this month",
+  };
+
+  return repos.slice(0, limit).map((repo) => {
+    const bodyParts: string[] = [];
+    if (repo.description) bodyParts.push(repo.description);
+    if (repo.language) bodyParts.push(`language: ${repo.language}`);
+    bodyParts.push(`${repo.stars.toLocaleString()} stars`);
+    if (repo.starsGained > 0) {
+      bodyParts.push(`+${repo.starsGained.toLocaleString()} ${periodLabel[since]}`);
+    }
+
+    return {
+      id: `github:trending:${repo.name}:${since}`,
+      title: repo.name,
+      url: repo.url,
+      source: language ? `github:trending:${language}` : "github:trending",
+      timestamp: new Date(), // trending has no specific timestamp
+      body: bodyParts.join(" | "),
     };
-
-    return repos.slice(0, limit).map((repo) => {
-      const bodyParts: string[] = [];
-      if (repo.description) bodyParts.push(repo.description);
-      if (repo.language) bodyParts.push(`language: ${repo.language}`);
-      bodyParts.push(`${repo.stars.toLocaleString()} stars`);
-      if (repo.starsGained > 0) {
-        bodyParts.push(`+${repo.starsGained.toLocaleString()} ${periodLabel[since]}`);
-      }
-
-      return {
-        id: `github:trending:${repo.name}:${since}`,
-        title: repo.name,
-        url: repo.url,
-        source: language ? `github:trending:${language}` : "github:trending",
-        timestamp: new Date(), // trending has no specific timestamp
-        body: bodyParts.join(" | "),
-      };
-    });
-  } catch (err) {
-    throw new Error(`github: error fetching trending: ${errorMessage(err)}`);
-  }
+  });
 }
 
 // --- Unified adapter ---
