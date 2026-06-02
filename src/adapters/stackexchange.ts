@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from "./fetch";
 import { type Adapter, type AdapterConfig, type ContentItem, errorMessage } from "./types";
 
 const SE_API = "https://api.stackexchange.com/2.3";
@@ -85,11 +86,10 @@ async function fetchQuestions(
   const url = `${SE_API}/questions?${params.toString()}`;
 
   try {
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       headers: {
         "Accept-Encoding": "gzip",
       },
-      signal: AbortSignal.timeout(15000),
     });
 
     if (!res.ok) {

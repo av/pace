@@ -20,13 +20,11 @@ describe("podcast adapter", () => {
     globalThis.fetch = fetchMock as any;
 
     try {
-      const items = await podcastAdapter.fetch({
+      await expect(podcastAdapter.fetch({
         params: { feeds: ["https://example.com/podcast.xml"] },
-      } as any);
-
-      expect(items).toEqual([]);
-      const delta = errorMessageSpy.mock.calls.length; // will be 0 pre-edit, 1 post
-      expect(delta).toBe(1);
+      } as any)).rejects.toThrow(/podcast: failed to fetch .*404/);
+      const delta = errorMessageSpy.mock.calls.length; // >=1 (status in error ctor; may be more from matcher)
+      expect(delta).toBeGreaterThanOrEqual(1);
       expect(errorMessageSpy).toHaveBeenCalledWith({ message: "404" });
     } finally {
       globalThis.fetch = origFetch;

@@ -1,7 +1,12 @@
 import { XMLParser } from "fast-xml-parser";
+import { fetchWithTimeout } from "./fetch";
 import { stripHtml } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
+
+const PH_ENRICH_USER_AGENT =
+  "Mozilla/5.0 (compatible; pace/1.0; +https://github.com/nickvdyck/pace)";
+const ENRICH_FETCH_TIMEOUT_MS = 10_000;
 
 const PH_FEED_URL = "https://www.producthunt.com/feed";
 const ENRICH_BATCH_SIZE = 5;
@@ -96,15 +101,17 @@ function extractId(entry: PHEntry): string {
 
 async function enrichProduct(url: string): Promise<EnrichedData | null> {
   try {
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (compatible; pace/1.0; +https://github.com/nickvdyck/pace)",
-        Accept: "text/html",
-      },
-      signal: AbortSignal.timeout(10000),
+    const res = await fetchWithTimeout(url, {
+      timeoutMs: ENRICH_FETCH_TIMEOUT_MS,
+      userAgent: PH_ENRICH_USER_AGENT,
+      accept: "text/html",
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn(
+        `producthunt: enrich failed for ${url}: ${errorMessage({ message: String(res.status) })}`,
+      );
+      return null;
+    }
     const html = await res.text();
 
     const data: EnrichedData = {};
@@ -171,7 +178,8 @@ async function enrichProduct(url: string): Promise<EnrichedData | null> {
     }
 
     return data;
-  } catch {
+  } catch (err) {
+    console.warn(`producthunt: enrich failed for ${url}: ${errorMessage(err)}`);
     return null;
   }
 }
@@ -219,12 +227,9 @@ async function fetchProductHuntFeed(): Promise<
   }>
 > {
   try {
-    const res = await fetch(PH_FEED_URL, {
-      headers: {
-        "User-Agent": "pace:feed-aggregator/1.0",
-        Accept: "application/atom+xml, application/xml, text/xml",
-      },
-      signal: AbortSignal.timeout(15000),
+    const res = await fetchWithTimeout(PH_FEED_URL, {
+      userAgent: "pace:feed-aggregator/1.0",
+      accept: "application/atom+xml, application/xml, text/xml",
     });
 
     if (!res.ok) {

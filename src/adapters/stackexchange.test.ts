@@ -5,14 +5,17 @@ import * as typesMod from "./types";
 describe("stackexchange adapter", () => {
   let fetchMock: ReturnType<typeof mock>;
   let warnSpy: ReturnType<typeof spyOn>;
+  let origFetch: typeof globalThis.fetch;
 
   beforeEach(() => {
+    origFetch = globalThis.fetch;
     fetchMock = mock();
     globalThis.fetch = fetchMock as any;
     warnSpy = spyOn(console, "warn").mockImplementation(() => {});
   });
 
   afterEach(() => {
+    globalThis.fetch = origFetch;
     warnSpy.mockRestore();
   });
 
@@ -33,7 +36,7 @@ describe("stackexchange adapter", () => {
     };
   }
 
-  it("returns empty list when no subreddits? wait no, for no config it still fetches default site", async () => {
+  it("fetches default site when no/empty params", async () => {
     const q = makeQuestion();
     fetchMock.mockResolvedValue(
       new Response(
@@ -120,17 +123,13 @@ describe("stackexchange adapter", () => {
     expect(item.body).toContain("by dev");
   });
 
-  it("returns [] and warns on HTTP !ok response (preserves current swallow behavior)", async () => {
+  it("throws on HTTP !ok response (contract; no swallow)", async () => {
     fetchMock.mockResolvedValue(
       new Response("too many", { status: 429, statusText: "Too Many Requests" })
     );
 
-    const items = await adapter.fetch({ type: "stackexchange", params: { site: "meta.stackexchange.com" } });
-
-    expect(items).toEqual([]);
-    expect(warnSpy).toHaveBeenCalledWith(
-      "stackexchange: failed to fetch from meta.stackexchange.com: 429 Too Many Requests"
-    );
+    await expect(adapter.fetch({ type: "stackexchange", params: { site: "meta.stackexchange.com" } })).rejects.toThrow(/stackexchange: failed to fetch from meta.stackexchange.com: 429 Too Many Requests/);
+    // no [] return or warn for fetch errors
   });
 
   it("warns on low quota but still returns results", async () => {
@@ -147,17 +146,10 @@ describe("stackexchange adapter", () => {
     );
   });
 
-  it("returns [] and warns on network/fetch rejection (preserves current swallow behavior)", async () => {
+  it("throws on network/fetch rejection (contract; no swallow)", async () => {
     fetchMock.mockRejectedValue(new Error("connection refused"));
 
-    const items = await adapter.fetch({ type: "stackexchange", params: { site: "bad.site" } });
-
-    expect(items).toEqual([]);
-    // second arg is the err; first now includes cause via errorMessage (mmu quality)
-    expect(warnSpy).toHaveBeenCalledWith(
-      "stackexchange: error fetching from bad.site: connection refused",
-      expect.any(Error)
-    );
+    await expect(adapter.fetch({ type: "stackexchange", params: { site: "bad.site" } })).rejects.toThrow(/stackexchange: error fetching from bad.site: connection refused/);
   });
 
   it("defaults sort to hot when invalid, handles large view counts", async () => {
@@ -175,27 +167,26 @@ describe("stackexchange adapter", () => {
     expect(items[0].body).toContain("1.2m views");
   });
 
-  it("uses errorMessage helper in !ok and network error warn paths per mmu/sh1 (warn+[] recoverable per contract; TDD coverage for stackexchange errorMessage use)", async () => {
+  it("uses errorMessage helper in !ok and network error throw paths per contract (mmu/sh1; TDD coverage for stackexchange errorMessage use)", async () => {
     const emSpy = spyOn(typesMod, "errorMessage");
     try {
-      // !ok HTTP error path (exercises warnAndReturnEmpty + errorMessage for status obj)
+      // !ok HTTP error path (now throws, exercises errorMessage for status obj)
       fetchMock.mockResolvedValue(
         new Response("rate limit", { status: 429, statusText: "Too Many Requests" })
       );
-      const items1 = await adapter.fetch({ type: "stackexchange", params: { site: "meta.stackexchange.com" } });
-      expect(items1).toEqual([]);
+      await expect(adapter.fetch({ type: "stackexchange", params: { site: "meta.stackexchange.com" } })).rejects.toThrow(/429/);
 
-      // network/fetch reject path (exercises catch + errorMessage(err))
+      // network/fetch reject path (now throws, exercises errorMessage(err))
       fetchMock.mockRejectedValue(new Error("connection refused for se mmu test"));
-      const items2 = await adapter.fetch({ type: "stackexchange", params: { site: "bad.site" } });
-      expect(items2).toEqual([]);
+      await expect(adapter.fetch({ type: "stackexchange", params: { site: "bad.site" } })).rejects.toThrow(/connection refused/);
 
-      // will be >=2 calls post-edit (status helper + err helper); pre-edit 0 -> red
+      // >=2 calls (status + err); 
       const calls = emSpy.mock.calls.length;
       expect(calls).toBeGreaterThanOrEqual(2);
       expect(emSpy).toHaveBeenCalledWith({ message: "429 Too Many Requests" });
     } finally {
       emSpy.mockRestore();
+      globalThis.fetch = origFetch;  // ensure no pollution even on early exit
     }
   });
 });

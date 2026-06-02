@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from "./fetch";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
 
@@ -12,7 +13,6 @@ interface GitHubRelease {
 
 const ADAPTER_NAME = "github-releases";
 const RELEASES_PER_PAGE = 5;
-const FETCH_TIMEOUT_MS = 15000;
 
 async function fetchRepoReleases(
   repo: string,
@@ -21,14 +21,13 @@ async function fetchRepoReleases(
   const url = `https://api.github.com/repos/${repo}/releases?per_page=${RELEASES_PER_PAGE}`;
   const headers: Record<string, string> = {
     Accept: "application/vnd.github+json",
-    "User-Agent": "pace/1.0",
   };
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
 
   try {
-    const res = await fetch(url, { headers, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+    const res = await fetchWithTimeout(url, { headers });
     if (!res.ok) {
       throw new Error(`${ADAPTER_NAME}: failed to fetch ${repo}: ${errorMessage({ message: String(res.status) })}`);
     }
