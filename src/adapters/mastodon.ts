@@ -245,6 +245,9 @@ const adapter: Adapter = {
         body: buildBody(status, instance),
       }));
     } catch (err) {
+      if (err instanceof Error && err.message.startsWith("mastodon: failed to fetch")) {
+        throw err;
+      }
       throw new Error(`mastodon: error fetching from ${instance}: ${errorMessage(err)}`);
     }
   },

@@ -65,13 +65,22 @@ async function fetchFeaturedFeed(
   day: string,
 ): Promise<WikiFeaturedResponse> {
   const url = `https://${language}.wikipedia.org/api/rest_v1/feed/featured/${year}/${month}/${day}`;
-  const res = await fetchWithTimeout(url, {
-    userAgent: "pace:feed-aggregator/1.0 (github.com/everlier/pace)",
-  });
-  if (!res.ok) {
-    throw new Error(`wikipedia: failed to fetch featured feed: ${errorMessage({ message: `${res.status}` })}`);
+  try {
+    const res = await fetchWithTimeout(url, {
+      userAgent: "pace:feed-aggregator/1.0 (github.com/everlier/pace)",
+    });
+    if (!res.ok) {
+      throw new Error(
+        `wikipedia: failed to fetch featured feed: ${errorMessage({ message: `${res.status}` })}`,
+      );
+    }
+    return await res.json();
+  } catch (err) {
+    if (err instanceof Error && err.message.startsWith("wikipedia: failed to fetch")) {
+      throw err;
+    }
+    throw new Error(`wikipedia: error fetching featured feed: ${errorMessage(err)}`);
   }
-  return await res.json();
 }
 
 function extractMostRead(data: WikiFeaturedResponse, limit: number): ContentItem[] {
@@ -151,22 +160,17 @@ const adapter: Adapter = {
       : "most_read";
 
     const { year, month, day } = todayParts();
+    const data = await fetchFeaturedFeed(language, year, month, day);
 
-    try {
-      const data = await fetchFeaturedFeed(language, year, month, day);
-
-      switch (mode) {
-        case "most_read":
-          return extractMostRead(data, limit);
-        case "featured":
-          return extractFeatured(data);
-        case "on_this_day":
-          return extractOnThisDay(data, limit);
-        case "news":
-          return extractNews(data, limit);
-      }
-    } catch (err) {
-      throw new Error(`wikipedia: error fetching ${mode}: ${errorMessage(err)}`);
+    switch (mode) {
+      case "most_read":
+        return extractMostRead(data, limit);
+      case "featured":
+        return extractFeatured(data);
+      case "on_this_day":
+        return extractOnThisDay(data, limit);
+      case "news":
+        return extractNews(data, limit);
     }
   },
 };
