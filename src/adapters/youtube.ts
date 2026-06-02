@@ -1,10 +1,9 @@
 import { XMLParser } from "fast-xml-parser";
 import { extractAtomLink } from "./atom";
 import { parseFeedDate } from "./dates";
-import { fetchWithTimeout } from "./fetch";
+import { fetchText } from "./fetch";
 import { dedupeByKey, sliceToLimit } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
-import { errorMessage } from "./types";
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -76,22 +75,11 @@ async function fetchYoutubeFeed(
   const param = kind === "channel" ? "channel_id" : "playlist_id";
   const label = kind;
   const url = `https://www.youtube.com/feeds/videos.xml?${param}=${id}`;
-  try {
-    const res = await fetchWithTimeout(url);
-    if (!res.ok) {
-      throw new Error(`youtube: failed to fetch ${label} ${id}: ${errorMessage({ message: String(res.status) })}`);
-    }
-    const xml = await res.text();
-    const parsed = parser.parse(xml) as YTAtomFeedParsed;
-    const channelTitle = extractChannelTitle(parsed);
-    const entries = extractEntries(parsed);
-    return sliceToLimit(entries, limit).map((entry) => parseEntry(entry, channelTitle));
-  } catch (err) {
-    if (err instanceof Error && err.message.startsWith("youtube: failed to fetch")) {
-      throw err;
-    }
-    throw new Error(`youtube: error fetching ${label} ${id}: ${errorMessage(err)}`);
-  }
+  const xml = await fetchText("youtube", url, `${label} ${id}`);
+  const parsed = parser.parse(xml) as YTAtomFeedParsed;
+  const channelTitle = extractChannelTitle(parsed);
+  const entries = extractEntries(parsed);
+  return sliceToLimit(entries, limit).map((entry) => parseEntry(entry, channelTitle));
 }
 
 const adapter: Adapter = {

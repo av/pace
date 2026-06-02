@@ -141,7 +141,7 @@ describe("youtube", () => {
   it("throws when any configured feed fails (!ok), even if others would succeed", async () => {
     await expect(
       adapter.fetch(youtubeCfg({ channels: ["ERR"], playlists: ["PL1"] })),
-    ).rejects.toThrow(/youtube:.*failed to fetch channel ERR.*404/);
+    ).rejects.toThrow(/youtube:.*failed to fetch channel ERR.*HTTP error 404/);
   });
 
   it("respects per-feed limit", async () => {
