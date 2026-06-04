@@ -46,6 +46,47 @@ function warnsContaining(spy: ReturnType<typeof spyOn>, fragment: string): strin
   return spy.mock.calls.map((c) => String(c[0])).filter((m) => m.includes(fragment));
 }
 
+function expectNoImportOrBadModWarnings(warnSpy: ReturnType<typeof spyOn>): void {
+  expect(warnsContaining(warnSpy, "failed to import").length).toBe(0);
+  expect(warnsContaining(warnSpy, "invalid default export").length).toBe(0);
+}
+
+function expectAdaptersRegistered(adapters: Map<string, unknown>, names: string[]): void {
+  for (const name of names) {
+    expect(adapters.has(name)).toBe(true);
+  }
+}
+
+function expectInvalidDefaultExport(
+  adapters: Map<string, unknown>,
+  warnSpy: ReturnType<typeof spyOn>,
+  file: string,
+  rejectedNames: string[],
+  acceptedNames: string[] = []
+): void {
+  expectAdaptersRegistered(adapters, acceptedNames);
+  for (const name of rejectedNames) {
+    expect(adapters.has(name)).toBe(false);
+  }
+  expect(warnsContaining(warnSpy, "failed to import").length).toBe(0);
+  const badModWarns = warnsContaining(warnSpy, "invalid default export");
+  expect(badModWarns.length).toBe(1);
+  expect(badModWarns[0] ?? "").toContain(file);
+}
+
+function expectSkippedWithoutWarnings(
+  adapters: Map<string, unknown>,
+  warnSpy: ReturnType<typeof spyOn>,
+  rejectedNames: string[],
+  acceptedNames: string[] = []
+): void {
+  expectAdaptersRegistered(adapters, acceptedNames);
+  for (const name of rejectedNames) {
+    expect(adapters.has(name)).toBe(false);
+  }
+  expectNoImportOrBadModWarnings(warnSpy);
+}
+
 describe("discoverAdapters", () => {
   let warnSpy: ReturnType<typeof spyOn>;
 
@@ -59,14 +100,10 @@ describe("discoverAdapters", () => {
     mock.restore();
   });
 
-  test("returns Map with adapters having name and fetch", async () => {
+  test("discovers adapters as Map with name and fetch", async () => {
     const adapters = await discoverAdapters();
     expect(adapters).toBeInstanceOf(Map);
     expect(adapters.size).toBeGreaterThanOrEqual(10);
-  });
-
-  test("discovers expected adapter names", async () => {
-    const adapters = await discoverAdapters();
     const expectedNames = [
       "devto",
       "hackernews",
@@ -89,11 +126,8 @@ describe("discoverAdapters", () => {
       expect(adapter.name).toBe(name);
       expect(typeof adapter.fetch).toBe("function");
     }
-  });
-
-  test("excludes types and index modules", async () => {
-    const adapters = await discoverAdapters();
     expect(adapters.has("types")).toBe(false);
+    expect(adapters.has("index")).toBe(false);
   });
 
   test("normal discovery has no dup or load-fail warnings", async () => {
@@ -102,12 +136,6 @@ describe("discoverAdapters", () => {
     const loadFailCalls = warnsContaining(warnSpy, "failed to import");
     expect(dupWarnCalls.length).toBe(0);
     expect(loadFailCalls.length).toBe(0);
-  });
-
-  test("skips bad modules and excluded files", async () => {
-    const adapters = await discoverAdapters();
-    expect(adapters.has("index")).toBe(false);
-    expect(adapters.has("types")).toBe(false);
   });
 
   test("readdir failure returns empty Map and warns", async () => {
@@ -130,20 +158,141 @@ describe("discoverAdapters", () => {
     expect(loadFailCalls[0] ?? "").toContain(nonExistent);
   });
 
-  test("bad shape default emits bad mod warn", async () => {
-    const badName = "badshape-direct-filter-26.ts";
-    mockAdapterDefault(badName, { foo: "bad shape, no name/fetch fn" });
-    mockReaddir(readdirWithRss(badName));
+  test.each([
+    {
+      label: "bad shape object",
+      file: "badshape-direct-filter-26.ts",
+      rejected: ["badshape-direct-filter-26"],
+      readdir: (file: string) => readdirWithRss(file),
+      setup(file: string) {
+        mockAdapterDefault(file, { foo: "bad shape, no name/fetch fn" });
+      },
+    },
+    {
+      label: "missing default export",
+      file: "nodefault-direct-34-edge.ts",
+      rejected: ["nodefault-direct-34-edge"],
+      readdir: (file: string) => readdirWithRss(file),
+      setup(file: string) {
+        mockAdapterModule(file, {});
+      },
+    },
+    {
+      label: "non-string name",
+      file: "badnamenum-direct-35-edge.ts",
+      rejected: ["123"],
+      readdir: (file: string) => readdirWithRss(file),
+      setup(file: string) {
+        mockAdapterDefault(file, { name: 123, fetch: emptyFetch });
+      },
+    },
+    {
+      label: "whitespace-only name",
+      file: "badnamews-direct-36-edge.ts",
+      rejected: ["   ", ""],
+      readdir: (file: string) => readdirWithRss(file),
+      setup(file: string) {
+        mockAdapterDefault(file, { name: "   ", fetch: emptyFetch });
+      },
+    },
+    {
+      label: "padded name",
+      file: "paddedws-direct-50-edge.ts",
+      rejected: [" padded-ngb-edge-50 ", "padded-ngb-edge-50"],
+      readdir: (file: string) => readdirWithRss(file),
+      setup(file: string) {
+        mockAdapterDefault(file, { name: " padded-ngb-edge-50 ", fetch: emptyFetch });
+      },
+    },
+    {
+      label: "function default",
+      file: "funcdefault-direct-51-edge.ts",
+      rejected: ["func-default-ngb-edge-51"],
+      readdir: (file: string) => readdirWithRss(file),
+      setup(file: string) {
+        function badFnDefault() {}
+        Object.defineProperty(badFnDefault, "name", {
+          value: "func-default-ngb-edge-51",
+          writable: false,
+          enumerable: true,
+          configurable: true,
+        });
+        mockAdapterModule(file, { default: Object.assign(badFnDefault, { fetch: emptyFetch }) });
+      },
+    },
+    {
+      label: "class instance default",
+      file: "classinst-direct-53-edge.ts",
+      rejected: ["classinst-should-not-appear", "classinst-direct-53-edge"],
+      readdir: (file: string) => readdirWithRss(file),
+      setup(file: string) {
+        mockAdapterModule(file, {
+          default: (() => {
+            class CIAdapter {
+              name = "classinst-should-not-appear";
+              async fetch(_config: AdapterConfig) {
+                return [];
+              }
+            }
+            return new CIAdapter();
+          })(),
+        });
+      },
+    },
+    {
+      label: "non-function fetch",
+      file: "badfetch-direct-60-edge.ts",
+      rejected: ["badfetch-should-not-appear"],
+      accepted: ["good-adapter-ngb-60"],
+      readdir: (file: string) => readdirWithRss(file, "good-adapter-edge-60.ts"),
+      setup(file: string) {
+        mockAdapterDefault(file, { name: "badfetch-should-not-appear", fetch: 42 });
+        mockAdapterDefault("good-adapter-edge-60.ts", {
+          name: "good-adapter-ngb-60",
+          fetch: emptyFetch,
+        });
+      },
+    },
+    {
+      label: "null default export",
+      file: "nulldefault-direct-61-edge.ts",
+      rejected: ["nulldefault-should-not-appear"],
+      accepted: ["good-adapter-ngb-61"],
+      readdir: (file: string) => readdirWithRss(file, "good-adapter-edge-61.ts"),
+      setup(file: string) {
+        mockAdapterModule(file, { default: null });
+        mockAdapterDefault("good-adapter-edge-61.ts", {
+          name: "good-adapter-ngb-61",
+          fetch: emptyFetch,
+        });
+      },
+    },
+    {
+      label: "null-proto object",
+      file: "nullproto-direct-65-edge.ts",
+      rejected: ["nullproto-should-not-appear"],
+      accepted: ["good-adapter-ngb-65"],
+      readdir: (file: string) => readdirWithRss(file, "good-adapter-ngb-65.ts"),
+      setup(file: string) {
+        const badNullProto = Object.create(null) as {
+          name: string;
+          fetch: (_config: AdapterConfig) => Promise<ContentItem[]>;
+        };
+        badNullProto.name = "nullproto-should-not-appear";
+        badNullProto.fetch = emptyFetch;
+        mockAdapterModule(file, { default: badNullProto });
+        mockAdapterDefault("good-adapter-ngb-65.ts", {
+          name: "good-adapter-ngb-65",
+          fetch: emptyFetch,
+        });
+      },
+    },
+  ])("invalid default export: $label", async ({ file, rejected, accepted, readdir, setup }) => {
+    setup(file);
+    mockReaddir(readdir(file));
     const adapters = await discoverAdapters();
-    expect(adapters.has("rss")).toBe(true);
-    expect(adapters.has("badshape-direct-filter-26")).toBe(false);
-    const loadFailCalls = warnsContaining(warnSpy, "failed to import");
-    expect(loadFailCalls.length).toBe(0);
-    const badModWarns = warnsContaining(warnSpy, "invalid default export");
-    expect(badModWarns.length).toBe(1);
-    expect(badModWarns[0] ?? "").toContain(badName);
+    expectInvalidDefaultExport(adapters, warnSpy, file, rejected, accepted ?? []);
   });
-
 
   test("duplicate adapter name warns, last wins", async () => {
     const dupName = "dup-adapter-edge-30";
@@ -164,7 +313,6 @@ describe("discoverAdapters", () => {
     });
     mockReaddir([f1, f2, "rss.ts", "types.ts", "index.ts", "foo.test.ts"]);
     const adapters = await discoverAdapters();
-    expect(adapters.has("rss")).toBe(true);
     expect(adapters.has(dupName)).toBe(true);
     const dups = warnsContaining(warnSpy, "duplicate adapter");
     expect(dups.length).toBe(1);
@@ -172,344 +320,256 @@ describe("discoverAdapters", () => {
     expect(dups[0] ?? "").toContain("config source types");
   });
 
-  test("missing default export emits bad mod warn", async () => {
-    const noDefName = "nodefault-direct-34-edge.ts";
-    mockAdapterModule(noDefName, {});
-    mockReaddir(readdirWithRss(noDefName));
+  test.each([
+    {
+      label: "dot-prefixed filename",
+      file: ".dot-direct-52-edge.ts",
+      rejected: ["dot-should-not-appear", ".dot-direct-52-edge"],
+      readdir: () => readdirWithRss(".dot-direct-52-edge.ts"),
+      setup() {
+        mockAdapterDefault(".dot-direct-52-edge.ts", {
+          name: "dot-should-not-appear",
+          fetch: emptyFetch,
+        });
+      },
+    },
+    {
+      label: "mixed-case TEST.ts",
+      file: "leaky-test.TEST.ts",
+      rejected: ["leaky-test-should-not-appear", "leaky-test.TEST"],
+      readdir: () => readdirWithRss("leaky-test.TEST.ts"),
+      setup() {
+        mockAdapterDefault("leaky-test.TEST.ts", {
+          name: "leaky-test-should-not-appear",
+          fetch: emptyFetch,
+        });
+      },
+    },
+    {
+      label: "mixed-case TEST.TS",
+      file: "leaky-mixed-test-ts-72-edge.TEST.TS",
+      rejected: ["leaky-mixed-test-ts-should-not-appear"],
+      accepted: ["good-adapter-ngb-72"],
+      readdir: () => readdirWithRss("good-adapter-edge-72.ts", "leaky-mixed-test-ts-72-edge.TEST.TS"),
+      setup() {
+        mockAdapterDefault("good-adapter-edge-72.ts", {
+          name: "good-adapter-ngb-72",
+          fetch: emptyFetch,
+        });
+        mockAdapterDefault("leaky-mixed-test-ts-72-edge.TEST.TS", {
+          name: "leaky-mixed-test-ts-should-not-appear",
+          fetch: emptyFetch,
+        });
+      },
+    },
+    {
+      label: "mixed-case excluded module",
+      file: "TYPES.TS",
+      rejected: ["leaky-excluded-should-not-appear", "TYPES"],
+      accepted: ["good-adapter-ngb-55"],
+      readdir: () => readdirOnly("good-adapter-edge-55.ts", "TYPES.TS"),
+      setup() {
+        mockAdapterDefault("TYPES.TS", {
+          name: "leaky-excluded-should-not-appear",
+          fetch: emptyFetch,
+        });
+        mockAdapterDefault("good-adapter-edge-55.ts", {
+          name: "good-adapter-ngb-55",
+          fetch: emptyFetch,
+        });
+      },
+    },
+    {
+      label: "d.ts declaration",
+      file: "foo-direct-dts-56-edge.d.ts",
+      rejected: ["leaky-dts-should-not-appear", "foo-direct-dts-56-edge"],
+      accepted: ["good-adapter-ngb-56"],
+      readdir: () => readdirOnly("good-adapter-edge-56.ts", "foo-direct-dts-56-edge.d.ts"),
+      setup() {
+        mockAdapterDefault("foo-direct-dts-56-edge.d.ts", {
+          name: "leaky-dts-should-not-appear",
+          fetch: emptyFetch,
+        });
+        mockAdapterDefault("good-adapter-edge-56.ts", {
+          name: "good-adapter-ngb-56",
+          fetch: emptyFetch,
+        });
+      },
+    },
+    {
+      label: "mixed-case DTS",
+      file: "leaky-mixed-dts-70-edge.D.TS",
+      rejected: ["leaky-mixed-dts-should-not-appear"],
+      accepted: ["good-adapter-ngb-70"],
+      readdir: () => readdirWithRss("good-adapter-edge-70.ts", "leaky-mixed-dts-70-edge.D.TS"),
+      setup() {
+        mockAdapterDefault("good-adapter-edge-70.ts", {
+          name: "good-adapter-ngb-70",
+          fetch: emptyFetch,
+        });
+        mockAdapterDefault("leaky-mixed-dts-70-edge.D.TS", {
+          name: "leaky-mixed-dts-should-not-appear",
+          fetch: emptyFetch,
+        });
+      },
+    },
+    {
+      label: "directory entry without .ts",
+      file: "subdir-direct-57-edge",
+      rejected: ["subdir-direct-57-edge", "good-adapter-edge-57"],
+      accepted: ["good-adapter-ngb-57"],
+      readdir: () => readdirOnly("good-adapter-edge-57.ts", "subdir-direct-57-edge"),
+      setup() {
+        mockAdapterDefault("good-adapter-edge-57.ts", {
+          name: "good-adapter-ngb-57",
+          fetch: emptyFetch,
+        });
+      },
+    },
+  ])("skips excluded source: $label", async ({ rejected, accepted, readdir, setup }) => {
+    setup();
+    mockReaddir(readdir());
     const adapters = await discoverAdapters();
-    expect(adapters.has("rss")).toBe(true);
-    expect(adapters.has(noDefName)).toBe(false);
-    const loadFailCalls = warnsContaining(warnSpy, "failed to import");
-    expect(loadFailCalls.length).toBe(0);
-    const badModWarns = warnsContaining(warnSpy, "invalid default export");
-    expect(badModWarns.length).toBe(1);
-    expect(badModWarns[0] ?? "").toContain(noDefName);
+    expectSkippedWithoutWarnings(adapters, warnSpy, rejected, accepted ?? []);
   });
 
-  test("non-string name emits bad mod warn", async () => {
-    const badNameFile = "badnamenum-direct-35-edge.ts";
-    mockAdapterDefault(badNameFile, { name: 123, fetch: emptyFetch });
-    mockReaddir(readdirWithRss(badNameFile));
+  test.each([
+    {
+      label: "Dirent not a file",
+      rejected: ["subdir-withfile-58-edge", "good-adapter-edge-58"],
+      accepted: ["good-adapter-ngb-58"],
+      setup() {
+        mockAdapterDefault("good-adapter-edge-58.ts", {
+          name: "good-adapter-ngb-58",
+          fetch: emptyFetch,
+        });
+        mockReaddir(
+          readdirOnly(
+            { name: "subdir-withfile-58-edge", isFile: () => false, isDirectory: () => true },
+            { name: "good-adapter-edge-58.ts", isFile: () => true, isDirectory: () => false }
+          )
+        );
+      },
+    },
+    {
+      label: "Dirent symlink",
+      rejected: ["symlink-direct-59-edge", "good-adapter-edge-59"],
+      accepted: ["good-adapter-ngb-59"],
+      setup() {
+        mockAdapterDefault("good-adapter-edge-59.ts", {
+          name: "good-adapter-ngb-59",
+          fetch: emptyFetch,
+        });
+        mockReaddir(
+          readdirOnly(
+            {
+              name: "symlink-direct-59-edge.ts",
+              isFile: () => false,
+              isSymbolicLink: () => true,
+              isDirectory: () => false,
+            },
+            {
+              name: "good-adapter-edge-59.ts",
+              isFile: () => true,
+              isSymbolicLink: () => false,
+              isDirectory: () => false,
+            }
+          )
+        );
+      },
+    },
+    {
+      label: "dotfile Dirent",
+      rejected: [".dotdirent-direct-66-edge", "dot-should-not-appear"],
+      accepted: ["good-adapter-ngb-66"],
+      setup() {
+        mockAdapterDefault("good-adapter-edge-66.ts", {
+          name: "good-adapter-ngb-66",
+          fetch: emptyFetch,
+        });
+        mockReaddir([
+          {
+            name: ".dotdirent-direct-66-edge.ts",
+            isFile: () => true,
+            isDirectory: () => false,
+            isSymbolicLink: () => false,
+          },
+          "rss.ts",
+          {
+            name: "good-adapter-edge-66.ts",
+            isFile: () => true,
+            isDirectory: () => false,
+            isSymbolicLink: () => false,
+          },
+          ...FILTER_NOISE,
+        ]);
+      },
+    },
+    {
+      label: "mixed-case DTS Dirent",
+      rejected: ["leaky-mixed-dts-should-not-appear"],
+      accepted: ["good-adapter-ngb-73"],
+      setup() {
+        mockAdapterDefault("good-adapter-edge-73.ts", {
+          name: "good-adapter-ngb-73",
+          fetch: emptyFetch,
+        });
+        mockReaddir([
+          { name: "rss.ts", isFile: () => true },
+          { name: "good-adapter-edge-73.ts", isFile: () => true },
+          { name: "leaky-mixed-dts-73-edge.D.TS", isFile: () => true },
+          ...FILTER_NOISE.map((f) => ({ name: f, isFile: () => true })),
+        ]);
+      },
+    },
+  ])("skips Dirent entry: $label", async ({ rejected, accepted, setup }) => {
+    setup();
     const adapters = await discoverAdapters();
-    expect(adapters.has("rss")).toBe(true);
-    expect(adapters.has(123)).toBe(false);
-    expect(adapters.has("123")).toBe(false);
-    const loadFailCalls = warnsContaining(warnSpy, "failed to import");
-    expect(loadFailCalls.length).toBe(0);
-    const badModWarns = warnsContaining(warnSpy, "invalid default export");
-    expect(badModWarns.length).toBe(1);
-    expect(badModWarns[0] ?? "").toContain(badNameFile);
+    expectSkippedWithoutWarnings(adapters, warnSpy, rejected, accepted ?? []);
   });
 
-  test("whitespace-only name emits bad mod warn", async () => {
-    const wsNameFile = "badnamews-direct-36-edge.ts";
-    mockAdapterDefault(wsNameFile, { name: "   ", fetch: emptyFetch });
-    mockReaddir(readdirWithRss(wsNameFile));
+  test.each([
+    { file: "good-mixedcase-ts-69.TS", name: "good-mixedcase-ts-69" },
+    { file: "good-mixedcase-ts-dirent-71.TS", name: "good-mixedcase-ts-dirent-71", dirent: true },
+  ])("accepts mixed-case TS: $file", async ({ file, name, dirent }) => {
+    mockAdapterDefault(file, { name, fetch: emptyFetch });
+    if (dirent) {
+      mockReaddir([
+        { name: "rss.ts", isFile: () => true },
+        { name: file, isFile: () => true },
+        ...FILTER_NOISE.map((f) => ({ name: f, isFile: () => true })),
+      ]);
+    } else {
+      mockReaddir(readdirWithRss(file));
+    }
     const adapters = await discoverAdapters();
-    expect(adapters.has("rss")).toBe(true);
-    expect(adapters.has("   ")).toBe(false);
-    expect(adapters.has("")).toBe(false);
-    const loadFailCalls = warnsContaining(warnSpy, "failed to import");
-    expect(loadFailCalls.length).toBe(0);
-    const badModWarns = warnsContaining(warnSpy, "invalid default export");
-    expect(badModWarns.length).toBe(1);
-    expect(badModWarns[0] ?? "").toContain(wsNameFile);
+    expect(adapters.has(name)).toBe(true);
+    expectNoImportOrBadModWarnings(warnSpy);
   });
 
-  test("padded name emits bad mod warn", async () => {
-    const paddedNameFile = "paddedws-direct-50-edge.ts";
-    mockAdapterDefault(paddedNameFile, { name: " padded-ngb-edge-50 ", fetch: emptyFetch });
-    mockReaddir(readdirWithRss(paddedNameFile));
-    const adapters = await discoverAdapters();
-    expect(adapters.has("rss")).toBe(true);
-    expect(adapters.has(" padded-ngb-edge-50 ")).toBe(false);
-    expect(adapters.has("padded-ngb-edge-50")).toBe(false);
-    expect(adapters.has(" padded-ngb-edge-50".trim())).toBe(false);
-    const loadFailCalls = warnsContaining(warnSpy, "failed to import");
-    expect(loadFailCalls.length).toBe(0);
-    const badModWarns = warnsContaining(warnSpy, "invalid default export");
-    expect(badModWarns.length).toBe(1);
-    expect(badModWarns[0] ?? "").toContain(paddedNameFile);
-  });
-
-  test("function default emits bad mod warn", async () => {
-    const fnDefName = "funcdefault-direct-51-edge.ts";
-    function badFnDefault() {}
-    Object.defineProperty(badFnDefault, "name", {
-      value: "func-default-ngb-edge-51",
-      writable: false,
-      enumerable: true,
-      configurable: true,
-    });
-    const badFnExport = Object.assign(badFnDefault, { fetch: emptyFetch });
-    mockAdapterModule(fnDefName, { default: badFnExport });
-    mockReaddir(readdirWithRss(fnDefName));
-    const adapters = await discoverAdapters();
-    expect(adapters.has("rss")).toBe(true);
-    expect(adapters.has("func-default-ngb-edge-51")).toBe(false);
-    const loadFailCalls = warnsContaining(warnSpy, "failed to import");
-    expect(loadFailCalls.length).toBe(0);
-    const badModWarns = warnsContaining(warnSpy, "invalid default export");
-    expect(badModWarns.length).toBe(1);
-    expect(badModWarns[0] ?? "").toContain(fnDefName);
-  });
-
-  test("dot-prefixed ts files are skipped", async () => {
-    const dotName = ".dot-direct-52-edge.ts";
-    mockAdapterDefault(dotName, { name: "dot-should-not-appear", fetch: emptyFetch });
-    mockReaddir(readdirWithRss(dotName));
-    const adapters = await discoverAdapters();
-    expect(adapters.has("rss")).toBe(true);
-    expect(adapters.has("dot-should-not-appear")).toBe(false);
-    expect(adapters.has(".dot-direct-52-edge")).toBe(false);
-    const loadFailCalls = warnsContaining(warnSpy, "failed to import");
-    expect(loadFailCalls.length).toBe(0);
-    const badModWarns = warnsContaining(warnSpy, "invalid default export");
-    expect(badModWarns.length).toBe(0);
-  });
-
-  test("class instance default emits bad mod warn", async () => {
-    const ciName = "classinst-direct-53-edge.ts";
-    mockAdapterModule(ciName, {
-      default: (() => {
-        class CIAdapter {
-          name = "classinst-should-not-appear";
-          async fetch(_config: AdapterConfig) { return []; }
-        }
-        return new CIAdapter();
-      })(),
-    });
-    mockReaddir(readdirWithRss(ciName));
-    const adapters = await discoverAdapters();
-    expect(adapters.has("rss")).toBe(true);
-    expect(adapters.has("classinst-should-not-appear")).toBe(false);
-    expect(adapters.has("classinst-direct-53-edge")).toBe(false);
-    const loadFailCalls = warnsContaining(warnSpy, "failed to import");
-    expect(loadFailCalls.length).toBe(0);
-    const badModWarns = warnsContaining(warnSpy, "invalid default export");
-    expect(badModWarns.length).toBe(1);
-    expect(badModWarns[0] ?? "").toContain(ciName);
-  });
-
-  test("mixed-case TEST.ts test files are skipped", async () => {
-    const leakyName = "leaky-test.TEST.ts";
-    mockAdapterDefault(leakyName, { name: "leaky-test-should-not-appear", fetch: emptyFetch });
-    mockReaddir(readdirWithRss(leakyName));
-    const adapters = await discoverAdapters();
-    expect(adapters.has("rss")).toBe(true);
-    expect(adapters.has("leaky-test-should-not-appear")).toBe(false);
-    expect(adapters.has("leaky-test.TEST")).toBe(false);
-    const loadFailCalls = warnsContaining(warnSpy, "failed to import");
-    expect(loadFailCalls.length).toBe(0);
-    const badModWarns = warnsContaining(warnSpy, "invalid default export");
-    expect(badModWarns.length).toBe(0);
-  });
-
-  test("mixed-case excluded files are skipped", async () => {
-    const exclName = "TYPES.TS";
-    const goodName = "good-adapter-edge-55.ts";
-    mockAdapterDefault(exclName, { name: "leaky-excluded-should-not-appear", fetch: emptyFetch });
-    mockAdapterDefault(goodName, { name: "good-adapter-ngb-55", fetch: emptyFetch });
-    mockReaddir(readdirOnly(goodName, exclName));
-    const adapters = await discoverAdapters();
-    expect(adapters.has("good-adapter-ngb-55")).toBe(true);
-    expect(adapters.has("leaky-excluded-should-not-appear")).toBe(false);
-    expect(adapters.has("TYPES")).toBe(false);
-    const loadFailCalls = warnsContaining(warnSpy, "failed to import");
-    expect(loadFailCalls.length).toBe(0);
-    const badModWarns = warnsContaining(warnSpy, "invalid default export");
-    expect(badModWarns.length).toBe(0);
-  });
-
-  test("d.ts declaration files are skipped", async () => {
-    const dtsName = "foo-direct-dts-56-edge.d.ts";
-    const goodName = "good-adapter-edge-56.ts";
-    mockAdapterDefault(dtsName, { name: "leaky-dts-should-not-appear", fetch: emptyFetch });
-    mockAdapterDefault(goodName, { name: "good-adapter-ngb-56", fetch: emptyFetch });
-    mockReaddir(readdirOnly(goodName, dtsName));
-    const adapters = await discoverAdapters();
-    expect(adapters.has("good-adapter-ngb-56")).toBe(true);
-    expect(adapters.has("leaky-dts-should-not-appear")).toBe(false);
-    expect(adapters.has("foo-direct-dts-56-edge")).toBe(false);
-    const loadFailCalls = warnsContaining(warnSpy, "failed to import");
-    expect(loadFailCalls.length).toBe(0);
-    const badModWarns = warnsContaining(warnSpy, "invalid default export");
-    expect(badModWarns.length).toBe(0);
-  });
-
-  test("directory entries without ts extension are skipped", async () => {
-    const dirName = "subdir-direct-57-edge";
-    const goodName = "good-adapter-edge-57.ts";
-    mockAdapterDefault(goodName, { name: "good-adapter-ngb-57", fetch: emptyFetch });
-    mockReaddir(readdirOnly(goodName, dirName));
-    const adapters = await discoverAdapters();
-    expect(adapters.has("good-adapter-ngb-57")).toBe(true);
-    expect(adapters.has("subdir-direct-57-edge")).toBe(false);
-    expect(adapters.has("good-adapter-edge-57")).toBe(false);
-    const loadFailCalls = warnsContaining(warnSpy, "failed to import");
-    expect(loadFailCalls.length).toBe(0);
-    const badModWarns = warnsContaining(warnSpy, "invalid default export");
-    expect(badModWarns.length).toBe(0);
-  });
-
-  test("Dirent isFile skips non-files", async () => {
-    const dirName = "subdir-withfile-58-edge";
-    const goodName = "good-adapter-edge-58.ts";
-    mockAdapterDefault(goodName, { name: "good-adapter-ngb-58", fetch: emptyFetch });
-    const direntDir = { name: dirName, isFile: () => false, isDirectory: () => true };
-    const direntGood = { name: goodName, isFile: () => true, isDirectory: () => false };
-    mockReaddir(readdirOnly(direntDir, direntGood));
-    const adapters = await discoverAdapters();
-    expect(adapters.has("good-adapter-ngb-58")).toBe(true);
-    expect(adapters.has("subdir-withfile-58-edge")).toBe(false);
-    expect(adapters.has("good-adapter-edge-58")).toBe(false);
-    const loadFailCalls = warnsContaining(warnSpy, "failed to import");
-    expect(loadFailCalls.length).toBe(0);
-    const badModWarns = warnsContaining(warnSpy, "invalid default export");
-    expect(badModWarns.length).toBe(0);
-  });
-
-  test("symlink Dirent entries are skipped", async () => {
-    const symName = "symlink-direct-59-edge.ts";
-    const goodName = "good-adapter-edge-59.ts";
-    mockAdapterDefault(goodName, { name: "good-adapter-ngb-59", fetch: emptyFetch });
-    const direntSym = { name: symName, isFile: () => false, isSymbolicLink: () => true, isDirectory: () => false };
-    const direntGood = { name: goodName, isFile: () => true, isSymbolicLink: () => false, isDirectory: () => false };
-    mockReaddir(readdirOnly(direntSym, direntGood));
-    const adapters = await discoverAdapters();
-    expect(adapters.has("good-adapter-ngb-59")).toBe(true);
-    expect(adapters.has("symlink-direct-59-edge")).toBe(false);
-    expect(adapters.has("good-adapter-edge-59")).toBe(false);
-    const loadFailCalls = warnsContaining(warnSpy, "failed to import");
-    expect(loadFailCalls.length).toBe(0);
-    const badModWarns = warnsContaining(warnSpy, "invalid default export");
-    expect(badModWarns.length).toBe(0);
-  });
-
-  test("non-function fetch emits bad mod warn", async () => {
-    const badFetchName = "badfetch-direct-60-edge.ts";
-    mockAdapterDefault(badFetchName, { name: "badfetch-should-not-appear", fetch: 42 });
-    const goodName = "good-adapter-edge-60.ts";
-    mockAdapterDefault(goodName, { name: "good-adapter-ngb-60", fetch: emptyFetch });
-    mockReaddir(readdirWithRss(badFetchName, goodName));
-    const adapters = await discoverAdapters();
-    expect(adapters.has("rss")).toBe(true);
-    expect(adapters.has("good-adapter-ngb-60")).toBe(true);
-    expect(adapters.has("badfetch-should-not-appear")).toBe(false);
-    const loadFailCalls = warnsContaining(warnSpy, "failed to import");
-    expect(loadFailCalls.length).toBe(0);
-    const badModWarns = warnsContaining(warnSpy, "invalid default export");
-    expect(badModWarns.length).toBe(1);
-    expect(badModWarns[0] ?? "").toContain(badFetchName);
-  });
-
-  test("null default export emits bad mod warn", async () => {
-    const nullDefName = "nulldefault-direct-61-edge.ts";
-    mockAdapterModule(nullDefName, { default: null });
-    const goodName = "good-adapter-edge-61.ts";
-    mockAdapterDefault(goodName, { name: "good-adapter-ngb-61", fetch: emptyFetch });
-    mockReaddir(readdirWithRss(nullDefName, goodName));
-    const adapters = await discoverAdapters();
-    expect(adapters.has("rss")).toBe(true);
-    expect(adapters.has("good-adapter-ngb-61")).toBe(true);
-    expect(adapters.has("nulldefault-should-not-appear")).toBe(false);
-    const loadFailCalls = warnsContaining(warnSpy, "failed to import");
-    expect(loadFailCalls.length).toBe(0);
-    const badModWarns = warnsContaining(warnSpy, "invalid default export");
-    expect(badModWarns.length).toBe(1);
-    expect(badModWarns[0] ?? "").toContain(nullDefName);
-  });
-
-  test("string-only readdir compat branch", async () => {
+  test("string readdir compat discovers good and rejects bad shape", async () => {
     const stringGoodName = "stringonly-good-direct-62-edge.ts";
     const stringBadName = "stringonly-badshape-direct-62-edge.ts";
     mockAdapterDefault(stringBadName, { foo: "bad shape, no name/fetch fn" });
     mockAdapterDefault(stringGoodName, { name: "good-adapter-ngb-string-62", fetch: emptyFetch });
     mockReaddir(readdirWithRss(stringGoodName, stringBadName));
     const adapters = await discoverAdapters();
-    expect(adapters.has("rss")).toBe(true);
     expect(adapters.has("good-adapter-ngb-string-62")).toBe(true);
     expect(adapters.has("stringonly-badshape-direct-62-edge")).toBe(false);
-    const loadFailCalls = warnsContaining(warnSpy, "failed to import");
-    expect(loadFailCalls.length).toBe(0);
-    const badModWarns = warnsContaining(warnSpy, "invalid default export");
-    expect(badModWarns.length).toBe(1);
-    expect(badModWarns[0] ?? "").toContain(stringBadName);
+    expectInvalidDefaultExport(adapters, warnSpy, stringBadName, []);
   });
 
-  test("internal whitespace in name is accepted", async () => {
-    const internalWsGoodName = "internalws-good-direct-63-edge.ts";
-    const internalWsBadName = "internalws-badshape-direct-63-edge.ts";
-    mockAdapterDefault(internalWsBadName, { foo: "bad shape, no name/fetch fn" });
-    mockAdapterDefault(internalWsGoodName, { name: "internal-ws-adapter-ngb-63", fetch: emptyFetch });
-    mockReaddir(readdirWithRss(internalWsGoodName, internalWsBadName));
+  test.each([
+    { goodFile: "internalws-good-direct-63-edge.ts", goodName: "internal-ws-adapter-ngb-63", badFile: "internalws-badshape-direct-63-edge.ts" },
+    { goodFile: "space-good-direct-64-edge.ts", goodName: "good adapter with space 64", badFile: "space-badshape-direct-64-edge.ts" },
+  ])("accepts valid name variant: $goodName", async ({ goodFile, goodName, badFile }) => {
+    mockAdapterDefault(badFile, { foo: "bad shape, no name/fetch fn" });
+    mockAdapterDefault(goodFile, { name: goodName, fetch: emptyFetch });
+    mockReaddir(readdirWithRss(goodFile, badFile));
     const adapters = await discoverAdapters();
-    expect(adapters.has("rss")).toBe(true);
-    expect(adapters.has("internal-ws-adapter-ngb-63")).toBe(true);
-    expect(adapters.has("internalws-badshape-direct-63-edge")).toBe(false);
-    const loadFailCalls = warnsContaining(warnSpy, "failed to import");
-    expect(loadFailCalls.length).toBe(0);
-    const badModWarns = warnsContaining(warnSpy, "invalid default export");
-    expect(badModWarns.length).toBe(1);
-    expect(badModWarns[0] ?? "").toContain(internalWsBadName);
-  });
-
-  test("embedded space in name is accepted", async () => {
-    const spaceGoodName = "space-good-direct-64-edge.ts";
-    const spaceBadName = "space-badshape-direct-64-edge.ts";
-    mockAdapterDefault(spaceBadName, { foo: "bad shape, no name/fetch fn" });
-    mockAdapterDefault(spaceGoodName, { name: "good adapter with space 64", fetch: emptyFetch });
-    mockReaddir(readdirWithRss(spaceGoodName, spaceBadName));
-    const adapters = await discoverAdapters();
-    expect(adapters.has("rss")).toBe(true);
-    expect(adapters.has("good adapter with space 64")).toBe(true);
-    expect(adapters.has("space-badshape-direct-64-edge")).toBe(false);
-    const loadFailCalls = warnsContaining(warnSpy, "failed to import");
-    expect(loadFailCalls.length).toBe(0);
-    const badModWarns = warnsContaining(warnSpy, "invalid default export");
-    expect(badModWarns.length).toBe(1);
-    expect(badModWarns[0] ?? "").toContain(spaceBadName);
-  });
-
-  test("null-proto object emits bad mod warn", async () => {
-    const nullProtoName = "nullproto-direct-65-edge.ts";
-    const badNullProto = Object.create(null) as {
-      name: string;
-      fetch: (_config: AdapterConfig) => Promise<ContentItem[]>;
-    };
-    badNullProto.name = "nullproto-should-not-appear";
-    badNullProto.fetch = emptyFetch;
-    mockAdapterModule(nullProtoName, { default: badNullProto });
-    const goodName = "good-adapter-ngb-65.ts";
-    mockAdapterDefault(goodName, { name: "good-adapter-ngb-65", fetch: emptyFetch });
-    mockReaddir(readdirWithRss(nullProtoName, goodName));
-    const adapters = await discoverAdapters();
-    expect(adapters.has("rss")).toBe(true);
-    expect(adapters.has("good-adapter-ngb-65")).toBe(true);
-    expect(adapters.has("nullproto-should-not-appear")).toBe(false);
-    const loadFailCalls = warnsContaining(warnSpy, "failed to import");
-    expect(loadFailCalls.length).toBe(0);
-    const badModWarns = warnsContaining(warnSpy, "invalid default export");
-    expect(badModWarns.length).toBe(1);
-    expect(badModWarns[0] ?? "").toContain(nullProtoName);
-  });
-
-  test("dotfile Dirent entries are skipped", async () => {
-    const dotName = ".dotdirent-direct-66-edge.ts";
-    const goodName = "good-adapter-edge-66.ts";
-    mockAdapterDefault(goodName, { name: "good-adapter-ngb-66", fetch: emptyFetch });
-    const direntDot = { name: dotName, isFile: () => true, isDirectory: () => false, isSymbolicLink: () => false };
-    const direntGood = { name: goodName, isFile: () => true, isDirectory: () => false, isSymbolicLink: () => false };
-    mockReaddir([direntDot, "rss.ts", direntGood, ...FILTER_NOISE]);
-    const adapters = await discoverAdapters();
-    expect(adapters.has("rss")).toBe(true);
-    expect(adapters.has("good-adapter-ngb-66")).toBe(true);
-    expect(adapters.has(".dotdirent-direct-66-edge")).toBe(false);
-    expect(adapters.has("dot-should-not-appear")).toBe(false);
-    const loadFailCalls = warnsContaining(warnSpy, "failed to import");
-    expect(loadFailCalls.length).toBe(0);
-    const badModWarns = warnsContaining(warnSpy, "invalid default export");
-    expect(badModWarns.length).toBe(0);
+    expect(adapters.has(goodName)).toBe(true);
+    expect(adapters.has(badFile.replace(/\.ts$/, ""))).toBe(false);
+    expectInvalidDefaultExport(adapters, warnSpy, badFile, []);
   });
 
   test("mixed string and Dirent readdir compat", async () => {
@@ -519,7 +579,12 @@ describe("discoverAdapters", () => {
     mockAdapterDefault(badMixedName, { name: "bad-mixed-67", fetch: "not-a-fn" });
     mockAdapterDefault(mixedDirentGoodName, { name: "good-mixed-d67", fetch: emptyFetch });
     mockAdapterDefault(mixedStringGoodName, { name: "good-mixed-s67", fetch: emptyFetch });
-    const direntMixedGood = { name: mixedDirentGoodName, isFile: () => true, isDirectory: () => false, isSymbolicLink: () => false };
+    const direntMixedGood = {
+      name: mixedDirentGoodName,
+      isFile: () => true,
+      isDirectory: () => false,
+      isSymbolicLink: () => false,
+    };
     mockReaddir([
       direntMixedGood,
       mixedStringGoodName,
@@ -529,15 +594,10 @@ describe("discoverAdapters", () => {
       ...FILTER_NOISE,
     ]);
     const adapters = await discoverAdapters();
-    expect(adapters.has("rss")).toBe(true);
     expect(adapters.has("good-mixed-d67")).toBe(true);
     expect(adapters.has("good-mixed-s67")).toBe(true);
     expect(adapters.has("bad-mixed-67")).toBe(false);
-    const loadFailCalls = warnsContaining(warnSpy, "failed to import");
-    expect(loadFailCalls.length).toBe(0);
-    const badModWarns = warnsContaining(warnSpy, "invalid default export");
-    expect(badModWarns.length).toBe(1);
-    expect(badModWarns[0] ?? "").toContain(badMixedName);
+    expectInvalidDefaultExport(adapters, warnSpy, badMixedName, ["bad-mixed-67"]);
   });
 
   test("non-iterable readdir returns empty Map and warns", async () => {
@@ -550,104 +610,22 @@ describe("discoverAdapters", () => {
     expect(readdirWarns[0]).toContain("discoverAdapters:");
   });
 
-  test("accepts mixed-case TS extension", async () => {
-    const goodTsName = "good-mixedcase-ts-69.TS";
-    mockAdapterDefault(goodTsName, { name: "good-mixedcase-ts-69", fetch: emptyFetch });
-    mockReaddir(readdirWithRss(goodTsName));
-    const adapters = await discoverAdapters();
-    expect(adapters.has("rss")).toBe(true);
-    expect(adapters.has("good-mixedcase-ts-69")).toBe(true);
-    const loadFailCalls = warnsContaining(warnSpy, "failed to import");
-    expect(loadFailCalls.length).toBe(0);
-    const badModWarns = warnsContaining(warnSpy, "invalid default export");
-    expect(badModWarns.length).toBe(0);
-  });
-
-  test("excludes mixed-case DTS declarations", async () => {
-    const dtsName = "leaky-mixed-dts-70-edge.D.TS";
-    const goodName = "good-adapter-edge-70.ts";
-    mockAdapterDefault(goodName, { name: "good-adapter-ngb-70", fetch: emptyFetch });
-    mockReaddir(readdirWithRss(goodName, dtsName));
-    const adapters = await discoverAdapters();
-    expect(adapters.has("rss")).toBe(true);
-    expect(adapters.has("good-adapter-ngb-70")).toBe(true);
-    expect(adapters.has("leaky-mixed-dts-should-not-appear")).toBe(false);
-    const loadFailCalls = warnsContaining(warnSpy, "failed to import");
-    expect(loadFailCalls.length).toBe(0);
-    const badModWarns = warnsContaining(warnSpy, "invalid default export");
-    expect(badModWarns.length).toBe(0);
-  });
-
-  test("accepts mixed-case TS via Dirent", async () => {
-    const goodTsName = "good-mixedcase-ts-dirent-71.TS";
-    mockAdapterDefault(goodTsName, { name: "good-mixedcase-ts-dirent-71", fetch: emptyFetch });
-    mockReaddir([
-      { name: "rss.ts", isFile: () => true },
-      { name: goodTsName, isFile: () => true },
-      ...FILTER_NOISE.map((f) => ({ name: f, isFile: () => true })),
-    ]);
-    const adapters = await discoverAdapters();
-    expect(adapters.has("rss")).toBe(true);
-    expect(adapters.has("good-mixedcase-ts-dirent-71")).toBe(true);
-    const loadFailCalls = warnsContaining(warnSpy, "failed to import");
-    expect(loadFailCalls.length).toBe(0);
-    const badModWarns = warnsContaining(warnSpy, "invalid default export");
-    expect(badModWarns.length).toBe(0);
-  });
-
-  test("excludes mixed-case TEST.ts files", async () => {
-    const testTsName = "leaky-mixed-test-ts-72-edge.TEST.TS";
-    const goodName = "good-adapter-edge-72.ts";
-    mockAdapterDefault(goodName, { name: "good-adapter-ngb-72", fetch: emptyFetch });
-    mockReaddir(readdirWithRss(goodName, testTsName));
-    const adapters = await discoverAdapters();
-    expect(adapters.has("rss")).toBe(true);
-    expect(adapters.has("good-adapter-ngb-72")).toBe(true);
-    expect(adapters.has("leaky-mixed-test-ts-should-not-appear")).toBe(false);
-    const loadFailCalls = warnsContaining(warnSpy, "failed to import");
-    expect(loadFailCalls.length).toBe(0);
-    const badModWarns = warnsContaining(warnSpy, "invalid default export");
-    expect(badModWarns.length).toBe(0);
-  });
-
-  test("excludes mixed-case DTS via Dirent", async () => {
-    const dtsName = "leaky-mixed-dts-73-edge.D.TS";
-    const goodName = "good-adapter-edge-73.ts";
-    mockAdapterDefault(goodName, { name: "good-adapter-ngb-73", fetch: emptyFetch });
-    mockReaddir([
-      { name: "rss.ts", isFile: () => true },
-      { name: goodName, isFile: () => true },
-      { name: dtsName, isFile: () => true },
-      ...FILTER_NOISE.map((f) => ({ name: f, isFile: () => true })),
-    ]);
-    const adapters = await discoverAdapters();
-    expect(adapters.has("rss")).toBe(true);
-    expect(adapters.has("good-adapter-ngb-73")).toBe(true);
-    expect(adapters.has("leaky-mixed-dts-should-not-appear")).toBe(false);
-    const loadFailCalls = warnsContaining(warnSpy, "failed to import");
-    expect(loadFailCalls.length).toBe(0);
-    const badModWarns = warnsContaining(warnSpy, "invalid default export");
-    expect(badModWarns.length).toBe(0);
-  });
-
   test("corrupt readdir entries skipped with warn", async () => {
     const goodName = "good-adapter-edge-74.ts";
     mockAdapterDefault(goodName, { name: "good-adapter-ngb-74", fetch: emptyFetch });
-    mockReaddir(readdirWithRss(
-      goodName,
-      42,
-      null,
-      { foo: "no-name-or-isfile" },
-      { name: "bad-dirent-missing-isfile" },
-    ));
+    mockReaddir(
+      readdirWithRss(
+        goodName,
+        42,
+        null,
+        { foo: "no-name-or-isfile" },
+        { name: "bad-dirent-missing-isfile" }
+      )
+    );
     const adapters = await discoverAdapters();
-    expect(adapters.has("rss")).toBe(true);
     expect(adapters.has("good-adapter-ngb-74")).toBe(true);
     expect(adapters.has("bad-dirent-missing-isfile")).toBe(false);
-    const loadFailCalls = warnsContaining(warnSpy, "failed to import");
-    expect(loadFailCalls.length).toBe(0);
-    const badModWarns = warnsContaining(warnSpy, "invalid default export");
-    expect(badModWarns.length).toBe(0);
+    expectNoImportOrBadModWarnings(warnSpy);
     const badEntryWarns = warnsContaining(warnSpy, "invalid readdir entry");
     expect(badEntryWarns.length).toBeGreaterThanOrEqual(1);
   });
@@ -666,16 +644,10 @@ describe("discoverAdapters", () => {
       "index.ts",
     ]);
     const adapters = await discoverAdapters();
-    expect(adapters.has("rss")).toBe(true);
     expect(adapters.has("good-adapter-ngb-75")).toBe(true);
     expect(adapters.has("good-adapter-edge-75")).toBe(false);
-    const loadFailCalls = warnsContaining(warnSpy, "failed to import");
-    expect(loadFailCalls.length).toBe(0);
-    const badModWarns = warnsContaining(warnSpy, "invalid default export");
-    expect(badModWarns.length).toBe(0);
-    const badEntryWarns = warnsContaining(warnSpy, "invalid readdir entry");
-    expect(badEntryWarns.length).toBe(0);
-    const anyDup = warnsContaining(warnSpy, "duplicate adapter");
-    expect(anyDup.length).toBe(0);
+    expectNoImportOrBadModWarnings(warnSpy);
+    expect(warnsContaining(warnSpy, "invalid readdir entry").length).toBe(0);
+    expect(warnsContaining(warnSpy, "duplicate adapter").length).toBe(0);
   });
 });
