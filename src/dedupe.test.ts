@@ -42,6 +42,16 @@ describe("dedupe utils", () => {
   });
 
   describe("extractHostname", () => {
+    test("returns empty string for falsy input without warning", () => {
+      const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+      try {
+        expect(extractHostname("")).toBe("");
+        expect(warnSpy).not.toHaveBeenCalled();
+      } finally {
+        warnSpy.mockRestore();
+      }
+    });
+
     test("returns lowercased host without www", () => {
       expect(extractHostname("https://WWW.Example.com/path")).toBe("example.com");
     });
