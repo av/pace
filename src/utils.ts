@@ -13,6 +13,37 @@ export function errorMessage(err: unknown): string {
   return String(err);
 }
 
+/** Parse URL; warn and return null on failure (shared by dedupe hostname + layout safe links). */
+export function tryParseUrl(
+  url: string,
+  warnContext: string,
+  label: string,
+): URL | null {
+  if (!url) return null;
+  try {
+    return new URL(url);
+  } catch (err) {
+    console.warn(
+      `${warnContext}: ${label} failed for "${url}": ${errorMessage(err)}`,
+    );
+    return null;
+  }
+}
+
+const SAFE_LINK_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
+
+/** Original URL when parse succeeds and protocol is safe for dashboard links; else null. */
+export function safeLinkUrl(url: string, warnContext = "layout"): string | null {
+  const parsed = tryParseUrl(url, warnContext, "safeUrl");
+  if (!parsed) return null;
+  return SAFE_LINK_PROTOCOLS.has(parsed.protocol) ? url : null;
+}
+
+/** Lowercase hostname with leading `www.` removed. */
+export function normalizeHostname(hostname: string): string {
+  return hostname.toLowerCase().replace(/^www\./, "");
+}
+
 export function parsePort(input: string | undefined, fallback = 7453): number {
   const n = parseInt(input ?? String(fallback), 10);
   return isValidPort(n) ? n : fallback;
