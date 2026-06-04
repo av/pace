@@ -14,7 +14,6 @@ import {
   normalizeNonNegativeNumber,
   normalizeOptionalString,
   clampAdapterLimit,
-  normalizePositiveInteger,
   normalizeStringList,
   sliceToLimit,
 } from "../utils";
@@ -58,10 +57,6 @@ async function fetchDevToArticles(
   const params = new URLSearchParams();
   for (const [k, v] of Object.entries(query)) {
     if (v === undefined) continue;
-    if (k === "per_page") {
-      params.set(k, String(normalizePositiveInteger(v, 20)));
-      continue;
-    }
     params.set(k, String(v));
   }
   const url = `${DEVTO_API}?${params.toString()}`;
