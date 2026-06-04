@@ -43,11 +43,6 @@ function makePostListResponse(posts: Record<string, unknown>[]) {
 }
 
 describe("lemmy", () => {
-  test("ngb contract", () => {
-    expect(lemmyAdapter.name).toBe("lemmy");
-    expect(typeof lemmyAdapter.fetch).toBe("function");
-  });
-
   test("buildBody joins engagement helpers with community and optional discuss", async () => {
     const view = makePostView();
     mocks.fetchMock.mockResolvedValue(

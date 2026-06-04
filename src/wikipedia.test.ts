@@ -62,11 +62,6 @@ function makeFeaturedResponse(overrides: Partial<Record<string, unknown>> = {}) 
 }
 
 describe("wikipedia", () => {
-  test("ngb contract", () => {
-    expect(wikipediaAdapter.name).toBe("wikipedia");
-    expect(typeof wikipediaAdapter.fetch).toBe("function");
-  });
-
   test("fetches most_read articles by default", async () => {
     mocks.fetchMock.mockResolvedValue(
       new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),

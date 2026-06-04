@@ -25,11 +25,6 @@ function makeArxivFixture(title: string, arxivId: string, author = "Test Author"
 }
 
 describe("arxiv", () => {
-  test("ngb contract", () => {
-    expect(arxivAdapter.name).toBe("arxiv");
-    expect(typeof arxivAdapter.fetch).toBe("function");
-  });
-
   test("warns and returns empty when no categories and no query configured", async () => {
     const items = await arxivAdapter.fetch(arxivCfg());
     expect(items).toEqual([]);

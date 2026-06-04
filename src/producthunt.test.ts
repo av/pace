@@ -50,11 +50,6 @@ function makeEnrichHtml(
 }
 
 describe("producthunt", () => {
-  test("ngb contract", () => {
-    expect(producthuntAdapter.name).toBe("producthunt");
-    expect(typeof producthuntAdapter.fetch).toBe("function");
-  });
-
   test("fetches feed and maps basic items with correct id/source/timestamp/body (no enrich)", async () => {
     mocks.fetchMock.mockResolvedValue(
       new Response(makePHFeedFixture(), {

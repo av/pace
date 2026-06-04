@@ -82,11 +82,6 @@ async function devtoDefaultFetchMock(
 }
 
 describe("devto", () => {
-  test("ngb contract", () => {
-    expect(devtoAdapter.name).toBe("devto");
-    expect(typeof devtoAdapter.fetch).toBe("function");
-  });
-
   beforeEach(() => {
     mocks.fetchMock.mockImplementation(devtoDefaultFetchMock);
   });

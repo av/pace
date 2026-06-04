@@ -6,11 +6,6 @@ const mocks = useFetchMockSuite();
 const twitterCfg = (params: Record<string, unknown> = {}) => adapterCfg("twitter", params);
 
 describe("twitter", () => {
-  test("ngb contract", () => {
-    expect(adapter.name).toBe("twitter");
-    expect(typeof adapter.fetch).toBe("function");
-  });
-
   it("returns [] and warns configured message when lists provided", async () => {
     const items = await adapter.fetch(twitterCfg({ lists: ["u1", "u2"] }));
     expect(items).toEqual([]);

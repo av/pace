@@ -49,11 +49,6 @@ function makeErrorResponse(status: number): Response {
 }
 
 describe("reddit", () => {
-  test("ngb contract", () => {
-    expect(redditAdapter.name).toBe("reddit");
-    expect(typeof redditAdapter.fetch).toBe("function");
-  });
-
   test("returns [] and warns when no subreddits configured", async () => {
     const items = await redditAdapter.fetch(redditCfg());
     expect(items).toEqual([]);

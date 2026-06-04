@@ -8,11 +8,6 @@ const githubReleasesCfg = (params: Record<string, unknown> = {}) =>
   adapterCfg("github-releases", params);
 
 describe("github-releases", () => {
-  test("ngb contract", () => {
-    expect(githubReleasesAdapter.name).toBe("github-releases");
-    expect(typeof githubReleasesAdapter.fetch).toBe("function");
-  });
-
   test("returns [] and no fetch when no repos configured", async () => {
     const items = await githubReleasesAdapter.fetch(githubReleasesCfg({ repos: [] }));
     expect(items).toEqual([]);

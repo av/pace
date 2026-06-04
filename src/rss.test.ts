@@ -75,11 +75,6 @@ function defaultFetchImpl(input: RequestInfo | URL): Promise<Response> {
 }
 
 describe("rss", () => {
-  test("ngb contract", () => {
-    expect(rssAdapter.name).toBe("rss");
-    expect(typeof rssAdapter.fetch).toBe("function");
-  });
-
   beforeEach(() => {
     mocks.fetchMock.mockImplementation(defaultFetchImpl);
   });

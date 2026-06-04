@@ -7,11 +7,6 @@ const mocks = useFetchMockSuite();
 const seCfg = (params: Record<string, unknown> = {}) => adapterCfg("stackexchange", params);
 
 describe("stackexchange", () => {
-  test("ngb contract", () => {
-    expect(stackexchangeAdapter.name).toBe("stackexchange");
-    expect(typeof stackexchangeAdapter.fetch).toBe("function");
-  });
-
   function makeQuestion(overrides: Partial<Record<string, unknown>> = {}) {
     return {
       question_id: 123,

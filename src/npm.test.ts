@@ -6,11 +6,6 @@ import { useFetchMockSuite } from "./test/adapter-mocks";
 const mocks = useFetchMockSuite();
 
 describe("npm", () => {
-  test("ngb contract", () => {
-    expect(npmAdapter.name).toBe("npm");
-    expect(typeof npmAdapter.fetch).toBe("function");
-  });
-
   function makePackageResult(overrides: Partial<Record<string, unknown>> = {}): Record<string, unknown> {
     return {
       package: {

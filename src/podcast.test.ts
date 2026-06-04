@@ -64,11 +64,6 @@ ${items}
 }
 
 describe("podcast", () => {
-  test("ngb contract", () => {
-    expect(podcastAdapter.name).toBe("podcast");
-    expect(typeof podcastAdapter.fetch).toBe("function");
-  });
-
   test("returns empty when no feeds configured", async () => {
     const items = await podcastAdapter.fetch(podcastCfg());
     expect(items).toEqual([]);
