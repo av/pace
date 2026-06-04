@@ -94,6 +94,7 @@ describe("parsePort / isValidPort", () => {
   test("parsePort falls back to default 7453 (or provided) for undefined, non-numeric, out-of-range", () => {
     expect(parsePort(undefined)).toBe(7453);
     expect(parsePort("")).toBe(7453);
+    expect(parsePort("8080abc")).toBe(7453);
     expect(parsePort("abc")).toBe(7453);
     expect(parsePort("99999")).toBe(7453);
     expect(parsePort("0")).toBe(7453);

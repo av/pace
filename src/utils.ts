@@ -45,8 +45,8 @@ export function normalizeHostname(hostname: string): string {
 }
 
 export function parsePort(input: string | undefined, fallback = 7453): number {
-  const n = parseInt(input ?? String(fallback), 10);
-  return isValidPort(n) ? n : fallback;
+  if (input === undefined || input === "") return fallback;
+  return parseCliPort(input) ?? fallback;
 }
 
 export function isValidPort(n: number): boolean {
