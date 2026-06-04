@@ -7,11 +7,25 @@ import { errorMessage } from "./utils";
 let db: Database | null = null;
 let currentDbPath: string | null = null;
 
+function warnDbClose(err: unknown): void {
+  console.warn(`db: failed to close: ${errorMessage(err)}`);
+}
+
+/** Re-throw per-item db: errors; wrap transaction failures with context. */
+function rethrowDbTxError(e: unknown, wrapped: string): never {
+  if (e instanceof Error && e.message.startsWith("db:")) throw e;
+  throw new Error(`${wrapped}: ${errorMessage(e)}`);
+}
+
 export function getDb(): Database {
   const desiredPath = process.env.PACE_DB_PATH || join(process.cwd(), "data", "pace.db");
   if (!db || currentDbPath !== desiredPath) {
     if (db) {
-      try { db.close(); } catch (err) { console.warn(`db: failed to close: ${errorMessage(err)}`); }
+      try {
+        db.close();
+      } catch (err) {
+        warnDbClose(err);
+      }
       db = null;
     }
     try {
@@ -104,8 +118,10 @@ export function saveItems(panelId: string, items: ContentItem[]): void {
   try {
     tx();
   } catch (e: unknown) {
-    if (e instanceof Error && e.message.startsWith("db:")) throw e;
-    throw new Error(`db: failed to save ${items.length} items for panel ${panelId}: ${errorMessage(e)}`);
+    rethrowDbTxError(
+      e,
+      `db: failed to save ${items.length} items for panel ${panelId}`,
+    );
   }
 }
 
@@ -209,13 +225,21 @@ export function replacePanelItems(panelId: string, items: ContentItemRow[]): voi
   try {
     tx();
   } catch (e: unknown) {
-    if (e instanceof Error && e.message.startsWith("db:")) throw e;
-    throw new Error(`db: failed to replace ${items.length} items for panel ${panelId}: ${errorMessage(e)}`);
+    rethrowDbTxError(
+      e,
+      `db: failed to replace ${items.length} items for panel ${panelId}`,
+    );
   }
 }
 
 export function closeDb(): void {
-  try { if (db) db.close(); } catch (err) { console.warn(`db: failed to close: ${errorMessage(err)}`); }
+  if (db) {
+    try {
+      db.close();
+    } catch (err) {
+      warnDbClose(err);
+    }
+  }
   db = null;
   currentDbPath = null;
 }

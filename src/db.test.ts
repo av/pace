@@ -55,7 +55,11 @@ afterEach(() => {
   } else {
     process.env.PACE_DB_PATH = origEnv;
   }
-  try { rmSync(tempDir, { recursive: true, force: true }); } catch {}
+  try {
+    rmSync(tempDir, { recursive: true, force: true });
+  } catch (err) {
+    console.warn(`db.test: failed to remove temp dir ${tempDir}: ${utilsMod.errorMessage(err)}`);
+  }
 });
 
 test("initDb creates table and indexes without error", () => {
@@ -284,6 +288,53 @@ test("getDb open failure uses errorMessage in thrown message", () => {
   } finally {
     mkdirSpy.mockRestore();
     emSpy.mockRestore();
+  }
+});
+
+test("saveItems transaction failure wraps non-db errors with panel context", () => {
+  initDb();
+  const database = getDb();
+  const emSpy = spyOn(utilsMod, "errorMessage");
+  const realTransaction = database.transaction.bind(database);
+  const txSpy = spyOn(database, "transaction").mockImplementation((fn: () => void) => {
+    return realTransaction(() => {
+      throw new Error("tx abort");
+    });
+  });
+  try {
+    expect(() => saveItems("txerr", [makeItem({ id: "t1" })])).toThrow(
+      /db: failed to save 1 items for panel txerr: tx abort/,
+    );
+    expect(emSpy).toHaveBeenCalled();
+  } finally {
+    txSpy.mockRestore();
+    emSpy.mockRestore();
+  }
+});
+
+test("getDb path switch warns when closing previous db fails", () => {
+  initDb();
+  const database = getDb();
+  const warnSpy = spyOn(console, "warn");
+  const closeSpy = spyOn(database, "close").mockImplementation(() => {
+    throw new Error("switch close fail");
+  });
+  const otherDir = mkdtempSync(join(tmpdir(), "pace-dbtest-switch-"));
+  const otherPath = join(otherDir, "other.db");
+  try {
+    process.env.PACE_DB_PATH = otherPath;
+    getDb();
+    expect(warnSpy).toHaveBeenCalledWith("db: failed to close: switch close fail");
+  } finally {
+    closeSpy.mockRestore();
+    warnSpy.mockRestore();
+    closeDb();
+    process.env.PACE_DB_PATH = dbPath;
+    try {
+      rmSync(otherDir, { recursive: true, force: true });
+    } catch (err) {
+      console.warn(`db.test: failed to remove switch temp dir: ${utilsMod.errorMessage(err)}`);
+    }
   }
 });
 

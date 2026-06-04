@@ -83,7 +83,7 @@ export async function safeComplete(
       .map((b) => b.text)
       .join("");
     return text || null;
-  } catch (err) {
+  } catch (err: unknown) {
     warnLlm("complete failed", err);
     return null;
   }
@@ -100,7 +100,7 @@ function parseLlmJsonResponse<T>(text: string | null): T | null {
   try {
     const jsonStr = stripJsonCodeFences(text);
     return JSON.parse(jsonStr) as T;
-  } catch (err) {
+  } catch (err: unknown) {
     warnLlm("JSON parse failed", err);
     return null;
   }
