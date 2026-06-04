@@ -1,4 +1,4 @@
-import { errorMessage } from "./utils";
+import { errorMessage, normalizeHostname, tryParseUrl } from "./utils";
 
 const TRACKING_PARAMS = new Set([
   "utm_source",
@@ -25,13 +25,8 @@ const TRACKING_PARAMS = new Set([
 
 /** Lowercased hostname without `www.`; empty string and warn on parse failure. */
 export function extractHostname(url: string, warnContext = "dedupe"): string {
-  if (!url) return "";
-  try {
-    return new URL(url).hostname.toLowerCase().replace(/^www\./, "");
-  } catch (err) {
-    console.warn(`${warnContext}: extractHostname failed for "${url}": ${errorMessage(err)}`);
-    return "";
-  }
+  const parsed = tryParseUrl(url, warnContext, "extractHostname");
+  return parsed ? normalizeHostname(parsed.hostname) : "";
 }
 
 export function normalizeUrl(url: string): string {
