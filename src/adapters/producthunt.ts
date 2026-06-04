@@ -83,7 +83,6 @@ function extractContent(entry: PHEntry): { tagline: string; productLink: string 
   // The content has HTML structure:
   // <p>Tagline text</p>
   // <p><a href="...">Discussion</a> | <a href="...product link...">Link</a></p>
-  // Extract the product link before stripping (needs href in markup).
   const linkMatch = raw.match(
     /href="(https:\/\/www\.producthunt\.com\/r\/[^"]+)"/,
   );
@@ -95,7 +94,6 @@ function extractContent(entry: PHEntry): { tagline: string; productLink: string 
   if (firstParagraph) {
     tagline = stripHtml(firstParagraph[1], FEED_BODY_STRIP_OPTIONS);
   } else {
-    // Fallback: strip everything but remove "Discussion | Link" noise
     tagline = stripHtml(html, FEED_BODY_STRIP_OPTIONS)
       .replace(/Discussion\s*\|\s*Link/gi, "")
       .trim();
@@ -272,11 +270,9 @@ const adapter: Adapter = {
 
     const { feedTitle, items: feedItems } = await fetchProductHuntFeed();
 
-    // Apply limit after fetch (before enriching — enrichment is expensive)
     let items =
       limit !== undefined ? sliceToLimit(feedItems, limit) : feedItems;
 
-    // Optionally enrich with page scraping for upvotes/topics
     let enrichedMap = new Map<string, EnrichedData | null>();
     if (enrich) {
       console.warn(
@@ -290,14 +286,12 @@ const adapter: Adapter = {
         for (let j = 0; j < batch.length; j++) {
           enrichedMap.set(batch[j].id, results[j]);
         }
-        // Rate-limit between batches
         if (i + ENRICH_BATCH_SIZE < items.length) {
           await sleep(ENRICH_DELAY_MS);
         }
       }
     }
 
-    // Filter by minimum upvotes if enrichment was enabled and threshold set
     let filtered = items;
     if (enrich && minUpvotes > 0) {
       filtered = items.filter((item) => {

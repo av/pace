@@ -26,17 +26,11 @@
  */
 import { errorMessage } from "./types";
 
-/** Short UA for tests and rare overrides (e.g. podcast). */
 export const PACE_USER_AGENT = "pace/1.0";
-
-/** Default for adapter HTTP — APIs that require an identifiable client string. */
 export const PACE_FEED_USER_AGENT =
   "pace:feed-aggregator/1.0 (github.com/everlier/pace)";
-
-/** GitHub REST API `Accept` value (api.github.com JSON responses). */
 export const GITHUB_API_ACCEPT = "application/vnd.github+json";
 
-/** Headers for GitHub REST API requests (`Accept` + optional `Authorization`). */
 export function buildGitHubApiHeaders(token?: string): Record<string, string> {
   const headers: Record<string, string> = { Accept: GITHUB_API_ACCEPT };
   if (token) {
@@ -45,16 +39,9 @@ export function buildGitHubApiHeaders(token?: string): Record<string, string> {
   return headers;
 }
 
-/** Default AbortSignal.timeout for adapter HTTP (feed/API JSON and text). */
 export const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
-
-/** Hacker News per-item JSON (`item/{id}.json`). */
 export const HN_ITEM_FETCH_TIMEOUT_MS = 10_000;
-
-/** Large HTML/XML feed pages (e.g. GitHub trending, podcast RSS). */
 export const FEED_FETCH_TIMEOUT_MS = 20_000;
-
-/** arxiv Atom API queries (can be slow under load). */
 export const ARXIV_FETCH_TIMEOUT_MS = 30_000;
 
 function buildFetchHeaders(options: FetchWithTimeoutOptions): Record<string, string> {
@@ -77,10 +64,7 @@ export type FetchWithTimeoutOptions = {
 
 type FetchBodyReader<T> = (res: Response) => Promise<T>;
 
-/**
- * HTTP fetch with default User-Agent and AbortSignal.timeout.
- * Does not check res.ok — callers handle status or use fetchText/fetchJson.
- */
+/** Does not check `res.ok` — use `fetchText` / `fetchJson` for status handling. */
 export async function fetchWithTimeout(
   url: string,
   options: FetchWithTimeoutOptions = {},
@@ -129,7 +113,6 @@ async function fetchBody<T>(
   }
 }
 
-/** Fetch URL as text; applies the module error-prefix conventions above. */
 export async function fetchText(
   prefix: string,
   url: string,
@@ -139,7 +122,6 @@ export async function fetchText(
   return fetchBody(prefix, url, context, options, (res) => res.text());
 }
 
-/** Fetch URL as JSON; applies the module error-prefix conventions above. */
 export async function fetchJson<T>(
   prefix: string,
   url: string,

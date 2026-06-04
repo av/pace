@@ -84,18 +84,15 @@ function parseDuration(raw: unknown): string | null {
   const str = String(raw).trim();
   if (!str) return null;
 
-  // Already in HH:MM:SS or MM:SS format
   if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(str)) {
     return str;
   }
 
-  // Pure number — treat as seconds
   if (/^\d+$/.test(str)) {
     const total = parseInt(str, 10);
     return formatSeconds(total);
   }
 
-  // "1h 23m 45s" or "1h23m45s" etc.
   const hMatch = str.match(/(\d+)\s*h/i);
   const mMatch = str.match(/(\d+)\s*m/i);
   const sMatch = str.match(/(\d+)\s*s/i);
@@ -120,9 +117,6 @@ function formatSeconds(total: number): string {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-/**
- * Slugify a show name for use in source labels.
- */
 function slugify(name: string): string {
   return name
     .toLowerCase()
@@ -177,7 +171,6 @@ function parseEpisode(
   if (rawGuid) {
     if (typeof rawGuid === "string") {
       guid = rawGuid;
-      // If it looks like a URL, treat it as a permalink
       guidIsPermaLink = guid.startsWith("http");
     } else {
       guid = extractXmlText(rawGuid as XmlTextField) ?? "";
@@ -186,7 +179,6 @@ function parseEpisode(
     }
   }
 
-  // If guid is a permalink URL, prefer it as the episode URL (most specific)
   if (guidIsPermaLink && guid) {
     url = guid;
   }
