@@ -35,7 +35,6 @@ export interface KeywordScoreEntry {
   regex?: boolean;
 }
 
-/** Fields keyword filter/exclude transforms may match against. */
 export type KeywordField = "title" | "body" | "source";
 
 export const KEYWORD_FIELDS: readonly KeywordField[] = ["title", "body", "source"];
@@ -676,7 +675,6 @@ function validateTopLevelKeys(config: Record<string, unknown>): void {
   validateAllowedKeys(config, TOP_LEVEL_CONFIG_FIELDS, (key) => `${key} is not a valid top-level field`);
 }
 
-/** Known adapter types and their allowed `params` keys (from adapter implementations). */
 const ADAPTER_PARAM_KEYS: Readonly<Record<string, readonly string[]>> = {
   hackernews: ["type", "feed", "stories", "limit", "min_score"],
   lobsters: ["feed", "limit", "min_score", "tags"],
