@@ -15,7 +15,7 @@ import { formatLanguage, formatStars, joinBodyParts } from "./engagement";
 import { FEED_FETCH_TIMEOUT_MS, fetchText } from "./fetch";
 import {
   normalizeOptionalString,
-  normalizePositiveInteger,
+  clampAdapterLimit,
   normalizeStringList,
   sliceToLimit,
 } from "../utils";
@@ -220,7 +220,7 @@ const adapter: Adapter = {
       (typeof modeRaw === "string"
         ? normalizeOptionalString(modeRaw)
         : undefined) ?? "releases";
-    const limit = Math.min(normalizePositiveInteger(config.params?.limit, 10), 50);
+    const limit = clampAdapterLimit(config.params?.limit, 10, 50);
 
     if (mode === "trending") {
       const languageRaw = config.params?.language;

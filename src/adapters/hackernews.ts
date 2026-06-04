@@ -11,7 +11,7 @@ import { decodeNumericFeedTitleOptional } from "./html";
 import {
   normalizeNonNegativeNumber,
   normalizeOptionalString,
-  normalizePositiveInteger,
+  clampAdapterLimit,
   sliceToLimit,
 } from "../utils";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -89,7 +89,7 @@ const adapter: Adapter = {
       (typeof feedRaw === "string"
         ? normalizeOptionalString(feedRaw)
         : undefined) ?? "top";
-    const limit = Math.min(normalizePositiveInteger(config.params?.limit, 30), 200);
+    const limit = clampAdapterLimit(config.params?.limit, 30, 200);
     const minScore = normalizeNonNegativeNumber(config.params?.min_score);
 
     let feedType: FeedType;

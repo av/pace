@@ -120,6 +120,15 @@ export function normalizePositiveInteger(
   return Math.floor(value);
 }
 
+/** Adapter `params.limit`: positive integer with default, capped at API max. */
+export function clampAdapterLimit(
+  value: unknown,
+  fallback: number,
+  cap: number,
+): number {
+  return Math.min(normalizePositiveInteger(value, fallback), cap);
+}
+
 /** Promise-based delay for adapter rate limiting and pacing. */
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
