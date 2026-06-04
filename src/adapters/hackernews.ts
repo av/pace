@@ -42,14 +42,12 @@ const FEED_ENDPOINTS: Record<FeedType, string> = {
   job: "jobstories",
 };
 
-async function fetchHN<T>(subpath: string, timeout: number, errorContext?: string): Promise<T> {
-  const ctx = errorContext ?? subpath;
-  return fetchJson<T>("hackernews", `${HN_API}/${subpath}`, ctx, { timeoutMs: timeout });
-}
-
 async function fetchItem(id: number): Promise<HNItem | null> {
+  const subpath = `item/${id}.json`;
   try {
-    return await fetchHN<HNItem>(`item/${id}.json`, HN_ITEM_FETCH_TIMEOUT_MS);
+    return await fetchJson<HNItem>("hackernews", `${HN_API}/${subpath}`, subpath, {
+      timeoutMs: HN_ITEM_FETCH_TIMEOUT_MS,
+    });
   } catch (err) {
     warnOptionalFetchFailure("hackernews", err, `failed to fetch item ${id}`);
     return null;
