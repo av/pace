@@ -411,7 +411,7 @@ describe("transforms - cluster", () => {
     });
   });
 
-  test("cluster warns on extractDomain parse failure for invalid item urls", async () => {
+  test("cluster warns on extractHostname parse failure for invalid item urls", async () => {
     await spyConsole(["warn"], async ({ warn: warnSpy }) => {
       warnSpy.mockImplementation(() => {});
       const badUrl = "not-a-valid-url";
@@ -424,7 +424,7 @@ describe("transforms - cluster", () => {
       expect(result.length).toBe(2);
       expect(warnSpy).toHaveBeenCalledTimes(2);
       expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringMatching(/^transforms: extractDomain failed for "not-a-valid-url": /),
+        expect.stringMatching(/^transforms: extractHostname failed for "not-a-valid-url": /),
       );
     });
   });

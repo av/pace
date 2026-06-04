@@ -16,8 +16,31 @@ import type { ContentItemRow } from "./db";
 import type { ContentItem } from "./adapters/types";
 import { summarizeItem, lensItems, mergeItems, filterItemsByLlm } from "./llm";
 import { extractEngagementScore, extractScore } from "./adapters/engagement";
-import { normalizeUrl, levenshteinSimilarity } from "./dedupe";
+import { normalizeUrl, levenshteinSimilarity, extractHostname } from "./dedupe";
 import { compareIsoTimestamp, errorMessage, sliceToLimit } from "./utils";
+
+const CLUSTER_STOP_WORDS = new Set([
+  "a", "an", "the", "and", "or", "but", "in", "on", "at", "to", "for",
+  "of", "with", "by", "from", "is", "it", "its", "this", "that", "are",
+  "was", "were", "be", "been", "has", "have", "had", "do", "does", "did",
+  "will", "would", "could", "should", "may", "might", "can", "shall",
+  "not", "no", "nor", "so", "if", "then", "than", "too", "very", "just",
+  "about", "up", "out", "how", "what", "when", "where", "who", "which",
+  "why", "all", "each", "every", "both", "few", "more", "most", "other",
+  "some", "such", "only", "own", "same", "as", "into", "through", "during",
+  "before", "after", "above", "below", "between", "under", "over", "again",
+  "new", "now", "get", "got", "use", "using", "used", "via", "also",
+  "one", "two", "first", "like", "still", "even", "much", "well", "back",
+  "here", "there", "while", "yet", "these", "those", "them", "they",
+  "your", "you", "my", "we", "our", "his", "her", "their", "i", "me",
+  "him", "she", "he", "us", "whom",
+  "points", "point", "comments", "comment", "discuss", "discussion",
+  "stars", "star", "likes", "views", "view", "votes", "vote",
+  "upvotes", "upvote", "boosts", "boost", "favorites", "favourite",
+  "reactions", "reaction", "replies", "reply", "https", "http", "www",
+  "com", "org", "net", "reddit", "github", "show", "item", "news",
+  "ycombinator", "lobste", "read", "min", "cover",
+]);
 
 export interface TransformContext {
   llmModel: Model<Api> | null;
@@ -740,66 +763,29 @@ const transforms: Record<string, TransformFn> = {
 
     if (items.length < 2) return items;
 
-    const STOP_WORDS = new Set([
-      "a", "an", "the", "and", "or", "but", "in", "on", "at", "to", "for",
-      "of", "with", "by", "from", "is", "it", "its", "this", "that", "are",
-      "was", "were", "be", "been", "has", "have", "had", "do", "does", "did",
-      "will", "would", "could", "should", "may", "might", "can", "shall",
-      "not", "no", "nor", "so", "if", "then", "than", "too", "very", "just",
-      "about", "up", "out", "how", "what", "when", "where", "who", "which",
-      "why", "all", "each", "every", "both", "few", "more", "most", "other",
-      "some", "such", "only", "own", "same", "as", "into", "through", "during",
-      "before", "after", "above", "below", "between", "under", "over", "again",
-      "new", "now", "get", "got", "use", "using", "used", "via", "also",
-      "one", "two", "first", "like", "still", "even", "much", "well", "back",
-      "here", "there", "while", "yet", "these", "those", "them", "they",
-      "your", "you", "my", "we", "our", "his", "her", "their", "i", "me",
-      "him", "she", "he", "us", "who", "whom",
-      // Common metadata words that appear in body annotations (not useful for clustering)
-      "points", "point", "comments", "comment", "discuss", "discussion",
-      "stars", "star", "likes", "like", "views", "view", "votes", "vote",
-      "upvotes", "upvote", "boosts", "boost", "favorites", "favourite",
-      "reactions", "reaction", "replies", "reply", "https", "http", "www",
-      "com", "org", "net", "reddit", "github", "show", "item", "news",
-      "ycombinator", "lobste", "read", "min", "cover",
-    ]);
-
-    function extractDomain(url: string): string {
-      try {
-        const u = new URL(url);
-        return u.hostname.replace(/^www\./, "");
-      } catch (err) {
-        console.warn(`transforms: extractDomain failed for "${url}": ${errorMessage(err)}`);
-        return "";
-      }
-    }
-
     function extractKeywords(text: string): string[] {
       return text
         .toLowerCase()
         .replace(/[^a-z0-9\s-]/g, " ")
         .split(/\s+/)
-        .filter((w) => w.length >= 3 && !STOP_WORDS.has(w) && !/^\d+$/.test(w));
+        .filter((w) => w.length >= 3 && !CLUSTER_STOP_WORDS.has(w) && !/^\d+$/.test(w));
     }
 
     const signals: ClusterItemSignals[] = items.map((item) => {
       const titleKeywords = extractKeywords(item.title ?? "");
-      // For body, extract only descriptive keywords:
-      // 1. Strip URLs (they contain domain noise like "ycombinator", "lobste", etc.)
-      // 2. Strip common metadata patterns (N points | by author | N comments | discuss: ...)
       const body = item.body ?? "";
       const bodyClean = body
-        .replace(/https?:\/\/[^\s|]+/g, "") // remove URLs
-        .replace(/\d+\s*(points?|comments?|reactions?|replies?|views?|stars?|boosts?|favorites?|likes?|upvotes?)/gi, "") // remove metric counts
-        .replace(/\bby\s+\S+/g, "") // remove "by author"
-        .replace(/\btags?:\s*[^\n|]+/gi, "") // remove "tags: ..."
-        .replace(/\bdiscuss:/gi, "") // remove "discuss:"
-        .replace(/[|]/g, " "); // pipe to space
+        .replace(/https?:\/\/[^\s|]+/g, "")
+        .replace(/\d+\s*(points?|comments?|reactions?|replies?|views?|stars?|boosts?|favorites?|likes?|upvotes?)/gi, "")
+        .replace(/\bby\s+\S+/g, "")
+        .replace(/\btags?:\s*[^\n|]+/gi, "")
+        .replace(/\bdiscuss:/gi, "")
+        .replace(/[|]/g, " ");
       const bodyKeywords = extractKeywords(bodyClean.slice(0, 150));
       const allKeywords = new Set([...titleKeywords, ...bodyKeywords]);
 
       return {
-        domain: extractDomain(item.url),
+        domain: extractHostname(item.url, "transforms"),
         keywords: allKeywords,
         source: item.source ?? item.panel_id ?? "",
       };

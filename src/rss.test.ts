@@ -272,7 +272,7 @@ describe("rss", () => {
     expect(items[0].source).toBe(badUrl);
     expect(mocks.warnSpy).toHaveBeenCalledTimes(1);
     expect(mocks.warnSpy).toHaveBeenCalledWith(
-      expect.stringMatching(/^rss: extractFeedTitle could not parse url "not-a-valid-url": /),
+      expect.stringMatching(/^rss: extractHostname failed for "not-a-valid-url": /),
     );
   });
 

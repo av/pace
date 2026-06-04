@@ -23,6 +23,17 @@ const TRACKING_PARAMS = new Set([
   "via",
 ]);
 
+/** Lowercased hostname without `www.`; empty string and warn on parse failure. */
+export function extractHostname(url: string, warnContext = "dedupe"): string {
+  if (!url) return "";
+  try {
+    return new URL(url).hostname.toLowerCase().replace(/^www\./, "");
+  } catch (err) {
+    console.warn(`${warnContext}: extractHostname failed for "${url}": ${errorMessage(err)}`);
+    return "";
+  }
+}
+
 export function normalizeUrl(url: string): string {
   if (!url) return "";
   try {
@@ -47,7 +58,7 @@ export function normalizeUrl(url: string): string {
 
     return parsed.toString();
   } catch (err) {
-    console.warn(`transforms: normalizeUrl failed for "${url}": ${errorMessage(err)}`);
+    console.warn(`dedupe: normalizeUrl failed for "${url}": ${errorMessage(err)}`);
     return url.toLowerCase().trim();
   }
 }

@@ -14,6 +14,7 @@ import { parseFeedDate } from "./dates";
 import { fetchText } from "./fetch";
 import { decodeNumericFeedTitle, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
 import { dedupeByKey } from "./merge";
+import { extractHostname } from "../dedupe";
 import { normalizeStringList } from "../utils";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 import { errorMessage } from "./types";
@@ -56,12 +57,7 @@ function extractFeedTitle(parsed: RssFeedParsed, url: string): string {
     parsed?.feed?.title,
   );
   if (title) return decodeNumericFeedTitle(title);
-  try {
-    return new URL(url).hostname;
-  } catch (err) {
-    console.warn(`rss: extractFeedTitle could not parse url "${url}": ${errorMessage(err)}`);
-    return url;
-  }
+  return extractHostname(url, "rss") || url;
 }
 
 function parseItem(raw: RssFeedItem, source: string): ContentItem {

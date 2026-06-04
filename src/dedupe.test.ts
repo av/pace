@@ -1,5 +1,5 @@
 import { describe, test, expect, spyOn } from "bun:test";
-import { normalizeUrl, levenshteinDistance, levenshteinSimilarity } from "./dedupe";
+import { normalizeUrl, extractHostname, levenshteinDistance, levenshteinSimilarity } from "./dedupe";
 
 describe("dedupe utils", () => {
   describe("normalizeUrl", () => {
@@ -33,7 +33,25 @@ describe("dedupe utils", () => {
         expect(normalizeUrl(bad)).toBe(bad);
         expect(warnSpy).toHaveBeenCalledTimes(1);
         expect(warnSpy).toHaveBeenCalledWith(
-          expect.stringMatching(/^transforms: normalizeUrl failed for "not a valid url at all": /),
+          expect.stringMatching(/^dedupe: normalizeUrl failed for "not a valid url at all": /),
+        );
+      } finally {
+        warnSpy.mockRestore();
+      }
+    });
+  });
+
+  describe("extractHostname", () => {
+    test("returns lowercased host without www", () => {
+      expect(extractHostname("https://WWW.Example.com/path")).toBe("example.com");
+    });
+
+    test("returns empty string and warns on parse failure", () => {
+      const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+      try {
+        expect(extractHostname("not a url", "test")).toBe("");
+        expect(warnSpy).toHaveBeenCalledWith(
+          expect.stringMatching(/^test: extractHostname failed for "not a url": /),
         );
       } finally {
         warnSpy.mockRestore();
