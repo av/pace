@@ -248,7 +248,7 @@ describe("hackernews", () => {
     mocks.fetchMock.mockRejectedValue(new Error("DNS fail"));
 
     await expect(hackernewsAdapter.fetch(hnCfg())).rejects.toThrow(
-      /hackernews: error fetching stories: DNS fail/,
+      /hackernews: error fetching topstories: DNS fail/,
     );
   });
 

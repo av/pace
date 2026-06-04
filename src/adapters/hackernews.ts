@@ -16,7 +16,6 @@ import {
   sliceToLimit,
 } from "../utils";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
-import { errorMessage } from "./types";
 
 const HN_API = "https://hacker-news.firebaseio.com/v0";
 const BATCH_SIZE = 10;
@@ -113,19 +112,11 @@ const adapter: Adapter = {
 
     const endpoint = FEED_ENDPOINTS[feedType];
 
-    let ids: number[];
-    try {
-      ids = await fetchJson<number[]>("hackernews", `${HN_API}/${endpoint}.json`, endpoint);
-    } catch (err) {
-      if (err instanceof Error && err.message.startsWith("hackernews: failed to fetch")) {
-        throw err;
-      }
-      if (err instanceof Error && err.message.startsWith("hackernews: error fetching")) {
-        const detail = err.message.replace(/^hackernews: error fetching [^:]+: /, "");
-        throw new Error(`hackernews: error fetching stories: ${detail}`);
-      }
-      throw new Error(`hackernews: error fetching stories: ${errorMessage(err)}`);
-    }
+    const ids = await fetchJson<number[]>(
+      "hackernews",
+      `${HN_API}/${endpoint}.json`,
+      endpoint,
+    );
 
     // Fetch more items than needed if we're filtering by score,
     // since some may be below threshold
