@@ -16,31 +16,9 @@ import type { ContentItemRow } from "./db";
 import type { ContentItem } from "./adapters/types";
 import { summarizeItem, lensItems, mergeItems, filterItemsByLlm } from "./llm";
 import { extractEngagementScore, extractScore } from "./adapters/engagement";
-import { normalizeUrl, levenshteinSimilarity, extractHostname } from "./dedupe";
+import { normalizeUrl, levenshteinSimilarity } from "./dedupe";
 import { compareIsoTimestamp, errorMessage, sliceToLimit } from "./utils";
-
-const CLUSTER_STOP_WORDS = new Set([
-  "a", "an", "the", "and", "or", "but", "in", "on", "at", "to", "for",
-  "of", "with", "by", "from", "is", "it", "its", "this", "that", "are",
-  "was", "were", "be", "been", "has", "have", "had", "do", "does", "did",
-  "will", "would", "could", "should", "may", "might", "can", "shall",
-  "not", "no", "nor", "so", "if", "then", "than", "too", "very", "just",
-  "about", "up", "out", "how", "what", "when", "where", "who", "which",
-  "why", "all", "each", "every", "both", "few", "more", "most", "other",
-  "some", "such", "only", "own", "same", "as", "into", "through", "during",
-  "before", "after", "above", "below", "between", "under", "over", "again",
-  "new", "now", "get", "got", "use", "using", "used", "via", "also",
-  "one", "two", "first", "like", "still", "even", "much", "well", "back",
-  "here", "there", "while", "yet", "these", "those", "them", "they",
-  "your", "you", "my", "we", "our", "his", "her", "their", "i", "me",
-  "him", "she", "he", "us", "whom",
-  "points", "point", "comments", "comment", "discuss", "discussion",
-  "stars", "star", "likes", "views", "view", "votes", "vote",
-  "upvotes", "upvote", "boosts", "boost", "favorites", "favourite",
-  "reactions", "reaction", "replies", "reply", "https", "http", "www",
-  "com", "org", "net", "reddit", "github", "show", "item", "news",
-  "ycombinator", "lobste", "read", "min", "cover",
-]);
+import { applyCluster } from "./cluster";
 
 export interface TransformContext {
   llmModel: Model<Api> | null;
@@ -231,113 +209,6 @@ function applyFilter(items: ContentItemRow[], config: FilterTransformConfig): Co
 
 function applyExclude(items: ContentItemRow[], config: ExcludeTransformConfig): ContentItemRow[] {
   return filterByKeywordMatch(items, config, false);
-}
-
-function topMapEntry<T>(counts: Map<T, number>): [T, number] | undefined {
-  if (counts.size === 0) return undefined;
-  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
-}
-
-function incrementCount(counts: Map<string, number>, key: string): void {
-  counts.set(key, (counts.get(key) ?? 0) + 1);
-}
-
-function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
-  if (a.size === 0 || b.size === 0) return 0;
-  let intersection = 0;
-  for (const kw of a) {
-    if (b.has(kw)) intersection++;
-  }
-  const union = a.size + b.size - intersection;
-  return union === 0 ? 0 : intersection / union;
-}
-
-const CLUSTER_DOMAIN_LABELS: Record<string, string> = {
-  "github.com": "GitHub",
-  "reddit.com": "Reddit",
-  "news.ycombinator.com": "Hacker News",
-  "lobste.rs": "Lobsters",
-  "arxiv.org": "ArXiv Papers",
-  "stackoverflow.com": "Stack Overflow",
-  "dev.to": "Dev.to",
-  "youtube.com": "YouTube",
-  "medium.com": "Medium",
-  "twitter.com": "Twitter/X",
-  "x.com": "Twitter/X",
-};
-
-interface ClusterItemSignals {
-  domain: string;
-  keywords: Set<string>;
-  source: string;
-}
-
-function formatClusterDomainLabel(domain: string): string {
-  const mapped = CLUSTER_DOMAIN_LABELS[domain];
-  if (mapped) return mapped;
-  const base = domain.split(".")[0];
-  return base.charAt(0).toUpperCase() + base.slice(1);
-}
-
-function getMajorityClusterLabel<T extends string>(
-  counts: Map<T, number>,
-  total: number,
-  format?: (key: T) => string
-): string | undefined {
-  const top = topMapEntry(counts);
-  if (top && top[1] >= total * 0.6) {
-    const key = top[0];
-    return format ? format(key) : key;
-  }
-  return undefined;
-}
-
-function tallyFromIndices(
-  counts: Map<string, number>,
-  indices: number[],
-  getKeys: (idx: number) => Iterable<string | undefined>
-): void {
-  for (const idx of indices) {
-    for (const key of getKeys(idx)) {
-      if (key) incrementCount(counts, key);
-    }
-  }
-}
-
-function getTopKeywordsClusterLabel(counts: Map<string, number>, total: number): string | undefined {
-  const minCount = Math.ceil(total * 0.4);
-  const top = [...counts.entries()]
-    .filter(([, count]) => count >= minCount)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3)
-    .map(([kw]) => kw);
-  if (top.length === 0) return undefined;
-  return top.map((kw) => kw.charAt(0).toUpperCase() + kw.slice(1)).join("/");
-}
-
-function generateClusterLabel(
-  indices: number[],
-  signals: ClusterItemSignals[],
-  clusterCount: number
-): string {
-  const domainCounts = new Map<string, number>();
-  const keywordCounts = new Map<string, number>();
-
-  tallyFromIndices(domainCounts, indices, (idx) => [signals[idx].domain]);
-  tallyFromIndices(keywordCounts, indices, (idx) => signals[idx].keywords);
-
-  const domainLabel = getMajorityClusterLabel(domainCounts, indices.length, formatClusterDomainLabel);
-  if (domainLabel) return domainLabel;
-
-  const kwLabel = getTopKeywordsClusterLabel(keywordCounts, indices.length);
-  if (kwLabel) return kwLabel;
-
-  const sourceCounts = new Map<string, number>();
-  tallyFromIndices(sourceCounts, indices, (idx) => [signals[idx].source]);
-  const sourceLabel = getMajorityClusterLabel(sourceCounts, indices.length);
-  if (sourceLabel) return sourceLabel;
-
-  return `Cluster ${clusterCount + 1}`;
 }
 
 function dedupeGroupedByKey(
@@ -645,23 +516,6 @@ function sortRowsByInputOrder(rows: ContentItemRow[], order: ContentItemRow[]): 
   return [...rows].sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
 }
 
-function unionFind(n: number): { find: (x: number) => number; union: (x: number, y: number) => void } {
-  const parent = Array.from({ length: n }, (_, i) => i);
-  function find(x: number): number {
-    while (parent[x] !== x) {
-      parent[x] = parent[parent[x]];
-      x = parent[x];
-    }
-    return x;
-  }
-  function union(x: number, y: number): void {
-    const rx = find(x);
-    const ry = find(y);
-    if (rx !== ry) parent[rx] = ry;
-  }
-  return { find, union };
-}
-
 function withLlmModel<T extends ContentItemRow>(
   ctx: TransformContext,
   items: T[],
@@ -752,150 +606,8 @@ const transforms: Record<string, TransformFn> = {
 
   "time-decay": async (items, config) => applyTimeDecay(items, config as TimeDecayTransformConfig),
 
-  cluster: async (items, config) => {
-    const cfg = config as Extract<TransformConfig, { type: "cluster" }>;
-
-    const strategy = cfg.strategy ?? "auto";
-    const minClusterSize = cfg.min_cluster_size ?? 2;
-    const maxClusters = cfg.max_clusters ?? 10;
-    const similarityThreshold = cfg.similarity_threshold ?? 0.3;
-    const annotate = cfg.annotate ?? true;
-
-    if (items.length < 2) return items;
-
-    function extractKeywords(text: string): string[] {
-      return text
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, " ")
-        .split(/\s+/)
-        .filter((w) => w.length >= 3 && !CLUSTER_STOP_WORDS.has(w) && !/^\d+$/.test(w));
-    }
-
-    const signals: ClusterItemSignals[] = items.map((item) => {
-      const titleKeywords = extractKeywords(item.title ?? "");
-      const body = item.body ?? "";
-      const bodyClean = body
-        .replace(/https?:\/\/[^\s|]+/g, "")
-        .replace(/\d+\s*(points?|comments?|reactions?|replies?|views?|stars?|boosts?|favorites?|likes?|upvotes?)/gi, "")
-        .replace(/\bby\s+\S+/g, "")
-        .replace(/\btags?:\s*[^\n|]+/gi, "")
-        .replace(/\bdiscuss:/gi, "")
-        .replace(/[|]/g, " ");
-      const bodyKeywords = extractKeywords(bodyClean.slice(0, 150));
-      const allKeywords = new Set([...titleKeywords, ...bodyKeywords]);
-
-      return {
-        domain: extractHostname(item.url, "transforms"),
-        keywords: allKeywords,
-        source: item.source ?? item.panel_id ?? "",
-      };
-    });
-
-    function domainSimilarity(a: ClusterItemSignals, b: ClusterItemSignals): number {
-      if (!a.domain || !b.domain) return 0;
-      if (a.domain === b.domain) return 1.0;
-      const aParts = a.domain.split(".");
-      const bParts = b.domain.split(".");
-      const aBase = aParts.slice(-2).join(".");
-      const bBase = bParts.slice(-2).join(".");
-      if (aBase === bBase) return 0.7;
-      return 0;
-    }
-
-    function sourceSimilarity(a: ClusterItemSignals, b: ClusterItemSignals): number {
-      return !a.source || !b.source ? 0 : a.source === b.source ? 1.0 : 0;
-    }
-
-    function computeSimilarity(a: ClusterItemSignals, b: ClusterItemSignals): number {
-      switch (strategy) {
-        case "domain":
-          return domainSimilarity(a, b);
-        case "keywords":
-          return jaccardSimilarity(a.keywords, b.keywords);
-        case "source":
-          return sourceSimilarity(a, b);
-        case "auto":
-        default: {
-          const domain = domainSimilarity(a, b) * 0.5;
-          const keywords = jaccardSimilarity(a.keywords, b.keywords) * 0.45;
-          const source = sourceSimilarity(a, b) * 0.05;
-          return domain + keywords + source;
-        }
-      }
-    }
-
-    const similarities: Array<{ i: number; j: number; sim: number }> = [];
-    for (let i = 0; i < items.length; i++) {
-      for (let j = i + 1; j < items.length; j++) {
-        const sim = computeSimilarity(signals[i], signals[j]);
-        if (sim >= similarityThreshold) {
-          similarities.push({ i, j, sim });
-        }
-      }
-    }
-
-    similarities.sort((a, b) => b.sim - a.sim);
-
-    const { find, union } = unionFind(items.length);
-    for (const { i, j } of similarities) {
-      union(i, j);
-    }
-
-    const clusterMap = new Map<number, number[]>();
-    for (let i = 0; i < items.length; i++) {
-      const root = find(i);
-      const group = clusterMap.get(root) ?? [];
-      group.push(i);
-      clusterMap.set(root, group);
-    }
-
-    const clusters: Array<{ indices: number[]; label: string }> = [];
-    const unclustered: number[] = [];
-
-    for (const [, indices] of clusterMap) {
-      if (indices.length >= minClusterSize) {
-        clusters.push({ indices, label: "" });
-      } else {
-        unclustered.push(...indices);
-      }
-    }
-
-    clusters.sort((a, b) => b.indices.length - a.indices.length);
-    if (clusters.length > maxClusters) {
-      for (let i = maxClusters; i < clusters.length; i++) {
-        unclustered.push(...clusters[i].indices);
-      }
-      clusters.splice(maxClusters);
-    }
-
-    const result: ContentItemRow[] = [];
-    for (const cluster of clusters) {
-      cluster.label = generateClusterLabel(cluster.indices, signals, clusters.length);
-      sortByScoreDesc(cluster.indices, (idx) => extractEngagementScore(items[idx].body));
-      for (const idx of cluster.indices) {
-        const item = items[idx];
-        result.push(
-          annotate ? { ...item, body: `[${cluster.label}] ${item.body ?? ""}` } : item
-        );
-      }
-    }
-
-    unclustered.sort((a, b) =>
-      compareIsoTimestamp(items[a].timestamp, items[b].timestamp, "desc")
-    );
-    for (const idx of unclustered) {
-      result.push(items[idx]);
-    }
-
-    const clusterSummary = clusters
-      .map((c) => `"${c.label}" (${c.indices.length} items)`)
-      .join(", ");
-    console.log(
-      `transforms: cluster strategy=${strategy}, ${clusters.length} cluster(s): ${clusterSummary || "none"}, ${unclustered.length} unclustered`
-    );
-
-    return result;
-  },
+  cluster: async (items, config) =>
+    applyCluster(items, config as Extract<TransformConfig, { type: "cluster" }>),
 
   "llm-summarize": (items, config, ctx) =>
     withLlmModel(ctx, items, (model) =>
