@@ -64,19 +64,6 @@ interface MastodonAccount {
 
 type Mode = "public" | "hashtag" | "account";
 
-function publicTimelineContext(instance: string): string {
-  return `public timeline from ${instance}`;
-}
-
-function hashtagTimelineContext(instance: string, hashtag: string): string {
-  const tag = hashtag.replace(/^#/, "");
-  return `hashtag #${tag} from ${instance}`;
-}
-
-function accountStatusesContext(instance: string, accountId: string): string {
-  return `account ${accountId} statuses from ${instance}`;
-}
-
 function buildBody(status: MastodonStatus, instance: string): string {
   return joinTitle(
     formatBoosts(status.reblogs_count),
@@ -134,7 +121,11 @@ async function fetchPublicTimeline(
     `https://${instance}/api/v1/timelines/public?limit=${limit}`,
     onlyMedia,
   );
-  return fetchJson<MastodonStatus[]>("mastodon", url, publicTimelineContext(instance));
+  return fetchJson<MastodonStatus[]>(
+    "mastodon",
+    url,
+    `public timeline from ${instance}`,
+  );
 }
 
 async function fetchHashtagTimeline(
@@ -148,7 +139,11 @@ async function fetchHashtagTimeline(
     `https://${instance}/api/v1/timelines/tag/${encodeURIComponent(tag)}?limit=${limit}`,
     onlyMedia,
   );
-  return fetchJson<MastodonStatus[]>("mastodon", url, hashtagTimelineContext(instance, tag));
+  return fetchJson<MastodonStatus[]>(
+    "mastodon",
+    url,
+    `hashtag #${tag} from ${instance}`,
+  );
 }
 
 async function fetchAccountStatuses(
@@ -164,7 +159,7 @@ async function fetchAccountStatuses(
   return fetchJson<MastodonStatus[]>(
     "mastodon",
     url,
-    accountStatusesContext(instance, accountId),
+    `account ${accountId} statuses from ${instance}`,
   );
 }
 
