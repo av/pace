@@ -5,7 +5,7 @@ import {
 } from "../utils";
 import { buildGitHubApiHeaders, fetchJson } from "./fetch";
 import { fetchRepoTagline } from "./github-repo-meta";
-import { decodeHtmlEntities } from "./html";
+import { decodeNumericFeedTitle } from "./html";
 import { titleWithTagline } from "./title";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
@@ -22,10 +22,6 @@ const ADAPTER_NAME = "github-releases";
 const DEFAULT_RELEASES_PER_PAGE = 5;
 const MAX_RELEASES_PER_PAGE = 30;
 
-function decodeReleaseName(name: string): string {
-  return decodeHtmlEntities(name, { numeric: true });
-}
-
 async function fetchRepoReleases(
   repo: string,
   perPage: number,
@@ -37,7 +33,7 @@ async function fetchRepoReleases(
   });
   const tagline = await fetchRepoTagline(repo, ADAPTER_NAME, token);
   return releases.map((r) => {
-    const releaseName = decodeReleaseName(r.name ?? r.tag_name);
+    const releaseName = decodeNumericFeedTitle(r.name ?? r.tag_name);
     const title = titleWithTagline(`${repo}: ${releaseName}`, tagline);
     return {
       id: `github:${repo}:${r.id}`,

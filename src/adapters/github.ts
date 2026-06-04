@@ -20,7 +20,7 @@ import {
   sliceToLimit,
 } from "../utils";
 import { dedupeByKey } from "./merge";
-import { decodeHtmlEntities, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
+import { decodeNumericFeedTitle, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
 import { fetchRepoTagline } from "./github-repo-meta";
 import { joinTitleWithTagline, titleWithTagline } from "./title";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -50,7 +50,7 @@ interface GHAtomFeedParsed {
 function releasesFeedSource(parsed: GHAtomFeedParsed, repo: string): string {
   const feedTitle = extractFeedRootTitle(undefined, parsed.feed?.title);
   if (feedTitle) {
-    return `github:${decodeHtmlEntities(feedTitle, { numeric: true })}`;
+    return `github:${decodeNumericFeedTitle(feedTitle)}`;
   }
   return `github:${repo}`;
 }
@@ -72,9 +72,8 @@ async function fetchReleasesFeed(
   const items: ContentItem[] = [];
 
   for (const entry of sliceToLimit(entries, limit)) {
-    const title = decodeHtmlEntities(
+    const title = decodeNumericFeedTitle(
       extractFeedEntryTitle(entry.title, "(untitled release)"),
-      { numeric: true },
     );
     const link = extractAtomLink(entry.link);
     const timestamp = parseFeedDate(entry.updated ?? entry.published ?? "");
@@ -129,9 +128,8 @@ function parseTrendingHtml(html: string): TrendingRepo[] {
       /<h2[^>]*>[\s\S]*?<a[^>]*href="\/([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/h2>/,
     );
     if (!nameMatch) continue;
-    const nameFromHref = decodeHtmlEntities(
+    const nameFromHref = decodeNumericFeedTitle(
       nameMatch[1].trim().replace(/\s+/g, ""),
-      { numeric: true },
     );
     const nameFromLink = stripHtml(nameMatch[2] ?? "", FEED_BODY_STRIP_OPTIONS)
       .replace(/\s*\/\s*/g, "/")

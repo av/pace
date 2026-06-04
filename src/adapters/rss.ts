@@ -12,7 +12,7 @@ import {
 } from "./atom";
 import { parseFeedDate } from "./dates";
 import { fetchText } from "./fetch";
-import { decodeHtmlEntities, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
+import { decodeNumericFeedTitle, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
 import { dedupeByKey } from "./merge";
 import { normalizeStringList } from "../utils";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -55,7 +55,7 @@ function extractFeedTitle(parsed: RssFeedParsed, url: string): string {
     parsed?.rss?.channel?.title,
     parsed?.feed?.title,
   );
-  if (title) return decodeHtmlEntities(title, { numeric: true });
+  if (title) return decodeNumericFeedTitle(title);
   try {
     return new URL(url).hostname;
   } catch (err) {
@@ -65,9 +65,7 @@ function extractFeedTitle(parsed: RssFeedParsed, url: string): string {
 }
 
 function parseItem(raw: RssFeedItem, source: string): ContentItem {
-  const title = decodeHtmlEntities(extractFeedEntryTitle(raw.title), {
-    numeric: true,
-  });
+  const title = decodeNumericFeedTitle(extractFeedEntryTitle(raw.title));
 
   const link = extractAtomLink(raw.link);
 
