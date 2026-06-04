@@ -36,6 +36,7 @@ export function useFetchMockSuite(): FetchMockSuite {
   };
 }
 
+/** Minimal AdapterConfig for adapter tests (not a fetch mock). */
 export function adapterCfg(type: string, params: Record<string, unknown> = {}): AdapterConfig {
   return { type, params };
 }

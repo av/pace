@@ -35,9 +35,12 @@ describe("joinTitleWithTagline", () => {
   test("truncates tagline and joins extra segments", () => {
     const tagline = "d".repeat(150);
     const title = joinTitleWithTagline("owner/repo", tagline, 100, "+10 today");
-    expect(title.startsWith("owner/repo | ")).toBe(true);
-    expect(title.endsWith("+10 today")).toBe(true);
-    expect(title.length).toBe("owner/repo | ".length + 100 + " | +10 today".length);
+    const prefix = "owner/repo | ";
+    const suffix = " | +10 today";
+    const taglinePart = title.slice(prefix.length, title.length - suffix.length);
+    expect(taglinePart.length).toBe(100);
+    expect(taglinePart.endsWith("…")).toBe(true);
+    expect(title).toBe(`${prefix}${taglinePart}${suffix}`);
   });
 
   test("returns primary when tagline missing", () => {
@@ -48,8 +51,11 @@ describe("joinTitleWithTagline", () => {
   test("joins and truncates tagline by default", () => {
     const tagline = "d".repeat(150);
     const title = joinTitleWithTagline("owner/repo: v1", tagline);
-    expect(title.startsWith("owner/repo: v1 | ")).toBe(true);
-    expect(title.length).toBe("owner/repo: v1 | ".length + 100);
+    const prefix = "owner/repo: v1 | ";
+    const taglinePart = title.slice(prefix.length);
+    expect(taglinePart.length).toBe(100);
+    expect(taglinePart.endsWith("…")).toBe(true);
+    expect(title).toBe(`${prefix}${taglinePart}`);
   });
 
   test("maxTagline 0 skips truncation", () => {

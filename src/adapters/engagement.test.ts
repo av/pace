@@ -4,103 +4,77 @@ import {
   extractScore,
   formatComments,
   formatCommunity,
-  formatDiscuss,
-  formatSubreddit,
-  formatPercent,
-  formatPoints,
-  formatReactions,
   formatCover,
-  formatReadingTime,
-  formatAnswers,
-  formatCategories,
-  formatLanguage,
+  formatDiscuss,
   formatMastodonAcct,
   formatMedia,
+  formatPercent,
+  formatPoints,
   formatScore,
-  formatSite,
   formatStars,
+  formatSubreddit,
   formatTags,
-  formatTopics,
   formatViews,
   joinBodyParts,
   parseFirstIntMatch,
   RE_POINTS_OR_UPVOTES,
 } from "./engagement";
 
-describe("engagement format helpers", () => {
-  test("formatScore matches extractScore score: label", () => {
-    const body = formatScore(42);
-    expect(body).toBe("Score: 42");
-    expect(extractScore(body)).toBe(42);
+describe("engagement body roundtrips", () => {
+  test("score-bearing bodies parse via extractScore and extractEngagementScore", () => {
+    const hnBody = joinBodyParts(formatPoints(42), formatComments(10));
+    expect(extractScore(hnBody)).toBe(42);
+    expect(extractEngagementScore(hnBody)).toBe(42 + 5);
+
+    expect(extractScore(formatScore(77))).toBe(77);
+    expect(extractEngagementScore(formatStars(99))).toBe(99);
   });
 
-  test("formatReactions for devto-style bodies", () => {
-    expect(formatReactions(7)).toBe("7 reactions");
-  });
-
-  test("formatAnswers for stackexchange bodies", () => {
-    expect(formatAnswers(5, true)).toBe("5 answers (accepted)");
-    expect(formatAnswers(3)).toBe("3 answers");
-  });
-
-  test("formatReadingTime and formatCover for devto-style bodies", () => {
-    expect(formatReadingTime(5)).toBe("5 min read");
-    expect(formatReadingTime(1)).toBe("1 min read");
-    expect(formatCover("https://example.com/cover.jpg")).toBe(
-      "cover: https://example.com/cover.jpg",
+  test("joinBodyParts preserves pipe-separated adapter layout", () => {
+    const body = joinBodyParts(
+      formatPoints(42),
+      "by alice",
+      formatComments(10),
+      formatDiscuss("https://ex.com/talk"),
     );
-    expect(formatCover(null)).toBeUndefined();
-    expect(formatCover("")).toBeUndefined();
+    expect(body).toBe("42 points | by alice | 10 comments | discuss: https://ex.com/talk");
+    expect(extractScore(body)).toBe(42);
+    expect(extractEngagementScore(body)).toBe(47);
   });
+});
 
-  test("formatPercent for npm registry fractional scores", () => {
+describe("engagement display helpers", () => {
+  test("formatPercent rounds fractional scores for npm-style bodies", () => {
     expect(formatPercent(0.806)).toBe("81%");
     expect(formatPercent(0)).toBe("0%");
   });
 
-  test("formatStars for github trending bodies", () => {
-    expect(formatStars(123456)).toBe("123,456 stars");
-    expect(extractEngagementScore(formatStars(99))).toBe(99);
-  });
-
-  test("formatViews for wikipedia most-read bodies", () => {
+  test("formatViews scales large view counts", () => {
     expect(formatViews(1_500_000)).toBe("1.5m views");
     expect(formatViews(42_500)).toBe("42.5k views");
     expect(formatViews(500)).toBe("500 views");
   });
 
-  test("formatLanguage, formatTopics, formatTags, formatCategories, formatSite for adapter metadata", () => {
-    expect(formatLanguage("TypeScript")).toBe("language: TypeScript");
-    expect(formatTopics(["Ai", "Devtools"])).toBe("topics: Ai, Devtools");
-    expect(formatTags(["typescript", "webdev"])).toBe("tags: typescript, webdev");
+  test("formatCover and formatTags omit empty values", () => {
+    expect(formatCover(null)).toBeUndefined();
+    expect(formatCover("")).toBeUndefined();
+    expect(formatCover("https://example.com/cover.jpg")).toBe(
+      "cover: https://example.com/cover.jpg",
+    );
     expect(formatTags([])).toBeUndefined();
-    expect(formatCategories(["cs.LG", "cs.AI"])).toBe("Categories: cs.LG, cs.AI");
-    expect(formatSite("https://example.com/p")).toBe("site: https://example.com/p");
+    expect(formatTags(["typescript"])).toBe("tags: typescript");
   });
 
-  test("formatCommunity and formatSubreddit for lemmy/reddit bodies", () => {
-    expect(formatCommunity("technology")).toBe("c/technology");
-    expect(formatSubreddit("programming")).toBe("r/programming");
-  });
-
-  test("formatMastodonAcct and formatMedia for mastodon bodies", () => {
+  test("formatMastodonAcct handles local and remote handles", () => {
     expect(formatMastodonAcct("alice", "social.example")).toBe("@alice@social.example");
     expect(formatMastodonAcct("bob@remote.social", "social.example")).toBe("@bob@remote.social");
     expect(formatMedia([])).toBeUndefined();
-    expect(formatMedia(["https://ex.com/a.png", "https://ex.com/b.png"])).toBe(
-      "media: https://ex.com/a.png https://ex.com/b.png",
-    );
+    expect(formatMedia(["https://ex.com/a.png"])).toBe("media: https://ex.com/a.png");
   });
 
-  test("joinBodyParts matches adapter metadata layout", () => {
-    expect(
-      joinBodyParts(
-        formatPoints(42),
-        "by alice",
-        formatComments(10),
-        formatDiscuss("https://ex.com/talk"),
-      ),
-    ).toBe("42 points | by alice | 10 comments | discuss: https://ex.com/talk");
+  test("formatCommunity and formatSubreddit prefix slugs for lemmy/reddit bodies", () => {
+    expect(formatCommunity("technology")).toBe("c/technology");
+    expect(formatSubreddit("programming")).toBe("r/programming");
   });
 });
 

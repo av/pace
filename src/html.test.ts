@@ -1,5 +1,10 @@
 import { describe, test, expect } from "bun:test";
-import { decodeHtmlEntities, stripHtml } from "./adapters/html";
+import {
+  decodeHtmlEntities,
+  decodeNumericFeedTitle,
+  decodeNumericFeedTitleOptional,
+  stripHtml,
+} from "./adapters/html";
 
 describe("decodeHtmlEntities", () => {
   test("decodes common named entities", () => {
@@ -16,6 +21,17 @@ describe("decodeHtmlEntities", () => {
   test("decodes decimal and hex entities when numeric is true", () => {
     expect(decodeHtmlEntities("&#65; &#x41;", { numeric: true })).toBe("A A");
     expect(decodeHtmlEntities("&#8364;", { numeric: true })).toBe("€");
+  });
+});
+
+describe("decodeNumericFeedTitle", () => {
+  test("decodes named and numeric entities in feed titles", () => {
+    expect(decodeNumericFeedTitle("A &amp; B &#8364; C")).toBe("A & B € C");
+  });
+
+  test("decodeNumericFeedTitleOptional uses fallback for missing text", () => {
+    expect(decodeNumericFeedTitleOptional()).toBe("(untitled)");
+    expect(decodeNumericFeedTitleOptional(undefined, "no title")).toBe("no title");
   });
 });
 

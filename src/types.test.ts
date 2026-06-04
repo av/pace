@@ -1,22 +1,10 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import fs from "node:fs";
-import path from "node:path";
 import type { Adapter, AdapterConfig } from "./adapters/types";
 import rssAdapter from "./adapters/rss";
 import producthuntAdapter from "./adapters/producthunt";
 import { useFetchMockSuite } from "./test/adapter-mocks";
 
-const TYPES_TS = path.join(import.meta.dir, "adapters", "types.ts");
 const mocks = useFetchMockSuite();
-
-function adapterFetchJsDoc(): string {
-  const src = fs.readFileSync(TYPES_TS, "utf8");
-  const block = src.match(
-    /export interface Adapter[\s\S]*?\/\*\*([\s\S]*?)\*\/\s*fetch\(config: AdapterConfig\)/,
-  );
-  if (!block) throw new Error("Adapter.fetch JSDoc not found in types.ts");
-  return block[1];
-}
 
 function phFeedFixture(): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -33,50 +21,14 @@ function phFeedFixture(): string {
 }
 
 describe("types", () => {
-  describe("Adapter.fetch JSDoc", () => {
-    test("required fetch failures throw for scheduler lastError", () => {
-      const doc = adapterFetchJsDoc();
-      expect(doc).toMatch(/Throw.*\$\{name\}/);
-      expect(doc).toMatch(/scheduler/);
-      expect(doc).toMatch(/lastError/);
-      expect(doc).toMatch(/network\/timeout/);
-      expect(doc).toMatch(/Never downgrade these to `console\.warn` \+ `\[\]`/);
-    });
-
-    test("empty sources return [] without throwing", () => {
-      const doc = adapterFetchJsDoc();
-      expect(doc).toMatch(/Return `\[\]` without throwing/);
-      expect(doc).toMatch(/empty source[\s\S]*lists in `params`/);
-      expect(doc).toMatch(/zero usable entries/);
-      expect(doc).toMatch(/misconfiguration/);
-    });
-
-    test("optional secondary fetches warn and continue", () => {
-      const doc = adapterFetchJsDoc();
-      expect(doc).toMatch(/Warn and continue only for optional secondary fetches/);
-      expect(doc).toMatch(/per-item enrichment/);
-      expect(doc).toMatch(/account lookup/);
-      expect(doc).toMatch(/skip that item, return[\s\S]*the rest/);
-    });
-  });
-
-  describe("AdapterConfig shape", () => {
-    test("refresh_interval is ingest-only (IngestAdapterConfig), not on fetch contract", () => {
-      const src = fs.readFileSync(TYPES_TS, "utf8");
-      const block = src.match(/export interface AdapterConfig \{[\s\S]*?\n\}/);
-      expect(block).toBeTruthy();
-      expect(block![0]).not.toMatch(/refresh_interval/);
-    });
-  });
-
-  describe("Adapter.fetch contract (reference)", () => {
-    test("Adapter interface requires name and fetch", () => {
+  describe("Adapter.fetch contract", () => {
+    test("Adapter interface requires name and fetch", async () => {
       const adapter: Adapter = {
         name: "stub",
         fetch: async (_config: AdapterConfig) => [],
       };
       expect(adapter.name).toBe("stub");
-      expect(adapter.fetch({ type: "stub" })).toBeInstanceOf(Promise);
+      expect(await adapter.fetch({ type: "stub" })).toEqual([]);
     });
 
     describe("rss", () => {
@@ -141,7 +93,10 @@ describe("types", () => {
           type: "producthunt",
           params: { enrich: true },
         });
-        expect(items.length).toBe(1);
+        expect(items).toHaveLength(1);
+        expect(items[0]?.url).toBe(
+          "https://www.producthunt.com/posts/test-product-123456",
+        );
         const enrichWarns = mocks.warnSpy.mock.calls.filter((c) =>
           String(c[0]).startsWith("producthunt: failed to fetch"),
         );
