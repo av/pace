@@ -1,29 +1,6 @@
-/**
- * Shared HTTP helpers for adapters (`fetchWithTimeout`, `fetchText`, `fetchJson`).
- *
- * Adapter-specific `timeoutMs` overrides (omit when equal to `DEFAULT_FETCH_TIMEOUT_MS`):
- *
- * - **15s** (`DEFAULT_FETCH_TIMEOUT_MS`) — default for most feed/API calls.
- * - **10s** (`HN_ITEM_FETCH_TIMEOUT_MS`) — hackernews per-item (`item/{id}.json`);
- *   mastodon account lookup; producthunt enrich HTML scrape.
- * - **20s** (`FEED_FETCH_TIMEOUT_MS`) — github trending HTML; podcast feed XML.
- * - **30s** (`ARXIV_FETCH_TIMEOUT_MS`) — arxiv Atom query.
- *
- * Error message prefixes (use `${adapterName}:` consistently):
- *
- * - **`failed to fetch`** — the request completed but the response is unusable:
- *   non-2xx HTTP (`!res.ok`). Throw this directly after status check; do not
- *   wrap it again in an outer catch.
- * - **`error fetching`** — transport-layer failure before a definitive HTTP
- *   status: network errors, DNS, timeouts (`AbortSignal.timeout`), etc. Emitted
- *   by `fetchText`/`fetchJson` via `fetchOkResponse` / `fetchBody`.
- * - **`error reading`** — `res.ok` but reading/parsing the body failed.
- *
- * Avoid double-wrapped messages (`error fetching … failed to fetch …`): in a
- * catch-all around fetch+parse, rethrow when
- * `err.message.startsWith(\`${prefix}: failed to fetch\`)`; otherwise wrap as
- * `error fetching`. See `Adapter.fetch` in `types.ts` for throw vs warn+[] contract.
- */
+/** Shared adapter HTTP helpers. Timeouts: DEFAULT 15s, HN_ITEM 10s, FEED 20s, ARXIV 30s.
+ *  Errors: `${prefix}: failed to fetch` (non-2xx), `error fetching` (transport), `error reading` (body).
+ *  Rethrow `failed to fetch` in outer catches; see `Adapter.fetch` in types.ts. */
 import { errorMessage } from "./types";
 
 export const PACE_USER_AGENT = "pace/1.0";
