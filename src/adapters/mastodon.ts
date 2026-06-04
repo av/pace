@@ -136,13 +136,19 @@ async function lookupAccount(
   }
 }
 
+function withOnlyMedia(url: string, onlyMedia: boolean): string {
+  return onlyMedia ? `${url}&only_media=true` : url;
+}
+
 async function fetchPublicTimeline(
   instance: string,
   limit: number,
   onlyMedia: boolean,
 ): Promise<MastodonStatus[]> {
-  let url = `https://${instance}/api/v1/timelines/public?limit=${limit}`;
-  if (onlyMedia) url += "&only_media=true";
+  const url = withOnlyMedia(
+    `https://${instance}/api/v1/timelines/public?limit=${limit}`,
+    onlyMedia,
+  );
   return fetchJson<MastodonStatus[]>("mastodon", url, publicTimelineContext(instance));
 }
 
@@ -153,8 +159,10 @@ async function fetchHashtagTimeline(
   onlyMedia: boolean,
 ): Promise<MastodonStatus[]> {
   const tag = hashtag.replace(/^#/, ""); // strip leading # if present
-  let url = `https://${instance}/api/v1/timelines/tag/${encodeURIComponent(tag)}?limit=${limit}`;
-  if (onlyMedia) url += "&only_media=true";
+  const url = withOnlyMedia(
+    `https://${instance}/api/v1/timelines/tag/${encodeURIComponent(tag)}?limit=${limit}`,
+    onlyMedia,
+  );
   return fetchJson<MastodonStatus[]>("mastodon", url, hashtagTimelineContext(instance, tag));
 }
 
@@ -164,8 +172,10 @@ async function fetchAccountStatuses(
   limit: number,
   onlyMedia: boolean,
 ): Promise<MastodonStatus[]> {
-  let url = `https://${instance}/api/v1/accounts/${accountId}/statuses?limit=${limit}&exclude_replies=true&exclude_reblogs=true`;
-  if (onlyMedia) url += "&only_media=true";
+  const url = withOnlyMedia(
+    `https://${instance}/api/v1/accounts/${accountId}/statuses?limit=${limit}&exclude_replies=true&exclude_reblogs=true`,
+    onlyMedia,
+  );
   return fetchJson<MastodonStatus[]>(
     "mastodon",
     url,
