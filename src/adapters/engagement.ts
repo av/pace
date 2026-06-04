@@ -6,8 +6,6 @@ export const RE_UPVOTES = /(\d+)\s*upvotes?/i;
 /** Product Hunt enrich HTML accepts points or upvotes wording. */
 export const RE_POINTS_OR_UPVOTES = /(\d+)\s*(?:points|upvotes?)/i;
 
-const PRIMARY_SCORE_PATTERNS: RegExp[] = [RE_POINTS, RE_SCORE_LABEL, RE_UPVOTES];
-
 export const ENGAGEMENT_PATTERNS: Array<{ re: RegExp; weight: number }> = [
   { re: RE_POINTS, weight: 1 },
   { re: RE_SCORE_LABEL, weight: 1 },
@@ -18,6 +16,9 @@ export const ENGAGEMENT_PATTERNS: Array<{ re: RegExp; weight: number }> = [
   { re: /(\d+)\s*likes?/i, weight: 1 },
   { re: /(\d+)\s*comments?/i, weight: 0.5 },
 ];
+
+/** Primary vote/score regexes — first ENGAGEMENT_PATTERNS entries (HN, Lobsters, Reddit, PH). */
+const PRIMARY_SCORE_PATTERNS: RegExp[] = ENGAGEMENT_PATTERNS.slice(0, 3).map(({ re }) => re);
 
 /** First matching primary score in body text (dedupe keep:highest-score). */
 export function extractScore(body: string | null): number {
