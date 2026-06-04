@@ -15,11 +15,7 @@ import {
   FEED_BODY_STRIP_OPTIONS,
   stripHtml,
 } from "./html";
-import {
-  normalizePositiveInteger,
-  normalizeStringList,
-  sliceToLimit,
-} from "../utils";
+import { clampAdapterLimit, normalizeStringList, sliceToLimit } from "../utils";
 import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
@@ -102,10 +98,7 @@ const adapter: Adapter = {
     const playlists = normalizeStringList(
       (config.params?.playlists as string[]) ?? [],
     );
-    const limit = Math.min(
-      normalizePositiveInteger(config.params?.limit, 15),
-      50,
-    );
+    const limit = clampAdapterLimit(config.params?.limit, 15, 50);
 
     if (channels.length === 0 && playlists.length === 0) {
       console.warn("youtube: no channels or playlists configured");

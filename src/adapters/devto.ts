@@ -12,6 +12,7 @@ import { decodeNumericFeedTitle } from "./html";
 import {
   normalizeNonNegativeNumber,
   normalizeOptionalString,
+  clampAdapterLimit,
   normalizePositiveInteger,
   normalizeStringList,
   sliceToLimit,
@@ -95,11 +96,9 @@ const adapter: Adapter = {
     const username = normalizeOptionalString(
       config.params?.username as string | undefined,
     );
-    const perPage = Math.min(
-      normalizePositiveInteger(
-        config.params?.per_page ?? config.params?.limit,
-        20,
-      ),
+    const perPage = clampAdapterLimit(
+      config.params?.per_page ?? config.params?.limit,
+      20,
       30,
     );
     const minReactions = normalizeNonNegativeNumber(config.params?.min_reactions);

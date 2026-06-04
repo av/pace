@@ -1,6 +1,6 @@
 import {
+  clampAdapterLimit,
   normalizeOptionalString,
-  normalizePositiveInteger,
   normalizeStringList,
 } from "../utils";
 import { buildGitHubApiHeaders, fetchJson } from "./fetch";
@@ -58,8 +58,9 @@ const adapter: Adapter = {
       return [];
     }
 
-    const perPage = Math.min(
-      normalizePositiveInteger(config.params?.limit, DEFAULT_RELEASES_PER_PAGE),
+    const perPage = clampAdapterLimit(
+      config.params?.limit,
+      DEFAULT_RELEASES_PER_PAGE,
       MAX_RELEASES_PER_PAGE,
     );
 

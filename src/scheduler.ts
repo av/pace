@@ -35,13 +35,8 @@ const pipelineEntries: PipelineEntry[] = [];
 let transformCtx: TransformContext = { llmModel: null };
 let pruneTimer: ReturnType<typeof setInterval> | null = null;
 
-/** Delay before first pipeline run (adapters fetch immediately on startup). */
 export const PIPELINE_INITIAL_DELAY_MS = 5000;
-
-/** Default adapter/pipeline refresh when `refresh_interval` is omitted (minutes). */
 export const DEFAULT_REFRESH_INTERVAL_MIN = 15;
-
-/** Floor for configured `refresh_interval` (minutes). */
 export const MIN_REFRESH_INTERVAL_MIN = 1;
 
 export interface RefreshResult {
@@ -102,7 +97,6 @@ function replaceItemsOnPanels(panelIds: string[], items: ContentItemRow[]): void
   for (const pid of panelIds) replacePanelItems(pid, items);
 }
 
-/** Concatenate source panels, newest first; equal timestamps keep concat order (stable sort). */
 function gatherPipelineInputItems(
   sources: string[],
   readKeys: Map<string, string>,
@@ -258,28 +252,6 @@ function pruneOldItems(): void {
   }
 }
 
-function namesInSet<T>(entries: readonly T[], getName: (e: T) => string, names: Set<string>): Set<string> {
-  const out = new Set<string>();
-  for (const entry of entries) {
-    const name = getName(entry);
-    if (names.has(name)) out.add(name);
-  }
-  return out;
-}
-
-function filterByNames<T>(entries: readonly T[], getName: (e: T) => string, names: Set<string>): T[] {
-  return entries.filter((e) => names.has(getName(e)));
-}
-
-function addPipelineSourcesTo(names: Set<string>, pipelines: readonly PipelineEntry[]): void {
-  for (const pipeline of pipelines) {
-    for (const source of pipeline.config.sources) {
-      names.add(source);
-    }
-  }
-}
-
-/** `seed` pipeline names plus pipelines whose sources overlap the refresh scope (adapter names and sources from pipelines in `seed`). */
 function dependentPipelineNames(adapterNames: Set<string>, seed: Set<string>): Set<string> {
   const names = new Set(seed);
   for (const pipeline of pipelineEntries) {
@@ -291,7 +263,6 @@ function dependentPipelineNames(adapterNames: Set<string>, seed: Set<string>): S
   return names;
 }
 
-/** Names passed to `refreshSources` when a layout panel uses `source: all` (adapters + pipelines). */
 export function allPanelRefreshSourceNames(
   adapterNames: readonly string[],
   pipelines: readonly { name: string }[] | undefined,
@@ -306,18 +277,27 @@ export function allPanelRefreshSourceNames(
 export async function refreshSources(sourceNames: string[]): Promise<RefreshResult[]> {
   const sourceNameSet = new Set(sourceNames);
 
-  const selectedPipelines = filterByNames(pipelineEntries, (e) => e.config.name, sourceNameSet);
-  const adapterNameSet = namesInSet(adapterEntries, (e) => e.name, sourceNameSet);
-  addPipelineSourcesTo(adapterNameSet, selectedPipelines);
+  const selectedPipelines = pipelineEntries.filter((e) =>
+    sourceNameSet.has(e.config.name),
+  );
+  const adapterNameSet = new Set(
+    adapterEntries.filter((e) => sourceNameSet.has(e.name)).map((e) => e.name),
+  );
+  for (const pipeline of selectedPipelines) {
+    for (const source of pipeline.config.sources) adapterNameSet.add(source);
+  }
 
-  const toRefresh = filterByNames(adapterEntries, (e) => e.name, adapterNameSet);
-  const adapterResults = await Promise.all(toRefresh.map((e) => runAdapter(e)));
+  const adapterResults = await Promise.all(
+    adapterEntries.filter((e) => adapterNameSet.has(e.name)).map((e) => runAdapter(e)),
+  );
 
   const pipelineNameSet = dependentPipelineNames(
     adapterNameSet,
     new Set(selectedPipelines.map((e) => e.config.name)),
   );
-  const pipelinesToRefresh = filterByNames(pipelineEntries, (e) => e.config.name, pipelineNameSet);
+  const pipelinesToRefresh = pipelineEntries.filter((e) =>
+    pipelineNameSet.has(e.config.name),
+  );
   const pipelineResults = await Promise.all(pipelinesToRefresh.map((e) => runPipelineJob(e)));
 
   return adapterResults.concat(pipelineResults);

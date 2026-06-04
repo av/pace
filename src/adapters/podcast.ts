@@ -15,7 +15,7 @@ import { parseFeedDate } from "./dates";
 import { joinBodyParts } from "./engagement";
 import { FEED_FETCH_TIMEOUT_MS, fetchText, PACE_USER_AGENT } from "./fetch";
 import {
-  normalizePositiveInteger,
+  clampAdapterLimit,
   normalizeStringList,
   sliceToLimit,
 } from "../utils";
@@ -295,10 +295,7 @@ const adapter: Adapter = {
   name: "podcast",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
     const feeds = normalizeStringList((config.params?.feeds as string[]) ?? []);
-    const limit = Math.min(
-      normalizePositiveInteger(config.params?.limit, 10),
-      50,
-    );
+    const limit = clampAdapterLimit(config.params?.limit, 10, 50);
 
     if (feeds.length === 0) {
       console.warn("podcast: no feeds configured");
