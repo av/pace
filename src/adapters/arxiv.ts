@@ -1,8 +1,7 @@
-import { XMLParser } from "fast-xml-parser";
 import {
   extractFeedEntryTitle,
   extractFeedItemBody,
-  FEED_XML_PARSER_OPTIONS,
+  feedXmlParser,
   normalizeXmlList,
   type FeedItemBodyFields,
   type XmlTextField,
@@ -26,8 +25,6 @@ import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 const ARXIV_API = "http://export.arxiv.org/api/query";
 const RATE_LIMIT_DELAY = 3000; // ArXiv requests 3-second delay between requests
-
-const parser = new XMLParser(FEED_XML_PARSER_OPTIONS);
 
 interface ArxivAuthor {
   name?: string;
@@ -117,7 +114,7 @@ async function fetchArxivQuery(
     timeoutMs: ARXIV_FETCH_TIMEOUT_MS,
   });
 
-  const parsed = parser.parse(xml) as ArxivAtomFeedParsed;
+  const parsed = feedXmlParser.parse(xml) as ArxivAtomFeedParsed;
   return normalizeXmlList(parsed.feed?.entry);
 }
 

@@ -1,3 +1,5 @@
+import { XMLParser } from "fast-xml-parser";
+
 export type AtomLinkField =
   | string
   | { "@_href"?: string; "@_rel"?: string }
@@ -22,6 +24,9 @@ export const FEED_XML_PARSER_OPTIONS = {
   ignoreAttributes: false,
   attributeNamePrefix: "@_" as const,
 };
+
+/** Shared XMLParser for feed adapters using {@link FEED_XML_PARSER_OPTIONS}. */
+export const feedXmlParser = new XMLParser(FEED_XML_PARSER_OPTIONS);
 
 /** Normalize a single parsed node or list from fast-xml-parser. */
 export function normalizeXmlList<T>(value: T | T[] | undefined | null): T[] {

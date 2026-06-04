@@ -1,11 +1,10 @@
-import { XMLParser } from "fast-xml-parser";
 import {
   extractAtomLink,
   extractFeedEntryTitle,
   extractFeedItemBody,
   extractFeedRootTitle,
   extractRssAtomItems,
-  FEED_XML_PARSER_OPTIONS,
+  feedXmlParser,
   type AtomLinkField,
   type FeedItemBodyFields,
   type XmlTextField,
@@ -49,8 +48,6 @@ function simpleHash(str: string): string {
   return (h >>> 0).toString(36);
 }
 
-const parser = new XMLParser(FEED_XML_PARSER_OPTIONS);
-
 function extractFeedTitle(parsed: RssFeedParsed, url: string): string {
   const title = extractFeedRootTitle(
     parsed?.rss?.channel?.title,
@@ -92,7 +89,7 @@ async function fetchFeed(url: string): Promise<ContentItem[]> {
 
   let parsed: RssFeedParsed;
   try {
-    parsed = parser.parse(xml) as RssFeedParsed;
+    parsed = feedXmlParser.parse(xml) as RssFeedParsed;
   } catch (err) {
     throw new Error(`rss: error parsing xml from ${url}: ${errorMessage(err)}`);
   }

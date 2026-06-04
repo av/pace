@@ -1,9 +1,8 @@
-import { XMLParser } from "fast-xml-parser";
 import {
   extractAtomLink,
   extractFeedEntryTitle,
   extractFeedRootTitle,
-  FEED_XML_PARSER_OPTIONS,
+  feedXmlParser,
   normalizeXmlList,
   type AtomLinkField,
   type XmlTextField,
@@ -23,8 +22,6 @@ import {
 } from "../utils";
 import { dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
-
-const parser = new XMLParser(FEED_XML_PARSER_OPTIONS);
 
 interface YTEntry {
   "yt:videoId"?: string;
@@ -88,7 +85,7 @@ async function fetchYoutubeFeed(
   const label = kind;
   const url = `https://www.youtube.com/feeds/videos.xml?${param}=${id}`;
   const xml = await fetchText("youtube", url, `${label} ${id}`);
-  const parsed = parser.parse(xml) as YTAtomFeedParsed;
+  const parsed = feedXmlParser.parse(xml) as YTAtomFeedParsed;
   const channelTitle = decodeNumericFeedTitle(
     extractFeedRootTitle(undefined, parsed.feed?.title) ?? "YouTube",
   );

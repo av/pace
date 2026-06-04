@@ -1,10 +1,9 @@
-import { XMLParser } from "fast-xml-parser";
 import {
   extractAtomLink,
   extractFeedEntryTitle,
   extractFeedItemBody,
   extractFeedRootTitle,
-  FEED_XML_PARSER_OPTIONS,
+  feedXmlParser,
   normalizeXmlList,
   type AtomLinkField,
   type FeedItemBodyFields,
@@ -50,8 +49,6 @@ const RE_ENRICH_TOPIC =
 const RE_ENRICH_PROFILE = /href="\/@([a-zA-Z0-9_]{2,30})"/gi;
 
 const EXCLUDED_MAKER_HANDLES = new Set(["producthunt", "product_hunt"]);
-
-const parser = new XMLParser(FEED_XML_PARSER_OPTIONS);
 
 interface PHEntry extends FeedItemBodyFields {
   id?: string;
@@ -219,7 +216,7 @@ async function fetchProductHuntFeed(): Promise<{
     accept: "application/atom+xml, application/xml, text/xml",
   });
 
-  const parsed = parser.parse(xml) as PHAtomFeedParsed;
+  const parsed = feedXmlParser.parse(xml) as PHAtomFeedParsed;
   const feedTitle = extractFeedTitle(parsed);
   const entries = normalizeXmlList(parsed.feed?.entry);
 

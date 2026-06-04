@@ -1,10 +1,9 @@
-import { XMLParser } from "fast-xml-parser";
 import {
   extractAtomLink,
   extractFeedEntryTitle,
   extractFeedItemBody,
   extractFeedRootTitle,
-  FEED_XML_PARSER_OPTIONS,
+  feedXmlParser,
   normalizeXmlList,
   type AtomLinkField,
   type FeedItemBodyFields,
@@ -28,8 +27,6 @@ import type { Adapter, AdapterConfig, ContentItem } from "./types";
 type TrendingPeriod = "daily" | "weekly" | "monthly";
 
 const VALID_PERIODS = new Set<TrendingPeriod>(["daily", "weekly", "monthly"]);
-
-const parser = new XMLParser(FEED_XML_PARSER_OPTIONS);
 
 interface GHAtomEntry extends FeedItemBodyFields {
   id?: string;
@@ -64,7 +61,7 @@ async function fetchReleasesFeed(
 
   const xml = await fetchText("github", url, `releases for ${repo}`);
 
-  const parsed = parser.parse(xml) as GHAtomFeedParsed;
+  const parsed = feedXmlParser.parse(xml) as GHAtomFeedParsed;
   const source = releasesFeedSource(parsed, repo);
   const entries = normalizeXmlList(parsed.feed?.entry);
   const tagline = await fetchRepoTagline(repo, "github", token);
