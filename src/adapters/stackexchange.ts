@@ -99,9 +99,6 @@ async function fetchQuestions(
 
 const adapter: Adapter = {
   name: "stackexchange",
-  /**
-   * @param config.params.tags Multiple tags are OR: one API request per tag, merged and deduped by `question_id`.
-   */
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
     const site =
       normalizeOptionalString(config.params?.site as string | undefined) ??
