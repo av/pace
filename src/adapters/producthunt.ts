@@ -16,14 +16,13 @@ import {
   normalizePositiveInteger,
   sliceToLimit,
 } from "../utils";
-import { fetchText, HN_ITEM_FETCH_TIMEOUT_MS } from "./fetch";
+import { fetchText, HN_ITEM_FETCH_TIMEOUT_MS, warnOptionalFetchFailure } from "./fetch";
 import {
   decodeNumericFeedTitle,
   FEED_BODY_STRIP_OPTIONS,
   stripHtml,
 } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
-import { errorMessage } from "./types";
 import {
   RE_POINTS_OR_UPVOTES,
   formatBy,
@@ -105,15 +104,6 @@ function extractContent(entry: PHEntry): { tagline: string; productLink: string 
   return { tagline, productLink };
 }
 
-function warnEnrichFailed(url: string, err: unknown): void {
-  const msg = errorMessage(err);
-  console.warn(
-    msg.startsWith("producthunt:")
-      ? msg
-      : `producthunt: enrich failed for ${url}: ${msg}`,
-  );
-}
-
 function matchCaptures(html: string, re: RegExp): string[] {
   return [...html.matchAll(re)].map((m) => m[1]).filter(Boolean);
 }
@@ -179,7 +169,7 @@ async function enrichProduct(url: string): Promise<EnrichedData | null> {
     });
     return parseEnrichedData(html);
   } catch (err) {
-    warnEnrichFailed(url, err);
+    warnOptionalFetchFailure("producthunt", err, `enrich failed for ${url}`);
     return null;
   }
 }

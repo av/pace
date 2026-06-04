@@ -762,7 +762,11 @@ export function tryReadRegularFile(path: string): string | null {
   if (!st.isFile()) {
     throw new Error(`config: ${path} is not a regular file`);
   }
-  return readFileSync(path, "utf-8");
+  try {
+    return readFileSync(path, "utf-8");
+  } catch (err) {
+    throw new Error(`config: failed to read ${path}: ${errorMessage(err)}`);
+  }
 }
 
 const PRESET_NAMES = ["example", "tech-news", "ml-ai", "product-launches", "release-tracker", "academic-papers", "video-podcast"] as const;

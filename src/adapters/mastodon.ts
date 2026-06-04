@@ -6,7 +6,7 @@ import {
   formatReplies,
   joinBodyParts,
 } from "./engagement";
-import { fetchJson, HN_ITEM_FETCH_TIMEOUT_MS } from "./fetch";
+import { fetchJson, HN_ITEM_FETCH_TIMEOUT_MS, warnOptionalFetchFailure } from "./fetch";
 import { decodeNumericFeedTitle, stripHtml } from "./html";
 import {
   normalizeNonNegativeNumber,
@@ -114,19 +114,6 @@ function buildTitle(status: MastodonStatus): string {
   return content || "(empty post)";
 }
 
-function warnLookupAccountFailed(
-  username: string,
-  instance: string,
-  detail: unknown,
-): void {
-  const msg = errorMessage(detail);
-  console.warn(
-    msg.startsWith("mastodon:")
-      ? msg
-      : `mastodon: account lookup ${username}@${instance}: ${msg}`,
-  );
-}
-
 async function lookupAccount(
   instance: string,
   username: string,
@@ -139,7 +126,11 @@ async function lookupAccount(
       { timeoutMs: HN_ITEM_FETCH_TIMEOUT_MS },
     );
   } catch (err) {
-    warnLookupAccountFailed(username, instance, err);
+    warnOptionalFetchFailure(
+      "mastodon",
+      err,
+      `account lookup ${username}@${instance}`,
+    );
     return null;
   }
 }

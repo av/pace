@@ -1042,5 +1042,20 @@ layout:
       if (origInner === undefined) { delete process.env[innerKey]; } else { process.env[innerKey] = origInner; }
     }
   });
+
+  test("throws config-prefixed error on invalid YAML", () => {
+    setConfig("layout: [:\n");
+    expect(() => loadConfig()).toThrow(/config: failed to parse YAML from/);
+  });
+
+  test("throws config-prefixed error when config file is unreadable", () => {
+    setConfig("layout:\n  direction: row\n  children: []\n");
+    fs.chmodSync(cfgPath, 0o000);
+    try {
+      expect(() => loadConfig()).toThrow(/config: failed to read/);
+    } finally {
+      fs.chmodSync(cfgPath, 0o644);
+    }
+  });
 });
 });

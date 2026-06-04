@@ -148,3 +148,19 @@ export async function fetchJson<T>(
 ): Promise<T> {
   return fetchBody(prefix, url, context, options, async (res) => (await res.json()) as T);
 }
+
+/**
+ * Warn on optional secondary fetch failure (enrichment, account lookup, per-item
+ * JSON). Passes through errors already prefixed with `${prefix}:`; otherwise logs
+ * `${prefix}: ${context}: ${detail}`.
+ */
+export function warnOptionalFetchFailure(
+  prefix: string,
+  detail: unknown,
+  context: string,
+): void {
+  const msg = errorMessage(detail);
+  console.warn(
+    msg.startsWith(`${prefix}:`) ? msg : `${prefix}: ${context}: ${msg}`,
+  );
+}

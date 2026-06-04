@@ -6,7 +6,7 @@ import {
   joinBodyParts,
 } from "./engagement";
 import { parseUnixEpochSeconds } from "./dates";
-import { fetchJson, HN_ITEM_FETCH_TIMEOUT_MS } from "./fetch";
+import { fetchJson, HN_ITEM_FETCH_TIMEOUT_MS, warnOptionalFetchFailure } from "./fetch";
 import { decodeNumericFeedTitleOptional } from "./html";
 import {
   normalizeNonNegativeNumber,
@@ -51,12 +51,7 @@ async function fetchItem(id: number): Promise<HNItem | null> {
   try {
     return await fetchHN<HNItem>(`item/${id}.json`, HN_ITEM_FETCH_TIMEOUT_MS);
   } catch (err) {
-    const msg = errorMessage(err);
-    console.warn(
-      msg.startsWith("hackernews:")
-        ? msg
-        : `hackernews: failed to fetch item ${id}: ${msg}`,
-    );
+    warnOptionalFetchFailure("hackernews", err, `failed to fetch item ${id}`);
     return null;
   }
 }

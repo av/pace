@@ -1,6 +1,5 @@
 import { normalizeOptionalString } from "../utils";
-import { buildGitHubApiHeaders, fetchJson } from "./fetch";
-import { errorMessage } from "./types";
+import { buildGitHubApiHeaders, fetchJson, warnOptionalFetchFailure } from "./fetch";
 
 export interface GitHubRepoMeta {
   description: string;
@@ -23,11 +22,10 @@ export async function fetchRepoTagline(
     );
     return (data.description ?? "").trim();
   } catch (err) {
-    const msg = errorMessage(err);
-    console.warn(
-      msg.startsWith(`${adapterName}:`)
-        ? msg
-        : `${adapterName}: error fetching repo meta for ${repo}: ${msg}`,
+    warnOptionalFetchFailure(
+      adapterName,
+      err,
+      `error fetching repo meta for ${repo}`,
     );
     return "";
   }
