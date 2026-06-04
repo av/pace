@@ -14,6 +14,19 @@ export const FEED_BODY_STRIP_OPTIONS = {
   numericEntities: true,
 } satisfies StripHtmlOptions;
 
+/** Decode named and numeric HTML entities for feed/API titles (adapter convention). */
+export function decodeNumericFeedTitle(text: string): string {
+  return decodeHtmlEntities(text, { numeric: true });
+}
+
+export function decodeNumericFeedTitleOptional(
+  text: string | undefined,
+  fallback = "(untitled)",
+): string {
+  if (!text) return fallback;
+  return decodeNumericFeedTitle(text);
+}
+
 export function decodeHtmlEntities(
   str: string,
   options?: { numeric?: boolean },

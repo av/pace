@@ -1,11 +1,10 @@
 import { normalizeStringList } from "../utils";
-import { decodeHtmlEntities } from "./html";
+import { decodeNumericFeedTitleOptional } from "./html";
 import { type Adapter, type AdapterConfig, type ContentItem } from "./types";
 
 /** Twitter API v2 `text` → item title (parity with other adapters). */
 export function decodeTweetTitle(text?: string): string {
-  if (!text) return "(untitled)";
-  return decodeHtmlEntities(text, { numeric: true });
+  return decodeNumericFeedTitleOptional(text);
 }
 
 function buildTweetItem(

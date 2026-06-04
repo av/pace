@@ -8,7 +8,7 @@ import {
 } from "./engagement";
 import { parseUnixEpochSeconds } from "./dates";
 import { fetchJson } from "./fetch";
-import { decodeHtmlEntities } from "./html";
+import { decodeNumericFeedTitle } from "./html";
 import {
   normalizeNonNegativeNumber,
   normalizeOptionalString,
@@ -77,10 +77,6 @@ function buildBody(post: RedditPostData): string {
     formatSubreddit(post.subreddit),
     !post.is_self ? formatDiscuss(discussLink) : undefined,
   );
-}
-
-function decodePostTitle(title: string): string {
-  return decodeHtmlEntities(title, { numeric: true });
 }
 
 function getItemUrl(post: RedditPostData): string {
@@ -168,7 +164,7 @@ const adapter: Adapter = {
 
     return limited.map((post) => ({
       id: `reddit:${post.data.id}`,
-      title: decodePostTitle(post.data.title),
+      title: decodeNumericFeedTitle(post.data.title),
       url: getItemUrl(post.data),
       source: sourceLabel,
       timestamp: parseUnixEpochSeconds(post.data.created_utc),

@@ -7,7 +7,7 @@ import {
   joinBodyParts,
 } from "./engagement";
 import { fetchJson, HN_ITEM_FETCH_TIMEOUT_MS } from "./fetch";
-import { decodeHtmlEntities, stripHtml } from "./html";
+import { decodeNumericFeedTitle, stripHtml } from "./html";
 import {
   normalizeNonNegativeNumber,
   normalizeOptionalString,
@@ -101,16 +101,12 @@ function buildBody(status: MastodonStatus, instance: string): string {
   );
 }
 
-function decodePostTitle(text: string): string {
-  return decodeHtmlEntities(text, { numeric: true });
-}
-
 function buildTitle(status: MastodonStatus): string {
-  const content = decodePostTitle(
+  const content = decodeNumericFeedTitle(
     stripHtml(status.content, { blockBreaks: true }),
   );
   if (!content && status.spoiler_text) {
-    return decodePostTitle(status.spoiler_text);
+    return decodeNumericFeedTitle(status.spoiler_text);
   }
   if (content.length > 200) {
     return content.slice(0, 197) + "...";

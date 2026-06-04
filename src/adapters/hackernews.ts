@@ -7,7 +7,7 @@ import {
 } from "./engagement";
 import { parseUnixEpochSeconds } from "./dates";
 import { fetchJson, HN_ITEM_FETCH_TIMEOUT_MS } from "./fetch";
-import { decodeHtmlEntities } from "./html";
+import { decodeNumericFeedTitleOptional } from "./html";
 import {
   normalizeNonNegativeNumber,
   normalizeOptionalString,
@@ -71,11 +71,6 @@ async function fetchInBatches(ids: number[]): Promise<HNItem[]> {
     }
   }
   return results;
-}
-
-function decodeItemTitle(title?: string): string {
-  if (!title) return "(untitled)";
-  return decodeHtmlEntities(title, { numeric: true });
 }
 
 function buildBody(item: HNItem): string {
@@ -150,7 +145,7 @@ const adapter: Adapter = {
 
     return limited.map((item) => ({
       id: `hn:${item.id}`,
-      title: decodeItemTitle(item.title),
+      title: decodeNumericFeedTitleOptional(item.title),
       url: item.url ?? `https://news.ycombinator.com/item?id=${item.id}`,
       source: `hackernews:${feedType}`,
       timestamp: parseUnixEpochSeconds(item.time),

@@ -1,6 +1,6 @@
 import { formatBy, formatPercent, formatTags, joinBodyParts } from "./engagement";
 import { fetchJson } from "./fetch";
-import { decodeHtmlEntities } from "./html";
+import { decodeNumericFeedTitle } from "./html";
 import {
   normalizeOptionalString,
   normalizePositiveInteger,
@@ -40,10 +40,6 @@ interface NpmPackageResult {
       maintenance: number;
     };
   };
-}
-
-function decodePackageTitle(text: string): string {
-  return decodeHtmlEntities(text, { numeric: true });
 }
 
 function buildBody(result: NpmPackageResult): string {
@@ -145,9 +141,9 @@ const adapter: Adapter = {
     return results.map((result) => ({
       id: `npm:${result.package.name}@${result.package.version}`,
       title: titleWithTagline(
-        decodePackageTitle(result.package.name),
+        decodeNumericFeedTitle(result.package.name),
         result.package.description
-          ? decodePackageTitle(result.package.description)
+          ? decodeNumericFeedTitle(result.package.description)
           : undefined,
       ),
       url: result.package.links.npm,

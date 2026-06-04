@@ -8,7 +8,7 @@ import {
   joinBodyParts,
 } from "./engagement";
 import { fetchJson } from "./fetch";
-import { decodeHtmlEntities } from "./html";
+import { decodeNumericFeedTitle } from "./html";
 import {
   normalizeNonNegativeNumber,
   normalizeOptionalString,
@@ -36,10 +36,6 @@ interface DevToArticle {
   };
   tag_list: string[];
   cover_image: string | null;
-}
-
-function decodeArticleTitle(title: string): string {
-  return decodeHtmlEntities(title, { numeric: true });
 }
 
 function buildBody(article: DevToArticle): string {
@@ -161,7 +157,7 @@ const adapter: Adapter = {
 
     return limited.map((article) => ({
       id: `devto:${article.id}`,
-      title: decodeArticleTitle(article.title),
+      title: decodeNumericFeedTitle(article.title),
       url: article.url,
       source: sourceLabel,
       timestamp: new Date(article.published_at),

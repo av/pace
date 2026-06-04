@@ -7,7 +7,7 @@ import {
   joinBodyParts,
 } from "./engagement";
 import { fetchJson } from "./fetch";
-import { decodeHtmlEntities } from "./html";
+import { decodeNumericFeedTitleOptional } from "./html";
 import {
   normalizeNonNegativeNumber,
   normalizeOptionalString,
@@ -49,11 +49,6 @@ interface LemmyPostView {
 
 interface LemmyPostListResponse {
   posts: LemmyPostView[];
-}
-
-function decodeItemTitle(title?: string): string {
-  if (!title) return "(untitled)";
-  return decodeHtmlEntities(title, { numeric: true });
 }
 
 function buildBody(view: LemmyPostView): string {
@@ -149,7 +144,7 @@ const adapter: Adapter = {
 
     return limited.map((view) => ({
       id: `lemmy:${instance}:${view.post.id}`,
-      title: decodeItemTitle(view.post.name),
+      title: decodeNumericFeedTitleOptional(view.post.name),
       url: view.post.url ?? view.post.ap_id,
       source: sourceLabel,
       timestamp: new Date(view.post.published),

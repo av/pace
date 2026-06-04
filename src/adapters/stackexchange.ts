@@ -8,7 +8,7 @@ import {
 } from "./engagement";
 import { parseUnixEpochSeconds } from "./dates";
 import { fetchJson } from "./fetch";
-import { decodeHtmlEntities } from "./html";
+import { decodeNumericFeedTitle } from "./html";
 import {
   normalizeNonNegativeNumber,
   normalizeOptionalString,
@@ -50,10 +50,6 @@ interface SEResponse {
   items: SEQuestion[];
   has_more: boolean;
   quota_remaining: number;
-}
-
-function decodeQuestionTitle(title: string): string {
-  return decodeHtmlEntities(title, { numeric: true });
 }
 
 function buildBody(question: SEQuestion): string {
@@ -150,7 +146,7 @@ const adapter: Adapter = {
 
     return limited.map((question) => ({
       id: `se:${site}:${question.question_id}`,
-      title: decodeQuestionTitle(question.title),
+      title: decodeNumericFeedTitle(question.title),
       url: question.link,
       source: sourceLabel,
       timestamp: parseUnixEpochSeconds(question.creation_date),
