@@ -18,7 +18,6 @@ import {
 } from "../utils";
 import { dedupeByKey, fetchAndConcat, sortByCreatedAtDesc } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
-import { errorMessage } from "./types";
 
 interface MastodonStatus {
   id: string;
@@ -76,20 +75,6 @@ function hashtagTimelineContext(instance: string, hashtag: string): string {
 
 function accountStatusesContext(instance: string, accountId: string): string {
   return `account ${accountId} statuses from ${instance}`;
-}
-
-/** Primary fetch context for outer-catch fallback (matches fetchJson contexts). */
-function mastodonPrimaryFetchContext(
-  mode: Mode,
-  instance: string,
-  hashtags: string[],
-): string {
-  if (mode === "public") return publicTimelineContext(instance);
-  if (mode === "hashtag") {
-    const tag = hashtags[0] ?? "";
-    return tag ? hashtagTimelineContext(instance, tag) : `hashtag timeline from ${instance}`;
-  }
-  return `account statuses from ${instance}`;
 }
 
 function buildBody(status: MastodonStatus, instance: string): string {
@@ -216,71 +201,63 @@ const adapter: Adapter = {
       mode = "public";
     }
 
-    try {
-      let allStatuses: MastodonStatus[] = [];
+    let allStatuses: MastodonStatus[] = [];
 
-      if (mode === "public") {
-        allStatuses = await fetchPublicTimeline(instance, limit, onlyMedia);
-      } else if (mode === "hashtag") {
-        allStatuses = await fetchAndConcat(hashtags, (tag) =>
-          fetchHashtagTimeline(instance, tag, limit, onlyMedia),
-        );
-      } else if (mode === "account") {
-        for (const handle of accounts) {
-          const parsed = parseAccountHandle(handle);
-          if (!parsed) {
-            console.warn(`mastodon: invalid account handle: ${handle}`);
-            continue;
-          }
-          const account = await lookupAccount(parsed.instance, parsed.username);
-          if (!account) continue;
-          const statuses = await fetchAccountStatuses(
-            parsed.instance,
-            account.id,
-            limit,
-            onlyMedia,
-          );
-          allStatuses.push(...statuses);
+    if (mode === "public") {
+      allStatuses = await fetchPublicTimeline(instance, limit, onlyMedia);
+    } else if (mode === "hashtag") {
+      allStatuses = await fetchAndConcat(hashtags, (tag) =>
+        fetchHashtagTimeline(instance, tag, limit, onlyMedia),
+      );
+    } else if (mode === "account") {
+      for (const handle of accounts) {
+        const parsed = parseAccountHandle(handle);
+        if (!parsed) {
+          console.warn(`mastodon: invalid account handle: ${handle}`);
+          continue;
         }
-      }
-
-      allStatuses = dedupeByKey(allStatuses, (status) => status.id);
-
-      if (minFavourites > 0) {
-        allStatuses = allStatuses.filter(
-          (status) => status.favourites_count >= minFavourites,
+        const account = await lookupAccount(parsed.instance, parsed.username);
+        if (!account) continue;
+        const statuses = await fetchAccountStatuses(
+          parsed.instance,
+          account.id,
+          limit,
+          onlyMedia,
         );
+        allStatuses.push(...statuses);
       }
-
-      sortByCreatedAtDesc(allStatuses);
-
-      const limited = sliceToLimit(allStatuses, limit);
-
-      let sourceLabel: string;
-      if (mode === "hashtag") {
-        const tagNames = hashtags.map((t) => t.replace(/^#/, "")).join("+");
-        sourceLabel = `mastodon:${instance}:#${tagNames}`;
-      } else if (mode === "account") {
-        sourceLabel = `mastodon:${instance}:accounts`;
-      } else {
-        sourceLabel = `mastodon:${instance}`;
-      }
-
-      return limited.map((status) => ({
-        id: `mastodon:${instance}:${status.id}`,
-        title: buildTitle(status),
-        url: status.url ?? status.uri,
-        source: sourceLabel,
-        timestamp: new Date(status.created_at),
-        body: buildBody(status, instance),
-      }));
-    } catch (err) {
-      if (err instanceof Error && err.message.startsWith("mastodon:")) {
-        throw err;
-      }
-      const context = mastodonPrimaryFetchContext(mode, instance, hashtags);
-      throw new Error(`mastodon: error fetching ${context}: ${errorMessage(err)}`);
     }
+
+    allStatuses = dedupeByKey(allStatuses, (status) => status.id);
+
+    if (minFavourites > 0) {
+      allStatuses = allStatuses.filter(
+        (status) => status.favourites_count >= minFavourites,
+      );
+    }
+
+    sortByCreatedAtDesc(allStatuses);
+
+    const limited = sliceToLimit(allStatuses, limit);
+
+    let sourceLabel: string;
+    if (mode === "hashtag") {
+      const tagNames = hashtags.map((t) => t.replace(/^#/, "")).join("+");
+      sourceLabel = `mastodon:${instance}:#${tagNames}`;
+    } else if (mode === "account") {
+      sourceLabel = `mastodon:${instance}:accounts`;
+    } else {
+      sourceLabel = `mastodon:${instance}`;
+    }
+
+    return limited.map((status) => ({
+      id: `mastodon:${instance}:${status.id}`,
+      title: buildTitle(status),
+      url: status.url ?? status.uri,
+      source: sourceLabel,
+      timestamp: new Date(status.created_at),
+      body: buildBody(status, instance),
+    }));
   },
 };
 
