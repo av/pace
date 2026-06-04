@@ -13,7 +13,12 @@ import {
 import { parseFeedDate } from "./dates";
 import { formatLanguage, formatStars, joinBodyParts } from "./engagement";
 import { FEED_FETCH_TIMEOUT_MS, fetchText } from "./fetch";
-import { normalizeOptionalString, normalizeStringList, sliceToLimit } from "../utils";
+import {
+  normalizeOptionalString,
+  normalizePositiveInteger,
+  normalizeStringList,
+  sliceToLimit,
+} from "../utils";
 import { dedupeByKey } from "./merge";
 import { decodeHtmlEntities, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
 import { fetchRepoTagline } from "./github-repo-meta";
@@ -217,7 +222,7 @@ const adapter: Adapter = {
       (typeof modeRaw === "string"
         ? normalizeOptionalString(modeRaw)
         : undefined) ?? "releases";
-    const limit = Math.min((config.params?.limit as number) ?? 10, 50);
+    const limit = Math.min(normalizePositiveInteger(config.params?.limit, 10), 50);
 
     if (mode === "trending") {
       const languageRaw = config.params?.language;
