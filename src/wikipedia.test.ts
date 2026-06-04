@@ -290,6 +290,58 @@ describe("wikipedia", () => {
     expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  test("applies global limit after merging multiple modes (not per-mode)", async () => {
+    const articles = Array.from({ length: 8 }, (_, i) =>
+      makeMostReadArticle({
+        title: `MostRead_${i}`,
+        views: 10_000 - i,
+        rank: i + 1,
+        content_urls: {
+          desktop: { page: `https://en.wikipedia.org/wiki/MostRead_${i}` },
+        },
+      }),
+    );
+    const onThisDayEvents = Array.from({ length: 6 }, (_, i) => ({
+      text: `Event ${i} happened.`,
+      year: 1900 + i,
+      pages: [
+        {
+          title: `OTD_${i}`,
+          content_urls: { desktop: { page: `https://en.wikipedia.org/wiki/OTD_${i}` } },
+        },
+      ],
+    }));
+    const newsItems = Array.from({ length: 5 }, (_, i) => ({
+      story: `News story ${i}.`,
+      links: [
+        {
+          title: `News_${i}`,
+          content_urls: { desktop: { page: `https://en.wikipedia.org/wiki/News_${i}` } },
+        },
+      ],
+    }));
+
+    mocks.fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify(
+          makeFeaturedResponse({
+            mostread: { articles },
+            onthisday: onThisDayEvents,
+            news: newsItems,
+          }),
+        ),
+        { status: 200 },
+      ),
+    );
+
+    const items = await wikipediaAdapter.fetch(
+      wikiCfg({ mode: "most_read,on_this_day,news", limit: 3 }),
+    );
+
+    expect(items).toHaveLength(3);
+    expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   test("dedupes by URL when the same article appears in multiple modes", async () => {
     const sharedPage = "https://en.wikipedia.org/wiki/Test_Article";
     const secondPage = "https://en.wikipedia.org/wiki/Second_Article";
