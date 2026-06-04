@@ -127,15 +127,29 @@ export function saveItems(panelId: string, items: ContentItem[]): void {
 
 const DEDUP_GROUP_EXPR = `CASE WHEN url = '' THEN id ELSE lower(rtrim(url, '/')) END`;
 
+function dedupWinnerSubquery(panelFilter: string): string {
+  return `id IN (
+    SELECT id FROM (
+      SELECT id,
+        ROW_NUMBER() OVER (
+          PARTITION BY ${DEDUP_GROUP_EXPR}
+          ORDER BY timestamp DESC, fetched_at DESC, id ASC
+        ) AS rn
+      FROM content_items
+      ${panelFilter}
+    ) WHERE rn = 1
+  )`;
+}
+
 function getDedupInClause(panelId?: string): { clause: string; params: unknown[] } {
   if (panelId != null) {
     return {
-      clause: `id IN (SELECT id FROM content_items WHERE panel_id = ? GROUP BY ${DEDUP_GROUP_EXPR} HAVING timestamp = MAX(timestamp))`,
+      clause: dedupWinnerSubquery("WHERE panel_id = ?"),
       params: [panelId],
     };
   }
   return {
-    clause: `id IN (SELECT id FROM content_items GROUP BY ${DEDUP_GROUP_EXPR} HAVING timestamp = MAX(timestamp))`,
+    clause: dedupWinnerSubquery(""),
     params: [],
   };
 }

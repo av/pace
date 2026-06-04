@@ -169,6 +169,54 @@ test("empty results for unknown panel or no data", () => {
   expect(getAllItemsByPanel("unknown").length).toBe(0);
 });
 
+test("dedup breaks timestamp ties with latest fetched_at then lowest id", () => {
+  initDb();
+  const tieTime = new Date("2025-06-01T12:00:00.000Z");
+  const olderFetch = makeItem({
+    id: "tie-z",
+    url: "https://ex.com/tie",
+    timestamp: tieTime,
+    title: "older fetch",
+  });
+  const newerFetch = makeItem({
+    id: "tie-a",
+    url: "https://ex.com/tie/",
+    timestamp: tieTime,
+    title: "newer fetch",
+  });
+  saveItems("ptie", [olderFetch, newerFetch]);
+
+  const db = getDb();
+  db.prepare(
+    "UPDATE content_items SET fetched_at = datetime('now', '-2 hours') WHERE id = ?",
+  ).run("tie-z");
+  db.prepare(
+    "UPDATE content_items SET fetched_at = datetime('now', '-1 hour') WHERE id = ?",
+  ).run("tie-a");
+
+  const panel = getItemsByPanel("ptie", 10);
+  expect(panel.length).toBe(1);
+  expect(panel[0].id).toBe("tie-a");
+
+  const sameFetchOlderId = makeItem({
+    id: "tie-0",
+    url: "https://ex.com/tie2",
+    timestamp: tieTime,
+  });
+  const sameFetchNewerId = makeItem({
+    id: "tie-1",
+    url: "https://ex.com/tie2/",
+    timestamp: tieTime,
+  });
+  saveItems("ptie2", [sameFetchOlderId, sameFetchNewerId]);
+  const stamp = new Date().toISOString();
+  db.prepare("UPDATE content_items SET fetched_at = ? WHERE panel_id = ?").run(stamp, "ptie2");
+
+  const panel2 = getItemsByPanel("ptie2", 10);
+  expect(panel2.length).toBe(1);
+  expect(panel2[0].id).toBe("tie-0");
+});
+
 test("saveItems handles items with empty url (falls back to id for dedup key)", () => {
   initDb();
   const noUrl1 = makeItem({ id: "nu1", url: "", timestamp: new Date("2024-01-01") });
