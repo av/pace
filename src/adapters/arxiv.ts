@@ -19,6 +19,7 @@ import {
   normalizeOptionalString,
   normalizePositiveInteger,
   normalizeStringList,
+  sleep,
   sliceToLimit,
 } from "../utils";
 import { dedupeByKey } from "./merge";
@@ -104,10 +105,6 @@ function extractArxivId(idUrl: string | undefined): string {
 function truncate(text: string, maxLen: number): string {
   if (text.length <= maxLen) return text;
   return text.slice(0, maxLen).trimEnd() + "...";
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function fetchArxivQuery(

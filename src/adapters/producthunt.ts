@@ -14,6 +14,7 @@ import { parseFeedDate } from "./dates";
 import {
   normalizeNonNegativeNumber,
   normalizePositiveInteger,
+  sleep,
   sliceToLimit,
 } from "../utils";
 import { fetchText, HN_ITEM_FETCH_TIMEOUT_MS, warnOptionalFetchFailure } from "./fetch";
@@ -170,10 +171,6 @@ async function enrichProduct(url: string): Promise<EnrichedData | null> {
     warnOptionalFetchFailure("producthunt", err, `enrich failed for ${url}`);
     return null;
   }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function buildBody(

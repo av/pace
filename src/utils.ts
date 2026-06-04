@@ -80,3 +80,8 @@ export function normalizePositiveInteger(
   }
   return Math.floor(value);
 }
+
+/** Promise-based delay for adapter rate limiting and pacing. */
+export function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
