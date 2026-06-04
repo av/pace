@@ -4,8 +4,9 @@ import {
   formatCommunity,
   formatDiscuss,
   formatPoints,
-  joinBodyParts,
 } from "./engagement";
+import { joinTitle } from "./title";
+
 import { fetchJson } from "./fetch";
 import { decodeNumericFeedTitleOptional } from "./html";
 import {
@@ -53,7 +54,7 @@ interface LemmyPostListResponse {
 }
 
 function buildBody(view: LemmyPostView): string {
-  return joinBodyParts(
+  return joinTitle(
     formatPoints(view.counts.score),
     formatBy(view.creator.name),
     formatComments(view.counts.comments),

@@ -8,7 +8,11 @@ import {
   type XmlTextField,
 } from "./atom";
 import { parseFeedDate } from "./dates";
-import { formatBy, joinBodyParts } from "./engagement";
+import {
+  formatBy,
+} from "./engagement";
+import { joinTitle } from "./title";
+
 import { fetchText } from "./fetch";
 import {
   decodeNumericFeedTitle,
@@ -45,7 +49,7 @@ function buildBody(entry: YTEntry): string | undefined {
     ? stripHtml(String(rawDescription), FEED_BODY_STRIP_OPTIONS)
     : undefined;
   const author = entry.author?.name?.trim();
-  const body = joinBodyParts(
+  const body = joinTitle(
     author ? formatBy(author) : undefined,
     description || undefined,
   );

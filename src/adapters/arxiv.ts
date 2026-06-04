@@ -7,7 +7,11 @@ import {
   type XmlTextField,
 } from "./atom";
 import { parseFeedDate } from "./dates";
-import { formatCategories, joinBodyParts } from "./engagement";
+import {
+  formatCategories,
+} from "./engagement";
+import { joinTitle } from "./title";
+
 import { ARXIV_FETCH_TIMEOUT_MS, fetchText } from "./fetch";
 import {
   decodeNumericFeedTitle,
@@ -128,7 +132,7 @@ function buildBody(entry: ArxivEntry): string {
   const arxivId = extractArxivId(entry.id);
   const pdfUrl = pdfLink || (arxivId ? `https://arxiv.org/pdf/${arxivId}` : "");
 
-  return joinBodyParts(
+  return joinTitle(
     authors ? `Authors: ${authors}` : undefined,
     categories.length > 0 ? formatCategories(categories) : undefined,
     abstract ? `Abstract: ${truncate(abstract, 300)}` : undefined,

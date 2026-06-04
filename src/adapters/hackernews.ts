@@ -3,8 +3,9 @@ import {
   formatComments,
   formatDiscuss,
   formatPoints,
-  joinBodyParts,
 } from "./engagement";
+import { joinTitle } from "./title";
+
 import { parseUnixEpochSeconds } from "./dates";
 import { fetchJson, HN_ITEM_FETCH_TIMEOUT_MS, warnOptionalFetchFailure } from "./fetch";
 import { decodeNumericFeedTitleOptional } from "./html";
@@ -70,7 +71,7 @@ async function fetchInBatches(ids: number[]): Promise<HNItem[]> {
 
 function buildBody(item: HNItem): string {
   const hnLink = `https://news.ycombinator.com/item?id=${item.id}`;
-  return joinBodyParts(
+  return joinTitle(
     item.score !== undefined ? formatPoints(item.score) : undefined,
     item.by ? formatBy(item.by) : undefined,
     item.descendants !== undefined ? formatComments(item.descendants) : undefined,

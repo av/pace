@@ -4,8 +4,9 @@ import {
   formatDiscuss,
   formatPoints,
   formatSubreddit,
-  joinBodyParts,
 } from "./engagement";
+import { joinTitle } from "./title";
+
 import { parseUnixEpochSeconds } from "./dates";
 import { fetchJson } from "./fetch";
 import { decodeNumericFeedTitle } from "./html";
@@ -70,7 +71,7 @@ interface RedditListing {
 
 function buildBody(post: RedditPostData): string {
   const discussLink = `https://reddit.com${post.permalink}`;
-  return joinBodyParts(
+  return joinTitle(
     formatPoints(post.score),
     formatBy(post.author),
     formatComments(post.num_comments),

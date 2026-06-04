@@ -15,14 +15,15 @@ import {
   formatSubreddit,
   formatTags,
   formatViews,
-  joinBodyParts,
   parseFirstIntMatch,
   RE_POINTS_OR_UPVOTES,
 } from "./engagement";
 
+import { joinTitle } from "./title";
+
 describe("engagement body roundtrips", () => {
   test("score-bearing bodies parse via extractScore and extractEngagementScore", () => {
-    const hnBody = joinBodyParts(formatPoints(42), formatComments(10));
+    const hnBody = joinTitle(formatPoints(42), formatComments(10));
     expect(extractScore(hnBody)).toBe(42);
     expect(extractEngagementScore(hnBody)).toBe(42 + 5);
 
@@ -30,8 +31,8 @@ describe("engagement body roundtrips", () => {
     expect(extractEngagementScore(formatStars(99))).toBe(99);
   });
 
-  test("joinBodyParts preserves pipe-separated adapter layout", () => {
-    const body = joinBodyParts(
+  test("joinTitle preserves pipe-separated adapter layout", () => {
+    const body = joinTitle(
       formatPoints(42),
       "by alice",
       formatComments(10),

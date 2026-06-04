@@ -1,9 +1,6 @@
 import { normalizeOptionalString } from "../utils";
 import { buildGitHubApiHeaders, fetchJson, warnOptionalFetchFailure } from "./fetch";
 
-export interface GitHubRepoMeta {
-  description: string;
-}
 
 export async function fetchRepoTagline(
   repo: string,

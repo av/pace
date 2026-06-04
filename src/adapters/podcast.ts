@@ -12,7 +12,7 @@ import {
   type XmlTextField,
 } from "./atom";
 import { parseFeedDate } from "./dates";
-import { joinBodyParts } from "./engagement";
+import { joinTitle } from "./title";
 import { FEED_FETCH_TIMEOUT_MS, fetchText, PACE_USER_AGENT } from "./fetch";
 import {
   clampAdapterLimit,
@@ -234,7 +234,7 @@ function buildBody(ep: PodcastEpisode): string {
       : ep.description
     : undefined;
 
-  return joinBodyParts(
+  return joinTitle(
     ep.duration ? `Duration: ${ep.duration}` : undefined,
     `Show: ${ep.showName}`,
     podcastSeasonEpisode(ep),

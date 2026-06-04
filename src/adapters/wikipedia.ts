@@ -1,4 +1,8 @@
-import { formatViews, joinBodyParts } from "./engagement";
+import {
+  formatViews,
+} from "./engagement";
+import { joinTitle } from "./title";
+
 import { fetchJson } from "./fetch";
 import { decodeNumericFeedTitle, stripHtml } from "./html";
 import {
@@ -54,7 +58,7 @@ function formatPlainFeedText(text: string): string {
 }
 
 function buildBody(article: WikiMostReadArticle): string {
-  return joinBodyParts(
+  return joinTitle(
     formatViews(article.views),
     article.description ?? article.extract?.slice(0, 150),
   );

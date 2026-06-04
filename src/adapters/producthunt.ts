@@ -30,9 +30,10 @@ import {
   formatSite,
   formatTopics,
   formatUpvotes,
-  joinBodyParts,
   parseFirstIntMatch,
 } from "./engagement";
+import { joinTitle } from "./title";
+
 import { joinTitleWithTagline } from "./title";
 
 const PH_ENRICH_USER_AGENT =
@@ -183,7 +184,7 @@ function buildBody(
     : author
       ? formatBy(author)
       : undefined;
-  return joinBodyParts(
+  return joinTitle(
     cleanTagline || undefined,
     enriched?.upvotes !== undefined ? formatUpvotes(enriched.upvotes) : undefined,
     enriched?.comments !== undefined ? formatComments(enriched.comments) : undefined,

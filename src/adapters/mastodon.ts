@@ -4,8 +4,9 @@ import {
   formatMastodonAcct,
   formatMedia,
   formatReplies,
-  joinBodyParts,
 } from "./engagement";
+import { joinTitle } from "./title";
+
 import { fetchJson, HN_ITEM_FETCH_TIMEOUT_MS, warnOptionalFetchFailure } from "./fetch";
 import { decodeNumericFeedTitle, stripHtml } from "./html";
 import {
@@ -92,7 +93,7 @@ function mastodonPrimaryFetchContext(
 }
 
 function buildBody(status: MastodonStatus, instance: string): string {
-  return joinBodyParts(
+  return joinTitle(
     formatBoosts(status.reblogs_count),
     formatFavorites(status.favourites_count),
     formatMastodonAcct(status.account.acct, instance),

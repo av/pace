@@ -4,8 +4,9 @@ import {
   formatDiscuss,
   formatPoints,
   formatTags,
-  joinBodyParts,
 } from "./engagement";
+import { joinTitle } from "./title";
+
 import { fetchJson } from "./fetch";
 import { decodeNumericFeedTitleOptional } from "./html";
 import {
@@ -39,7 +40,7 @@ interface LobstersItem {
 }
 
 function buildBody(item: LobstersItem): string {
-  return joinBodyParts(
+  return joinTitle(
     formatPoints(item.score),
     formatBy(item.submitter_user),
     formatComments(item.comment_count),

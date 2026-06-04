@@ -10,7 +10,12 @@ import {
   type XmlTextField,
 } from "./atom";
 import { parseFeedDate } from "./dates";
-import { formatLanguage, formatStars, joinBodyParts } from "./engagement";
+import {
+  formatLanguage,
+  formatStars,
+} from "./engagement";
+import { joinTitle } from "./title";
+
 import { FEED_FETCH_TIMEOUT_MS, fetchText } from "./fetch";
 import {
   normalizeOptionalString,
@@ -185,7 +190,7 @@ async function fetchTrending(
   };
 
   return sliceToLimit(repos, limit).map((repo) => {
-    const body = joinBodyParts(
+    const body = joinTitle(
       repo.language ? formatLanguage(repo.language) : undefined,
       formatStars(repo.stars),
     );

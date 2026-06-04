@@ -4,8 +4,9 @@ import {
   formatScore,
   formatTags,
   formatViews,
-  joinBodyParts,
 } from "./engagement";
+import { joinTitle } from "./title";
+
 import { parseUnixEpochSeconds } from "./dates";
 import { fetchJson } from "./fetch";
 import { decodeNumericFeedTitle } from "./html";
@@ -53,7 +54,7 @@ interface SEResponse {
 }
 
 function buildBody(question: SEQuestion): string {
-  return joinBodyParts(
+  return joinTitle(
     formatScore(question.score),
     formatAnswers(question.answer_count, !!question.accepted_answer_id),
     formatViews(question.view_count),

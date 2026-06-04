@@ -1,4 +1,10 @@
-import { formatBy, formatPercent, formatTags, joinBodyParts } from "./engagement";
+import {
+  formatBy,
+  formatPercent,
+  formatTags,
+} from "./engagement";
+import { joinTitle } from "./title";
+
 import { fetchJson } from "./fetch";
 import { decodeNumericFeedTitle } from "./html";
 import {
@@ -46,7 +52,7 @@ function buildBody(result: NpmPackageResult): string {
   const pkg = result.package;
   const scores = result.score.detail;
 
-  return joinBodyParts(
+  return joinTitle(
     `v${pkg.version}`,
     pkg.publisher?.username ? formatBy(pkg.publisher.username) : undefined,
     `quality: ${formatPercent(scores.quality)}`,

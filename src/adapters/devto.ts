@@ -5,8 +5,9 @@ import {
   formatReactions,
   formatReadingTime,
   formatTags,
-  joinBodyParts,
 } from "./engagement";
+import { joinTitle } from "./title";
+
 import { fetchJson } from "./fetch";
 import { decodeNumericFeedTitle } from "./html";
 import {
@@ -40,7 +41,7 @@ interface DevToArticle {
 }
 
 function buildBody(article: DevToArticle): string {
-  return joinBodyParts(
+  return joinTitle(
     formatReactions(article.positive_reactions_count),
     formatComments(article.comments_count),
     formatReadingTime(article.reading_time_minutes),

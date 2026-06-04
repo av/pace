@@ -1,4 +1,3 @@
-import { joinTitle } from "./title";
 
 /** Primary vote/score signals (HN, Lobsters, Reddit, Product Hunt enrich). */
 export const RE_POINTS = /(\d+)\s*points?/i;
@@ -170,6 +169,3 @@ export function formatCategories(categories: string[]): string {
 export function formatSite(url: string): string {
   return `site: ${url}`;
 }
-
-/** Join adapter body segments with " | ". */
-export const joinBodyParts = joinTitle;
