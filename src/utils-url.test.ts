@@ -49,6 +49,7 @@ describe("URL parse helpers", () => {
       const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
       try {
         expect(safeLinkUrl("ftp://files.example")).toBeNull();
+        expect(safeLinkUrl("javascript:alert(1)")).toBeNull();
         expect(warnSpy).not.toHaveBeenCalled();
       } finally {
         warnSpy.mockRestore();
