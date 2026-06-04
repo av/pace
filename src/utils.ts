@@ -13,7 +13,7 @@ export function errorMessage(err: unknown): string {
   return String(err);
 }
 
-/** Parse URL; warn and return null on failure (shared by dedupe hostname + layout safe links). */
+/** Parse URL; warn and return null on failure. Shared by dedupe + layout (replaces duplicate try/catch). */
 export function tryParseUrl(
   url: string,
   warnContext: string,
