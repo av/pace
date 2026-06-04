@@ -12,8 +12,8 @@ import {
 } from "./atom";
 import { parseFeedDate } from "./dates";
 import {
+  clampAdapterLimit,
   normalizeNonNegativeNumber,
-  normalizePositiveInteger,
   sleep,
   sliceToLimit,
 } from "../utils";
@@ -254,7 +254,7 @@ const adapter: Adapter = {
     const limitRaw = config.params?.limit;
     const limit =
       limitRaw !== undefined
-        ? Math.min(normalizePositiveInteger(limitRaw, 20), 50)
+        ? clampAdapterLimit(limitRaw, 20, 50)
         : undefined;
     const minUpvotes = normalizeNonNegativeNumber(config.params?.min_upvotes);
     const enrich = (config.params?.enrich as boolean) ?? false;

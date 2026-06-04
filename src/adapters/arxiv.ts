@@ -16,8 +16,8 @@ import {
   stripHtml,
 } from "./html";
 import {
+  clampAdapterLimit,
   normalizeOptionalString,
-  normalizePositiveInteger,
   normalizeStringList,
   sleep,
   sliceToLimit,
@@ -167,7 +167,7 @@ const adapter: Adapter = {
     const query = normalizeOptionalString(
       config.params?.query as string | undefined,
     );
-    const limit = Math.min(normalizePositiveInteger(config.params?.limit, 20), 100);
+    const limit = clampAdapterLimit(config.params?.limit, 20, 100);
 
     if (categories.length === 0 && !query) {
       console.warn("arxiv: no categories or query configured");

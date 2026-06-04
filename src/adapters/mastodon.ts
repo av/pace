@@ -9,9 +9,9 @@ import {
 import { fetchJson, HN_ITEM_FETCH_TIMEOUT_MS, warnOptionalFetchFailure } from "./fetch";
 import { decodeNumericFeedTitle, stripHtml } from "./html";
 import {
+  clampAdapterLimit,
   normalizeNonNegativeNumber,
   normalizeOptionalString,
-  normalizePositiveInteger,
   normalizeStringList,
   sliceToLimit,
 } from "../utils";
@@ -192,7 +192,7 @@ const adapter: Adapter = {
     const accounts = normalizeStringList(
       (config.params?.accounts as string[]) ?? [],
     );
-    const limit = Math.min(normalizePositiveInteger(config.params?.limit, 20), 40);
+    const limit = clampAdapterLimit(config.params?.limit, 20, 40);
     const minFavourites = normalizeNonNegativeNumber(config.params?.min_favourites);
     const onlyMedia = (config.params?.only_media as boolean) ?? false;
 

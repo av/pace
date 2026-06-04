@@ -2,8 +2,8 @@ import { formatBy, formatPercent, formatTags, joinBodyParts } from "./engagement
 import { fetchJson } from "./fetch";
 import { decodeNumericFeedTitle } from "./html";
 import {
+  clampAdapterLimit,
   normalizeOptionalString,
-  normalizePositiveInteger,
   normalizeStringList,
 } from "../utils";
 import { joinTitleWithTagline } from "./title";
@@ -119,7 +119,7 @@ const adapter: Adapter = {
     const scope = normalizeOptionalString(
       config.params?.scope as string | undefined,
     );
-    const limit = Math.min(normalizePositiveInteger(config.params?.limit, 20), 50);
+    const limit = clampAdapterLimit(config.params?.limit, 20, 50);
     const sortParam = (config.params?.sort as string) ?? "optimal";
 
     const sortBy: SortBy = VALID_SORTS.has(sortParam as SortBy)

@@ -10,9 +10,9 @@ import { parseUnixEpochSeconds } from "./dates";
 import { fetchJson } from "./fetch";
 import { decodeNumericFeedTitle } from "./html";
 import {
+  clampAdapterLimit,
   normalizeNonNegativeNumber,
   normalizeOptionalString,
-  normalizePositiveInteger,
   normalizeStringList,
   sliceToLimit,
 } from "../utils";
@@ -109,7 +109,7 @@ const adapter: Adapter = {
       (typeof sortRaw === "string"
         ? normalizeOptionalString(sortRaw)
         : undefined) ?? "hot";
-    const limit = Math.min(normalizePositiveInteger(config.params?.limit, 20), 100);
+    const limit = clampAdapterLimit(config.params?.limit, 20, 100);
     const minScore = normalizeNonNegativeNumber(config.params?.min_score);
 
     const sortLower = sort.toLowerCase();
