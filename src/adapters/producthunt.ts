@@ -59,7 +59,6 @@ interface PHEntry extends FeedItemBodyFields {
   author?: { name?: string };
 }
 
-/** Parsed Atom feed root from fast-xml-parser (attributeNamePrefix "@_"). */
 interface PHAtomFeedParsed {
   feed?: {
     title?: XmlTextField;

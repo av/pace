@@ -36,7 +36,6 @@ interface GHAtomEntry extends FeedItemBodyFields {
   published?: string;
 }
 
-/** Parsed Atom feed root from fast-xml-parser (attributeNamePrefix "@_"). */
 interface GHAtomFeedParsed {
   feed?: {
     title?: XmlTextField;

@@ -52,7 +52,6 @@ interface ArxivEntry extends FeedItemBodyFields {
   link?: ArxivLink | ArxivLink[];
 }
 
-/** Parsed Atom feed root from fast-xml-parser (attributeNamePrefix "@_"). */
 interface ArxivAtomFeedParsed {
   feed?: {
     entry?: ArxivEntry | ArxivEntry[];

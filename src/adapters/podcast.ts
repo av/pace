@@ -57,7 +57,6 @@ interface PodcastChannel {
   item?: PodcastFeedItem | PodcastFeedItem[];
 }
 
-/** Parsed RSS 2.0 / Atom podcast feed root from fast-xml-parser (attributeNamePrefix "@_"). */
 interface PodcastFeedParsed {
   rss?: {
     channel?: PodcastChannel;

@@ -26,7 +26,6 @@ interface RssFeedItem extends FeedItemBodyFields {
   published?: string;
 }
 
-/** Parsed RSS 2.0 / Atom feed root from fast-xml-parser (attributeNamePrefix "@_"). */
 interface RssFeedParsed {
   rss?: {
     channel?: {
