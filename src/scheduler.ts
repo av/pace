@@ -291,6 +291,18 @@ function dependentPipelineNames(adapterNames: Set<string>, seed: Set<string>): S
   return names;
 }
 
+/** Names passed to `refreshSources` when a layout panel uses `source: all` (adapters + pipelines). */
+export function allPanelRefreshSourceNames(
+  adapterNames: readonly string[],
+  pipelines: readonly { name: string }[] | undefined,
+): string[] {
+  const names = [...adapterNames];
+  if (pipelines) {
+    for (const pipeline of pipelines) names.push(pipeline.name);
+  }
+  return names;
+}
+
 export async function refreshSources(sourceNames: string[]): Promise<RefreshResult[]> {
   const sourceNameSet = new Set(sourceNames);
 

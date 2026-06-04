@@ -11,6 +11,7 @@ import {
   startScheduler,
   stopScheduler,
   refreshSources,
+  allPanelRefreshSourceNames,
   PIPELINE_INITIAL_DELAY_MS,
   DEFAULT_REFRESH_INTERVAL_MIN,
   type SourcePanelMap,
@@ -186,6 +187,35 @@ describe("scheduler", () => {
       const everyLogs = logSpy.mock.calls.filter((c) => String(c[0]).includes("every 60m"));
       expect(everyLogs.length).toBe(2);
     });
+  });
+
+  test("allPanelRefreshSourceNames includes adapters and pipelines for source: all refresh", () => {
+    expect(
+      allPanelRefreshSourceNames(["hn", "rss"], [{ name: "firehose" }, { name: "curated" }]),
+    ).toEqual(["hn", "rss", "firehose", "curated"]);
+    expect(allPanelRefreshSourceNames(["only"], undefined)).toEqual(["only"]);
+  });
+
+  test("refreshSources with adapter + pipeline names refreshes both (all-panel contract)", async () => {
+    const items = [{ id: "a1", title: "A", url: "https://a", source: "srcA", timestamp: new Date() }];
+    const adapters = adaptersMap(["test", makeMockAdapter(items)]);
+    const config = schedulerConfig({
+      adapters: [{ type: "test", name: "srcA", refresh_interval: 60 }],
+      pipelines: [{
+        name: "merge",
+        sources: ["srcA"],
+        transforms: [{ type: "latest", count: 5 }],
+      }],
+    });
+    const pm = panelMap({ srcA: ["panelA"], merge: ["outPanel"] }, { srcA: "panelA" });
+    startScheduler(config, adapters, pm, null);
+    await waitForAsync();
+    const names = allPanelRefreshSourceNames(["srcA"], config.pipelines);
+    const results = await refreshSources(names);
+    const kinds = new Set(results.map((r) => `${r.kind}:${r.name}`));
+    expect(kinds.has("adapter:srcA")).toBe(true);
+    expect(kinds.has("pipeline:merge")).toBe(true);
+    expect(getAllItemsByPanel("outPanel").length).toBeGreaterThan(0);
   });
 
   test("refreshSources with unknown names returns no results (no crash)", async () => {

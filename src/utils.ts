@@ -22,6 +22,14 @@ export function isValidPort(n: number): boolean {
   return !isNaN(n) && n >= 1 && n <= 65535;
 }
 
+/** Parse a CLI `--port` value; rejects partial integers like `8080x` (unlike `parseInt`). */
+export function parseCliPort(input: string): number | null {
+  const trimmed = input.trim();
+  if (!/^\d+$/.test(trimmed)) return null;
+  const n = Number(trimmed);
+  return isValidPort(n) ? n : null;
+}
+
 export function getAdapterName(cfg: { name?: string; type: string }): string {
   return cfg.name ?? cfg.type;
 }

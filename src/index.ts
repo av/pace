@@ -6,7 +6,13 @@ import { initDb, closeDb, getRecentItems, getItemsByPanel, getLastFetchedAt, get
 import { discoverAdapters } from "./adapters/index";
 import { renderDashboard, type PanelData } from "./layout";
 import { createModel } from "./llm";
-import { startScheduler, stopScheduler, refreshSources, type SourcePanelMap } from "./scheduler";
+import {
+  startScheduler,
+  stopScheduler,
+  refreshSources,
+  allPanelRefreshSourceNames,
+  type SourcePanelMap,
+} from "./scheduler";
 import { parsePort, getAdapterName, errorMessage } from "./utils";
 
 const SRC_DIR = import.meta.dir;
@@ -131,7 +137,9 @@ async function start() {
     if (!sources) return c.text(`Unknown panel: ${param}`, 404);
 
     const sourceNames = Array.from(new Set(sources.flatMap((s) =>
-      s.adapter === "all" ? configuredAdapterNames : [s.adapter]
+      s.adapter === "all"
+        ? allPanelRefreshSourceNames(configuredAdapterNames, config.pipelines)
+        : [s.adapter]
     )));
 
     if (sourceNames.length > 0) {

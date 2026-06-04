@@ -76,6 +76,13 @@ describe("cli", () => {
     expect(res.stdout).toBe("");
   });
 
+  test("partial numeric --port rejected (no parseInt prefix acceptance)", () => {
+    const res = runCli(["--port", "8080abc"]);
+    expect(res.status).toBe(1);
+    expect(res.stderr).toContain("Invalid --port value: 8080abc");
+    expect(res.stdout).toBe("");
+  });
+
   test("--config non-regular file rejected", () => {
     const res = runCli(["--config", tmpDir]);
     expect(res.status).toBe(1);

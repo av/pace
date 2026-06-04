@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import { errorMessage, isValidPort } from "./utils";
+import { errorMessage, parseCliPort } from "./utils";
 import { tryReadRegularFile } from "./config";
 import {
   cliDie,
@@ -92,11 +92,11 @@ if (values.config) {
 
 if (values.port) {
   const p = values.port;
-  const n = parseInt(p, 10);
-  if (!isValidPort(n)) {
+  const n = parseCliPort(p);
+  if (n === null) {
     cliDie(`Invalid --port value: ${p}. Must be an integer between 1 and 65535.`);
   }
-  process.env.PORT = p;
+  process.env.PORT = String(n);
 }
 
 try {

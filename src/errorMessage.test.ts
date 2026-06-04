@@ -2,6 +2,7 @@ import { test, expect, describe } from "bun:test";
 import { errorMessage } from "./adapters/types";
 import {
   parsePort,
+  parseCliPort,
   isValidPort,
   getAdapterName,
   sliceToLimit,
@@ -61,6 +62,19 @@ describe("errorMessage", () => {
     expect(errorMessage({ message: null })).toBe("[object Object]");
     expect(errorMessage({ message: undefined })).toBe("[object Object]");
     expect(errorMessage({ message: true })).toBe("[object Object]");
+  });
+});
+
+describe("parseCliPort", () => {
+  test("accepts full-string integers in range and rejects parseInt-style prefixes", () => {
+    expect(parseCliPort("8080")).toBe(8080);
+    expect(parseCliPort(" 3000 ")).toBe(3000);
+    expect(parseCliPort("65535")).toBe(65535);
+    expect(parseCliPort("8080abc")).toBeNull();
+    expect(parseCliPort("65536")).toBeNull();
+    expect(parseCliPort("0")).toBeNull();
+    expect(parseCliPort("")).toBeNull();
+    expect(parseCliPort("12.5")).toBeNull();
   });
 });
 
