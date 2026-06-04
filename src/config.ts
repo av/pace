@@ -55,16 +55,6 @@ export function isDedupeStrategy(value: string): value is DedupeStrategy {
   return (DEDUPE_STRATEGIES as readonly string[]).includes(value);
 }
 
-/** Whether dedupe transform applies `threshold` at runtime (transforms.ts title-similarity). */
-export function dedupeStrategyUsesThreshold(strategy: DedupeStrategy): boolean {
-  return strategy === "title-similarity";
-}
-
-/** Whether dedupe transform applies `keep` at runtime (domain-normalized, title-similarity). */
-export function dedupeStrategyUsesKeep(strategy: DedupeStrategy): boolean {
-  return strategy === "domain-normalized" || strategy === "title-similarity";
-}
-
 export type TransformConfig =
   | { type: "latest"; count: number }
   | { type: "filter"; keywords: string[]; fields?: KeywordField[] }
@@ -524,12 +514,16 @@ function resolveDedupeStrategyForValidation(strategy: unknown): DedupeStrategy {
 function validateDedupeStrategyFields(transform: Record<string, unknown>, path: string): void {
   const strategy = resolveDedupeStrategyForValidation(transform.strategy);
 
-  if (transform.threshold !== undefined && !dedupeStrategyUsesThreshold(strategy)) {
+  if (transform.threshold !== undefined && strategy !== "title-similarity") {
     throw new Error(
       `config: ${path}.threshold is only valid for dedupe strategy "title-similarity" (got "${strategy}")`,
     );
   }
-  if (transform.keep !== undefined && !dedupeStrategyUsesKeep(strategy)) {
+  if (
+    transform.keep !== undefined &&
+    strategy !== "domain-normalized" &&
+    strategy !== "title-similarity"
+  ) {
     throw new Error(
       `config: ${path}.keep is only valid for dedupe strategies "domain-normalized" and "title-similarity" (got "${strategy}")`,
     );

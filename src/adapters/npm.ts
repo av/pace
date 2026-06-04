@@ -6,7 +6,7 @@ import {
   normalizePositiveInteger,
   normalizeStringList,
 } from "../utils";
-import { titleWithTagline } from "./title";
+import { joinTitleWithTagline } from "./title";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 const NPM_REGISTRY = "https://registry.npmjs.org";
@@ -140,7 +140,7 @@ const adapter: Adapter = {
 
     return results.map((result) => ({
       id: `npm:${result.package.name}@${result.package.version}`,
-      title: titleWithTagline(
+      title: joinTitleWithTagline(
         decodeNumericFeedTitle(result.package.name),
         result.package.description
           ? decodeNumericFeedTitle(result.package.description)

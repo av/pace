@@ -33,7 +33,7 @@ import {
   joinBodyParts,
   parseFirstIntMatch,
 } from "./engagement";
-import { titleWithTagline } from "./title";
+import { joinTitleWithTagline } from "./title";
 
 const PH_ENRICH_USER_AGENT =
   "Mozilla/5.0 (compatible; pace/1.0; +https://github.com/nickvdyck/pace)";
@@ -310,7 +310,7 @@ const adapter: Adapter = {
 
       return {
         id: `ph:${item.id}`,
-        title: titleWithTagline(item.title, item.tagline, 0),
+        title: joinTitleWithTagline(item.title, item.tagline, 0),
         url: item.url,
         source: feedTitle,
         timestamp: item.timestamp,

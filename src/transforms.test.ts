@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeEach } from "bun:test";
 import { spyConsole } from "./test/console-spy";
-import { runPipeline, type TransformContext, extractEngagementScore } from "./transforms";
+import { runPipeline, type TransformContext } from "./transforms";
+import { extractEngagementScore } from "./adapters/engagement";
 import type { TransformConfig } from "./config";
 import type { ContentItemRow } from "./db";
 

@@ -17,8 +17,6 @@ import type { ContentItem } from "./adapters/types";
 import { summarizeItem, lensItems, mergeItems, filterItemsByLlm } from "./llm";
 import { extractEngagementScore, extractScore } from "./adapters/engagement";
 import { normalizeUrl, levenshteinSimilarity } from "./dedupe";
-
-export { extractEngagementScore };
 import { compareIsoTimestamp, errorMessage, sliceToLimit } from "./utils";
 
 export interface TransformContext {
@@ -49,10 +47,6 @@ function contentItemToRow(item: ContentItem, base?: ContentItemRow): ContentItem
     fetched_at: base?.fetched_at ?? new Date().toISOString(),
     summary: base?.summary ?? (item.body ?? null),
   };
-}
-
-function toContentItems(items: ContentItemRow[]): ContentItem[] {
-  return items.map(rowToContentItem);
 }
 
 function pickByTimestamp(group: ContentItemRow[], direction: "asc" | "desc"): ContentItemRow {
@@ -428,15 +422,6 @@ function applyDedupeTitleSimilarity(
   return kept;
 }
 
-type DedupeStrategyHandler = (items: ContentItemRow[], opts: DedupeRunOptions) => ContentItemRow[];
-
-const dedupeStrategyHandlers: Record<DedupeStrategy, DedupeStrategyHandler> = {
-  url: (items, { shouldLog }) => applyDedupeUrl(items, shouldLog),
-  "domain-normalized": (items, { keep, shouldLog }) => applyDedupeDomainNormalized(items, keep, shouldLog),
-  "title-similarity": (items, { threshold, keep, shouldLog }) =>
-    applyDedupeTitleSimilarity(items, threshold, keep, shouldLog),
-};
-
 type LatestTransformConfig = Extract<TransformConfig, { type: "latest" }>;
 type SortTransformConfig = Extract<TransformConfig, { type: "sort" }>;
 type KeywordScoreTransformConfig = Extract<TransformConfig, { type: "keyword-score" }>;
@@ -445,10 +430,6 @@ type LlmSummarizeTransformConfig = Extract<TransformConfig, { type: "llm-summari
 type LlmFilterTransformConfig = Extract<TransformConfig, { type: "llm-filter" }>;
 type LlmRankTransformConfig = Extract<TransformConfig, { type: "llm-rank" }>;
 type LlmMergeTransformConfig = Extract<TransformConfig, { type: "llm-merge" }>;
-
-function applyLatest(items: ContentItemRow[], { count }: LatestTransformConfig): ContentItemRow[] {
-  return sliceToLimit(items, count);
-}
 
 function applySort(
   items: ContentItemRow[],
@@ -472,7 +453,14 @@ function applyDedupe(items: ContentItemRow[], config: DedupeTransformConfig): Co
     console.warn(`transforms: unknown dedupe strategy "${opts.strategy}", passing items through`);
     return items;
   }
-  return dedupeStrategyHandlers[opts.strategy](items, opts);
+  switch (opts.strategy) {
+    case "url":
+      return applyDedupeUrl(items, opts.shouldLog);
+    case "domain-normalized":
+      return applyDedupeDomainNormalized(items, opts.keep, opts.shouldLog);
+    case "title-similarity":
+      return applyDedupeTitleSimilarity(items, opts.threshold, opts.keep, opts.shouldLog);
+  }
 }
 
 function applyKeywordScore(
@@ -682,7 +670,7 @@ async function applyLlmFilter(
   items: ContentItemRow[],
   { criteria }: LlmFilterTransformConfig
 ): Promise<ContentItemRow[]> {
-  const filtered = await filterItemsByLlm(model, toContentItems(items), criteria);
+  const filtered = await filterItemsByLlm(model, items.map(rowToContentItem), criteria);
   const keepIds = new Set(filtered.map((i) => i.id));
   return items.filter((row) => keepIds.has(row.id));
 }
@@ -695,7 +683,7 @@ async function applyLlmRank(
 ): Promise<ContentItemRow[]> {
   const effectiveInterests = config.interests ?? ctx.llmConfig?.interests ?? [];
   if (effectiveInterests.length === 0) return items;
-  const ranked = await lensItems(model, toContentItems(items), effectiveInterests);
+  const ranked = await lensItems(model, items.map(rowToContentItem), effectiveInterests);
   const rowById = new Map(items.map((r) => [r.id, r]));
   const order = ranked.flatMap((item) => {
     const row = rowById.get(item.id);
@@ -709,7 +697,7 @@ async function applyLlmMerge(
   items: ContentItemRow[],
   { prompt }: LlmMergeTransformConfig
 ): Promise<ContentItemRow[]> {
-  const merged = await mergeItems(model, toContentItems(items), prompt);
+  const merged = await mergeItems(model, items.map(rowToContentItem), prompt);
   const rowMap = new Map<string, ContentItemRow>();
   for (const row of items) rowMap.set(row.id, row);
   return merged.map((item) => {
@@ -725,7 +713,8 @@ type TransformFn = (
 ) => Promise<ContentItemRow[]>;
 
 const transforms: Record<string, TransformFn> = {
-  latest: async (items, config) => applyLatest(items, config as LatestTransformConfig),
+  latest: async (items, config) =>
+    sliceToLimit(items, (config as LatestTransformConfig).count),
 
   filter: async (items, config) => applyFilter(items, config as FilterTransformConfig),
 

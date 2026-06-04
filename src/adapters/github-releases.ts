@@ -6,7 +6,7 @@ import {
 import { buildGitHubApiHeaders, fetchJson } from "./fetch";
 import { fetchRepoTagline } from "./github-repo-meta";
 import { decodeNumericFeedTitle } from "./html";
-import { titleWithTagline } from "./title";
+import { joinTitleWithTagline } from "./title";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 interface GitHubRelease {
@@ -34,7 +34,7 @@ async function fetchRepoReleases(
   const tagline = await fetchRepoTagline(repo, ADAPTER_NAME, token);
   return releases.map((r) => {
     const releaseName = decodeNumericFeedTitle(r.name ?? r.tag_name);
-    const title = titleWithTagline(`${repo}: ${releaseName}`, tagline);
+    const title = joinTitleWithTagline(`${repo}: ${releaseName}`, tagline);
     return {
       id: `github:${repo}:${r.id}`,
       title,

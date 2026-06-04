@@ -2,11 +2,6 @@ import { normalizeStringList } from "../utils";
 import { decodeNumericFeedTitleOptional } from "./html";
 import { type Adapter, type AdapterConfig, type ContentItem } from "./types";
 
-/** Twitter API v2 `text` → item title (parity with other adapters). */
-export function decodeTweetTitle(text?: string): string {
-  return decodeNumericFeedTitleOptional(text);
-}
-
 function buildTweetItem(
   id: string,
   text: string | undefined,
@@ -16,7 +11,7 @@ function buildTweetItem(
 ): ContentItem {
   return {
     id,
-    title: decodeTweetTitle(text),
+    title: decodeNumericFeedTitleOptional(text),
     url,
     source,
     timestamp,

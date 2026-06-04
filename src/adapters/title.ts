@@ -25,12 +25,3 @@ export function joinTitleWithTagline(
   parts.push(...extra);
   return joinTitle(...parts);
 }
-
-/** Primary dashboard title with optional subtitle (repo description, tagline, etc.). */
-export function titleWithTagline(
-  primary: string,
-  tagline?: string | null,
-  maxTagline = 100,
-): string {
-  return joinTitleWithTagline(primary, tagline, maxTagline);
-}

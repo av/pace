@@ -22,7 +22,7 @@ import {
 import { dedupeByKey } from "./merge";
 import { decodeNumericFeedTitle, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
 import { fetchRepoTagline } from "./github-repo-meta";
-import { joinTitleWithTagline, titleWithTagline } from "./title";
+import { joinTitleWithTagline } from "./title";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 type TrendingPeriod = "daily" | "weekly" | "monthly";
@@ -91,7 +91,7 @@ async function fetchReleasesFeed(
       : tag
         ? `${repo}: ${tag}`
         : `${repo}: ${title}`;
-    const displayTitle = titleWithTagline(releaseTitle, tagline);
+    const displayTitle = joinTitleWithTagline(releaseTitle, tagline);
 
     items.push({
       id: `github:${repo}:${tag || title}`,
