@@ -1,6 +1,6 @@
 import { formatViews, joinBodyParts } from "./engagement";
 import { fetchJson } from "./fetch";
-import { decodeHtmlEntities, stripHtml } from "./html";
+import { decodeNumericFeedTitle, stripHtml } from "./html";
 import {
   normalizeOptionalString,
   normalizePositiveInteger,
@@ -46,11 +46,11 @@ interface WikiNewsItem {
 }
 
 function formatArticleTitle(title: string): string {
-  return decodeHtmlEntities(title.replace(/_/g, " "), { numeric: true });
+  return decodeNumericFeedTitle(title.replace(/_/g, " "));
 }
 
 function formatPlainFeedText(text: string): string {
-  return decodeHtmlEntities(stripHtml(text, { whitespace: "preserve" }), { numeric: true });
+  return decodeNumericFeedTitle(stripHtml(text, { whitespace: "preserve" }));
 }
 
 function buildBody(article: WikiMostReadArticle): string {

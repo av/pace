@@ -18,7 +18,7 @@ import {
 } from "../utils";
 import { fetchText, HN_ITEM_FETCH_TIMEOUT_MS } from "./fetch";
 import {
-  decodeHtmlEntities,
+  decodeNumericFeedTitle,
   FEED_BODY_STRIP_OPTIONS,
   stripHtml,
 } from "./html";
@@ -90,7 +90,7 @@ function extractContent(entry: PHEntry): { tagline: string; productLink: string 
   );
   const productLink = linkMatch ? linkMatch[1] : "";
 
-  const html = decodeHtmlEntities(raw, { numeric: true });
+  const html = decodeNumericFeedTitle(raw);
   const firstParagraph = html.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
   let tagline = "";
   if (firstParagraph) {
@@ -122,15 +122,11 @@ function topicLabelFromSlug(slug: string): string {
   return slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function decodeTopicLabel(label: string): string {
-  return decodeHtmlEntities(label.trim(), { numeric: true });
-}
-
 function extractTopics(html: string): string[] {
   const labels: string[] = [];
   const slugs: string[] = [];
   for (const m of html.matchAll(RE_ENRICH_TOPIC)) {
-    if (m[1]) labels.push(decodeTopicLabel(m[1]));
+    if (m[1]) labels.push(decodeNumericFeedTitle(m[1].trim()));
     else if (m[2]) slugs.push(m[2]);
   }
   if (labels.length > 0) return labels.filter(Boolean);
@@ -217,9 +213,8 @@ function buildBody(
 }
 
 function extractFeedTitle(parsed: PHAtomFeedParsed): string {
-  return decodeHtmlEntities(
+  return decodeNumericFeedTitle(
     extractFeedRootTitle(undefined, parsed.feed?.title) ?? "producthunt",
-    { numeric: true },
   );
 }
 
@@ -249,9 +244,7 @@ async function fetchProductHuntFeed(): Promise<{
   }
 
   const items = entries.map((entry) => {
-    const title = decodeHtmlEntities(extractFeedEntryTitle(entry.title), {
-      numeric: true,
-    });
+    const title = decodeNumericFeedTitle(extractFeedEntryTitle(entry.title));
     const url = extractAtomLink(entry.link);
     const { tagline, productLink } = extractContent(entry);
     const author = entry.author?.name ?? "";

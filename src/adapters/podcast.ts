@@ -21,7 +21,7 @@ import {
 } from "../utils";
 import { dedupeByKey } from "./merge";
 import {
-  decodeHtmlEntities,
+  decodeNumericFeedTitle,
   FEED_BODY_STRIP_OPTIONS,
   stripHtml,
 } from "./html";
@@ -149,9 +149,8 @@ function extractChannelTitle(
   channel: PodcastChannel,
   atomTitle?: XmlTextField,
 ): string {
-  return decodeHtmlEntities(
+  return decodeNumericFeedTitle(
     extractFeedRootTitle(channel.title, atomTitle) ?? "Unknown Podcast",
-    { numeric: true },
   );
 }
 
@@ -160,9 +159,7 @@ function parseEpisode(
   showName: string,
   channelLink: string = "",
 ): PodcastEpisode | null {
-  const title = decodeHtmlEntities(extractFeedEntryTitle(item.title, ""), {
-    numeric: true,
-  });
+  const title = decodeNumericFeedTitle(extractFeedEntryTitle(item.title, ""));
   if (!title) return null;
 
   let url = extractAtomLink(item.link);
