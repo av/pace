@@ -6,7 +6,6 @@ export type AtomLinkField =
   | Array<{ "@_href"?: string; "@_rel"?: string }>
   | undefined;
 
-/** Parsed text node from fast-xml-parser (attributeNamePrefix "@_"). */
 export type XmlTextField = string | { "#text"?: string; __cdata?: string };
 
 /** RSS 2.0 / Atom / podcast item fields commonly used for body text. */
@@ -19,7 +18,6 @@ export type FeedItemBodyFields = {
   "content:encoded"?: XmlTextField;
 };
 
-/** fast-xml-parser options shared by RSS/Atom feed adapters. */
 export const FEED_XML_PARSER_OPTIONS = {
   ignoreAttributes: false,
   attributeNamePrefix: "@_" as const,
@@ -28,7 +26,6 @@ export const FEED_XML_PARSER_OPTIONS = {
 /** Shared XMLParser for feed adapters using {@link FEED_XML_PARSER_OPTIONS}. */
 export const feedXmlParser = new XMLParser(FEED_XML_PARSER_OPTIONS);
 
-/** Normalize a single parsed node or list from fast-xml-parser. */
 export function normalizeXmlList<T>(value: T | T[] | undefined | null): T[] {
   if (value == null) return [];
   return Array.isArray(value) ? value : [value];
