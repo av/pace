@@ -39,6 +39,16 @@ describe("URL parse helpers", () => {
   });
 
   describe("safeLinkUrl", () => {
+    test("returns null for empty input without warning", () => {
+      const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+      try {
+        expect(safeLinkUrl("")).toBeNull();
+        expect(warnSpy).not.toHaveBeenCalled();
+      } finally {
+        warnSpy.mockRestore();
+      }
+    });
+
     test("allows http, https, and mailto", () => {
       expect(safeLinkUrl("https://a.com")).toBe("https://a.com");
       expect(safeLinkUrl("http://a.com")).toBe("http://a.com");
