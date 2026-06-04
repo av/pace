@@ -183,6 +183,22 @@ describe("lobsters", () => {
     expect(results[1].id).toBe("lobsters:old");
   });
 
+  test("sorts tag results by comment_count for active feed", async () => {
+    const quiet = makeItem({ short_id: "quiet", comment_count: 2, score: 100 });
+    const busy = makeItem({ short_id: "busy", comment_count: 50, score: 1 });
+
+    mocks.fetchMock
+      .mockResolvedValueOnce(makeJsonResponse([quiet]))
+      .mockResolvedValueOnce(makeJsonResponse([busy]));
+
+    const results = await lobstersAdapter.fetch(
+      lobstersCfg({ tags: ["x", "y"], feed: "active" }),
+    );
+
+    expect(results[0].id).toBe("lobsters:busy");
+    expect(results[1].id).toBe("lobsters:quiet");
+  });
+
   test.each([NaN, "25", Infinity, -5, 0] as unknown[])(
     "invalid limit (%s) uses default slice of 25",
     async (limit) => {
