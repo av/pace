@@ -79,7 +79,7 @@ describe("renderDashboard", () => {
     expect(html).toContain("<span>No Link</span>");
   });
 
-  it("warns on safeUrl parse failure; disallowed protocols stay silent", () => {
+  it("warns on safeLinkUrl parse failure; disallowed protocols stay silent", () => {
     const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
     try {
       const invalid = makeItem({ title: "No Link", url: "not-a-url" });
