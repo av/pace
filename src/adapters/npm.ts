@@ -3,7 +3,7 @@ import {
   formatPercent,
   formatTags,
 } from "./engagement";
-import { joinTitle } from "./title";
+import { joinTitle, joinTitleWithTagline } from "./title";
 
 import { fetchJson } from "./fetch";
 import { decodeNumericFeedTitle } from "./html";
@@ -12,7 +12,6 @@ import {
   normalizeOptionalString,
   normalizeStringList,
 } from "../utils";
-import { joinTitleWithTagline } from "./title";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 const NPM_REGISTRY = "https://registry.npmjs.org";

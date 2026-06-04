@@ -14,7 +14,7 @@ import {
   formatLanguage,
   formatStars,
 } from "./engagement";
-import { joinTitle } from "./title";
+import { joinTitle, joinTitleWithTagline } from "./title";
 
 import { FEED_FETCH_TIMEOUT_MS, fetchText } from "./fetch";
 import {
@@ -26,7 +26,6 @@ import {
 import { dedupeByKey } from "./merge";
 import { decodeNumericFeedTitle, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
 import { fetchRepoTagline } from "./github-repo-meta";
-import { joinTitleWithTagline } from "./title";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 type TrendingPeriod = "daily" | "weekly" | "monthly";

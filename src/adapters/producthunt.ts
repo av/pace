@@ -32,9 +32,7 @@ import {
   formatUpvotes,
   parseFirstIntMatch,
 } from "./engagement";
-import { joinTitle } from "./title";
-
-import { joinTitleWithTagline } from "./title";
+import { joinTitle, joinTitleWithTagline } from "./title";
 
 const PH_ENRICH_USER_AGENT =
   "Mozilla/5.0 (compatible; pace/1.0; +https://github.com/nickvdyck/pace)";
