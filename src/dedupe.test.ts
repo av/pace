@@ -56,6 +56,10 @@ describe("dedupe utils", () => {
       expect(extractHostname("https://WWW.Example.com/path")).toBe("example.com");
     });
 
+    test("returns empty hostname for mailto links", () => {
+      expect(extractHostname("mailto:user@example.com")).toBe("");
+    });
+
     test("returns empty string and warns on parse failure", () => {
       const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
       try {
