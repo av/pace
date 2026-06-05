@@ -4,7 +4,10 @@ import rssAdapter from "./adapters/rss";
 import producthuntAdapter from "./adapters/producthunt";
 import { useFetchMockSuite } from "./test/adapter-mocks";
 import { makeErrorResponse, makeXmlResponse } from "./test/fetch-responses";
-import { productHuntFeedFixture } from "./test/producthunt-fixtures";
+import {
+  productHuntEmptyFeedFixture,
+  productHuntFeedFixture,
+} from "./test/producthunt-fixtures";
 
 const mocks = useFetchMockSuite();
 
@@ -49,9 +52,7 @@ describe("types", () => {
 
     describe("producthunt", () => {
       test("empty feed: [] with misconfiguration warn, no throw", async () => {
-        mocks.fetchMock.mockResolvedValue(
-          makeXmlResponse(`<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"></feed>`),
-        );
+        mocks.fetchMock.mockResolvedValue(makeXmlResponse(productHuntEmptyFeedFixture()));
         const items = await producthuntAdapter.fetch({ type: "producthunt" });
         expect(items).toEqual([]);
         expect(mocks.warnSpy).toHaveBeenCalledWith("producthunt: no entries found in feed");

@@ -3,31 +3,18 @@ import producthuntAdapter from "./adapters/producthunt";
 import * as utilsMod from "./utils";
 import { makeErrorResponse, makeTextResponse, makeXmlResponse } from "./test/fetch-responses";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
-import { productHuntFeedFixture } from "./test/producthunt-fixtures";
+import {
+  productHuntEmptyFeedFixture,
+  productHuntEnrichHtml,
+  productHuntEntityEntryTitleFixture,
+  productHuntEntityFeedTitleFixture,
+  productHuntFeedFixture,
+  productHuntHtmlContentFeedFixture,
+  productHuntSyntheticEntries,
+} from "./test/producthunt-fixtures";
 
 const mocks = useFetchMockSuite();
 const producthuntCfg = (params: Record<string, unknown> = {}) => adapterCfg("producthunt", params);
-
-function makeEnrichHtml(
-  upvotes: number,
-  comments: number,
-  topics: string[] = ["ai"],
-  makers: string[] = ["johndoe"],
-  topicLabels = false,
-): string {
-  const topicsHtml = topicLabels
-    ? topics.map((t) => `<span data-test="topic-link">${t}</span>`).join("")
-    : topics
-        .map((t) => `<a href="/topics/${t.replace(/\s+/g, "-")}">${t}</a>`)
-        .join("");
-  const makersHtml = makers.map((m) => `<a href="/@${m}">@${m}</a>`).join("");
-  return `<html><body>
-    <div>Upvote • ${upvotes} points</div>
-    <script>var x = {"commentsCount": ${comments}};</script>
-    ${topicsHtml}
-    ${makersHtml}
-  </body></html>`;
-}
 
 describe("producthunt", () => {
   test("fetches feed and maps basic items with correct id/source/timestamp/body (no enrich)", async () => {
@@ -51,19 +38,7 @@ describe("producthunt", () => {
   });
 
   test("decodes HTML entities in Atom feed title for source", async () => {
-    const entityFeedTitleFixture = `<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom">
-  <title>Product &amp; Hunt &#8364;</title>
-  <entry>
-    <id>tag:www.producthunt.com,2005:Post/555002</id>
-    <title>Feed Title Product</title>
-    <content>&lt;p&gt;Tagline&lt;/p&gt;</content>
-    <link rel="alternate" href="https://www.producthunt.com/posts/feed-title-product-555002" />
-    <published>2024-05-24T10:00:00Z</published>
-    <author><name>Pat Lee</name></author>
-  </entry>
-</feed>`;
-    mocks.fetchMock.mockResolvedValue(makeXmlResponse(entityFeedTitleFixture));
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(productHuntEntityFeedTitleFixture()));
 
     const items = await producthuntAdapter.fetch(producthuntCfg());
 
@@ -74,18 +49,7 @@ describe("producthunt", () => {
   });
 
   test("decodes HTML entities in feed entry title", async () => {
-    const entityTitleFeed = `<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom">
-  <entry>
-    <id>tag:www.producthunt.com,2005:Post/555001</id>
-    <title>Rock &amp; Roll &#8364;</title>
-    <content>&lt;p&gt;Entity tagline&lt;/p&gt;</content>
-    <link rel="alternate" href="https://www.producthunt.com/posts/entity-title-555001" />
-    <published>2024-05-23T10:00:00Z</published>
-    <author><name>Pat Lee</name></author>
-  </entry>
-</feed>`;
-    mocks.fetchMock.mockResolvedValue(makeXmlResponse(entityTitleFeed));
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(productHuntEntityEntryTitleFixture()));
 
     const items = await producthuntAdapter.fetch(producthuntCfg());
 
@@ -96,23 +60,12 @@ describe("producthunt", () => {
   });
 
   test("strips HTML from feed content body in item body (with and without enrich)", async () => {
-    const htmlFeed = `<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom">
-  <entry>
-    <id>tag:www.producthunt.com,2005:Post/999001</id>
-    <title>HTML Product</title>
-    <content type="html"><![CDATA[<p>Hello &amp; <b>world</b></p><p><a href="https://www.producthunt.com/r/html-product">Link</a></p>]]></content>
-    <link rel="alternate" href="https://www.producthunt.com/posts/html-product-999001" />
-    <published>2024-05-22T08:00:00Z</published>
-    <author><name>Pat Lee</name></author>
-  </entry>
-</feed>`;
     mocks.fetchMock.mockImplementation(async (url: string) => {
       const u = String(url);
       if (u.includes("feed")) {
-        return makeXmlResponse(htmlFeed);
+        return makeXmlResponse(productHuntHtmlContentFeedFixture());
       }
-      return makeTextResponse(makeEnrichHtml(10, 2));
+      return makeTextResponse(productHuntEnrichHtml(10, 2));
     });
 
     const noEnrich = await producthuntAdapter.fetch(producthuntCfg());
@@ -139,18 +92,18 @@ describe("producthunt", () => {
   test.each([NaN, "20", Infinity, -5, 0] as unknown[])(
     "invalid limit (%s) uses default slice of 20 when limit param set",
     async (limit) => {
-      const entries = Array.from({ length: 25 }, (_, i) => `  <entry>
-    <id>tag:www.producthunt.com,2005:Post/${100000 + i}</id>
-    <title>Product ${i}</title>
-    <content>&lt;p&gt;Tagline ${i}&lt;/p&gt;</content>
-    <link rel="alternate" href="https://www.producthunt.com/posts/product-${i}-${100000 + i}" />
-    <published>2024-05-20T10:00:00Z</published>
-  </entry>`).join("\n");
-      const feed = `<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom">
-${entries}
-</feed>`;
-      mocks.fetchMock.mockResolvedValue(makeXmlResponse(feed));
+      mocks.fetchMock.mockResolvedValue(
+        makeXmlResponse(
+          productHuntFeedFixture({
+            entries: productHuntSyntheticEntries(25, {
+              idBase: 100000,
+              titlePrefix: "Product",
+              taglinePrefix: "Tagline",
+              slugPrefix: "product",
+            }),
+          }),
+        ),
+      );
 
       const items = await producthuntAdapter.fetch(producthuntCfg({ limit }));
 
@@ -160,18 +113,18 @@ ${entries}
   );
 
   test("caps limit at 50", async () => {
-    const entries = Array.from({ length: 60 }, (_, i) => `  <entry>
-    <id>tag:www.producthunt.com,2005:Post/${200000 + i}</id>
-    <title>Cap ${i}</title>
-    <content>&lt;p&gt;T ${i}&lt;/p&gt;</content>
-    <link rel="alternate" href="https://www.producthunt.com/posts/cap-${i}-${200000 + i}" />
-    <published>2024-05-20T10:00:00Z</published>
-  </entry>`).join("\n");
-    const feed = `<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom">
-${entries}
-</feed>`;
-    mocks.fetchMock.mockResolvedValue(makeXmlResponse(feed));
+    mocks.fetchMock.mockResolvedValue(
+      makeXmlResponse(
+        productHuntFeedFixture({
+          entries: productHuntSyntheticEntries(60, {
+            idBase: 200000,
+            titlePrefix: "Cap",
+            taglinePrefix: "T",
+            slugPrefix: "cap",
+          }),
+        }),
+      ),
+    );
 
     const items = await producthuntAdapter.fetch(producthuntCfg({ limit: 500 }));
 
@@ -179,18 +132,18 @@ ${entries}
   });
 
   test("floors fractional limit", async () => {
-    const entries = Array.from({ length: 10 }, (_, i) => `  <entry>
-    <id>tag:www.producthunt.com,2005:Post/${300000 + i}</id>
-    <title>Floor ${i}</title>
-    <content>&lt;p&gt;T ${i}&lt;/p&gt;</content>
-    <link rel="alternate" href="https://www.producthunt.com/posts/floor-${i}-${300000 + i}" />
-    <published>2024-05-20T10:00:00Z</published>
-  </entry>`).join("\n");
-    const feed = `<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom">
-${entries}
-</feed>`;
-    mocks.fetchMock.mockResolvedValue(makeXmlResponse(feed));
+    mocks.fetchMock.mockResolvedValue(
+      makeXmlResponse(
+        productHuntFeedFixture({
+          entries: productHuntSyntheticEntries(10, {
+            idBase: 300000,
+            titlePrefix: "Floor",
+            taglinePrefix: "T",
+            slugPrefix: "floor",
+          }),
+        }),
+      ),
+    );
 
     const items = await producthuntAdapter.fetch(producthuntCfg({ limit: 7.9 }));
 
@@ -217,9 +170,9 @@ ${entries}
       }
       // enrich calls for the two product pages
       if (u.includes("123456")) {
-        return makeTextResponse(makeEnrichHtml(215, 67, ["ai", "devtools"], ["johndoe"]));
+        return makeTextResponse(productHuntEnrichHtml(215, 67, ["ai", "devtools"], ["johndoe"]));
       }
-      return makeTextResponse(makeEnrichHtml(42, 12, ["design"], ["janesmith"]));
+      return makeTextResponse(productHuntEnrichHtml(42, 12, ["design"], ["janesmith"]));
     });
 
     const items = await producthuntAdapter.fetch(producthuntCfg({ enrich: true }));
@@ -240,9 +193,9 @@ ${entries}
         return makeXmlResponse(productHuntFeedFixture());
       }
       if (u.includes("123456")) {
-        return makeTextResponse(makeEnrichHtml(10, 5, ["AI &amp; ML", "Dev&#39;Tools"], ["johndoe"], true));
+        return makeTextResponse(productHuntEnrichHtml(10, 5, ["AI &amp; ML", "Dev&#39;Tools"], ["johndoe"], true));
       }
-      return makeTextResponse(makeEnrichHtml(1, 1));
+      return makeTextResponse(productHuntEnrichHtml(1, 1));
     });
 
     const items = await producthuntAdapter.fetch(producthuntCfg({ enrich: true }));
@@ -259,9 +212,9 @@ ${entries}
         return makeXmlResponse(productHuntFeedFixture());
       }
       if (u.includes("123456")) {
-        return makeTextResponse(makeEnrichHtml(50, 10));
+        return makeTextResponse(productHuntEnrichHtml(50, 10));
       }
-      return makeTextResponse(makeEnrichHtml(300, 99));
+      return makeTextResponse(productHuntEnrichHtml(300, 99));
     });
 
     const items = await producthuntAdapter.fetch(
@@ -279,7 +232,7 @@ ${entries}
       if (u.includes("feed")) {
         return makeXmlResponse(productHuntFeedFixture());
       }
-      return makeTextResponse(makeEnrichHtml(50, 10));
+      return makeTextResponse(productHuntEnrichHtml(50, 10));
     });
 
     const items = await producthuntAdapter.fetch(
@@ -329,7 +282,7 @@ ${entries}
       if (u.includes("feed")) {
         return makeXmlResponse(productHuntFeedFixture());
       }
-      return makeTextResponse(makeEnrichHtml(50, 10));
+      return makeTextResponse(productHuntEnrichHtml(50, 10));
     });
 
     const items = await producthuntAdapter.fetch(
@@ -345,8 +298,7 @@ ${entries}
   });
 
   test("warns and returns [] when feed has no entries", async () => {
-    const emptyFeed = `<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"></feed>`;
-    mocks.fetchMock.mockResolvedValue(makeXmlResponse(emptyFeed));
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(productHuntEmptyFeedFixture()));
 
     const items = await producthuntAdapter.fetch(producthuntCfg());
 
