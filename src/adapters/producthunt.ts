@@ -76,9 +76,6 @@ function extractContent(entry: PHEntry): { tagline: string; productLink: string 
   const raw = extractFeedItemBody(entry) ?? "";
   if (!raw) return { tagline: "", productLink: "" };
 
-  // The content has HTML structure:
-  // <p>Tagline text</p>
-  // <p><a href="...">Discussion</a> | <a href="...product link...">Link</a></p>
   const linkMatch = raw.match(
     /href="(https:\/\/www\.producthunt\.com\/r\/[^"]+)"/,
   );
