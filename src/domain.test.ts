@@ -6,20 +6,13 @@ import { initDb, closeDb, getAllItemsByPanel, saveItems } from "./db";
 import { startScheduler, stopScheduler, refreshSources } from "./scheduler";
 import { isPanel } from "./config";
 import type { AppConfig, PanelConfig } from "./config";
-import type { SourcePanelMap } from "./scheduler";
+import { panelMap } from "./test/panel-map";
 
 function domainConfig(overrides: Partial<AppConfig> = {}): AppConfig {
   return {
     adapters: [],
     layout: { direction: "column", children: [{ panel: "out", source: "merge", limit: 50 }] },
     ...overrides,
-  };
-}
-
-function panelMap(panels: Record<string, string[]>, readKeys: Record<string, string>): SourcePanelMap {
-  return {
-    sourceToPanels: new Map(Object.entries(panels)),
-    sourceToReadKey: new Map(Object.entries(readKeys)),
   };
 }
 

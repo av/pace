@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach, spyOn } from "bun:test";
 import { spyConsole } from "./test/console-spy";
+import { emptyPanelMap, panelMap } from "./test/panel-map";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -14,7 +15,6 @@ import {
   allPanelRefreshSourceNames,
   PIPELINE_INITIAL_DELAY_MS,
   DEFAULT_REFRESH_INTERVAL_MIN,
-  type SourcePanelMap,
 } from "./scheduler";
 import type { AppConfig } from "./config";
 
@@ -48,20 +48,6 @@ function makeErrorAdapter(msg = "boom"): Adapter {
 
 async function waitForAsync(ms = 20): Promise<void> {
   await new Promise((r) => setTimeout(r, ms));
-}
-
-function emptyPanelMap(): SourcePanelMap {
-  return { sourceToPanels: new Map(), sourceToReadKey: new Map() };
-}
-
-function panelMap(
-  panels: Record<string, string[]>,
-  readKeys: Record<string, string> = {}
-): SourcePanelMap {
-  return {
-    sourceToPanels: new Map(Object.entries(panels)),
-    sourceToReadKey: new Map(Object.entries(readKeys)),
-  };
 }
 
 function adaptersMap(...entries: [string, Adapter][]): Map<string, Adapter> {
