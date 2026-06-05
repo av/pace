@@ -1,5 +1,6 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import wikipediaAdapter, { resolveWikipediaMode } from "./adapters/wikipedia";
+import { truncateText } from "./adapters/title";
 import * as utilsMod from "./utils";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
@@ -454,6 +455,51 @@ describe("wikipedia", () => {
     expect(items).toHaveLength(1);
     expect(items[0].source).toBe("wikipedia:news");
     expect(mocks.warnSpy).not.toHaveBeenCalled();
+  });
+
+  test("truncates long extract in most_read body when description is missing", async () => {
+    const longExtract = "word ".repeat(80).trim(); // 399 chars
+    const articles = [
+      makeMostReadArticle({ description: undefined, extract: longExtract }),
+    ];
+    mocks.fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makeFeaturedResponse({ mostread: { articles } })), {
+        status: 200,
+      }),
+    );
+
+    const items = await wikipediaAdapter.fetch(wikiCfg());
+
+    const extractPart = items[0].body.split(" | ").find((part) => !part.endsWith(" views"));
+    expect(extractPart).toBe(
+      truncateText(longExtract, 150, { ellipsis: "...", inclusive: false, trim: false }),
+    );
+    expect(extractPart!.length).toBeLessThanOrEqual(153);
+  });
+
+  test("truncates long extract in featured body when description is missing", async () => {
+    const longExtract = "x".repeat(250);
+    mocks.fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify(
+          makeFeaturedResponse({
+            tfa: {
+              title: "Long_Featured",
+              extract: longExtract,
+              content_urls: {
+                desktop: { page: "https://en.wikipedia.org/wiki/Long_Featured" },
+              },
+            },
+          }),
+        ),
+        { status: 200 },
+      ),
+    );
+
+    const items = await wikipediaAdapter.fetch(wikiCfg({ mode: "featured" }));
+
+    expect(items[0].body).toBe(`${"x".repeat(200)}...`);
+    expect(items[0].body.length).toBe(203);
   });
 
   test("formats view counts correctly", async () => {

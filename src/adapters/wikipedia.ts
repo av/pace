@@ -1,7 +1,7 @@
 import {
   formatViews,
 } from "./engagement";
-import { joinTitle } from "./title";
+import { joinTitle, truncateText } from "./title";
 
 import { fetchJson } from "./fetch";
 import { decodeNumericFeedTitle, stripHtml } from "./html";
@@ -72,10 +72,15 @@ interface WikiNewsItem {
   links: WikiArticle[];
 }
 
+function truncateWikiExtract(extract: string | undefined, max: number): string {
+  if (!extract) return "";
+  return truncateText(extract, max, { ellipsis: "...", inclusive: false, trim: false });
+}
+
 function buildBody(article: WikiMostReadArticle): string {
   return joinTitle(
     formatViews(article.views),
-    article.description ?? article.extract?.slice(0, 150),
+    article.description ?? truncateWikiExtract(article.extract, 150),
   );
 }
 
@@ -124,7 +129,7 @@ function extractFeatured(data: WikiFeaturedResponse): ContentItem[] {
       url: tfa.content_urls.desktop.page,
       source: "wikipedia:featured",
       timestamp: new Date(),
-      body: tfa.description ?? tfa.extract?.slice(0, 200) ?? "",
+      body: tfa.description ?? truncateWikiExtract(tfa.extract, 200),
     },
   ];
 }
