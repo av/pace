@@ -1,5 +1,12 @@
 import { describe, test, expect, spyOn } from "bun:test";
-import { normalizeUrl, extractHostname, levenshteinDistance, levenshteinSimilarity } from "./dedupe";
+import {
+  normalizeUrl,
+  extractHostname,
+  jaccardSimilarity,
+  levenshteinDistance,
+  levenshteinSimilarity,
+  unionFind,
+} from "./dedupe";
 
 describe("dedupe utils", () => {
   describe("normalizeUrl", () => {
@@ -109,6 +116,34 @@ describe("dedupe utils", () => {
       expect(sim).toBeGreaterThan(0.5);
       expect(sim).toBeLessThan(1);
       expect(levenshteinSimilarity("abc", "abd")).toBeCloseTo(2 / 3, 10);
+    });
+  });
+
+  describe("jaccardSimilarity", () => {
+    test("returns 0 when either set is empty", () => {
+      expect(jaccardSimilarity(new Set(), new Set(["a"]))).toBe(0);
+      expect(jaccardSimilarity(new Set(["a"]), new Set())).toBe(0);
+    });
+
+    test("returns 1 for identical non-empty sets", () => {
+      expect(jaccardSimilarity(new Set(["a", "b"]), new Set(["a", "b"]))).toBe(1);
+    });
+
+    test("returns intersection over union for partial overlap", () => {
+      expect(jaccardSimilarity(new Set(["a", "b"]), new Set(["b", "c"]))).toBeCloseTo(1 / 3, 10);
+    });
+  });
+
+  describe("unionFind", () => {
+    test("merges components and finds representatives with path compression", () => {
+      const { find, union } = unionFind(4);
+      union(0, 1);
+      union(2, 3);
+      union(1, 2);
+      const root = find(0);
+      expect(find(1)).toBe(root);
+      expect(find(2)).toBe(root);
+      expect(find(3)).toBe(root);
     });
   });
 });

@@ -95,3 +95,33 @@ export function levenshteinSimilarity(a: string, b: string): number {
   const distance = levenshteinDistance(a, b);
   return 1 - distance / maxLen;
 }
+
+export function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 || b.size === 0) return 0;
+  let intersection = 0;
+  for (const kw of a) {
+    if (b.has(kw)) intersection++;
+  }
+  const union = a.size + b.size - intersection;
+  return union === 0 ? 0 : intersection / union;
+}
+
+export function unionFind(n: number): {
+  find: (x: number) => number;
+  union: (x: number, y: number) => void;
+} {
+  const parent = Array.from({ length: n }, (_, i) => i);
+  function find(x: number): number {
+    while (parent[x] !== x) {
+      parent[x] = parent[parent[x]];
+      x = parent[x];
+    }
+    return x;
+  }
+  function union(x: number, y: number): void {
+    const rx = find(x);
+    const ry = find(y);
+    if (rx !== ry) parent[rx] = ry;
+  }
+  return { find, union };
+}

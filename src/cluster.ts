@@ -1,7 +1,7 @@
 import type { TransformConfig } from "./config";
 import type { ContentItemRow } from "./db";
 import { extractEngagementScore } from "./adapters/engagement";
-import { extractHostname } from "./dedupe";
+import { extractHostname, jaccardSimilarity, unionFind } from "./dedupe";
 import { compareIsoTimestamp } from "./utils";
 
 export const CLUSTER_STOP_WORDS = new Set([
@@ -56,16 +56,6 @@ function topMapEntry<T>(counts: Map<T, number>): [T, number] | undefined {
 
 function incrementCount(counts: Map<string, number>, key: string): void {
   counts.set(key, (counts.get(key) ?? 0) + 1);
-}
-
-function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
-  if (a.size === 0 || b.size === 0) return 0;
-  let intersection = 0;
-  for (const kw of a) {
-    if (b.has(kw)) intersection++;
-  }
-  const union = a.size + b.size - intersection;
-  return union === 0 ? 0 : intersection / union;
 }
 
 function formatClusterDomainLabel(domain: string): string {
@@ -134,23 +124,6 @@ function generateClusterLabel(
   if (sourceLabel) return sourceLabel;
 
   return `Cluster ${clusterCount + 1}`;
-}
-
-function unionFind(n: number): { find: (x: number) => number; union: (x: number, y: number) => void } {
-  const parent = Array.from({ length: n }, (_, i) => i);
-  function find(x: number): number {
-    while (parent[x] !== x) {
-      parent[x] = parent[parent[x]];
-      x = parent[x];
-    }
-    return x;
-  }
-  function union(x: number, y: number): void {
-    const rx = find(x);
-    const ry = find(y);
-    if (rx !== ry) parent[rx] = ry;
-  }
-  return { find, union };
 }
 
 function extractClusterKeywords(text: string): string[] {
