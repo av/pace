@@ -111,6 +111,24 @@ export function normalizeParamString(
   return normalizeOptionalString(raw) ?? fallback;
 }
 
+/**
+ * Read the first present param key (in order); trim string value.
+ * A present but blank/non-string value uses fallback without trying later keys.
+ */
+export function normalizeParamStringFirst(
+  params: Record<string, unknown> | undefined,
+  keys: readonly string[],
+  fallback?: string,
+): string | undefined {
+  for (const key of keys) {
+    const value = params?.[key];
+    if (value === undefined || value === null) continue;
+    if (typeof value !== "string") return fallback;
+    return normalizeOptionalString(value) ?? fallback;
+  }
+  return fallback;
+}
+
 /** Trim optional string; return undefined if missing or blank after trim. */
 export function normalizeOptionalString(
   value: string | undefined,

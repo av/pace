@@ -11,7 +11,7 @@ import { fetchJson, HN_ITEM_FETCH_TIMEOUT_MS, warnOptionalFetchFailure } from ".
 import { decodeNumericFeedTitleOptional } from "./html";
 import {
   normalizeNonNegativeNumber,
-  normalizeOptionalString,
+  normalizeParamStringFirst,
   clampAdapterLimit,
   sliceToLimit,
 } from "../utils";
@@ -81,12 +81,12 @@ function buildBody(item: HNItem): string {
 const adapter: Adapter = {
   name: "hackernews",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const feedRaw =
-      config.params?.type ?? config.params?.feed ?? config.params?.stories;
     const feed =
-      (typeof feedRaw === "string"
-        ? normalizeOptionalString(feedRaw)
-        : undefined) ?? "top";
+      normalizeParamStringFirst(
+        config.params,
+        ["type", "feed", "stories"],
+        "top",
+      ) ?? "top";
     const limit = clampAdapterLimit(config.params?.limit, 30, 200);
     const minScore = normalizeNonNegativeNumber(config.params?.min_score);
 

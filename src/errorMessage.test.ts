@@ -10,6 +10,7 @@ import {
   normalizeStringList,
   normalizeParamStringList,
   normalizeParamString,
+  normalizeParamStringFirst,
   normalizeOptionalString,
 } from "./utils";
 
@@ -166,6 +167,44 @@ describe("normalizeParamStringList", () => {
     );
     expect(normalizeParamStringList(undefined, "tags")).toEqual([]);
     expect(normalizeParamStringList({ tags: "a,b" }, "tags")).toEqual([]);
+  });
+});
+
+describe("normalizeParamStringFirst", () => {
+  test("uses first present key in order; blank present key does not fall through", () => {
+    expect(
+      normalizeParamStringFirst(
+        { type: "best", feed: "new", stories: "ask" },
+        ["type", "feed", "stories"],
+        "top",
+      ),
+    ).toBe("best");
+    expect(
+      normalizeParamStringFirst({ feed: "new", stories: "ask" }, [
+        "type",
+        "feed",
+        "stories",
+      ]),
+    ).toBe("new");
+    expect(
+      normalizeParamStringFirst({ type: "   ", feed: "new" }, [
+        "type",
+        "feed",
+        "stories",
+      ], "top"),
+    ).toBe("top");
+    expect(
+      normalizeParamStringFirst({ type: "  new  " }, ["type", "feed"], "top"),
+    ).toBe("new");
+    expect(
+      normalizeParamStringFirst({ type: 1, feed: "ask" }, [
+        "type",
+        "feed",
+      ], "top"),
+    ).toBe("top");
+    expect(
+      normalizeParamStringFirst(undefined, ["type", "feed"], "top"),
+    ).toBe("top");
   });
 });
 
