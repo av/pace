@@ -4,27 +4,18 @@ import { FEED_XML_ACCEPT } from "./adapters/fetch";
 import * as utilsMod from "./utils";
 import { makeErrorResponse, makeXmlResponse } from "./test/fetch-responses";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
+import {
+  arxivDedupOverlapQueryFeedFixture,
+  arxivDoubleEncodedAbstractFeedFixture,
+  arxivEntityAbstractFeedFixture,
+  arxivFeedFixture,
+  arxivHtmlStripFeedFixture,
+  arxivLimitMultiEntryFeedFixture,
+  arxivLongAbstractFeedFixture,
+} from "./test/arxiv-fixtures";
 
 const mocks = useFetchMockSuite();
 const arxivCfg = (params: Record<string, unknown> = {}) => adapterCfg("arxiv", params);
-
-function makeArxivFixture(title: string, arxivId: string, author = "Test Author", cat = "cs.AI"): string {
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom" xmlns:arxiv="http://arxiv.org/schemas/atom">
-  <entry>
-    <id>http://arxiv.org/abs/${arxivId}v1</id>
-    <title>${title}</title>
-    <summary>This is the abstract for ${title} about research.</summary>
-    <published>2024-05-20T12:00:00Z</published>
-    <updated>2024-05-21T10:00:00Z</updated>
-    <author><name>${author}</name></author>
-    <arxiv:primary_category term="${cat}" />
-    <category term="${cat}" />
-    <link href="http://arxiv.org/abs/${arxivId}v1" rel="alternate" type="text/html" />
-    <link title="pdf" href="http://arxiv.org/pdf/${arxivId}" type="application/pdf" />
-  </entry>
-</feed>`;
-}
 
 describe("arxiv", () => {
   test("warns and returns empty when no categories and no query configured", async () => {
@@ -36,7 +27,7 @@ describe("arxiv", () => {
 
   test("decodes HTML entities in entry title after stripHtml", async () => {
     mocks.fetchMock.mockResolvedValue(
-      makeXmlResponse(makeArxivFixture("Rock &amp; Roll &#8364;", "2401.00002", "Test Author", "cs.AI")),
+      makeXmlResponse(arxivFeedFixture("Rock &amp; Roll &#8364;", "2401.00002", "Test Author", "cs.AI")),
     );
 
     const items = await arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"] }));
@@ -46,21 +37,7 @@ describe("arxiv", () => {
   });
 
   test("decodes HTML entities in entry summary/abstract after stripHtml", async () => {
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom" xmlns:arxiv="http://arxiv.org/schemas/atom">
-  <entry>
-    <id>http://arxiv.org/abs/2401.00003v1</id>
-    <title>Entity Abstract Paper</title>
-    <summary>Rock &amp; Roll &#8364; in the abstract field.</summary>
-    <published>2024-05-20T12:00:00Z</published>
-    <author><name>Test Author</name></author>
-    <arxiv:primary_category term="cs.AI" />
-    <category term="cs.AI" />
-    <link href="http://arxiv.org/abs/2401.00003v1" rel="alternate" type="text/html" />
-    <link title="pdf" href="http://arxiv.org/pdf/2401.00003" type="application/pdf" />
-  </entry>
-</feed>`;
-    mocks.fetchMock.mockResolvedValue(makeXmlResponse(xml));
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(arxivEntityAbstractFeedFixture()));
 
     const items = await arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"] }));
 
@@ -69,21 +46,7 @@ describe("arxiv", () => {
   });
 
   test("decodes double-encoded HTML entities in entry summary/abstract", async () => {
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom" xmlns:arxiv="http://arxiv.org/schemas/atom">
-  <entry>
-    <id>http://arxiv.org/abs/2401.00004v1</id>
-    <title>Double-encoded Abstract</title>
-    <summary>Rock &amp;amp; Roll &amp;#8364; in the abstract field.</summary>
-    <published>2024-05-20T12:00:00Z</published>
-    <author><name>Test Author</name></author>
-    <arxiv:primary_category term="cs.AI" />
-    <category term="cs.AI" />
-    <link href="http://arxiv.org/abs/2401.00004v1" rel="alternate" type="text/html" />
-    <link title="pdf" href="http://arxiv.org/pdf/2401.00004" type="application/pdf" />
-  </entry>
-</feed>`;
-    mocks.fetchMock.mockResolvedValue(makeXmlResponse(xml));
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(arxivDoubleEncodedAbstractFeedFixture()));
 
     const items = await arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"] }));
 
@@ -93,21 +56,7 @@ describe("arxiv", () => {
 
   test("truncates long abstract in body to 300 characters with ellipsis", async () => {
     const longAbstract = "word ".repeat(120).trim(); // 599 chars — well over 300
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom" xmlns:arxiv="http://arxiv.org/schemas/atom">
-  <entry>
-    <id>http://arxiv.org/abs/2401.00999v1</id>
-    <title>Long Abstract Paper</title>
-    <summary>${longAbstract}</summary>
-    <published>2024-05-20T12:00:00Z</published>
-    <author><name>Test Author</name></author>
-    <arxiv:primary_category term="cs.AI" />
-    <category term="cs.AI" />
-    <link href="http://arxiv.org/abs/2401.00999v1" rel="alternate" type="text/html" />
-    <link title="pdf" href="http://arxiv.org/pdf/2401.00999" type="application/pdf" />
-  </entry>
-</feed>`;
-    mocks.fetchMock.mockResolvedValue(makeXmlResponse(xml));
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(arxivLongAbstractFeedFixture(longAbstract)));
 
     const items = await arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"] }));
 
@@ -123,21 +72,7 @@ describe("arxiv", () => {
   });
 
   test("title and summary use FEED_BODY_STRIP_OPTIONS (tags, links, entities)", async () => {
-    const htmlXml = `<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom" xmlns:arxiv="http://arxiv.org/schemas/atom">
-  <entry>
-    <id>http://arxiv.org/abs/2401.00001v1</id>
-    <title>&lt;em&gt;Deep&lt;/em&gt; &amp;amp; Wide</title>
-    <summary>&lt;p&gt;See &lt;a href="https://example.com/paper"&gt;paper&lt;/a&gt; for &#65; details&lt;/p&gt;</summary>
-    <published>2024-05-20T12:00:00Z</published>
-    <author><name>Test Author</name></author>
-    <arxiv:primary_category term="cs.AI" />
-    <category term="cs.AI" />
-    <link href="http://arxiv.org/abs/2401.00001v1" rel="alternate" type="text/html" />
-    <link title="pdf" href="http://arxiv.org/pdf/2401.00001" type="application/pdf" />
-  </entry>
-</feed>`;
-    mocks.fetchMock.mockResolvedValue(makeXmlResponse(htmlXml));
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(arxivHtmlStripFeedFixture()));
 
     const items = await arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"] }));
 
@@ -151,7 +86,7 @@ describe("arxiv", () => {
 
   test("sends FEED_XML_ACCEPT when fetching category query", async () => {
     mocks.fetchMock.mockResolvedValue(
-      makeXmlResponse(makeArxivFixture("Feed Accept Paper", "2401.00001")),
+      makeXmlResponse(arxivFeedFixture("Feed Accept Paper", "2401.00001")),
     );
 
     await arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"] }));
@@ -165,7 +100,7 @@ describe("arxiv", () => {
 
   test("fetches by single category and maps items with correct fields, source, body parts", async () => {
     mocks.fetchMock.mockResolvedValue(
-      makeXmlResponse(makeArxivFixture("Attention Is All You Need", "1706.03762", "Ashish Vaswani", "cs.LG")),
+      makeXmlResponse(arxivFeedFixture("Attention Is All You Need", "1706.03762", "Ashish Vaswani", "cs.LG")),
     );
 
     const items = await arxivAdapter.fetch(arxivCfg({ categories: ["cs.LG"] }));
@@ -185,7 +120,7 @@ describe("arxiv", () => {
 
   test("trims whitespace from configured categories", async () => {
     mocks.fetchMock.mockResolvedValue(
-      makeXmlResponse(makeArxivFixture("Trimmed Cat Paper", "2501.0099", "Author", "cs.AI")),
+      makeXmlResponse(arxivFeedFixture("Trimmed Cat Paper", "2501.0099", "Author", "cs.AI")),
     );
 
     await arxivAdapter.fetch(arxivCfg({ categories: ["  cs.AI  ", ""] }));
@@ -198,7 +133,7 @@ describe("arxiv", () => {
 
   test("trims whitespace from configured query", async () => {
     mocks.fetchMock.mockResolvedValue(
-      makeXmlResponse(makeArxivFixture("Trimmed Query Paper", "2501.0100", "Author", "quant-ph")),
+      makeXmlResponse(arxivFeedFixture("Trimmed Query Paper", "2501.0100", "Author", "quant-ph")),
     );
 
     await arxivAdapter.fetch(arxivCfg({ query: "  quantum computing  " }));
@@ -219,7 +154,7 @@ describe("arxiv", () => {
 
   test("fetches by keyword query and uses arxiv:search source label", async () => {
     mocks.fetchMock.mockResolvedValue(
-      makeXmlResponse(makeArxivFixture("Quantum Paper", "2301.00001", "Alice", "quant-ph")),
+      makeXmlResponse(arxivFeedFixture("Quantum Paper", "2301.00001", "Alice", "quant-ph")),
     );
 
     const items = await arxivAdapter.fetch(arxivCfg({ query: "quantum computing" }));
@@ -236,14 +171,9 @@ describe("arxiv", () => {
     mocks.fetchMock.mockImplementation(async () => {
       call++;
       if (call === 1) {
-        return makeXmlResponse(makeArxivFixture("Cat Paper", "2501.0001", "CatAuthor", "cs.AI"));
+        return makeXmlResponse(arxivFeedFixture("Cat Paper", "2501.0001", "CatAuthor", "cs.AI"));
       }
-      const queryXml = `<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom" xmlns:arxiv="http://arxiv.org/schemas/atom">
-  <entry><id>http://arxiv.org/abs/2501.0001v1</id><title>Overlap</title><summary>s</summary><published>2024-01-01</published><author><name>A</name></author><arxiv:primary_category term="cs.AI" /><category term="cs.AI" /><link href="http://arxiv.org/abs/2501.0001v1" /></entry>
-  <entry><id>http://arxiv.org/abs/2501.0002v1</id><title>New</title><summary>s</summary><published>2024-01-02</published><author><name>B</name></author><arxiv:primary_category term="cs.AI" /><category term="cs.AI" /><link href="http://arxiv.org/abs/2501.0002v1" /></entry>
-</feed>`;
-      return makeXmlResponse(queryXml);
+      return makeXmlResponse(arxivDedupOverlapQueryFeedFixture());
     });
 
     const items = await arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"], query: "test", limit: 10 }));
@@ -261,7 +191,7 @@ describe("arxiv", () => {
     "invalid limit (%s) uses default max_results=20",
     async (limit) => {
       mocks.fetchMock.mockResolvedValue(
-        makeXmlResponse(makeArxivFixture("Paper", "2401.00099")),
+        makeXmlResponse(arxivFeedFixture("Paper", "2401.00099")),
       );
 
       await arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"], limit }));
@@ -273,7 +203,7 @@ describe("arxiv", () => {
 
   test("caps limit at 100 in max_results", async () => {
     mocks.fetchMock.mockResolvedValue(
-      makeXmlResponse(makeArxivFixture("Paper", "2401.00100")),
+      makeXmlResponse(arxivFeedFixture("Paper", "2401.00100")),
     );
 
     await arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"], limit: 500 }));
@@ -284,7 +214,7 @@ describe("arxiv", () => {
 
   test("floors fractional limit in max_results", async () => {
     mocks.fetchMock.mockResolvedValue(
-      makeXmlResponse(makeArxivFixture("Paper", "2401.00007")),
+      makeXmlResponse(arxivFeedFixture("Paper", "2401.00007")),
     );
 
     await arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"], limit: 7.9 }));
@@ -294,14 +224,7 @@ describe("arxiv", () => {
   });
 
   test("respects limit (per source scaling when multi)", async () => {
-    mocks.fetchMock.mockResolvedValue(
-      makeXmlResponse(`<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom" xmlns:arxiv="http://arxiv.org/schemas/atom">
-  <entry><id>http://arxiv.org/abs/1</id><title>P1</title><summary>s</summary><published>2024-01-01</published><author><name>X</name></author><arxiv:primary_category term="cs.AI" /><category term="cs.AI" /><link href="http://arxiv.org/abs/1" /></entry>
-  <entry><id>http://arxiv.org/abs/2</id><title>P2</title><summary>s</summary><published>2024-01-01</published><author><name>X</name></author><arxiv:primary_category term="cs.AI" /><category term="cs.AI" /><link href="http://arxiv.org/abs/2" /></entry>
-  <entry><id>http://arxiv.org/abs/3</id><title>P3</title><summary>s</summary><published>2024-01-01</published><author><name>X</name></author><arxiv:primary_category term="cs.AI" /><category term="cs.AI" /><link href="http://arxiv.org/abs/3" /></entry>
-</feed>`),
-    );
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(arxivLimitMultiEntryFeedFixture(3)));
 
     const items = await arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"], limit: 2 }));
 
@@ -330,7 +253,7 @@ describe("arxiv", () => {
       calls++;
       const u = String(url);
       const cat = u.includes("cs.AI") ? "cs.AI" : "cs.LG";
-      return makeXmlResponse(makeArxivFixture(`${cat} Paper`, `id-${cat}`, "Multi", cat));
+      return makeXmlResponse(arxivFeedFixture(`${cat} Paper`, `id-${cat}`, "Multi", cat));
     });
 
     const items = await arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI", "cs.LG"], limit: 5 }));
