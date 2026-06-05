@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { spyConsole } from "./test/console-spy";
+import { sourcePanelMapFromConfig } from "./test/panel-map";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
@@ -103,6 +104,28 @@ describe("config", () => {
     expect(maps.sourceToReadKey.get("hackernews")).toBe("hn-panel");
     expect(maps.sourceToPanels.get("orphan-adapter")).toEqual(["orphan-adapter"]);
     expect(maps.sourceToReadKey.get("orphan-adapter")).toBe("orphan-adapter");
+  });
+
+  test("sourcePanelMapFromConfig matches buildLayoutRuntimeMaps source/read maps", () => {
+    const config = {
+      adapters: [{ type: "hackernews", name: "hn" }],
+      layout: {
+        direction: "row" as const,
+        children: [
+          { panel: "tech", source: "hn", id: "hn-panel" },
+          { panel: "pipe", source: "curated", id: "out" },
+        ],
+      },
+      pipelines: [{ name: "curated", sources: ["hn"], transforms: [] }],
+    };
+    const fromConfig = sourcePanelMapFromConfig(config);
+    const fromLayout = buildLayoutRuntimeMaps(config.layout, ["hn"]);
+
+    expect(fromConfig.sourceToPanels).toEqual(fromLayout.sourceToPanels);
+    expect(fromConfig.sourceToReadKey).toEqual(fromLayout.sourceToReadKey);
+    expect(fromConfig.sourceToPanels.get("hn")).toEqual(["hn-panel"]);
+    expect(fromConfig.sourceToPanels.get("curated")).toEqual(["out"]);
+    expect(fromConfig.sourceToReadKey.get("hn")).toBe("hn-panel");
   });
   });
 

@@ -7,7 +7,7 @@ import { startScheduler, stopScheduler, refreshSources } from "./scheduler";
 import { isPanel } from "./config";
 import type { PanelConfig } from "./config";
 import { DOMAIN_TEST_LAYOUT, testAppConfig } from "./test/app-config";
-import { panelMap } from "./test/panel-map";
+import { sourcePanelMapFromConfig } from "./test/panel-map";
 
 describe("domain", () => {
   let tempDir: string;
@@ -89,7 +89,7 @@ describe("domain", () => {
       },
       DOMAIN_TEST_LAYOUT,
     );
-    const pm = panelMap({ merge: ["outPanel"] }, { feedA: "feedA", feedB: "feedB" });
+    const pm = sourcePanelMapFromConfig(config);
     startScheduler(config, new Map(), pm, null);
     await refreshSources(["merge"]);
     const out = getAllItemsByPanel("outPanel");

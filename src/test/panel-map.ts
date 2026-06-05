@@ -1,15 +1,24 @@
+import { buildLayoutRuntimeMaps, type AppConfig, type LayoutNodeConfig } from "../config";
+import { getAdapterName } from "../utils";
 import type { SourcePanelMap } from "../scheduler";
 
 export function emptyPanelMap(): SourcePanelMap {
   return { sourceToPanels: new Map(), sourceToReadKey: new Map() };
 }
 
-export function panelMap(
-  panels: Record<string, string[]>,
-  readKeys: Record<string, string> = {}
+/** Derive scheduler SourcePanelMap from layout config (same path as index.ts). */
+export function sourcePanelMapFromLayout(
+  layout: LayoutNodeConfig,
+  adapterNames: readonly string[] = [],
 ): SourcePanelMap {
-  return {
-    sourceToPanels: new Map(Object.entries(panels)),
-    sourceToReadKey: new Map(Object.entries(readKeys)),
-  };
+  const { sourceToPanels, sourceToReadKey } = buildLayoutRuntimeMaps(layout, adapterNames);
+  return { sourceToPanels, sourceToReadKey };
+}
+
+/** Derive scheduler SourcePanelMap from a full app config. */
+export function sourcePanelMapFromConfig(config: AppConfig): SourcePanelMap {
+  return sourcePanelMapFromLayout(
+    config.layout,
+    config.adapters.map(getAdapterName),
+  );
 }

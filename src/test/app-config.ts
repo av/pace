@@ -4,6 +4,7 @@ export interface TestAppConfigLayout {
   direction: LayoutDirection;
   panel: string;
   source: string;
+  id?: string;
   limit?: number;
 }
 
@@ -20,6 +21,7 @@ export const DOMAIN_TEST_LAYOUT: TestAppConfigLayout = {
   direction: "column",
   panel: "out",
   source: "merge",
+  id: "outPanel",
   limit: 50,
 };
 
@@ -27,10 +29,10 @@ export function testAppConfig(
   overrides: Partial<AppConfig> = {},
   layout: TestAppConfigLayout = SCHEDULER_TEST_LAYOUT,
 ): AppConfig {
-  const { direction, panel, source, limit = 50 } = layout;
+  const { direction, panel, source, id, limit = 50 } = layout;
   return {
     adapters: [],
-    layout: { direction, children: [{ panel, source, limit }] },
+    layout: { direction, children: [{ panel, source, limit, ...(id ? { id } : {}) }] },
     ...overrides,
   };
 }

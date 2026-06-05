@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach, spyOn } from "bun:test";
 import { spyConsole } from "./test/console-spy";
-import { emptyPanelMap, panelMap } from "./test/panel-map";
+import { emptyPanelMap, sourcePanelMapFromConfig } from "./test/panel-map";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -46,11 +46,14 @@ function adaptersMap(...entries: [string, Adapter][]): Map<string, Adapter> {
   return new Map(entries);
 }
 
-const basePanelMap = panelMap({ testsrc: ["panel1"] });
-
 const baseConfig = testAppConfig({
   adapters: [{ type: "test", name: "testsrc", refresh_interval: 60 }],
+  layout: {
+    direction: "row",
+    children: [{ panel: "p1", source: "testsrc", limit: 50, id: "panel1" }],
+  },
 });
+const basePanelMap = sourcePanelMapFromConfig(baseConfig);
 
 describe("scheduler", () => {
   beforeEach(() => {
@@ -134,8 +137,14 @@ describe("scheduler", () => {
 
   test("run via refreshSources on error adapter returns failed result + warns with prefix", async () => {
     const adapters = adaptersMap(["err", makeErrorAdapter("simulated fail")]);
-    const config = testAppConfig({ adapters: [{ type: "err", name: "errsrc", refresh_interval: 60 }] });
-    const pm = panelMap({ errsrc: ["ep1"] });
+    const config = testAppConfig({
+      adapters: [{ type: "err", name: "errsrc", refresh_interval: 60 }],
+      layout: {
+        direction: "row",
+        children: [{ panel: "ep", source: "errsrc", id: "ep1" }],
+      },
+    });
+    const pm = sourcePanelMapFromConfig(config);
     await spyConsole(["warn"], async ({ warn: warnSpy }) => {
       startScheduler(config, adapters, pm, null);
       await waitForAsync();
@@ -197,8 +206,15 @@ describe("scheduler", () => {
         sources: ["srcA"],
         transforms: [{ type: "latest", count: 5 }],
       }],
+      layout: {
+        direction: "column",
+        children: [
+          { panel: "a", source: "srcA", id: "panelA" },
+          { panel: "out", source: "merge", id: "outPanel" },
+        ],
+      },
     });
-    const pm = panelMap({ srcA: ["panelA"], merge: ["outPanel"] }, { srcA: "panelA" });
+    const pm = sourcePanelMapFromConfig(config);
     startScheduler(config, adapters, pm, null);
     await waitForAsync();
     const names = allPanelRefreshSourceNames(["srcA"], config.pipelines);
@@ -233,8 +249,12 @@ describe("scheduler", () => {
         refresh_interval: 60,
         transforms: [{ type: "latest", count: 3 }],
       }],
+      layout: {
+        direction: "row",
+        children: [{ panel: "a", source: "src", id: "panelA" }],
+      },
     });
-    const pm = panelMap({ src: ["panelA"] });
+    const pm = sourcePanelMapFromConfig(config);
     await spyConsole(["log"], async ({ log: logSpy }) => {
       startScheduler(config, adapters, pm, null);
       await waitForAsync();
@@ -262,8 +282,12 @@ describe("scheduler", () => {
         sources: ["srcA", "srcB"],
         transforms: [{ type: "latest", count: 10 }],
       }],
+      layout: {
+        direction: "row",
+        children: [{ panel: "out", source: "merge", id: "outPanel" }],
+      },
     });
-    const pm = panelMap({ merge: ["outPanel"] }, { srcA: "srcA", srcB: "srcB" });
+    const pm = sourcePanelMapFromConfig(config);
     startScheduler(config, new Map(), pm, null);
     await refreshSources(["merge"]);
     const out = getAllItemsByPanel("outPanel");
@@ -284,8 +308,15 @@ describe("scheduler", () => {
         transforms: [],
         refresh_interval: 1,
       }],
+      layout: {
+        direction: "column",
+        children: [
+          { panel: "src", source: "testsrc", id: "panelP" },
+          { panel: "pipe", source: "p1" },
+        ],
+      },
     });
-    const pm = panelMap({ testsrc: ["panelP"] }, { testsrc: "testsrc" });
+    const pm = sourcePanelMapFromConfig(config);
     const setTimeoutSpy = spyOn(globalThis, "setTimeout");
     const setIntervalSpy = spyOn(globalThis, "setInterval");
     try {
