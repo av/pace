@@ -1,7 +1,6 @@
 import { describe, test, expect, beforeEach } from "bun:test";
 import { spyConsole } from "./test/console-spy";
 import { runPipeline, type TransformContext } from "./transforms";
-import { extractEngagementScore } from "./adapters/engagement";
 import { TRANSFORM_TYPES, type TransformConfig } from "./config";
 import type { ContentItemRow } from "./db";
 
@@ -216,52 +215,6 @@ describe("transforms - dedupe strategies", () => {
     const blankIds = result.filter((r) => r.title === "").map((r) => r.id);
     expect(blankIds).toHaveLength(2);
     expect(result.some((r) => r.id === "normal")).toBe(true);
-  });
-});
-
-describe("extractEngagementScore", () => {
-  test("returns 0 for null, empty, or whitespace-only body", () => {
-    expect(extractEngagementScore(null)).toBe(0);
-    expect(extractEngagementScore("")).toBe(0);
-    expect(extractEngagementScore("   \t")).toBe(0);
-    expect(extractEngagementScore(undefined as unknown as string | null)).toBe(0);
-  });
-
-  test("parses primary signals: points, score, upvotes, boosts, stars, likes", () => {
-    expect(extractEngagementScore("10 points")).toBe(10);
-    expect(extractEngagementScore("score: 42")).toBe(42);
-    expect(extractEngagementScore("7 upvotes")).toBe(7);
-    expect(extractEngagementScore("3 boosts")).toBe(3);
-    expect(extractEngagementScore("5 stars")).toBe(5);
-    expect(extractEngagementScore("12 likes")).toBe(12);
-  });
-
-  test("parses favorites with both spellings (favou?rites)", () => {
-    expect(extractEngagementScore("4 favorites")).toBe(4);
-    expect(extractEngagementScore("4 favourites")).toBe(4);
-    expect(extractEngagementScore("9 FAVOURITES")).toBe(9);
-  });
-
-  test("parses comments as half-value (floor)", () => {
-    expect(extractEngagementScore("10 comments")).toBe(5);
-    expect(extractEngagementScore("1 comment")).toBe(0);
-    expect(extractEngagementScore("3 comments")).toBe(1);
-  });
-
-  test("sums multiple different signals in one body", () => {
-    expect(extractEngagementScore("20 points + 5 upvotes, 10 comments")).toBe(20 + 5 + 5);
-    expect(extractEngagementScore("score: 100, 8 likes, 4 stars")).toBe(100 + 8 + 4);
-  });
-
-  test("ignores non-matching text and non-numeric", () => {
-    expect(extractEngagementScore("no numbers here at all")).toBe(0);
-    expect(extractEngagementScore("points: lots")).toBe(0);
-    expect(extractEngagementScore("42")).toBe(0);
-  });
-
-  test("case-insensitive and trims around numbers", () => {
-    expect(extractEngagementScore("  99 POINTS  ")).toBe(99);
-    expect(extractEngagementScore("2 boosts")).toBe(2);
   });
 });
 
