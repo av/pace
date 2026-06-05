@@ -48,6 +48,10 @@ export function formatCount(value: number | string, label: string): string {
   return `${value} ${label}`;
 }
 
+export function formatPrefixed(prefix: string, value: string): string {
+  return `${prefix}: ${value}`;
+}
+
 export function formatPoints(score: number): string {
   return formatCount(score, "points");
 }
@@ -81,7 +85,7 @@ export function formatBy(author: string): string {
 }
 
 export function formatDiscuss(url: string): string {
-  return `discuss: ${url}`;
+  return formatPrefixed("discuss", url);
 }
 
 export function formatCommunity(name: string): string {
@@ -110,7 +114,7 @@ export function formatReadingTime(minutes: number): string {
 
 export function formatCover(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
-  return `cover: ${url}`;
+  return formatPrefixed("cover", url);
 }
 
 export function formatMastodonAcct(acct: string, instance: string): string {
@@ -122,7 +126,7 @@ export function formatMastodonAcct(acct: string, instance: string): string {
 
 export function formatMedia(urls: readonly string[]): string | undefined {
   if (urls.length === 0) return undefined;
-  return `media: ${urls.join(" ")}`;
+  return formatPrefixed("media", urls.join(" "));
 }
 
 export function formatStars(count: number): string {
@@ -136,16 +140,16 @@ export function formatViews(n: number): string {
 }
 
 export function formatLanguage(language: string): string {
-  return `language: ${language}`;
+  return formatPrefixed("language", language);
 }
 
 export function formatTopics(topics: string[]): string {
-  return `topics: ${topics.join(", ")}`;
+  return formatPrefixed("topics", topics.join(", "));
 }
 
 export function formatTags(tags: readonly string[]): string | undefined {
   if (tags.length === 0) return undefined;
-  return `tags: ${tags.join(", ")}`;
+  return formatPrefixed("tags", tags.join(", "));
 }
 
 export function formatCategories(categories: string[]): string {
@@ -153,5 +157,5 @@ export function formatCategories(categories: string[]): string {
 }
 
 export function formatSite(url: string): string {
-  return `site: ${url}`;
+  return formatPrefixed("site", url);
 }

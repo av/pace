@@ -11,6 +11,7 @@ import {
   formatMedia,
   formatPercent,
   formatPoints,
+  formatPrefixed,
   formatScore,
   formatStars,
   formatSubreddit,
@@ -51,6 +52,13 @@ describe("engagement display helpers", () => {
     expect(formatPoints(42)).toBe("42 points");
     expect(formatComments(10)).toBe("10 comments");
     expect(formatStars(1_500)).toBe("1,500 stars");
+  });
+
+  test("formatPrefixed backs colon-prefixed display helpers", () => {
+    expect(formatPrefixed("discuss", "https://ex.com/talk")).toBe("discuss: https://ex.com/talk");
+    expect(formatDiscuss("https://ex.com/talk")).toBe("discuss: https://ex.com/talk");
+    expect(formatPrefixed("language", "TypeScript")).toBe("language: TypeScript");
+    expect(formatPrefixed("site", "https://ex.com")).toBe("site: https://ex.com");
   });
 
   test("formatPercent rounds fractional scores for npm-style bodies", () => {
