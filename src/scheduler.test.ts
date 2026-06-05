@@ -16,19 +16,11 @@ import {
   PIPELINE_INITIAL_DELAY_MS,
   DEFAULT_REFRESH_INTERVAL_MIN,
 } from "./scheduler";
-import type { AppConfig } from "./config";
+import { testAppConfig } from "./test/app-config";
 
 let tempDir: string;
 let dbPath: string;
 let origEnv: string | undefined;
-
-function schedulerConfig(overrides: Partial<AppConfig> = {}): AppConfig {
-  return {
-    adapters: [],
-    layout: { direction: "row", children: [{ panel: "all", source: "all", limit: 50 }] },
-    ...overrides,
-  };
-}
 
 function makeMockAdapter(items: ContentItem[] = []): Adapter {
   return {
@@ -56,7 +48,7 @@ function adaptersMap(...entries: [string, Adapter][]): Map<string, Adapter> {
 
 const basePanelMap = panelMap({ testsrc: ["panel1"] });
 
-const baseConfig = schedulerConfig({
+const baseConfig = testAppConfig({
   adapters: [{ type: "test", name: "testsrc", refresh_interval: 60 }],
 });
 
@@ -83,7 +75,7 @@ describe("scheduler", () => {
   });
 
   test("startScheduler with no adapters/pipelines is safe and refreshSources returns empty", async () => {
-    const config = schedulerConfig({ adapters: [] });
+    const config = testAppConfig({ adapters: [] });
     const adapters = new Map<string, Adapter>();
     startScheduler(config, adapters, emptyPanelMap(), null);
     const results = await refreshSources([]);
@@ -102,7 +94,7 @@ describe("scheduler", () => {
   });
 
   test("startScheduler throws on missing adapter type with exact prefix", () => {
-    const config = schedulerConfig({ adapters: [{ type: "missing", refresh_interval: 1 }] });
+    const config = testAppConfig({ adapters: [{ type: "missing", refresh_interval: 1 }] });
     const adapters = new Map<string, Adapter>();
     expect(() => startScheduler(config, adapters, emptyPanelMap(), null)).toThrow(
       'scheduler: adapter type "missing" is configured but no matching adapter module was discovered'
@@ -110,7 +102,7 @@ describe("scheduler", () => {
   });
 
   test("startScheduler throws on multiple missing adapter types with plural message", () => {
-    const config = schedulerConfig({
+    const config = testAppConfig({
       adapters: [
         { type: "missing-a", refresh_interval: 1 },
         { type: "missing-b", refresh_interval: 1 },
@@ -142,7 +134,7 @@ describe("scheduler", () => {
 
   test("run via refreshSources on error adapter returns failed result + warns with prefix", async () => {
     const adapters = adaptersMap(["err", makeErrorAdapter("simulated fail")]);
-    const config = schedulerConfig({ adapters: [{ type: "err", name: "errsrc", refresh_interval: 60 }] });
+    const config = testAppConfig({ adapters: [{ type: "err", name: "errsrc", refresh_interval: 60 }] });
     const pm = panelMap({ errsrc: ["ep1"] });
     await spyConsole(["warn"], async ({ warn: warnSpy }) => {
       startScheduler(config, adapters, pm, null);
@@ -198,7 +190,7 @@ describe("scheduler", () => {
   test("refreshSources with adapter + pipeline names refreshes both (all-panel contract)", async () => {
     const items = [{ id: "a1", title: "A", url: "https://a", source: "srcA", timestamp: new Date() }];
     const adapters = adaptersMap(["test", makeMockAdapter(items)]);
-    const config = schedulerConfig({
+    const config = testAppConfig({
       adapters: [{ type: "test", name: "srcA", refresh_interval: 60 }],
       pipelines: [{
         name: "merge",
@@ -234,7 +226,7 @@ describe("scheduler", () => {
       timestamp: new Date(`2024-01-${String(i + 1).padStart(2, "0")}T00:00:00Z`),
     }));
     const adapters = adaptersMap(["test", makeMockAdapter(items)]);
-    const config = schedulerConfig({
+    const config = testAppConfig({
       adapters: [{
         type: "test",
         name: "src",
@@ -263,7 +255,7 @@ describe("scheduler", () => {
     saveItems("srcB", [
       { id: "b1", title: "B first", url: "https://b/1", source: "srcB", timestamp: new Date(ts) },
     ]);
-    const config = schedulerConfig({
+    const config = testAppConfig({
       adapters: [],
       pipelines: [{
         name: "merge",
@@ -284,7 +276,7 @@ describe("scheduler", () => {
 
   test("startScheduler schedules pipelines with 5s initial delay (PIPELINE_INITIAL_DELAY_MS) before first runPipelineJob + setInterval, adapters do immediate fetch; default refresh when refresh_interval omitted (t3i)", async () => {
     const adapters = adaptersMap(["test", makeMockAdapter([])]);
-    const config = schedulerConfig({
+    const config = testAppConfig({
       adapters: [{ type: "test", name: "testsrc" /* omit refresh_interval -> DEFAULT_REFRESH_INTERVAL_MIN */ }],
       pipelines: [{
         name: "p1",

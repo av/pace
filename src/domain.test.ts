@@ -5,16 +5,9 @@ import { tmpdir } from "node:os";
 import { initDb, closeDb, getAllItemsByPanel, saveItems } from "./db";
 import { startScheduler, stopScheduler, refreshSources } from "./scheduler";
 import { isPanel } from "./config";
-import type { AppConfig, PanelConfig } from "./config";
+import type { PanelConfig } from "./config";
+import { DOMAIN_TEST_LAYOUT, testAppConfig } from "./test/app-config";
 import { panelMap } from "./test/panel-map";
-
-function domainConfig(overrides: Partial<AppConfig> = {}): AppConfig {
-  return {
-    adapters: [],
-    layout: { direction: "column", children: [{ panel: "out", source: "merge", limit: 50 }] },
-    ...overrides,
-  };
-}
 
 describe("domain", () => {
   let tempDir: string;
@@ -84,15 +77,18 @@ describe("domain", () => {
         timestamp: new Date(tsNew),
       },
     ]);
-    const config = domainConfig({
-      pipelines: [
-        {
-          name: "merge",
-          sources: ["feedA", "feedB"],
-          transforms: [{ type: "dedupe", strategy: "url", keep: "latest" }],
-        },
-      ],
-    });
+    const config = testAppConfig(
+      {
+        pipelines: [
+          {
+            name: "merge",
+            sources: ["feedA", "feedB"],
+            transforms: [{ type: "dedupe", strategy: "url", keep: "latest" }],
+          },
+        ],
+      },
+      DOMAIN_TEST_LAYOUT,
+    );
     const pm = panelMap({ merge: ["outPanel"] }, { feedA: "feedA", feedB: "feedB" });
     startScheduler(config, new Map(), pm, null);
     await refreshSources(["merge"]);
