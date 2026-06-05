@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import lobstersAdapter, { resolveLobstersFeedType } from "./adapters/lobsters";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
+import { makeJsonResponse } from "./test/fetch-responses";
 
 const mocks = useFetchMockSuite();
 const lobstersCfg = (params: Record<string, unknown> = {}) => adapterCfg("lobsters", params);
@@ -29,13 +30,6 @@ const makeItem = (overrides: Partial<LobstersFixture> = {}): LobstersFixture => 
   tags: ["programming"],
   ...overrides,
 });
-
-function makeJsonResponse(items: LobstersFixture[], status = 200): Response {
-  return new Response(JSON.stringify(items), {
-    status,
-    headers: { "content-type": "application/json" },
-  });
-}
 
 describe("resolveLobstersFeedType", () => {
   test.each([

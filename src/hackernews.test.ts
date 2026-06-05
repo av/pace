@@ -2,6 +2,7 @@ import { describe, test, expect, spyOn } from "bun:test";
 import hackernewsAdapter, { resolveHnFeedType } from "./adapters/hackernews";
 import * as utilsMod from "./utils";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
+import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 
 const mocks = useFetchMockSuite();
 const hnCfg = (params: Record<string, unknown> = {}) => adapterCfg("hackernews", params);
@@ -29,20 +30,6 @@ function makeHNItem(id: number, overrides: Partial<HNItemFixture> = {}): HNItemF
   };
 }
 
-function makeIdsResponse(ids: number[]): Response {
-  return new Response(JSON.stringify(ids), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
-}
-
-function makeItemResponse(item: HNItemFixture | null, status = 200): Response {
-  return new Response(JSON.stringify(item), {
-    status,
-    headers: { "content-type": "application/json" },
-  });
-}
-
 describe("resolveHnFeedType", () => {
   test.each([
     ["top", "top"],
@@ -68,13 +55,13 @@ describe("hackernews", () => {
     const ids = [1, 2, 3];
     const items = ids.map((id) => makeHNItem(id, { score: 50 + id }));
     mocks.fetchMock.mockImplementation(async (url: string) => {
-      if (url.includes("topstories.json")) return makeIdsResponse(ids);
+      if (url.includes("topstories.json")) return makeJsonResponse(ids);
       const match = url.match(/item\/(\d+)\.json/);
       if (match) {
         const id = parseInt(match[1], 10);
-        return makeItemResponse(items.find((i) => i.id === id) || null);
+        return makeJsonResponse(items.find((i) => i.id === id) || null);
       }
-      return makeItemResponse(null);
+      return makeJsonResponse(null);
     });
 
     const results = await hackernewsAdapter.fetch(hnCfg());
@@ -90,10 +77,10 @@ describe("hackernews", () => {
   test("blank-only type uses default top", async () => {
     const ids = [1];
     mocks.fetchMock.mockImplementation(async (url: string) => {
-      if (url.includes("topstories.json")) return makeIdsResponse(ids);
+      if (url.includes("topstories.json")) return makeJsonResponse(ids);
       const match = url.match(/item\/(\d+)\.json/);
-      if (match) return makeItemResponse(makeHNItem(1));
-      return makeItemResponse(null);
+      if (match) return makeJsonResponse(makeHNItem(1));
+      return makeJsonResponse(null);
     });
 
     const results = await hackernewsAdapter.fetch(hnCfg({ type: "   " }));
@@ -104,10 +91,10 @@ describe("hackernews", () => {
   test("trims whitespace from configured type", async () => {
     const ids = [2];
     mocks.fetchMock.mockImplementation(async (url: string) => {
-      if (url.includes("newstories.json")) return makeIdsResponse(ids);
+      if (url.includes("newstories.json")) return makeJsonResponse(ids);
       const match = url.match(/item\/(\d+)\.json/);
-      if (match) return makeItemResponse(makeHNItem(2));
-      return makeItemResponse(null);
+      if (match) return makeJsonResponse(makeHNItem(2));
+      return makeJsonResponse(null);
     });
 
     const results = await hackernewsAdapter.fetch(hnCfg({ type: "  new  " }));
@@ -118,10 +105,10 @@ describe("hackernews", () => {
   test("type takes precedence over feed and stories", async () => {
     const ids = [3];
     mocks.fetchMock.mockImplementation(async (url: string) => {
-      if (url.includes("beststories.json")) return makeIdsResponse(ids);
+      if (url.includes("beststories.json")) return makeJsonResponse(ids);
       const match = url.match(/item\/(\d+)\.json/);
-      if (match) return makeItemResponse(makeHNItem(3));
-      return makeItemResponse(null);
+      if (match) return makeJsonResponse(makeHNItem(3));
+      return makeJsonResponse(null);
     });
 
     const results = await hackernewsAdapter.fetch(
@@ -135,11 +122,11 @@ describe("hackernews", () => {
     const ids = [10];
     mocks.fetchMock.mockImplementation(async (url: string) => {
       if (url.includes("stories.json")) {
-        return makeIdsResponse(ids);
+        return makeJsonResponse(ids);
       }
       const match = url.match(/item\/(\d+)\.json/);
-      if (match) return makeItemResponse(makeHNItem(10));
-      return makeItemResponse(null);
+      if (match) return makeJsonResponse(makeHNItem(10));
+      return makeJsonResponse(null);
     });
 
     const r1 = await hackernewsAdapter.fetch(hnCfg({ feed: "newest" }));
@@ -161,15 +148,15 @@ describe("hackernews", () => {
   test("applies minScore by fetching extra items then filtering + respects limit", async () => {
     const ids = [1, 2, 3, 4, 5];
     mocks.fetchMock.mockImplementation(async (url: string) => {
-      if (url.includes("topstories.json")) return makeIdsResponse(ids);
+      if (url.includes("topstories.json")) return makeJsonResponse(ids);
       const match = url.match(/item\/(\d+)\.json/);
       if (match) {
         const id = parseInt(match[1], 10);
         // low scores for some
         const score = id <= 2 ? 5 : 100 + id;
-        return makeItemResponse(makeHNItem(id, { score }));
+        return makeJsonResponse(makeHNItem(id, { score }));
       }
-      return makeItemResponse(null);
+      return makeJsonResponse(null);
     });
 
     const cfg = hnCfg({ min_score: 50, limit: 2 });
@@ -185,13 +172,13 @@ describe("hackernews", () => {
     async (min_score) => {
       const ids = [1, 2];
       mocks.fetchMock.mockImplementation(async (url: string) => {
-        if (url.includes("topstories.json")) return makeIdsResponse(ids);
+        if (url.includes("topstories.json")) return makeJsonResponse(ids);
         const match = url.match(/item\/(\d+)\.json/);
         if (match) {
           const id = parseInt(match[1], 10);
-          return makeItemResponse(makeHNItem(id, { score: id === 1 ? 5 : 100 }));
+          return makeJsonResponse(makeHNItem(id, { score: id === 1 ? 5 : 100 }));
         }
-        return makeItemResponse(null);
+        return makeJsonResponse(null);
       });
 
       const results = await hackernewsAdapter.fetch(hnCfg({ min_score, limit: 10 }));
@@ -205,10 +192,10 @@ describe("hackernews", () => {
     async (limit) => {
       const ids = Array.from({ length: 40 }, (_, i) => i + 1);
       mocks.fetchMock.mockImplementation(async (url: string) => {
-        if (url.includes("topstories.json")) return makeIdsResponse(ids);
+        if (url.includes("topstories.json")) return makeJsonResponse(ids);
         const m = url.match(/item\/(\d+)\.json/);
-        if (m) return makeItemResponse(makeHNItem(parseInt(m[1], 10)));
-        return makeItemResponse(null);
+        if (m) return makeJsonResponse(makeHNItem(parseInt(m[1], 10)));
+        return makeJsonResponse(null);
       });
 
       const results = await hackernewsAdapter.fetch(hnCfg({ limit }));
@@ -219,10 +206,10 @@ describe("hackernews", () => {
   test("caps limit at 200", async () => {
     const ids = Array.from({ length: 250 }, (_, i) => i + 1);
     mocks.fetchMock.mockImplementation(async (url: string) => {
-      if (url.includes("topstories.json")) return makeIdsResponse(ids);
+      if (url.includes("topstories.json")) return makeJsonResponse(ids);
       const m = url.match(/item\/(\d+)\.json/);
-      if (m) return makeItemResponse(makeHNItem(parseInt(m[1], 10)));
-      return makeItemResponse(null);
+      if (m) return makeJsonResponse(makeHNItem(parseInt(m[1], 10)));
+      return makeJsonResponse(null);
     });
 
     const results = await hackernewsAdapter.fetch(hnCfg({ limit: 500 }));
@@ -232,10 +219,10 @@ describe("hackernews", () => {
   test("floors fractional limit", async () => {
     const ids = Array.from({ length: 10 }, (_, i) => i + 1);
     mocks.fetchMock.mockImplementation(async (url: string) => {
-      if (url.includes("topstories.json")) return makeIdsResponse(ids);
+      if (url.includes("topstories.json")) return makeJsonResponse(ids);
       const m = url.match(/item\/(\d+)\.json/);
-      if (m) return makeItemResponse(makeHNItem(parseInt(m[1], 10)));
-      return makeItemResponse(null);
+      if (m) return makeJsonResponse(makeHNItem(parseInt(m[1], 10)));
+      return makeJsonResponse(null);
     });
 
     const results = await hackernewsAdapter.fetch(hnCfg({ limit: 7.9 }));
@@ -245,9 +232,9 @@ describe("hackernews", () => {
   test("respects limit after score filter", async () => {
     const ids = [1, 2, 3];
     mocks.fetchMock.mockImplementation(async (url: string) => {
-      if (url.includes("topstories")) return makeIdsResponse(ids);
+      if (url.includes("topstories")) return makeJsonResponse(ids);
       const m = url.match(/item\/(\d+)/);
-      return makeItemResponse(m ? makeHNItem(parseInt(m[1])) : null);
+      return makeJsonResponse(m ? makeHNItem(parseInt(m[1])) : null);
     });
 
     const cfg = hnCfg({ limit: 1 });
@@ -256,7 +243,7 @@ describe("hackernews", () => {
   });
 
   test("throws on HTTP !ok for feed list with exact prefixed message", async () => {
-    mocks.fetchMock.mockResolvedValue(new Response("[]", { status: 500 }));
+    mocks.fetchMock.mockResolvedValue(makeErrorResponse(500));
 
     const cfg = hnCfg({ feed: "top" });
     await expect(hackernewsAdapter.fetch(cfg)).rejects.toThrow(
@@ -275,8 +262,8 @@ describe("hackernews", () => {
   test("decodes HTML entities in item titles from API", async () => {
     const ids = [42];
     mocks.fetchMock.mockImplementation(async (url: string) => {
-      if (url.includes("topstories.json")) return makeIdsResponse(ids);
-      return makeItemResponse(
+      if (url.includes("topstories.json")) return makeJsonResponse(ids);
+      return makeJsonResponse(
         makeHNItem(42, { title: "A &amp; B &#8364; C" }),
       );
     });
@@ -288,8 +275,8 @@ describe("hackernews", () => {
   test("handles items with missing optional fields (title fallback, no url, no score)", async () => {
     const ids = [99];
     mocks.fetchMock.mockImplementation(async (url: string) => {
-      if (url.includes("topstories")) return makeIdsResponse(ids);
-      return makeItemResponse({ id: 99 });
+      if (url.includes("topstories")) return makeJsonResponse(ids);
+      return makeJsonResponse({ id: 99 });
     });
 
     const results = await hackernewsAdapter.fetch(hnCfg());
@@ -301,10 +288,10 @@ describe("hackernews", () => {
   test("batches large id lists (BATCH_SIZE internal)", async () => {
     const ids = Array.from({ length: 25 }, (_, i) => i + 1);
     mocks.fetchMock.mockImplementation(async (url: string) => {
-      if (url.includes("topstories.json")) return makeIdsResponse(ids);
+      if (url.includes("topstories.json")) return makeJsonResponse(ids);
       const m = url.match(/item\/(\d+)\.json/);
-      if (m) return makeItemResponse(makeHNItem(parseInt(m[1])));
-      return makeItemResponse(null);
+      if (m) return makeJsonResponse(makeHNItem(parseInt(m[1])));
+      return makeJsonResponse(null);
     });
 
     const cfg = hnCfg({ limit: 25 });
@@ -318,7 +305,7 @@ describe("hackernews", () => {
   });
 
   test("errorMessage on !ok", async () => {
-    mocks.fetchMock.mockResolvedValue(new Response("[]", { status: 500 }));
+    mocks.fetchMock.mockResolvedValue(makeErrorResponse(500));
 
     const emSpy = spyOn(utilsMod, "errorMessage");
     try {

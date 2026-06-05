@@ -3,6 +3,7 @@ import wikipediaAdapter, { resolveWikipediaMode } from "./adapters/wikipedia";
 import { truncateText } from "./adapters/title";
 import * as utilsMod from "./utils";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
+import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 
 const mocks = useFetchMockSuite();
 const wikiCfg = (params: Record<string, unknown> = {}) => adapterCfg("wikipedia", params);
@@ -89,7 +90,7 @@ describe("resolveWikipediaMode", () => {
 describe("wikipedia", () => {
   test("fetches most_read articles by default", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
+      makeJsonResponse(makeFeaturedResponse()),
     );
 
     const items = await wikipediaAdapter.fetch(wikiCfg());
@@ -107,7 +108,7 @@ describe("wikipedia", () => {
 
   test("fetches featured article of the day", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
+      makeJsonResponse(makeFeaturedResponse()),
     );
 
     const items = await wikipediaAdapter.fetch(wikiCfg({ mode: "featured" }));
@@ -124,7 +125,7 @@ describe("wikipedia", () => {
 
   test("fetches on_this_day events with HTML stripped", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
+      makeJsonResponse(makeFeaturedResponse()),
     );
 
     const items = await wikipediaAdapter.fetch(wikiCfg({ mode: "on_this_day" }));
@@ -138,7 +139,7 @@ describe("wikipedia", () => {
 
   test("fetches news items with HTML stripped", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
+      makeJsonResponse(makeFeaturedResponse()),
     );
 
     const items = await wikipediaAdapter.fetch(wikiCfg({ mode: "news" }));
@@ -156,9 +157,7 @@ describe("wikipedia", () => {
         makeMostReadArticle({ title: `Article_${i}`, views: 1000 * (30 - i), rank: i + 1 }),
       );
       mocks.fetchMock.mockResolvedValue(
-        new Response(JSON.stringify(makeFeaturedResponse({ mostread: { articles } })), {
-          status: 200,
-        }),
+        makeJsonResponse(makeFeaturedResponse({ mostread: { articles } })),
       );
 
       const items = await wikipediaAdapter.fetch(wikiCfg({ limit }));
@@ -172,9 +171,7 @@ describe("wikipedia", () => {
       makeMostReadArticle({ title: `Article_${i}`, views: 1000 * (10 - i), rank: i + 1 }),
     );
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeFeaturedResponse({ mostread: { articles } })), {
-        status: 200,
-      }),
+      makeJsonResponse(makeFeaturedResponse({ mostread: { articles } })),
     );
 
     const items = await wikipediaAdapter.fetch(wikiCfg({ limit: 7.9 }));
@@ -187,7 +184,7 @@ describe("wikipedia", () => {
       makeMostReadArticle({ title: `Article_${i}`, views: 1000 * (10 - i), rank: i + 1 }),
     );
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeFeaturedResponse({ mostread: { articles } })), { status: 200 }),
+      makeJsonResponse(makeFeaturedResponse({ mostread: { articles } })),
     );
 
     const items = await wikipediaAdapter.fetch(wikiCfg({ limit: 3 }));
@@ -197,7 +194,7 @@ describe("wikipedia", () => {
 
   test("uses language parameter in API URL", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
+      makeJsonResponse(makeFeaturedResponse()),
     );
 
     await wikipediaAdapter.fetch(wikiCfg({ language: "de" }));
@@ -208,7 +205,7 @@ describe("wikipedia", () => {
 
   test("trims whitespace from configured language", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
+      makeJsonResponse(makeFeaturedResponse()),
     );
 
     await wikipediaAdapter.fetch(wikiCfg({ language: "  de  " }));
@@ -219,7 +216,7 @@ describe("wikipedia", () => {
 
   test("whitespace-only language defaults to en", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
+      makeJsonResponse(makeFeaturedResponse()),
     );
 
     await wikipediaAdapter.fetch(wikiCfg({ language: "   " }));
@@ -230,7 +227,7 @@ describe("wikipedia", () => {
 
   test("rejects malicious language values and falls back to en", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
+      makeJsonResponse(makeFeaturedResponse()),
     );
 
     await wikipediaAdapter.fetch(wikiCfg({ language: "evil.com/hack#" }));
@@ -242,7 +239,7 @@ describe("wikipedia", () => {
 
   test("defaults to most_read for invalid mode", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
+      makeJsonResponse(makeFeaturedResponse()),
     );
 
     const items = await wikipediaAdapter.fetch(wikiCfg({ mode: "invalid" }));
@@ -253,7 +250,7 @@ describe("wikipedia", () => {
 
   test("merges comma-separated modes from one featured feed", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
+      makeJsonResponse(makeFeaturedResponse()),
     );
 
     const items = await wikipediaAdapter.fetch(wikiCfg({ mode: "featured,news" }));
@@ -265,7 +262,7 @@ describe("wikipedia", () => {
 
   test("trims whitespace from comma-separated mode string", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
+      makeJsonResponse(makeFeaturedResponse()),
     );
 
     const items = await wikipediaAdapter.fetch(
@@ -279,7 +276,7 @@ describe("wikipedia", () => {
 
   test("whitespace-only mode string falls back to most_read", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
+      makeJsonResponse(makeFeaturedResponse()),
     );
 
     const items = await wikipediaAdapter.fetch(wikiCfg({ mode: "   " }));
@@ -291,7 +288,7 @@ describe("wikipedia", () => {
 
   test("merges modes array param from one featured feed", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
+      makeJsonResponse(makeFeaturedResponse()),
     );
 
     const items = await wikipediaAdapter.fetch(
@@ -305,7 +302,7 @@ describe("wikipedia", () => {
 
   test("blank-only modes array falls back to most_read", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeFeaturedResponse()), { status: 200 }),
+      makeJsonResponse(makeFeaturedResponse()),
     );
 
     const items = await wikipediaAdapter.fetch(wikiCfg({ modes: ["", "  "] }));
@@ -347,16 +344,13 @@ describe("wikipedia", () => {
     }));
 
     mocks.fetchMock.mockResolvedValue(
-      new Response(
-        JSON.stringify(
+      makeJsonResponse(
           makeFeaturedResponse({
             mostread: { articles },
             onthisday: onThisDayEvents,
             news: newsItems,
           }),
         ),
-        { status: 200 },
-      ),
     );
 
     const items = await wikipediaAdapter.fetch(
@@ -371,29 +365,26 @@ describe("wikipedia", () => {
     const sharedPage = "https://en.wikipedia.org/wiki/Test_Article";
     const secondPage = "https://en.wikipedia.org/wiki/Second_Article";
     mocks.fetchMock.mockResolvedValue(
-      new Response(
-        JSON.stringify(
-          makeFeaturedResponse({
-            mostread: {
-              articles: [
-                makeMostReadArticle(),
-                makeMostReadArticle({
-                  title: "Second_Article",
-                  views: 30000,
-                  rank: 2,
-                  content_urls: { desktop: { page: secondPage } },
-                }),
-              ],
-            },
-            tfa: {
-              title: "Test_Article",
-              extract: "Also featured today.",
-              description: "Featured blurb",
-              content_urls: { desktop: { page: sharedPage } },
-            },
-          }),
-        ),
-        { status: 200 },
+      makeJsonResponse(
+        makeFeaturedResponse({
+          mostread: {
+            articles: [
+              makeMostReadArticle(),
+              makeMostReadArticle({
+                title: "Second_Article",
+                views: 30000,
+                rank: 2,
+                content_urls: { desktop: { page: secondPage } },
+              }),
+            ],
+          },
+          tfa: {
+            title: "Test_Article",
+            extract: "Also featured today.",
+            description: "Featured blurb",
+            content_urls: { desktop: { page: sharedPage } },
+          },
+        }),
       ),
     );
 
@@ -405,7 +396,7 @@ describe("wikipedia", () => {
   });
 
   test("throws on HTTP error with adapter prefix", async () => {
-    mocks.fetchMock.mockResolvedValue(new Response("Not Found", { status: 404 }));
+    mocks.fetchMock.mockResolvedValue(makeErrorResponse(404));
 
     await expect(wikipediaAdapter.fetch(wikiCfg())).rejects.toThrow("wikipedia:");
   });
@@ -418,7 +409,7 @@ describe("wikipedia", () => {
 
   test("warns and returns empty for featured when tfa is missing (single mode)", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeFeaturedResponse({ tfa: undefined })), { status: 200 }),
+      makeJsonResponse(makeFeaturedResponse({ tfa: undefined })),
     );
 
     const items = await wikipediaAdapter.fetch(wikiCfg({ mode: "featured" }));
@@ -431,7 +422,7 @@ describe("wikipedia", () => {
 
   test("warns and returns empty for most_read when mostread section is missing (single mode)", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeFeaturedResponse({ mostread: undefined })), { status: 200 }),
+      makeJsonResponse(makeFeaturedResponse({ mostread: undefined })),
     );
 
     const items = await wikipediaAdapter.fetch(wikiCfg({ mode: "most_read" }));
@@ -444,10 +435,7 @@ describe("wikipedia", () => {
 
   test("does not warn on empty most_read when merged with other modes", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(
-        JSON.stringify(makeFeaturedResponse({ mostread: undefined })),
-        { status: 200 },
-      ),
+      makeJsonResponse(makeFeaturedResponse({ mostread: undefined })),
     );
 
     const items = await wikipediaAdapter.fetch(wikiCfg({ mode: "most_read,news" }));
@@ -463,9 +451,7 @@ describe("wikipedia", () => {
       makeMostReadArticle({ description: undefined, extract: longExtract }),
     ];
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeFeaturedResponse({ mostread: { articles } })), {
-        status: 200,
-      }),
+      makeJsonResponse(makeFeaturedResponse({ mostread: { articles } })),
     );
 
     const items = await wikipediaAdapter.fetch(wikiCfg());
@@ -480,8 +466,7 @@ describe("wikipedia", () => {
   test("truncates long extract in featured body when description is missing", async () => {
     const longExtract = "x".repeat(250);
     mocks.fetchMock.mockResolvedValue(
-      new Response(
-        JSON.stringify(
+      makeJsonResponse(
           makeFeaturedResponse({
             tfa: {
               title: "Long_Featured",
@@ -492,8 +477,6 @@ describe("wikipedia", () => {
             },
           }),
         ),
-        { status: 200 },
-      ),
     );
 
     const items = await wikipediaAdapter.fetch(wikiCfg({ mode: "featured" }));
@@ -509,7 +492,7 @@ describe("wikipedia", () => {
       makeMostReadArticle({ title: "Small", views: 500 }),
     ];
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeFeaturedResponse({ mostread: { articles } })), { status: 200 }),
+      makeJsonResponse(makeFeaturedResponse({ mostread: { articles } })),
     );
 
     const items = await wikipediaAdapter.fetch(wikiCfg());
@@ -521,8 +504,7 @@ describe("wikipedia", () => {
 
   test("decodes HTML entities in on_this_day and news titles", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(
-        JSON.stringify(
+      makeJsonResponse(
           makeFeaturedResponse({
             onthisday: [
               {
@@ -549,8 +531,6 @@ describe("wikipedia", () => {
             ],
           }),
         ),
-        { status: 200 },
-      ),
     );
 
     const items = await wikipediaAdapter.fetch(wikiCfg({ mode: "on_this_day,news" }));
@@ -571,7 +551,7 @@ describe("wikipedia", () => {
       makeMostReadArticle({ title: "Rock_&amp;_Roll_&#8364;" }),
     ];
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeFeaturedResponse({ mostread: { articles } })), { status: 200 }),
+      makeJsonResponse(makeFeaturedResponse({ mostread: { articles } })),
     );
 
     const items = await wikipediaAdapter.fetch(wikiCfg());
@@ -584,7 +564,7 @@ describe("wikipedia", () => {
   test("replaces underscores with spaces in titles", async () => {
     const articles = [makeMostReadArticle({ title: "United_States_of_America" })];
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeFeaturedResponse({ mostread: { articles } })), { status: 200 }),
+      makeJsonResponse(makeFeaturedResponse({ mostread: { articles } })),
     );
 
     const items = await wikipediaAdapter.fetch(wikiCfg());
@@ -595,7 +575,7 @@ describe("wikipedia", () => {
   test("errorMessage on !ok and network", async () => {
     const emSpy = spyOn(utilsMod, "errorMessage");
     try {
-      mocks.fetchMock.mockResolvedValue(new Response("Not Found", { status: 404 }));
+      mocks.fetchMock.mockResolvedValue(makeErrorResponse(404));
       await expect(wikipediaAdapter.fetch(wikiCfg())).rejects.toThrow("wikipedia:");
       expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 404" });
 
