@@ -17,7 +17,7 @@ import { fetchAtomFeed, fetchJson, buildGitHubApiHeaders } from "./fetch";
 import { fetchRepoTagline } from "./github-repo-meta";
 import { decodeNumericFeedTitle, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
 import { fetchAllParallel, fetchAllParallelDedupe } from "./merge";
-import { joinTitleWithTagline } from "./title";
+import { capText, joinTitleWithTagline } from "./title";
 import type { ContentItem } from "./types";
 
 export interface GitHubRelease {
@@ -110,7 +110,7 @@ export async function fetchGitHubAtomReleases(
 
     const rawBody = extractFeedItemBody(entry);
     const body = rawBody
-      ? stripHtml(rawBody, FEED_BODY_STRIP_OPTIONS).slice(0, 500)
+      ? capText(stripHtml(rawBody, FEED_BODY_STRIP_OPTIONS), 500)
       : undefined;
 
     const rawTitle = extractFeedEntryTitle(entry.title, "(untitled release)");

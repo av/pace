@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  capText,
   joinTitle,
   joinTitleWithTagline,
   truncateForTitle,
@@ -13,6 +14,16 @@ describe("joinTitle", () => {
 
   test("skips empty and null parts", () => {
     expect(joinTitle("a", "", null, undefined, "  ", "b")).toBe("a | b");
+  });
+});
+
+describe("capText", () => {
+  test("returns input when within max", () => {
+    expect(capText("hello", 10)).toBe("hello");
+  });
+
+  test("caps without ellipsis", () => {
+    expect(capText("long body content", 10)).toBe("long body ");
   });
 });
 

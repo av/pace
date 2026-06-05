@@ -15,6 +15,11 @@ export type TruncateTextOptions = {
   trim?: boolean;
 };
 
+/** Cap string length without ellipsis (LLM snippets, feed body previews, stable ID segments). */
+export function capText(text: string, max: number): string {
+  return text.length <= max ? text : text.slice(0, max);
+}
+
 /** Truncate text with ellipsis; used for titles (inclusive) and body snippets (exclusive). */
 export function truncateText(
   text: string,

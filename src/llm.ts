@@ -9,6 +9,7 @@ import {
 } from "@mariozechner/pi-ai";
 import type { LlmConfig } from "./config";
 import type { ContentItem } from "./adapters/types";
+import { capText } from "./adapters/title";
 import { errorMessage } from "./utils";
 
 const KNOWN_PROVIDERS = new Set<string>(getProviders());
@@ -91,7 +92,7 @@ export async function safeComplete(
 
 /** One-line item summary for batch LLM prompts. */
 export function formatContentItemForLlm(item: ContentItem, maxBodyLen = 0): string {
-  const snippet = maxBodyLen > 0 && item.body ? item.body.slice(0, maxBodyLen) : "";
+  const snippet = maxBodyLen > 0 && item.body ? capText(item.body, maxBodyLen) : "";
   return `- id: "${item.id}" | title: "${item.title}" | source: ${item.source}${snippet ? ` | body: ${snippet}` : ""}`;
 }
 
@@ -158,7 +159,7 @@ export async function summarizeItem(
   item: ContentItem
 ): Promise<string | null> {
   if (!model) return null;
-  const bodySnippet = item.body ? item.body.slice(0, 2000) : "";
+  const bodySnippet = item.body ? capText(item.body, 2000) : "";
   const userContent = bodySnippet
     ? `Title: ${item.title}\n\n${bodySnippet}`
     : `Title: ${item.title}`;
