@@ -3,8 +3,6 @@ import type { ContentItemRow } from "./db";
 import { extractEngagementScore } from "./adapters/engagement";
 import { compareIsoTimestamp, errorMessage } from "./utils";
 
-// --- sort ---
-
 export type SortTransformConfig = Extract<TransformConfig, { type: "sort" }>;
 
 export function applySort(
@@ -22,8 +20,6 @@ export function applySort(
     return av < bv ? -dir : av > bv ? dir : 0;
   });
 }
-
-// --- keyword-score / time-decay (shared scoring helpers) ---
 
 function parseHalfLife(str: string): number {
   const match = str.trim().match(/^(\d+(?:\.\d+)?)\s*(m|min|h|hr|d|day|w|wk)s?$/i);

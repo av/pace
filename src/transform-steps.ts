@@ -15,8 +15,6 @@ import { extractScore } from "./adapters/engagement";
 import { normalizeUrl, levenshteinSimilarity } from "./dedupe";
 import { compareIsoTimestamp, sliceToLimit } from "./utils";
 
-// --- latest ---
-
 export type LatestTransformConfig = Extract<TransformConfig, { type: "latest" }>;
 
 export function applyLatest(
@@ -25,8 +23,6 @@ export function applyLatest(
 ): ContentItemRow[] {
   return sliceToLimit(items, count);
 }
-
-// --- filter / exclude ---
 
 type KeywordMatchConfig = Extract<TransformConfig, { type: "filter" } | { type: "exclude" }>;
 export type FilterTransformConfig = Extract<TransformConfig, { type: "filter" }>;
@@ -81,8 +77,6 @@ export function applyFilter(items: ContentItemRow[], config: FilterTransformConf
 export function applyExclude(items: ContentItemRow[], config: ExcludeTransformConfig): ContentItemRow[] {
   return filterByKeywordMatch(items, config, false);
 }
-
-// --- dedupe ---
 
 function pickByTimestamp(group: ContentItemRow[], direction: "asc" | "desc"): ContentItemRow {
   return group.reduce((a, b) =>
