@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach, setSystemTime } from "bun:test";
-import { parseFeedDate, parseUnixEpochSeconds } from "./adapters/dates";
+import { formatSeconds, parseFeedDate, parseUnixEpochSeconds } from "./adapters/dates";
 
 const FIXED_NOW = new Date("2024-06-15T12:00:00.000Z");
 
@@ -36,5 +36,18 @@ describe("parseUnixEpochSeconds", () => {
     expect(parseUnixEpochSeconds(Number.POSITIVE_INFINITY).toISOString()).toBe(
       FIXED_NOW.toISOString(),
     );
+  });
+});
+
+describe("formatSeconds", () => {
+  test("formats sub-hour durations as m:ss", () => {
+    expect(formatSeconds(0)).toBe("0:00");
+    expect(formatSeconds(5)).toBe("0:05");
+    expect(formatSeconds(754)).toBe("12:34");
+  });
+
+  test("formats hour-plus durations as h:mm:ss", () => {
+    expect(formatSeconds(3600)).toBe("1:00:00");
+    expect(formatSeconds(3723)).toBe("1:02:03");
   });
 });
