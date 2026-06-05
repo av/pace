@@ -7,6 +7,7 @@ import {
   normalizeSource,
   collectPanels,
   resolvePanelId,
+  buildLayoutRuntimeMaps,
   isPanel,
   isContainer,
   loadConfig,
@@ -76,6 +77,32 @@ describe("config", () => {
     expect(id1).toMatch(/^[0-9a-f]{8}$/);
     expect(resolvePanelId(p2)).toBe(id1);
     expect(resolvePanelId(p3)).not.toBe(id1);
+  });
+
+  test("buildLayoutRuntimeMaps maps panels to sources and registers orphan adapters", () => {
+    const layout = {
+      direction: "column" as const,
+      children: [
+        { panel: "global", source: "all" },
+        { panel: "tech", source: "hackernews", id: "hn-panel" },
+        { panel: "mixed", source: ["rss", "podcast"] },
+      ],
+    };
+    const maps = buildLayoutRuntimeMaps(layout, ["orphan-adapter", "hackernews"]);
+
+    expect(maps.panelNameToId.get("tech")).toBe("hn-panel");
+    expect(maps.panelIdToSources.get("hn-panel")).toEqual([{ adapter: "hackernews" }]);
+    expect(maps.dashboardPanels.map((d) => d.panel.panel)).toEqual(["global", "tech", "mixed"]);
+    expect(maps.dashboardPanels.find((d) => d.panel.panel === "global")?.isAll).toBe(true);
+
+    expect(maps.sourceToPanels.get("hackernews")).toEqual(["hn-panel"]);
+    expect(maps.sourceToPanels.get("rss")).toEqual([resolvePanelId(layout.children[2] as PanelConfig)]);
+    expect(maps.sourceToPanels.get("podcast")).toEqual([resolvePanelId(layout.children[2] as PanelConfig)]);
+    expect(maps.sourceToPanels.has("all")).toBe(false);
+
+    expect(maps.sourceToReadKey.get("hackernews")).toBe("hn-panel");
+    expect(maps.sourceToPanels.get("orphan-adapter")).toEqual(["orphan-adapter"]);
+    expect(maps.sourceToReadKey.get("orphan-adapter")).toBe("orphan-adapter");
   });
   });
 

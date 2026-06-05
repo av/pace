@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { readFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { loadConfig, collectPanels, normalizeSource, resolvePanelId } from "./config";
+import { loadConfig, buildLayoutRuntimeMaps } from "./config";
 import { initDb, closeDb, getRecentItems, getItemsByPanel, getLastFetchedAt, getLastFetchedAtAll, type ContentItemRow } from "./db";
 import { discoverAdapters } from "./adapters/index";
 import { renderDashboard, type PanelData } from "./layout";
@@ -68,37 +68,13 @@ async function start() {
   const adapters = await discoverAdapters();
   const llmModel = config.llm ? createModel(config.llm) : null;
 
-  const allPanelConfigs = collectPanels(config.layout);
-  const sourceToPanels = new Map<string, string[]>();
-  const sourceToReadKey = new Map<string, string>();
-  const panelIdToSources = new Map<string, ReturnType<typeof normalizeSource>>();
-  const panelNameToId = new Map<string, string>();
-  const dashboardPanels: { panel: (typeof allPanelConfigs)[number]; pid: string; isAll: boolean }[] = [];
-
-  for (const panel of allPanelConfigs) {
-    const sources = normalizeSource(panel.source);
-    const pid = resolvePanelId(panel);
-    const isAll = sources.some((s) => s.adapter === "all");
-    panelIdToSources.set(pid, sources);
-    panelNameToId.set(panel.panel, pid);
-    dashboardPanels.push({ panel, pid, isAll });
-    if (isAll) continue;
-    for (const source of sources) {
-      const list = sourceToPanels.get(source.adapter) ?? [];
-      list.push(pid);
-      sourceToPanels.set(source.adapter, list);
-      if (!sourceToReadKey.has(source.adapter)) {
-        sourceToReadKey.set(source.adapter, pid);
-      }
-    }
-  }
-
-  for (const name of configuredAdapterNames) {
-    if (!sourceToPanels.has(name)) {
-      sourceToPanels.set(name, [name]);
-      sourceToReadKey.set(name, name);
-    }
-  }
+  const {
+    sourceToPanels,
+    sourceToReadKey,
+    panelIdToSources,
+    panelNameToId,
+    dashboardPanels,
+  } = buildLayoutRuntimeMaps(config.layout, configuredAdapterNames);
 
   const panelMap: SourcePanelMap = { sourceToPanels, sourceToReadKey };
   startScheduler(config, adapters, panelMap, llmModel);

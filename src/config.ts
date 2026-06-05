@@ -226,6 +226,64 @@ export function resolvePanelId(panel: PanelConfig): string {
   return hasher.digest("hex").slice(0, 8);
 }
 
+export interface DashboardPanel {
+  panel: PanelConfig;
+  pid: string;
+  isAll: boolean;
+}
+
+export interface LayoutRuntimeMaps {
+  sourceToPanels: Map<string, string[]>;
+  sourceToReadKey: Map<string, string>;
+  panelIdToSources: Map<string, SourceConfig[]>;
+  panelNameToId: Map<string, string>;
+  dashboardPanels: DashboardPanel[];
+}
+
+export function buildLayoutRuntimeMaps(
+  layout: LayoutNodeConfig,
+  adapterNames: readonly string[],
+): LayoutRuntimeMaps {
+  const sourceToPanels = new Map<string, string[]>();
+  const sourceToReadKey = new Map<string, string>();
+  const panelIdToSources = new Map<string, SourceConfig[]>();
+  const panelNameToId = new Map<string, string>();
+  const dashboardPanels: DashboardPanel[] = [];
+
+  for (const panel of collectPanels(layout)) {
+    const sources = normalizeSource(panel.source);
+    const pid = resolvePanelId(panel);
+    const isAll = sources.some((s) => s.adapter === "all");
+    panelIdToSources.set(pid, sources);
+    panelNameToId.set(panel.panel, pid);
+    dashboardPanels.push({ panel, pid, isAll });
+    if (isAll) continue;
+    for (const source of sources) {
+      const list = sourceToPanels.get(source.adapter) ?? [];
+      list.push(pid);
+      sourceToPanels.set(source.adapter, list);
+      if (!sourceToReadKey.has(source.adapter)) {
+        sourceToReadKey.set(source.adapter, pid);
+      }
+    }
+  }
+
+  for (const name of adapterNames) {
+    if (!sourceToPanels.has(name)) {
+      sourceToPanels.set(name, [name]);
+      sourceToReadKey.set(name, name);
+    }
+  }
+
+  return {
+    sourceToPanels,
+    sourceToReadKey,
+    panelIdToSources,
+    panelNameToId,
+    dashboardPanels,
+  };
+}
+
 function validateAllowedKeys(
   record: Record<string, unknown>,
   allowed: readonly string[],
