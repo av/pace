@@ -2,6 +2,7 @@ import { describe, expect, spyOn, test } from "bun:test";
 import stackexchangeAdapter, { resolveStackExchangeSort } from "./adapters/stackexchange";
 import * as utilsMod from "./utils";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
+import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 
 const mocks = useFetchMockSuite();
 const seCfg = (params: Record<string, unknown> = {}) => adapterCfg("stackexchange", params);
@@ -48,14 +49,21 @@ describe("stackexchange", () => {
     };
   }
 
+  function makeApiResponse(
+    items: unknown[],
+    overrides: Partial<{ has_more: boolean; quota_remaining: number }> = {},
+  ) {
+    return makeJsonResponse({
+      items,
+      has_more: false,
+      quota_remaining: 100,
+      ...overrides,
+    });
+  }
+
   test("default site", async () => {
     const q = makeQuestion();
-    mocks.fetchMock.mockResolvedValue(
-      new Response(
-        JSON.stringify({ items: [q], has_more: false, quota_remaining: 100 }),
-        { status: 200 },
-      ),
-    );
+    mocks.fetchMock.mockResolvedValue(makeApiResponse([q]));
 
     const items = await stackexchangeAdapter.fetch(seCfg());
 
@@ -76,12 +84,7 @@ describe("stackexchange", () => {
 
   test("blank-only site uses default stackoverflow", async () => {
     const q = makeQuestion();
-    mocks.fetchMock.mockResolvedValue(
-      new Response(
-        JSON.stringify({ items: [q], has_more: false, quota_remaining: 100 }),
-        { status: 200 },
-      ),
-    );
+    mocks.fetchMock.mockResolvedValue(makeApiResponse([q]));
 
     const items = await stackexchangeAdapter.fetch(seCfg({ site: "   " }));
 
@@ -94,12 +97,7 @@ describe("stackexchange", () => {
 
   test("blank-only sort uses default hot", async () => {
     const q = makeQuestion();
-    mocks.fetchMock.mockResolvedValue(
-      new Response(
-        JSON.stringify({ items: [q], has_more: false, quota_remaining: 100 }),
-        { status: 200 },
-      ),
-    );
+    mocks.fetchMock.mockResolvedValue(makeApiResponse([q]));
 
     const items = await stackexchangeAdapter.fetch(seCfg({ sort: "   " }));
 
@@ -111,12 +109,7 @@ describe("stackexchange", () => {
 
   test("trims whitespace from configured sort", async () => {
     const q = makeQuestion({ question_id: 77 });
-    mocks.fetchMock.mockResolvedValue(
-      new Response(
-        JSON.stringify({ items: [q], has_more: false, quota_remaining: 100 }),
-        { status: 200 },
-      ),
-    );
+    mocks.fetchMock.mockResolvedValue(makeApiResponse([q]));
 
     const items = await stackexchangeAdapter.fetch(seCfg({ sort: "  votes  " }));
 
@@ -128,12 +121,7 @@ describe("stackexchange", () => {
 
   test("trims whitespace from configured site", async () => {
     const q = makeQuestion({ question_id: 88 });
-    mocks.fetchMock.mockResolvedValue(
-      new Response(
-        JSON.stringify({ items: [q], has_more: false, quota_remaining: 100 }),
-        { status: 200 },
-      ),
-    );
+    mocks.fetchMock.mockResolvedValue(makeApiResponse([q]));
 
     const items = await stackexchangeAdapter.fetch(
       seCfg({ site: "  ru.stackoverflow.com  " }),
@@ -147,12 +135,7 @@ describe("stackexchange", () => {
 
   test("blank-only tags behave like no tags configured", async () => {
     const q = makeQuestion();
-    mocks.fetchMock.mockResolvedValue(
-      new Response(
-        JSON.stringify({ items: [q], has_more: false, quota_remaining: 100 }),
-        { status: 200 },
-      ),
-    );
+    mocks.fetchMock.mockResolvedValue(makeApiResponse([q]));
 
     const items = await stackexchangeAdapter.fetch(seCfg({ tags: ["", "  "] }));
 
@@ -166,18 +149,9 @@ describe("stackexchange", () => {
 
   test("trims whitespace from configured tag names", async () => {
     const q = makeQuestion({ question_id: 55, tags: ["typescript"] });
-    const empty = new Response(
-      JSON.stringify({ items: [], has_more: false, quota_remaining: 99 }),
-      { status: 200 },
-    );
     mocks.fetchMock
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({ items: [q], has_more: false, quota_remaining: 100 }),
-          { status: 200 },
-        ),
-      )
-      .mockResolvedValueOnce(empty);
+      .mockResolvedValueOnce(makeApiResponse([q]))
+      .mockResolvedValueOnce(makeApiResponse([], { quota_remaining: 99 }));
 
     const items = await stackexchangeAdapter.fetch(
       seCfg({ tags: ["  typescript  ", "bun"], limit: 5 }),
@@ -196,18 +170,8 @@ describe("stackexchange", () => {
     const q1 = makeQuestion({ question_id: 1, tags: ["typescript"] });
     const q2 = makeQuestion({ question_id: 2, tags: ["bun"] });
     mocks.fetchMock
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({ items: [q1], has_more: false, quota_remaining: 50 }),
-          { status: 200 },
-        ),
-      )
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({ items: [q2], has_more: false, quota_remaining: 49 }),
-          { status: 200 },
-        ),
-      );
+      .mockResolvedValueOnce(makeApiResponse([q1], { quota_remaining: 50 }))
+      .mockResolvedValueOnce(makeApiResponse([q2], { quota_remaining: 49 }));
 
     const items = await stackexchangeAdapter.fetch(
       seCfg({
@@ -233,18 +197,8 @@ describe("stackexchange", () => {
     const shared = makeQuestion({ question_id: 99, title: "Shared question" });
     const onlyTs = makeQuestion({ question_id: 1, title: "TS only" });
     mocks.fetchMock
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({ items: [shared, onlyTs], has_more: false, quota_remaining: 50 }),
-          { status: 200 },
-        ),
-      )
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({ items: [shared], has_more: false, quota_remaining: 49 }),
-          { status: 200 },
-        ),
-      );
+      .mockResolvedValueOnce(makeApiResponse([shared, onlyTs], { quota_remaining: 50 }))
+      .mockResolvedValueOnce(makeApiResponse([shared], { quota_remaining: 49 }));
 
     const items = await stackexchangeAdapter.fetch(
       seCfg({ tags: ["typescript", "bun"], limit: 10 }),
@@ -259,12 +213,7 @@ describe("stackexchange", () => {
   test.each([NaN, "20", Infinity, -5, 0] as unknown[])(
     "invalid limit (%s) uses default pagesize=20",
     async (limit) => {
-      mocks.fetchMock.mockResolvedValue(
-        new Response(
-          JSON.stringify({ items: [], has_more: false, quota_remaining: 100 }),
-          { status: 200 },
-        ),
-      );
+      mocks.fetchMock.mockResolvedValue(makeApiResponse([]));
 
       await stackexchangeAdapter.fetch(seCfg({ limit }));
 
@@ -274,12 +223,7 @@ describe("stackexchange", () => {
   );
 
   test("caps limit at 100 in pagesize", async () => {
-    mocks.fetchMock.mockResolvedValue(
-      new Response(
-        JSON.stringify({ items: [], has_more: false, quota_remaining: 100 }),
-        { status: 200 },
-      ),
-    );
+    mocks.fetchMock.mockResolvedValue(makeApiResponse([]));
 
     await stackexchangeAdapter.fetch(seCfg({ limit: 500 }));
 
@@ -288,12 +232,7 @@ describe("stackexchange", () => {
   });
 
   test("floors fractional limit in pagesize", async () => {
-    mocks.fetchMock.mockResolvedValue(
-      new Response(
-        JSON.stringify({ items: [], has_more: false, quota_remaining: 100 }),
-        { status: 200 },
-      ),
-    );
+    mocks.fetchMock.mockResolvedValue(makeApiResponse([]));
 
     await stackexchangeAdapter.fetch(seCfg({ limit: 7.9 }));
 
@@ -307,11 +246,7 @@ describe("stackexchange", () => {
       makeQuestion({ question_id: 20, score: 100 }),
       makeQuestion({ question_id: 30, score: 20 }),
     ];
-    mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ items: questions, has_more: false, quota_remaining: 100 }), {
-        status: 200,
-      }),
-    );
+    mocks.fetchMock.mockResolvedValue(makeApiResponse(questions));
 
     const items = await stackexchangeAdapter.fetch(seCfg({ min_score: 10, limit: 1 }));
 
@@ -326,11 +261,7 @@ describe("stackexchange", () => {
         makeQuestion({ question_id: 10, score: 5 }),
         makeQuestion({ question_id: 20, score: 100 }),
       ];
-      mocks.fetchMock.mockResolvedValue(
-        new Response(JSON.stringify({ items: questions, has_more: false, quota_remaining: 100 }), {
-          status: 200,
-        }),
-      );
+      mocks.fetchMock.mockResolvedValue(makeApiResponse(questions));
 
       const items = await stackexchangeAdapter.fetch(seCfg({ min_score }));
 
@@ -340,12 +271,7 @@ describe("stackexchange", () => {
 
   test("decodes HTML entities in question titles from API", async () => {
     const q = makeQuestion({ title: "A &amp; B &#8364; C" });
-    mocks.fetchMock.mockResolvedValue(
-      new Response(
-        JSON.stringify({ items: [q], has_more: false, quota_remaining: 100 }),
-        { status: 200 },
-      ),
-    );
+    mocks.fetchMock.mockResolvedValue(makeApiResponse([q]));
 
     const [item] = await stackexchangeAdapter.fetch(seCfg());
 
@@ -359,9 +285,7 @@ describe("stackexchange", () => {
       accepted_answer_id: 99,
       owner: { display_name: "dev" },
     });
-    mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ items: [q], quota_remaining: 100 }), { status: 200 }),
-    );
+    mocks.fetchMock.mockResolvedValue(makeJsonResponse({ items: [q], quota_remaining: 100 }));
 
     const [item] = await stackexchangeAdapter.fetch(seCfg());
 
@@ -373,9 +297,7 @@ describe("stackexchange", () => {
   });
 
   test("!ok throws", async () => {
-    mocks.fetchMock.mockResolvedValue(
-      new Response("too many", { status: 429, statusText: "Too Many Requests" }),
-    );
+    mocks.fetchMock.mockResolvedValue(makeErrorResponse(429));
 
     await expect(
       stackexchangeAdapter.fetch(seCfg({ site: "meta.stackexchange.com" })),
@@ -384,9 +306,7 @@ describe("stackexchange", () => {
 
   test("low quota warns", async () => {
     const q = makeQuestion({ question_id: 777 });
-    mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ items: [q], has_more: false, quota_remaining: 3 }), { status: 200 }),
-    );
+    mocks.fetchMock.mockResolvedValue(makeApiResponse([q], { quota_remaining: 3 }));
 
     const items = await stackexchangeAdapter.fetch(seCfg({ site: "stackoverflow" }));
 
@@ -404,9 +324,7 @@ describe("stackexchange", () => {
 
   test("invalid sort and view format", async () => {
     const q = makeQuestion({ view_count: 1234567 });
-    mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ items: [q], quota_remaining: 100 }), { status: 200 }),
-    );
+    mocks.fetchMock.mockResolvedValue(makeJsonResponse({ items: [q], quota_remaining: 100 }));
 
     const items = await stackexchangeAdapter.fetch(
       seCfg({ sort: "invalid", site: "ru.stackoverflow.com" }),
@@ -419,9 +337,7 @@ describe("stackexchange", () => {
   test("errorMessage on !ok and network", async () => {
     const emSpy = spyOn(utilsMod, "errorMessage");
     try {
-      mocks.fetchMock.mockResolvedValue(
-        new Response("rate limit", { status: 429, statusText: "Too Many Requests" }),
-      );
+      mocks.fetchMock.mockResolvedValue(makeErrorResponse(429));
       await expect(
         stackexchangeAdapter.fetch(seCfg({ site: "meta.stackexchange.com" })),
       ).rejects.toThrow(/429/);

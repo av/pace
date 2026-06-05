@@ -3,7 +3,7 @@ import adapter, { resolveGitHubPeriod } from "./adapters/github";
 import { FEED_XML_ACCEPT } from "./adapters/fetch";
 import * as utilsMod from "./utils";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
-import { makeErrorResponse, makeTextResponse } from "./test/fetch-responses";
+import { makeErrorResponse, makeJsonResponse, makeTextResponse } from "./test/fetch-responses";
 
 const mocks = useFetchMockSuite();
 const githubCfg = (params: Record<string, unknown> = {}) => adapterCfg("github", params);
@@ -91,10 +91,7 @@ describe("github", () => {
         return makeTextResponse(releasesXml);
       }
       if (String(url).includes("api.github.com/repos/")) {
-        return new Response(JSON.stringify({ description: "" }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
+        return makeJsonResponse({ description: "" });
       }
       throw new Error("unexpected url in test");
     });
@@ -118,10 +115,7 @@ describe("github", () => {
         return makeTextResponse(releasesXml);
       }
       if (String(url).includes("api.github.com/repos/")) {
-        return new Response(JSON.stringify({ description: "" }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
+        return makeJsonResponse({ description: "" });
       }
       throw new Error("unexpected url in test");
     });
@@ -173,10 +167,7 @@ describe("github", () => {
         return makeTextResponse(releasesXml);
       }
       if (String(url).includes("api.github.com/repos/")) {
-        return new Response(JSON.stringify({ description: "" }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
+        return makeJsonResponse({ description: "" });
       }
       throw new Error("unexpected url in test");
     });
@@ -199,10 +190,7 @@ describe("github", () => {
         return makeTextResponse(releasesXml);
       }
       if (String(url).includes("api.github.com/repos/")) {
-        return new Response(JSON.stringify({ description: "" }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
+        return makeJsonResponse({ description: "" });
       }
       throw new Error("unexpected url in test");
     });
@@ -229,10 +217,9 @@ describe("github", () => {
         return makeTextResponse(releasesXml);
       }
       if (String(url).includes("api.github.com/repos/")) {
-        return new Response(
-          JSON.stringify({ description: "The library for web and native user interfaces" }),
-          { status: 200, headers: { "Content-Type": "application/json" } },
-        );
+        return makeJsonResponse({
+          description: "The library for web and native user interfaces",
+        });
       }
       throw new Error("unexpected url in test");
     });
@@ -257,10 +244,7 @@ describe("github", () => {
   test("releases respects per-repo limit then outer cap", async () => {
     mocks.fetchMock.mockImplementation(async (url: string) => {
       if (String(url).includes("api.github.com/repos/")) {
-        return new Response(JSON.stringify({ description: "" }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
+        return makeJsonResponse({ description: "" });
       }
       return makeTextResponse(releasesXml);
     });
@@ -375,10 +359,7 @@ describe("github", () => {
         return makeTextResponse(releasesXml);
       }
       if (String(url).includes("api.github.com/repos/")) {
-        return new Response(JSON.stringify({ description: "React" }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
+        return makeJsonResponse({ description: "React" });
       }
       throw new Error("unexpected");
     });
