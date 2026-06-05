@@ -11,7 +11,10 @@ import {
   formatMedia,
   formatPercent,
   formatPoints,
+  formatAnswers,
+  formatBy,
   formatCategories,
+  formatLeadIn,
   formatPrefixed,
   formatScore,
   formatStars,
@@ -53,6 +56,14 @@ describe("engagement display helpers", () => {
     expect(formatPoints(42)).toBe("42 points");
     expect(formatComments(10)).toBe("10 comments");
     expect(formatStars(1_500)).toBe("1,500 stars");
+    expect(formatAnswers(3)).toBe("3 answers");
+    expect(formatAnswers(1, true)).toBe("1 answers (accepted)");
+  });
+
+  test("formatLeadIn backs space-prefixed display helpers", () => {
+    expect(formatLeadIn("by", "alice")).toBe("by alice");
+    expect(formatBy("bob")).toBe("by bob");
+    expect(formatBy("@carol")).toBe("by @carol");
   });
 
   test("formatPrefixed backs colon-prefixed display helpers", () => {

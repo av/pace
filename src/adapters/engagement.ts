@@ -52,6 +52,10 @@ export function formatPrefixed(prefix: string, value: string): string {
   return `${prefix}: ${value}`;
 }
 
+export function formatLeadIn(leadIn: string, value: string): string {
+  return `${leadIn} ${value}`;
+}
+
 export function formatPoints(score: number): string {
   return formatCount(score, "points");
 }
@@ -69,7 +73,7 @@ export function formatComments(count: number): string {
 }
 
 export function formatAnswers(count: number, accepted = false): string {
-  return accepted ? `${count} answers (accepted)` : `${count} answers`;
+  return formatCount(count, accepted ? "answers (accepted)" : "answers");
 }
 
 export function formatReactions(count: number): string {
@@ -81,7 +85,7 @@ export function formatUpvotes(count: number): string {
 }
 
 export function formatBy(author: string): string {
-  return `by ${author}`;
+  return formatLeadIn("by", author);
 }
 
 export function formatDiscuss(url: string): string {
