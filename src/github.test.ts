@@ -1,5 +1,5 @@
 import { describe, test, expect, spyOn } from "bun:test";
-import adapter from "./adapters/github";
+import adapter, { resolveGitHubPeriod } from "./adapters/github";
 import { FEED_XML_ACCEPT } from "./adapters/fetch";
 import * as typesMod from "./adapters/types";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
@@ -57,6 +57,26 @@ const trendingHtml = `
   <svg>octicon-star</svg>  987,654
 </article>
 `;
+
+describe("resolveGitHubPeriod", () => {
+  test.each([
+    ["daily", "daily"],
+    ["weekly", "weekly"],
+    ["monthly", "monthly"],
+    ["DAILY", "daily"],
+    ["day", "daily"],
+    ["today", "daily"],
+    ["1d", "daily"],
+    ["24h", "daily"],
+    ["week", "weekly"],
+    ["7d", "weekly"],
+    ["month", "monthly"],
+    ["30d", "monthly"],
+    ["invalid", "daily"],
+  ] as const)("maps %s → %s", (input, expected) => {
+    expect(resolveGitHubPeriod(input)).toBe(expected);
+  });
+});
 
 describe("github", () => {
   test("returns empty with warning when releases mode has no repos configured", async () => {

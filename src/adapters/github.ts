@@ -19,7 +19,31 @@ import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 type TrendingPeriod = "daily" | "weekly" | "monthly";
 
-const VALID_PERIODS = new Set<TrendingPeriod>(["daily", "weekly", "monthly"]);
+const DEFAULT_PERIOD: TrendingPeriod = "daily";
+
+const PERIOD_TYPES: Record<string, TrendingPeriod> = {
+  daily: "daily",
+  weekly: "weekly",
+  monthly: "monthly",
+};
+
+const PERIOD_ALIASES: Record<string, TrendingPeriod> = {
+  day: "daily",
+  today: "daily",
+  "1d": "daily",
+  "24h": "daily",
+  week: "weekly",
+  "7d": "weekly",
+  month: "monthly",
+  "30d": "monthly",
+};
+
+/** Map configured since param (canonical name or alias) to GitHub trending period. Unknown → daily. */
+export function resolveGitHubPeriod(period: string): TrendingPeriod {
+  const lower = period.toLowerCase();
+  if (lower in PERIOD_TYPES) return PERIOD_TYPES[lower];
+  return PERIOD_ALIASES[lower] ?? DEFAULT_PERIOD;
+}
 
 interface TrendingRepo {
   name: string;
@@ -135,10 +159,9 @@ const adapter: Adapter = {
 
     if (mode === "trending") {
       const language = normalizeParamString(config.params, "language", "");
-      const sinceParam = normalizeParamString(config.params, "since", "daily");
-      const since: TrendingPeriod = VALID_PERIODS.has(sinceParam as TrendingPeriod)
-        ? (sinceParam as TrendingPeriod)
-        : "daily";
+      const since = resolveGitHubPeriod(
+        normalizeParamString(config.params, "since", "daily"),
+      );
 
       return fetchTrending(language, since, limit);
     }
