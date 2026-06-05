@@ -12,6 +12,7 @@ import { decodeNumericFeedTitle, stripHtml } from "./html";
 import {
   clampAdapterLimit,
   normalizeNonNegativeNumber,
+  normalizeParamBoolean,
   normalizeParamString,
   normalizeParamStringList,
   sliceToLimit,
@@ -242,7 +243,7 @@ const adapter: Adapter = {
     const accounts = normalizeParamStringList(config.params, "accounts");
     const limit = clampAdapterLimit(config.params?.limit, 20, 40);
     const minFavourites = normalizeNonNegativeNumber(config.params?.min_favourites);
-    const onlyMedia = (config.params?.only_media as boolean) ?? false;
+    const onlyMedia = normalizeParamBoolean(config.params, "only_media");
 
     const mode = resolveMastodonMode(accounts, hashtags);
     let allStatuses = await fetchMastodonStatuses(

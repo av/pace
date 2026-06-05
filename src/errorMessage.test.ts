@@ -11,6 +11,7 @@ import {
   normalizeParamStringList,
   normalizeParamString,
   normalizeParamStringFirst,
+  normalizeParamBoolean,
   normalizeOptionalString,
 } from "./utils";
 
@@ -205,6 +206,24 @@ describe("normalizeParamStringFirst", () => {
     expect(
       normalizeParamStringFirst(undefined, ["type", "feed"], "top"),
     ).toBe("top");
+  });
+});
+
+describe("normalizeParamBoolean", () => {
+  test("returns boolean values and fallback for missing or non-boolean params", () => {
+    expect(normalizeParamBoolean({ enrich: true }, "enrich")).toBe(true);
+    expect(normalizeParamBoolean({ enrich: false }, "enrich")).toBe(false);
+    expect(normalizeParamBoolean({ enrich: "true" }, "enrich")).toBe(false);
+    expect(normalizeParamBoolean({ enrich: 1 }, "enrich")).toBe(false);
+    expect(normalizeParamBoolean({}, "enrich")).toBe(false);
+    expect(normalizeParamBoolean(undefined, "enrich")).toBe(false);
+    expect(normalizeParamBoolean({ only_media: true }, "only_media", false)).toBe(
+      true,
+    );
+    expect(
+      normalizeParamBoolean({ only_media: false }, "only_media", true),
+    ).toBe(false);
+    expect(normalizeParamBoolean({}, "only_media", true)).toBe(true);
   });
 });
 

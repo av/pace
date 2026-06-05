@@ -11,6 +11,7 @@ import { parseFeedDate } from "./dates";
 import {
   clampAdapterLimit,
   normalizeNonNegativeNumber,
+  normalizeParamBoolean,
   sliceToLimit,
 } from "../utils";
 import { fetchAllBatched } from "./merge";
@@ -242,7 +243,7 @@ const adapter: Adapter = {
         ? clampAdapterLimit(limitRaw, 20, 50)
         : undefined;
     const minUpvotes = normalizeNonNegativeNumber(config.params?.min_upvotes);
-    const enrich = (config.params?.enrich as boolean) ?? false;
+    const enrich = normalizeParamBoolean(config.params, "enrich");
 
     if (minUpvotes > 0 && !enrich) {
       console.warn(

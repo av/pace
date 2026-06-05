@@ -129,6 +129,17 @@ export function normalizeParamStringFirst(
   return fallback;
 }
 
+/** Read optional boolean adapter param; missing/non-boolean → fallback (default false). */
+export function normalizeParamBoolean(
+  params: Record<string, unknown> | undefined,
+  key: string,
+  fallback = false,
+): boolean {
+  const raw = params?.[key];
+  if (typeof raw !== "boolean") return fallback;
+  return raw;
+}
+
 /** Trim optional string; return undefined if missing or blank after trim. */
 export function normalizeOptionalString(
   value: string | undefined,
