@@ -3,64 +3,21 @@ import adapter from "./adapters/youtube";
 import { FEED_XML_ACCEPT } from "./adapters/fetch";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 import { makeErrorResponse, makeXmlResponse } from "./test/fetch-responses";
+import {
+  youtubeChannelOneFeedFixture,
+  youtubeEntityTitlesFeedFixture,
+  youtubeHtmlDescriptionFeedFixture,
+  youtubeMultiEntryChannelFeedFixture,
+  youtubeOverlapPlaylistFeedFixture,
+  youtubePlaylistOneFeedFixture,
+} from "./test/youtube-fixtures";
 
 const mocks = useFetchMockSuite();
 const youtubeCfg = (params: Record<string, unknown> = {}) => adapterCfg("youtube", params);
 
-function makeYoutubeChannelFeedFixture(entryCount: number): string {
-  const entries = Array.from({ length: entryCount }, (_, i) => {
-    const n = entryCount - i;
-    return `  <entry>
-    <yt:videoId>vid${n}</yt:videoId>
-    <title>Video ${n}</title>
-    <published>2024-01-${String(n).padStart(2, "0")}T00:00:00Z</published>
-  </entry>`;
-  }).join("\n");
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015">
-  <title>Multi Channel</title>
-${entries}
-</feed>`;
-}
-
 describe("youtube", () => {
-  const channelXml = `<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns:media="http://search.yahoo.com/mrss/">
-  <title>Channel One</title>
-  <entry>
-    <yt:videoId>vid1</yt:videoId>
-    <title>Video 1 Title</title>
-    <link rel="alternate" href="https://www.youtube.com/watch?v=vid1" />
-    <published>2024-01-01T00:00:00Z</published>
-    <media:group>
-      <media:description>Desc 1</media:description>
-    </media:group>
-    <author><name>Chan1</name></author>
-  </entry>
-  <entry>
-    <yt:videoId>vid2</yt:videoId>
-    <title>Video 2 Title</title>
-    <link rel="alternate" href="https://www.youtube.com/watch?v=vid2" />
-    <published>2024-01-02T00:00:00Z</published>
-    <media:group>
-      <media:description>Desc 2</media:description>
-    </media:group>
-  </entry>
-</feed>`;
-
-  const playlistXml = `<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns:media="http://search.yahoo.com/mrss/">
-  <title>Playlist One</title>
-  <entry>
-    <yt:videoId>pl1</yt:videoId>
-    <title>PL Video 1</title>
-    <link rel="alternate" href="https://www.youtube.com/watch?v=pl1" />
-    <published>2024-02-01T00:00:00Z</published>
-    <media:group>
-      <media:description>PL Desc</media:description>
-    </media:group>
-  </entry>
-</feed>`;
+  const channelXml = youtubeChannelOneFeedFixture();
+  const playlistXml = youtubePlaylistOneFeedFixture();
 
   beforeEach(() => {
     mocks.fetchMock.mockImplementation(async (url: string | URL) => {
@@ -133,22 +90,13 @@ describe("youtube", () => {
   });
 
   it("dedupes the same video id across channel and playlist feeds", async () => {
-    const overlapPlaylistXml = `<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns:media="http://search.yahoo.com/mrss/">
-  <title>Overlap Playlist</title>
-  <entry>
-    <yt:videoId>vid1</yt:videoId>
-    <title>Video 1 From Playlist</title>
-    <published>2024-03-01T00:00:00Z</published>
-  </entry>
-</feed>`;
     mocks.fetchMock.mockImplementation(async (url: string | URL) => {
       const urlStr = String(url);
       if (urlStr.includes("channel_id=CH1")) {
         return makeXmlResponse(channelXml);
       }
       if (urlStr.includes("playlist_id=OVERLAP")) {
-        return makeXmlResponse(overlapPlaylistXml);
+        return makeXmlResponse(youtubeOverlapPlaylistFeedFixture());
       }
       return makeErrorResponse(404);
     });
@@ -168,22 +116,9 @@ describe("youtube", () => {
   });
 
   it("strips HTML from media:description in body", async () => {
-    const htmlDescXml = `<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns:media="http://search.yahoo.com/mrss/">
-  <title>HTML Desc Channel</title>
-  <entry>
-    <yt:videoId>html1</yt:videoId>
-    <title>HTML Video</title>
-    <published>2024-05-01T00:00:00Z</published>
-    <media:group>
-      <media:description><![CDATA[<p>Hello &amp; <b>world</b></p>]]></media:description>
-    </media:group>
-    <author><name>HTML Author</name></author>
-  </entry>
-</feed>`;
     mocks.fetchMock.mockImplementation(async (url: string | URL) => {
       if (String(url).includes("channel_id=HTML")) {
-        return makeXmlResponse(htmlDescXml);
+        return makeXmlResponse(youtubeHtmlDescriptionFeedFixture());
       }
       return makeErrorResponse(404);
     });
@@ -193,18 +128,9 @@ describe("youtube", () => {
   });
 
   it("decodes HTML entities in channel and entry titles", async () => {
-    const entityXml = `<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015">
-  <title>Chan &amp; Co &#8364;</title>
-  <entry>
-    <yt:videoId>ent1</yt:videoId>
-    <title>Rock &amp; Roll &#8364;</title>
-    <published>2024-04-01T00:00:00Z</published>
-  </entry>
-</feed>`;
     mocks.fetchMock.mockImplementation(async (url: string | URL) => {
       if (String(url).includes("channel_id=ENT")) {
-        return makeXmlResponse(entityXml);
+        return makeXmlResponse(youtubeEntityTitlesFeedFixture());
       }
       return makeErrorResponse(404);
     });
@@ -224,7 +150,7 @@ describe("youtube", () => {
     async (limit) => {
       mocks.fetchMock.mockImplementation(async (url: string | URL) => {
         if (String(url).includes("channel_id=MULTI")) {
-          return makeXmlResponse(makeYoutubeChannelFeedFixture(20));
+          return makeXmlResponse(youtubeMultiEntryChannelFeedFixture(20));
         }
         return makeErrorResponse(404);
       });
@@ -241,7 +167,7 @@ describe("youtube", () => {
   it("caps limit at 50 per feed", async () => {
     mocks.fetchMock.mockImplementation(async (url: string | URL) => {
       if (String(url).includes("channel_id=MULTI")) {
-        return makeXmlResponse(makeYoutubeChannelFeedFixture(60));
+        return makeXmlResponse(youtubeMultiEntryChannelFeedFixture(60));
       }
       return makeErrorResponse(404);
     });
@@ -256,7 +182,7 @@ describe("youtube", () => {
   it("floors fractional limit per feed", async () => {
     mocks.fetchMock.mockImplementation(async (url: string | URL) => {
       if (String(url).includes("channel_id=MULTI")) {
-        return makeXmlResponse(makeYoutubeChannelFeedFixture(5));
+        return makeXmlResponse(youtubeMultiEntryChannelFeedFixture(5));
       }
       return makeErrorResponse(404);
     });
