@@ -1,9 +1,29 @@
 import { describe, expect, spyOn, test } from "bun:test";
-import npmAdapter from "./adapters/npm";
+import npmAdapter, { resolveNpmSort } from "./adapters/npm";
 import * as typesMod from "./adapters/types";
 import { useFetchMockSuite } from "./test/adapter-mocks";
 
 const mocks = useFetchMockSuite();
+
+describe("resolveNpmSort", () => {
+  test.each([
+    ["optimal", "optimal"],
+    ["Optimal", "optimal"],
+    ["OPTIMAL", "optimal"],
+    ["quality", "quality"],
+    ["Quality", "quality"],
+    ["popularity", "popularity"],
+    ["Popularity", "popularity"],
+    ["maintenance", "maintenance"],
+    ["Maintenance", "maintenance"],
+    ["popular", "popularity"],
+    ["maint", "maintenance"],
+    ["default", "optimal"],
+    ["invalid", "optimal"],
+  ] as const)("maps %s → %s", (input, expected) => {
+    expect(resolveNpmSort(input)).toBe(expected);
+  });
+});
 
 describe("npm", () => {
   function makePackageResult(overrides: Partial<Record<string, unknown>> = {}): Record<string, unknown> {

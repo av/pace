@@ -77,7 +77,25 @@ async function searchNpm(
 
 type SortBy = "optimal" | "quality" | "popularity" | "maintenance";
 
-const VALID_SORTS = new Set<SortBy>(["optimal", "quality", "popularity", "maintenance"]);
+const SORT_TYPES: Record<string, SortBy> = {
+  optimal: "optimal",
+  quality: "quality",
+  popularity: "popularity",
+  maintenance: "maintenance",
+};
+
+const SORT_ALIASES: Record<string, SortBy> = {
+  popular: "popularity",
+  maint: "maintenance",
+  default: "optimal",
+};
+
+/** Map configured sort string (canonical name or alias) to npm search sort. Unknown → optimal. */
+export function resolveNpmSort(sort: string): SortBy {
+  const lower = sort.toLowerCase();
+  if (lower in SORT_TYPES) return SORT_TYPES[lower];
+  return SORT_ALIASES[lower] ?? "optimal";
+}
 
 function buildSearchQuery(
   keywords: string[],
@@ -121,11 +139,9 @@ const adapter: Adapter = {
     const keywords = normalizeParamStringList(config.params, "keywords");
     const scope = normalizeParamString(config.params, "scope");
     const limit = clampAdapterLimit(config.params?.limit, 20, 50);
-    const sortParam = normalizeParamString(config.params, "sort", "optimal");
-
-    const sortBy: SortBy = VALID_SORTS.has(sortParam as SortBy)
-      ? (sortParam as SortBy)
-      : "optimal";
+    const sortBy = resolveNpmSort(
+      normalizeParamString(config.params, "sort", "optimal"),
+    );
 
     if (keywords.length === 0 && !scope) {
       console.warn("npm: no keywords or scope configured");
