@@ -56,6 +56,10 @@ export function formatLeadIn(leadIn: string, value: string): string {
   return `${leadIn} ${value}`;
 }
 
+export function formatSlashPrefixed(prefix: string, name: string): string {
+  return `${prefix}/${name}`;
+}
+
 export function formatPoints(score: number): string {
   return formatCount(score, "points");
 }
@@ -93,11 +97,11 @@ export function formatDiscuss(url: string): string {
 }
 
 export function formatCommunity(name: string): string {
-  return `c/${name}`;
+  return formatSlashPrefixed("c", name);
 }
 
 export function formatSubreddit(name: string): string {
-  return `r/${name}`;
+  return formatSlashPrefixed("r", name);
 }
 
 export function formatBoosts(count: number): string {

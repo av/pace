@@ -17,6 +17,7 @@ import {
   formatLeadIn,
   formatPrefixed,
   formatScore,
+  formatSlashPrefixed,
   formatStars,
   formatSubreddit,
   formatTags,
@@ -103,7 +104,9 @@ describe("engagement display helpers", () => {
     expect(formatMedia(["https://ex.com/a.png"])).toBe("media: https://ex.com/a.png");
   });
 
-  test("formatCommunity and formatSubreddit prefix slugs for lemmy/reddit bodies", () => {
+  test("formatSlashPrefixed backs slash-prefixed display helpers", () => {
+    expect(formatSlashPrefixed("c", "technology")).toBe("c/technology");
+    expect(formatSlashPrefixed("r", "programming")).toBe("r/programming");
     expect(formatCommunity("technology")).toBe("c/technology");
     expect(formatSubreddit("programming")).toBe("r/programming");
   });
