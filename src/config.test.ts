@@ -524,6 +524,24 @@ layout:
     expect(() => loadConfig()).toThrow(/config: adapters\[0\].transforms\[0\].type must be a non-empty string/);
   });
 
+  test("rejects unknown transform type", () => {
+    const yaml = `
+adapters:
+  - type: rss
+    transforms:
+      - type: not-a-transform
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: adapters\[0\].transforms\[0\].type references unknown transform "not-a-transform"/,
+    );
+  });
+
   test("rejects keyword-score empty term", () => {
     const yaml = `
 adapters:

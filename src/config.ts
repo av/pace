@@ -532,92 +532,114 @@ function validateKeywordScoreEntries(value: unknown, path: string): void {
   });
 }
 
-function validateTransform(transform: Record<string, unknown>, path: string): void {
-  const transformType = transform.type;
-  const unknownField = (key: string) =>
-    `${path}.${key} is not a valid ${transformType} transform field`;
+type TransformFieldValidator = (transform: Record<string, unknown>, path: string) => void;
 
-  switch (transformType) {
-    case "latest":
-      validateAllowedKeys(transform, ["type", "count"], unknownField);
-      validatePositiveInteger(transform.count, `${path}.count`);
-      break;
-    case "filter":
-    case "exclude":
-      validateAllowedKeys(transform, ["type", "keywords", "fields"], unknownField);
-      validateStringList(transform.keywords, `${path}.keywords`);
-      if (transform.fields !== undefined) {
-        validateNonEmptyArray(transform.fields, `${path}.fields`);
-        transform.fields.forEach((field, fieldIndex) =>
-          validateEnum(field, KEYWORD_FIELDS, `${path}.fields[${fieldIndex}]`)
-        );
-      }
-      break;
-    case "sort":
-      validateAllowedKeys(transform, ["type", "field", "direction"], unknownField);
+interface TransformSchema {
+  fields: readonly string[];
+  validate?: TransformFieldValidator;
+}
+
+function validateFilterExcludeFields(transform: Record<string, unknown>, path: string): void {
+  validateStringList(transform.keywords, `${path}.keywords`);
+  if (transform.fields !== undefined) {
+    validateNonEmptyArray(transform.fields, `${path}.fields`);
+    transform.fields.forEach((field, fieldIndex) =>
+      validateEnum(field, KEYWORD_FIELDS, `${path}.fields[${fieldIndex}]`),
+    );
+  }
+}
+
+const TRANSFORM_SCHEMAS: Readonly<Record<string, TransformSchema>> = {
+  latest: {
+    fields: ["type", "count"],
+    validate: (transform, path) => validatePositiveInteger(transform.count, `${path}.count`),
+  },
+  filter: {
+    fields: ["type", "keywords", "fields"],
+    validate: validateFilterExcludeFields,
+  },
+  exclude: {
+    fields: ["type", "keywords", "fields"],
+    validate: validateFilterExcludeFields,
+  },
+  sort: {
+    fields: ["type", "field", "direction"],
+    validate: (transform, path) => {
       validateEnum(transform.field, ["timestamp", "title", "source"], `${path}.field`);
       validateOptionalEnum(transform.direction, ["asc", "desc"], `${path}.direction`);
-      break;
-    case "dedupe":
-      validateAllowedKeys(transform, ["type", "strategy", "threshold", "keep", "log"], unknownField);
+    },
+  },
+  dedupe: {
+    fields: ["type", "strategy", "threshold", "keep", "log"],
+    validate: (transform, path) => {
       validateOptionalEnum(transform.strategy, DEDUPE_STRATEGIES, `${path}.strategy`);
       validateOptionalUnitNumber(transform.threshold, `${path}.threshold`);
       validateOptionalEnum(transform.keep, DEDUPE_KEEP_OPTIONS, `${path}.keep`);
       validateOptionalBoolean(transform.log, `${path}.log`);
       validateDedupeStrategyFields(transform, path);
-      break;
-    case "keyword-score":
-      validateAllowedKeys(transform, ["type", "keywords", "min_score", "annotate"], unknownField);
+    },
+  },
+  "keyword-score": {
+    fields: ["type", "keywords", "min_score", "annotate"],
+    validate: (transform, path) => {
       validateKeywordScoreEntries(transform.keywords, `${path}.keywords`);
       validateOptionalFiniteNumber(transform.min_score, `${path}.min_score`);
       validateOptionalBoolean(transform.annotate, `${path}.annotate`);
-      break;
-    case "time-decay":
-      validateAllowedKeys(
-        transform,
-        ["type", "half_life", "engagement_weight", "recency_weight", "decay", "annotate", "min_score"],
-        unknownField,
-      );
+    },
+  },
+  "time-decay": {
+    fields: ["type", "half_life", "engagement_weight", "recency_weight", "decay", "annotate", "min_score"],
+    validate: (transform, path) => {
       validateOptionalNonEmptyString(transform.half_life, `${path}.half_life`);
       validateOptionalFiniteNumber(transform.engagement_weight, `${path}.engagement_weight`);
       validateOptionalFiniteNumber(transform.recency_weight, `${path}.recency_weight`);
       validateOptionalEnum(transform.decay, ["exponential", "linear"], `${path}.decay`);
       validateOptionalBoolean(transform.annotate, `${path}.annotate`);
       validateOptionalFiniteNumber(transform.min_score, `${path}.min_score`);
-      break;
-    case "cluster":
-      validateAllowedKeys(
-        transform,
-        ["type", "strategy", "min_cluster_size", "max_clusters", "similarity_threshold", "annotate"],
-        unknownField,
-      );
+    },
+  },
+  cluster: {
+    fields: ["type", "strategy", "min_cluster_size", "max_clusters", "similarity_threshold", "annotate"],
+    validate: (transform, path) => {
       validateOptionalEnum(transform.strategy, ["domain", "keywords", "source", "auto"], `${path}.strategy`);
       validateOptionalPositiveInteger(transform.min_cluster_size, `${path}.min_cluster_size`);
       validateOptionalPositiveInteger(transform.max_clusters, `${path}.max_clusters`);
       validateOptionalUnitNumber(transform.similarity_threshold, `${path}.similarity_threshold`);
       validateOptionalBoolean(transform.annotate, `${path}.annotate`);
-      break;
-    case "llm-summarize":
-      validateAllowedKeys(transform, ["type"], unknownField);
-      break;
-    case "llm-filter":
-      validateAllowedKeys(transform, ["type", "criteria"], unknownField);
+    },
+  },
+  "llm-summarize": {
+    fields: ["type"],
+  },
+  "llm-filter": {
+    fields: ["type", "criteria"],
+    validate: (transform, path) => {
       validateOptionalNonEmptyString(transform.criteria, `${path}.criteria`);
       if (transform.criteria === undefined) {
         throw new Error(`config: ${path}.criteria is required`);
       }
-      break;
-    case "llm-rank":
-      validateAllowedKeys(transform, ["type", "interests"], unknownField);
-      validateOptionalStringList(transform.interests, `${path}.interests`);
-      break;
-    case "llm-merge":
-      validateAllowedKeys(transform, ["type", "prompt"], unknownField);
-      validateOptionalNonEmptyString(transform.prompt, `${path}.prompt`);
-      break;
-    default:
-      throw new Error(`config: ${path}.type references unknown transform "${transformType}"`);
+    },
+  },
+  "llm-rank": {
+    fields: ["type", "interests"],
+    validate: (transform, path) => validateOptionalStringList(transform.interests, `${path}.interests`),
+  },
+  "llm-merge": {
+    fields: ["type", "prompt"],
+    validate: (transform, path) => validateOptionalNonEmptyString(transform.prompt, `${path}.prompt`),
+  },
+};
+
+function validateTransform(transform: Record<string, unknown>, path: string): void {
+  const transformType = transform.type;
+  const schema = TRANSFORM_SCHEMAS[transformType as string];
+  if (!schema) {
+    throw new Error(`config: ${path}.type references unknown transform "${transformType}"`);
   }
+  validateAllowedKeys(transform, schema.fields, (key) =>
+    `${path}.${key} is not a valid ${transformType} transform field`,
+  );
+  schema.validate?.(transform, path);
 }
 
 function validateTransforms(transforms: unknown, path: string): asserts transforms is TransformConfig[] {
