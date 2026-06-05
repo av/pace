@@ -47,14 +47,6 @@ interface GHAtomFeedParsed {
   };
 }
 
-function releasesFeedSource(parsed: GHAtomFeedParsed, repo: string): string {
-  const feedTitle = extractFeedRootTitle(undefined, parsed.feed?.title);
-  if (feedTitle) {
-    return `github:${decodeNumericFeedTitle(feedTitle)}`;
-  }
-  return `github:${repo}`;
-}
-
 async function fetchReleasesFeed(
   repo: string,
   limit: number,
@@ -65,7 +57,10 @@ async function fetchReleasesFeed(
   const xml = await fetchText("github", url, `releases for ${repo}`);
 
   const parsed = feedXmlParser.parse(xml) as GHAtomFeedParsed;
-  const source = releasesFeedSource(parsed, repo);
+  const feedTitle = extractFeedRootTitle(undefined, parsed.feed?.title);
+  const source = feedTitle
+    ? `github:${decodeNumericFeedTitle(feedTitle)}`
+    : `github:${repo}`;
   const entries = normalizeXmlList(parsed.feed?.entry);
   const tagline = await fetchRepoTagline(repo, "github", token);
 
