@@ -25,24 +25,54 @@ const REDDIT_BASE = "https://www.reddit.com";
 type SortType = "hot" | "new" | "top" | "rising";
 type TimePeriod = "hour" | "day" | "week" | "month" | "year" | "all";
 
-const VALID_SORTS = new Set<SortType>(["hot", "new", "top", "rising"]);
-const VALID_PERIODS = new Set<TimePeriod>([
-  "hour",
-  "day",
-  "week",
-  "month",
-  "year",
-  "all",
-]);
+const SORT_TYPES: Record<string, SortType> = {
+  hot: "hot",
+  new: "new",
+  top: "top",
+  rising: "rising",
+};
 
-function resolveValidOption<T extends string>(
-  value: string | undefined,
-  valid: Set<T>,
-  fallback: T,
-): T {
-  if (!value) return fallback;
-  const lower = value.toLowerCase();
-  return valid.has(lower as T) ? (lower as T) : fallback;
+const SORT_ALIASES: Record<string, SortType> = {
+  popular: "hot",
+  trending: "rising",
+  best: "top",
+};
+
+/** Map configured sort string (canonical name or alias) to Reddit listing sort. Unknown → hot. */
+export function resolveRedditSort(sort: string): SortType {
+  const lower = sort.toLowerCase();
+  if (lower in SORT_TYPES) return SORT_TYPES[lower];
+  return SORT_ALIASES[lower] ?? "hot";
+}
+
+const PERIOD_TYPES: Record<string, TimePeriod> = {
+  hour: "hour",
+  day: "day",
+  week: "week",
+  month: "month",
+  year: "year",
+  all: "all",
+};
+
+const PERIOD_ALIASES: Record<string, TimePeriod> = {
+  "24h": "day",
+  "1d": "day",
+  daily: "day",
+  "7d": "week",
+  weekly: "week",
+  "30d": "month",
+  monthly: "month",
+  "1y": "year",
+  yearly: "year",
+  alltime: "all",
+  forever: "all",
+};
+
+/** Map configured time period string (canonical name or alias) to Reddit top-sort window. Unknown → day. */
+export function resolveRedditPeriod(period: string): TimePeriod {
+  const lower = period.toLowerCase();
+  if (lower in PERIOD_TYPES) return PERIOD_TYPES[lower];
+  return PERIOD_ALIASES[lower] ?? "day";
 }
 
 interface RedditPostData {
@@ -112,12 +142,8 @@ const adapter: Adapter = {
     const minScore = normalizeNonNegativeNumber(config.params?.min_score);
     const timePeriod = normalizeParamString(config.params, "time", "day");
 
-    const effectiveSort = resolveValidOption(sort, VALID_SORTS, "hot" as const);
-    const effectivePeriod = resolveValidOption(
-      timePeriod,
-      VALID_PERIODS,
-      "day" as const,
-    );
+    const effectiveSort = resolveRedditSort(sort);
+    const effectivePeriod = resolveRedditPeriod(timePeriod);
 
     if (subreddits.length === 0) {
       console.warn("reddit: no subreddits configured");

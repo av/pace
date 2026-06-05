@@ -1,5 +1,5 @@
 import { describe, test, expect, spyOn } from "bun:test";
-import redditAdapter from "./adapters/reddit";
+import redditAdapter, { resolveRedditPeriod, resolveRedditSort } from "./adapters/reddit";
 import * as typesMod from "./adapters/types";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
@@ -47,6 +47,48 @@ function makeListingResponse(posts: RedditPostDataFixture[]): Response {
 function makeErrorResponse(status: number): Response {
   return new Response(null, { status, headers: { "content-type": "application/json" } });
 }
+
+describe("resolveRedditSort", () => {
+  test.each([
+    ["hot", "hot"],
+    ["Hot", "hot"],
+    ["HOT", "hot"],
+    ["new", "new"],
+    ["top", "top"],
+    ["rising", "rising"],
+    ["popular", "hot"],
+    ["trending", "rising"],
+    ["best", "top"],
+    ["invalid", "hot"],
+  ] as const)("maps %s → %s", (input, expected) => {
+    expect(resolveRedditSort(input)).toBe(expected);
+  });
+});
+
+describe("resolveRedditPeriod", () => {
+  test.each([
+    ["hour", "hour"],
+    ["day", "day"],
+    ["week", "week"],
+    ["month", "month"],
+    ["year", "year"],
+    ["all", "all"],
+    ["24h", "day"],
+    ["1d", "day"],
+    ["daily", "day"],
+    ["7d", "week"],
+    ["weekly", "week"],
+    ["30d", "month"],
+    ["monthly", "month"],
+    ["1y", "year"],
+    ["yearly", "year"],
+    ["alltime", "all"],
+    ["forever", "all"],
+    ["invalid", "day"],
+  ] as const)("maps %s → %s", (input, expected) => {
+    expect(resolveRedditPeriod(input)).toBe(expected);
+  });
+});
 
 describe("reddit", () => {
   test("returns [] and warns when no subreddits configured", async () => {
@@ -208,6 +250,29 @@ describe("reddit", () => {
     const url = (mocks.fetchMock.mock.calls[0][0] as string);
     expect(url).toContain("/hot.json?limit=25&raw_json=1");
     expect(url).not.toContain("&t=");
+  });
+
+  test("resolves sort and period aliases in API URL", async () => {
+    const posts = [makePost("alias1")];
+    mocks.fetchMock.mockResolvedValue(makeListingResponse(posts));
+
+    await redditAdapter.fetch(
+      redditCfg({ subreddits: ["x"], sort: "popular", time: "24h" }),
+    );
+
+    const url = mocks.fetchMock.mock.calls[0][0] as string;
+    expect(url).toContain("/hot.json?limit=25&raw_json=1");
+    expect(url).not.toContain("&t=");
+
+    mocks.fetchMock.mockClear();
+    mocks.fetchMock.mockResolvedValue(makeListingResponse(posts));
+
+    await redditAdapter.fetch(
+      redditCfg({ subreddits: ["x"], sort: "best", time: "7d" }),
+    );
+
+    const topUrl = mocks.fetchMock.mock.calls[0][0] as string;
+    expect(topUrl).toContain("/top.json?limit=25&raw_json=1&t=week");
   });
 
   test("includes t= param only for top sort with valid period", async () => {
