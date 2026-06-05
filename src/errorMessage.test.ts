@@ -9,6 +9,7 @@ import {
   compareIsoTimestamp,
   normalizeStringList,
   normalizeParamStringList,
+  normalizeParamString,
   normalizeOptionalString,
 } from "./utils";
 
@@ -164,6 +165,24 @@ describe("normalizeParamStringList", () => {
       [],
     );
     expect(normalizeParamStringList(undefined, "tags")).toEqual([]);
+  });
+});
+
+describe("normalizeParamString", () => {
+  test("trims string params and returns fallback for missing, non-string, or blank", () => {
+    expect(normalizeParamString({ mode: "  releases  " }, "mode")).toBe(
+      "releases",
+    );
+    expect(normalizeParamString({ mode: "  " }, "mode", "releases")).toBe(
+      "releases",
+    );
+    expect(normalizeParamString({ mode: 1 }, "mode", "releases")).toBe(
+      "releases",
+    );
+    expect(normalizeParamString(undefined, "mode", "releases")).toBe(
+      "releases",
+    );
+    expect(normalizeParamString({ mode: "" }, "mode")).toBeUndefined();
   });
 });
 

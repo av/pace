@@ -12,8 +12,8 @@ import { fetchJson } from "./fetch";
 import { decodeNumericFeedTitle } from "./html";
 import {
   normalizeNonNegativeNumber,
-  normalizeOptionalString,
   clampAdapterLimit,
+  normalizeParamString,
   normalizeParamStringList,
   sliceToLimit,
 } from "../utils";
@@ -107,18 +107,10 @@ const adapter: Adapter = {
   name: "reddit",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
     const subreddits = normalizeParamStringList(config.params, "subreddits");
-    const sortRaw = config.params?.sort;
-    const sort =
-      (typeof sortRaw === "string"
-        ? normalizeOptionalString(sortRaw)
-        : undefined) ?? "hot";
+    const sort = normalizeParamString(config.params, "sort", "hot");
     const limit = clampAdapterLimit(config.params?.limit, 25, 100);
     const minScore = normalizeNonNegativeNumber(config.params?.min_score);
-    const timeRaw = config.params?.time;
-    const timePeriod =
-      (typeof timeRaw === "string"
-        ? normalizeOptionalString(timeRaw)
-        : undefined) ?? "day";
+    const timePeriod = normalizeParamString(config.params, "time", "day");
 
     const effectiveSort = resolveValidOption(sort, VALID_SORTS, "hot" as const);
     const effectivePeriod = resolveValidOption(

@@ -7,7 +7,7 @@ import { fetchJson } from "./fetch";
 import { decodeNumericFeedTitle, stripHtml } from "./html";
 import {
   clampAdapterLimit,
-  normalizeOptionalString,
+  normalizeParamString,
   normalizeStringList,
   sliceToLimit,
 } from "../utils";
@@ -155,9 +155,7 @@ function resolveModes(config: AdapterConfig): Mode[] {
   if (Array.isArray(modesParam)) {
     tokens.push(...normalizeStringList(modesParam as string[]));
   } else {
-    const modeRaw = (config.params?.mode as string) ?? "most_read";
-    const modeStr = typeof modeRaw === "string" ? modeRaw : "most_read";
-    const modeParam = normalizeOptionalString(modeStr) ?? "most_read";
+    const modeParam = normalizeParamString(config.params, "mode", "most_read");
     tokens.push(...normalizeStringList(modeParam.split(",")));
   }
 
@@ -196,9 +194,7 @@ function warnEmptyFeaturedSection(mode: "most_read" | "featured", language: stri
 const adapter: Adapter = {
   name: "wikipedia",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const languageRaw =
-      normalizeOptionalString(config.params?.language as string | undefined) ??
-      "en";
+    const languageRaw = normalizeParamString(config.params, "language", "en");
     const language = isValidLanguage(languageRaw) ? languageRaw : "en";
     const limit = clampAdapterLimit(config.params?.limit, 20, 50);
 

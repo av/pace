@@ -98,6 +98,17 @@ export function normalizeParamStringList(
   return normalizeStringList((params?.[key] as string[]) ?? []);
 }
 
+/** Read optional string adapter param; trim; missing/non-string/blank → fallback (or undefined). */
+export function normalizeParamString(
+  params: Record<string, unknown> | undefined,
+  key: string,
+  fallback?: string,
+): string | undefined {
+  const raw = params?.[key];
+  if (typeof raw !== "string") return fallback;
+  return normalizeOptionalString(raw) ?? fallback;
+}
+
 /** Trim optional string; return undefined if missing or blank after trim. */
 export function normalizeOptionalString(
   value: string | undefined,

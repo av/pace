@@ -11,8 +11,8 @@ import { fetchJson } from "./fetch";
 import { decodeNumericFeedTitleOptional } from "./html";
 import {
   normalizeNonNegativeNumber,
-  normalizeOptionalString,
   clampAdapterLimit,
+  normalizeParamString,
   normalizeParamStringList,
   sliceToLimit,
 } from "../utils";
@@ -99,11 +99,9 @@ async function fetchLemmyPosts(
 const adapter: Adapter = {
   name: "lemmy",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const instance =
-      normalizeOptionalString(config.params?.instance as string | undefined) ??
-      "lemmy.ml";
+    const instance = normalizeParamString(config.params, "instance", "lemmy.ml");
     const communities = normalizeParamStringList(config.params, "communities");
-    const sort = resolveSort(config.params?.sort as string);
+    const sort = resolveSort(normalizeParamString(config.params, "sort"));
     const limit = clampAdapterLimit(config.params?.limit, 25, 50);
     const minScore = normalizeNonNegativeNumber(config.params?.min_score);
 

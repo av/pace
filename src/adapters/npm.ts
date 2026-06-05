@@ -9,7 +9,7 @@ import { fetchJson } from "./fetch";
 import { decodeNumericFeedTitle } from "./html";
 import {
   clampAdapterLimit,
-  normalizeOptionalString,
+  normalizeParamString,
   normalizeParamStringList,
 } from "../utils";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -119,11 +119,9 @@ const adapter: Adapter = {
   name: "npm",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
     const keywords = normalizeParamStringList(config.params, "keywords");
-    const scope = normalizeOptionalString(
-      config.params?.scope as string | undefined,
-    );
+    const scope = normalizeParamString(config.params, "scope");
     const limit = clampAdapterLimit(config.params?.limit, 20, 50);
-    const sortParam = (config.params?.sort as string) ?? "optimal";
+    const sortParam = normalizeParamString(config.params, "sort", "optimal");
 
     const sortBy: SortBy = VALID_SORTS.has(sortParam as SortBy)
       ? (sortParam as SortBy)

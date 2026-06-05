@@ -12,7 +12,7 @@ import { decodeNumericFeedTitle, stripHtml } from "./html";
 import {
   clampAdapterLimit,
   normalizeNonNegativeNumber,
-  normalizeOptionalString,
+  normalizeParamString,
   normalizeParamStringList,
   sliceToLimit,
 } from "../utils";
@@ -174,9 +174,11 @@ function parseAccountHandle(handle: string): { username: string; instance: strin
 const adapter: Adapter = {
   name: "mastodon",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const instance =
-      normalizeOptionalString(config.params?.instance as string | undefined) ??
-      "mastodon.social";
+    const instance = normalizeParamString(
+      config.params,
+      "instance",
+      "mastodon.social",
+    );
     const hashtags = normalizeParamStringList(config.params, "hashtags");
     const accounts = normalizeParamStringList(config.params, "accounts");
     const limit = clampAdapterLimit(config.params?.limit, 20, 40);

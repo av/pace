@@ -13,7 +13,7 @@ import { decodeNumericFeedTitle } from "./html";
 import {
   clampAdapterLimit,
   normalizeNonNegativeNumber,
-  normalizeOptionalString,
+  normalizeParamString,
   normalizeParamStringList,
   sliceToLimit,
 } from "../utils";
@@ -101,15 +101,9 @@ async function fetchQuestions(
 const adapter: Adapter = {
   name: "stackexchange",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const site =
-      normalizeOptionalString(config.params?.site as string | undefined) ??
-      "stackoverflow";
+    const site = normalizeParamString(config.params, "site", "stackoverflow");
     const tags = normalizeParamStringList(config.params, "tags");
-    const sortRaw = config.params?.sort;
-    const sort =
-      (typeof sortRaw === "string"
-        ? normalizeOptionalString(sortRaw)
-        : undefined) ?? "hot";
+    const sort = normalizeParamString(config.params, "sort", "hot");
     const limit = clampAdapterLimit(config.params?.limit, 20, 100);
     const minScore = normalizeNonNegativeNumber(config.params?.min_score);
 

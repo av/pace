@@ -18,8 +18,8 @@ import { joinTitle, joinTitleWithTagline } from "./title";
 
 import { FEED_FETCH_TIMEOUT_MS, FEED_XML_ACCEPT, fetchText } from "./fetch";
 import {
-  normalizeOptionalString,
   clampAdapterLimit,
+  normalizeParamString,
   normalizeParamStringList,
   sliceToLimit,
 } from "../utils";
@@ -212,24 +212,12 @@ async function fetchTrending(
 const adapter: Adapter = {
   name: "github",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const modeRaw = config.params?.mode;
-    const mode =
-      (typeof modeRaw === "string"
-        ? normalizeOptionalString(modeRaw)
-        : undefined) ?? "releases";
+    const mode = normalizeParamString(config.params, "mode", "releases");
     const limit = clampAdapterLimit(config.params?.limit, 10, 50);
 
     if (mode === "trending") {
-      const languageRaw = config.params?.language;
-      const language =
-        (typeof languageRaw === "string"
-          ? normalizeOptionalString(languageRaw)
-          : undefined) ?? "";
-      const sinceRaw = config.params?.since;
-      const sinceParam =
-        (typeof sinceRaw === "string"
-          ? normalizeOptionalString(sinceRaw)
-          : undefined) ?? "daily";
+      const language = normalizeParamString(config.params, "language", "");
+      const sinceParam = normalizeParamString(config.params, "since", "daily");
       const since: TrendingPeriod = VALID_PERIODS.has(sinceParam as TrendingPeriod)
         ? (sinceParam as TrendingPeriod)
         : "daily";
@@ -243,9 +231,7 @@ const adapter: Adapter = {
       return [];
     }
 
-    const token = normalizeOptionalString(
-      config.params?.token as string | undefined,
-    );
+    const token = normalizeParamString(config.params, "token");
     const deduped = await fetchAllParallelDedupe(
       repos,
       (repo) => fetchReleasesFeed(repo, limit, token),

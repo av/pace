@@ -1,6 +1,6 @@
 import {
   clampAdapterLimit,
-  normalizeOptionalString,
+  normalizeParamString,
   normalizeParamStringList,
 } from "../utils";
 import { fetchAllParallel } from "./merge";
@@ -51,9 +51,7 @@ const adapter: Adapter = {
   name: ADAPTER_NAME,
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
     const repos = normalizeParamStringList(config.params, "repos");
-    const token = normalizeOptionalString(
-      config.params?.token as string | undefined,
-    );
+    const token = normalizeParamString(config.params, "token");
     if (repos.length === 0) {
       console.warn("github-releases: no repos configured");
       return [];

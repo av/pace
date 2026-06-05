@@ -20,7 +20,7 @@ import {
 } from "./html";
 import {
   clampAdapterLimit,
-  normalizeOptionalString,
+  normalizeParamString,
   normalizeParamStringList,
   sleep,
   sliceToLimit,
@@ -163,9 +163,7 @@ const adapter: Adapter = {
   name: "arxiv",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
     const categories = normalizeParamStringList(config.params, "categories");
-    const query = normalizeOptionalString(
-      config.params?.query as string | undefined,
-    );
+    const query = normalizeParamString(config.params, "query");
     const limit = clampAdapterLimit(config.params?.limit, 20, 100);
 
     if (categories.length === 0 && !query) {

@@ -12,8 +12,8 @@ import { fetchJson } from "./fetch";
 import { decodeNumericFeedTitle } from "./html";
 import {
   normalizeNonNegativeNumber,
-  normalizeOptionalString,
   clampAdapterLimit,
+  normalizeParamString,
   normalizeParamStringList,
   sliceToLimit,
 } from "../utils";
@@ -89,9 +89,7 @@ const adapter: Adapter = {
   name: "devto",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
     const tags = normalizeParamStringList(config.params, "tags");
-    const username = normalizeOptionalString(
-      config.params?.username as string | undefined,
-    );
+    const username = normalizeParamString(config.params, "username");
     const perPage = clampAdapterLimit(
       config.params?.per_page ?? config.params?.limit,
       20,

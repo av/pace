@@ -11,8 +11,8 @@ import { fetchJson } from "./fetch";
 import { decodeNumericFeedTitleOptional } from "./html";
 import {
   normalizeNonNegativeNumber,
-  normalizeOptionalString,
   clampAdapterLimit,
+  normalizeParamString,
   normalizeParamStringList,
   sliceToLimit,
 } from "../utils";
@@ -54,11 +54,7 @@ function buildBody(item: LobstersItem): string {
 const adapter: Adapter = {
   name: "lobsters",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const feedRaw = config.params?.feed;
-    const feed =
-      (typeof feedRaw === "string"
-        ? normalizeOptionalString(feedRaw)
-        : undefined) ?? "hottest";
+    const feed = normalizeParamString(config.params, "feed", "hottest");
     const limit = clampAdapterLimit(config.params?.limit, 25, 100);
     const minScore = normalizeNonNegativeNumber(config.params?.min_score);
     const tags = normalizeParamStringList(config.params, "tags");
