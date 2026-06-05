@@ -1,15 +1,18 @@
 #!/usr/bin/env bun
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import { errorMessage, parseCliPort } from "./utils";
-import { tryReadRegularFile } from "./config";
+import { errorMessage } from "./utils";
+import { listPresets, resolvePreset, tryReadRegularFile } from "./config";
 import {
+  applyCliConfigEnv,
+  applyCliPortEnv,
   cliDie,
   cliExitOk,
   cliFailWithHelp,
   formatCliHelp,
   isCliFatalStartupError,
   isCliKnownOption,
+  normalizeCliParsedValues,
   readPackageVersion,
 } from "./cli-help";
 
@@ -35,7 +38,7 @@ const { values, positionals } = parseArgs({
   strict: false,
 });
 
-if (values["list-presets"] !== undefined) values.listPresets = values["list-presets"];
+normalizeCliParsedValues(values);
 
 if (values.chdir) {
   const target = values.chdir;
@@ -55,18 +58,7 @@ if (values.version) {
 }
 
 if (values.listPresets) {
-  const { listPresets } = await import("./config");
   cliExitOk(listPresets().join("\n"));
-}
-
-if (values.preset && !values.config) {
-  const { resolvePreset, listPresets } = await import("./config");
-  const resolved = resolvePreset(values.preset);
-  if (resolved) {
-    process.env.PACE_CONFIG = resolved;
-  } else {
-    cliDie(`Unknown preset: ${values.preset}\nAvailable: ${listPresets().join(", ")}`);
-  }
 }
 
 const command = positionals[0] ?? "serve";
@@ -80,24 +72,8 @@ if (unexpected.length > 0) {
   cliFailWithHelp(`Unknown option(s): ${unexpected.map((u) => "--" + u).join(", ")}\n`, HELP);
 }
 
-if (values.config) {
-  const configPath = values.config;
-  try {
-    tryReadRegularFile(configPath);
-  } catch (err) {
-    cliDie(errorMessage(err));
-  }
-  process.env.PACE_CONFIG = configPath;
-}
-
-if (values.port) {
-  const p = values.port;
-  const n = parseCliPort(p);
-  if (n === null) {
-    cliDie(`Invalid --port value: ${p}. Must be an integer between 1 and 65535.`);
-  }
-  process.env.PORT = String(n);
-}
+applyCliConfigEnv(values, { resolvePreset, listPresets, tryReadRegularFile });
+applyCliPortEnv(values.port);
 
 try {
   await import("./index");

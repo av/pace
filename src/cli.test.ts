@@ -3,7 +3,14 @@ import { spawnSync, spawn, type SpawnSyncReturns, type ChildProcess } from "node
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import os from "node:os";
-import { formatCliHelp, readPackageVersion, isCliFatalStartupError } from "./cli-help";
+import {
+  applyCliConfigEnv,
+  applyCliPortEnv,
+  formatCliHelp,
+  isCliFatalStartupError,
+  normalizeCliParsedValues,
+  readPackageVersion,
+} from "./cli-help";
 
 const cliHelpStdout = () => formatCliHelp(readPackageVersion()) + "\n";
 
@@ -23,6 +30,58 @@ describe("cli-help", () => {
     expect(isCliFatalStartupError("index: failed to read styles.css")).toBe(true);
     expect(isCliFatalStartupError("cli: failed to chdir")).toBe(false);
     expect(isCliFatalStartupError("unexpected")).toBe(false);
+  });
+
+  test("normalizeCliParsedValues maps list-presets to listPresets", () => {
+    const values = { "list-presets": true } as Record<string, unknown>;
+    normalizeCliParsedValues(values);
+    expect(values.listPresets).toBe(true);
+  });
+
+  test("applyCliConfigEnv sets PACE_CONFIG from preset and validates explicit config", () => {
+    const orig = process.env.PACE_CONFIG;
+    try {
+      applyCliConfigEnv(
+        { preset: "tech-news" },
+        {
+          resolvePreset: (name) => (name === "tech-news" ? "/presets/tech-news.yaml" : null),
+          listPresets: () => ["tech-news"],
+          tryReadRegularFile: () => "ok",
+        },
+      );
+      expect(process.env.PACE_CONFIG).toBe("/presets/tech-news.yaml");
+
+      applyCliConfigEnv(
+        { config: "/tmp/my.yaml" },
+        {
+          resolvePreset: () => null,
+          listPresets: () => [],
+          tryReadRegularFile: (path) => {
+            if (path === "/tmp/my.yaml") return "yaml";
+            throw new Error(`config: ${path} is not a regular file`);
+          },
+        },
+      );
+      expect(process.env.PACE_CONFIG).toBe("/tmp/my.yaml");
+    } finally {
+      if (orig === undefined) delete process.env.PACE_CONFIG;
+      else process.env.PACE_CONFIG = orig;
+    }
+  });
+
+  test("applyCliPortEnv sets PORT for valid values and no-ops when unset", () => {
+    const orig = process.env.PORT;
+    try {
+      delete process.env.PORT;
+      applyCliPortEnv(undefined);
+      expect(process.env.PORT).toBeUndefined();
+
+      applyCliPortEnv("8080");
+      expect(process.env.PORT).toBe("8080");
+    } finally {
+      if (orig === undefined) delete process.env.PORT;
+      else process.env.PORT = orig;
+    }
   });
 });
 
@@ -74,14 +133,14 @@ describe("cli", () => {
   test("invalid --port rejected", () => {
     const res = runCli(["--port", "99999"]);
     expect(res.status).toBe(1);
-    expect(res.stderr).toContain("Invalid --port value: 99999. Must be an integer between 1 and 65535.");
+    expect(res.stderr).toContain('cli: invalid --port value "99999"');
     expect(res.stdout).toBe("");
   });
 
   test("partial numeric --port rejected (no parseInt prefix acceptance)", () => {
     const res = runCli(["--port", "8080abc"]);
     expect(res.status).toBe(1);
-    expect(res.stderr).toContain("Invalid --port value: 8080abc");
+    expect(res.stderr).toContain('cli: invalid --port value "8080abc"');
     expect(res.stdout).toBe("");
   });
 
@@ -95,7 +154,7 @@ describe("cli", () => {
   test("unknown --preset lists available presets", () => {
     const res = runCli(["--preset", "not-a-real-preset"]);
     expect(res.status).toBe(1);
-    expect(res.stderr).toContain("Unknown preset: not-a-real-preset");
+    expect(res.stderr).toContain('cli: unknown preset "not-a-real-preset"');
     expect(res.stderr).toContain("Available:");
     expect(res.stderr).toContain("tech-news");
     expect(res.stdout).toBe("");
@@ -119,7 +178,7 @@ describe("cli", () => {
     expect(resBad.stdout).toBe("");
     const resValidThenPort = runCli(["-C", tmpDir, "--port", "99999"]);
     expect(resValidThenPort.status).toBe(1);
-    expect(resValidThenPort.stderr).toContain("Invalid --port value: 99999");
+    expect(resValidThenPort.stderr).toContain('cli: invalid --port value "99999"');
     expect(resValidThenPort.stderr).not.toContain("Unknown option");
     expect(resValidThenPort.stdout).toBe("");
   });

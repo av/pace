@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { errorMessage, parseCliPort } from "./utils";
 
 export const CLI_FATAL_ERROR_PREFIXES = ["config:", "scheduler:", "index:"] as const;
 
@@ -38,6 +39,67 @@ const knownOptionSet = new Set<string>(CLI_KNOWN_OPTIONS);
 
 export function isCliKnownOption(key: string): boolean {
   return knownOptionSet.has(key);
+}
+
+export type CliParsedValues = Record<string, unknown> & {
+  config?: string;
+  port?: string;
+  chdir?: string;
+  preset?: string;
+  listPresets?: boolean;
+};
+
+/** Map kebab-case flags from parseArgs (e.g. list-presets) onto camelCase fields. */
+export function normalizeCliParsedValues(values: CliParsedValues): void {
+  if (values["list-presets"] !== undefined) {
+    values.listPresets = values["list-presets"] as boolean;
+  }
+}
+
+type CliConfigDeps = {
+  resolvePreset: (name: string) => string | null;
+  listPresets: () => string[];
+  tryReadRegularFile: (path: string) => string | null;
+};
+
+/** Apply --preset / --config to PACE_CONFIG after validating the config path exists. */
+export function applyCliConfigEnv(
+  values: Pick<CliParsedValues, "config" | "preset">,
+  deps: CliConfigDeps,
+): void {
+  if (values.preset && !values.config) {
+    const resolved = deps.resolvePreset(values.preset);
+    if (resolved) {
+      process.env.PACE_CONFIG = resolved;
+      return;
+    }
+    cliDie(
+      `cli: unknown preset "${values.preset}"\nAvailable: ${deps.listPresets().join(", ")}`,
+    );
+  }
+
+  if (!values.config) return;
+
+  const configPath = values.config;
+  try {
+    deps.tryReadRegularFile(configPath);
+  } catch (err) {
+    cliDie(errorMessage(err));
+  }
+  process.env.PACE_CONFIG = configPath;
+}
+
+/** Apply validated --port to PORT. No-op when port is unset. */
+export function applyCliPortEnv(port: string | undefined): void {
+  if (port === undefined) return;
+
+  const n = parseCliPort(port);
+  if (n === null) {
+    cliDie(
+      `cli: invalid --port value "${port}" (must be an integer between 1 and 65535)`,
+    );
+  }
+  process.env.PORT = String(n);
 }
 
 export function readPackageVersion(): string {
