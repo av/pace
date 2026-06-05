@@ -17,10 +17,8 @@ export const ENGAGEMENT_PATTERNS: Array<{ re: RegExp; weight: number }> = [
   { re: /(\d+)\s*comments?/i, weight: 0.5 },
 ];
 
-/** Primary vote/score regexes — first ENGAGEMENT_PATTERNS entries (HN, Lobsters, Reddit, PH). */
 const PRIMARY_SCORE_PATTERNS: RegExp[] = ENGAGEMENT_PATTERNS.slice(0, 3).map(({ re }) => re);
 
-/** First matching primary score in body text (dedupe keep:highest-score). */
 export function extractScore(body: string | null): number {
   if (!body) return 0;
   for (const re of PRIMARY_SCORE_PATTERNS) {
@@ -30,7 +28,6 @@ export function extractScore(body: string | null): number {
   return 0;
 }
 
-/** Weighted sum of engagement signals in body metadata (time-decay, cluster sort). */
 export function extractEngagementScore(body: string | null): number {
   if (!body) return 0;
   let total = 0;
@@ -58,7 +55,6 @@ export function formatScore(score: number): string {
   return `Score: ${score}`;
 }
 
-/** Fractional scores (e.g. npm registry 0–1) as a rounded percent string. */
 export function formatPercent(fraction: number): string {
   return `${Math.round(fraction * 100)}%`;
 }
@@ -116,7 +112,6 @@ export function formatCover(url: string | null | undefined): string | undefined 
   return `cover: ${url}`;
 }
 
-/** Mastodon account handle in body metadata (@user@instance or remote @user@host). */
 export function formatMastodonAcct(acct: string, instance: string): string {
   if (acct.includes("@")) {
     return `@${acct}`;
