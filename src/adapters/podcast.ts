@@ -138,15 +138,6 @@ interface PodcastEpisode {
   author: string | null;
 }
 
-function extractChannelTitle(
-  channel: PodcastChannel,
-  atomTitle?: XmlTextField,
-): string {
-  return decodeNumericFeedTitle(
-    extractFeedRootTitle(channel.title, atomTitle) ?? "Unknown Podcast",
-  );
-}
-
 function parseEpisode(
   item: PodcastFeedItem,
   showName: string,
@@ -273,7 +264,9 @@ async function fetchPodcastFeed(
     return [];
   }
 
-  const showName = extractChannelTitle(channel, parsed.feed?.title);
+  const showName = decodeNumericFeedTitle(
+    extractFeedRootTitle(channel.title, parsed.feed?.title) ?? "Unknown Podcast",
+  );
   const channelLink = typeof channel.link === "string" ? channel.link : "";
 
   const items = normalizeXmlList(channel.item);
