@@ -23,7 +23,25 @@ const LOBSTERS_BASE = "https://lobste.rs";
 
 type FeedType = "hottest" | "newest" | "active";
 
-const VALID_FEEDS = new Set<FeedType>(["hottest", "newest", "active"]);
+const FEED_TYPES: Record<string, FeedType> = {
+  hottest: "hottest",
+  newest: "newest",
+  active: "active",
+};
+
+const FEED_ALIASES: Record<string, FeedType> = {
+  hot: "hottest",
+  front: "hottest",
+  new: "newest",
+  recent: "newest",
+};
+
+/** Map configured feed string (canonical name or alias) to Lobsters feed type. Unknown → hottest. */
+export function resolveLobstersFeedType(feed: string): FeedType {
+  const lower = feed.toLowerCase();
+  if (lower in FEED_TYPES) return FEED_TYPES[lower];
+  return FEED_ALIASES[lower] ?? "hottest";
+}
 
 interface LobstersItem {
   short_id: string;
@@ -54,22 +72,12 @@ function buildBody(item: LobstersItem): string {
 const adapter: Adapter = {
   name: "lobsters",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const feed = normalizeParamString(config.params, "feed", "hottest");
+    const feedType = resolveLobstersFeedType(
+      normalizeParamString(config.params, "feed", "hottest"),
+    );
     const limit = clampAdapterLimit(config.params?.limit, 25, 100);
     const minScore = normalizeNonNegativeNumber(config.params?.min_score);
     const tags = normalizeParamStringList(config.params, "tags");
-
-    let feedType: FeedType;
-    const feedLower = feed.toLowerCase();
-    if (VALID_FEEDS.has(feedLower as FeedType)) {
-      feedType = feedLower as FeedType;
-    } else if (feedLower === "hot" || feedLower === "front") {
-      feedType = "hottest";
-    } else if (feedLower === "new" || feedLower === "recent") {
-      feedType = "newest";
-    } else {
-      feedType = "hottest";
-    }
 
     let items: LobstersItem[] = [];
 

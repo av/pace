@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import lobstersAdapter from "./adapters/lobsters";
+import lobstersAdapter, { resolveLobstersFeedType } from "./adapters/lobsters";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
 const mocks = useFetchMockSuite();
@@ -36,6 +36,23 @@ function makeJsonResponse(items: LobstersFixture[], status = 200): Response {
     headers: { "content-type": "application/json" },
   });
 }
+
+describe("resolveLobstersFeedType", () => {
+  test.each([
+    ["hottest", "hottest"],
+    ["newest", "newest"],
+    ["active", "active"],
+    ["HOTTEST", "hottest"],
+    ["hot", "hottest"],
+    ["front", "hottest"],
+    ["new", "newest"],
+    ["recent", "newest"],
+    ["NEWEST", "newest"],
+    ["unknown-feed", "hottest"],
+  ] as const)("maps %s → %s", (input, expected) => {
+    expect(resolveLobstersFeedType(input)).toBe(expected);
+  });
+});
 
 describe("lobsters", () => {
   test("fetches standard hottest feed with defaults and maps fields", async () => {
