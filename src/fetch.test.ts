@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { podcastFeedXmlParser } from "./adapters/atom";
 import {
   ARXIV_FETCH_TIMEOUT_MS,
   buildGitHubApiHeaders,
@@ -296,6 +297,38 @@ describe("fetchRssAtomFeed", () => {
     await expect(
       fetchRssAtomFeed("rss", "https://example.com/feed.xml"),
     ).rejects.toThrow(/rss: error parsing xml from/);
+  });
+
+  test("accepts custom parser for CDATA-heavy feeds", async () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title><![CDATA[  Podcast Show  ]]></title>
+    <item>
+      <title><![CDATA[  Episode One  ]]></title>
+      <description><![CDATA[  CDATA body  ]]></description>
+    </item>
+  </channel>
+</rss>`;
+    mocks.fetchMock.mockResolvedValue(new Response(xml, { status: 200 }));
+
+    const { parsed, items } = await fetchRssAtomFeed<
+      { title?: { __cdata?: string }; description?: { __cdata?: string } },
+      {
+        rss?: {
+          channel?: {
+            title?: { __cdata?: string };
+            item?: { title?: { __cdata?: string }; description?: { __cdata?: string } };
+          };
+        };
+      }
+    >("podcast", "https://example.com/feed.xml", "feed.xml", {
+      parser: podcastFeedXmlParser,
+    });
+
+    expect(parsed.rss?.channel?.title?.__cdata).toBe("  Podcast Show  ");
+    expect(items[0]?.title?.__cdata).toBe("  Episode One  ");
+    expect(items[0]?.description?.__cdata).toBe("  CDATA body  ");
   });
 });
 

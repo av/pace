@@ -1,13 +1,10 @@
-import { XMLParser } from "fast-xml-parser";
 import {
   extractAtomLink,
   extractFeedEntryTitle,
   extractFeedItemBody,
   extractFeedRootTitle,
   extractXmlText,
-  FEED_XML_PARSER_OPTIONS,
-  normalizeXmlList,
-  parseXml,
+  podcastFeedXmlParser,
   type AtomLinkField,
   type FeedItemBodyFields,
   type XmlTextField,
@@ -16,8 +13,7 @@ import { parseFeedDate } from "./dates";
 import { joinTitle } from "./title";
 import {
   FEED_FETCH_TIMEOUT_MS,
-  FEED_XML_ACCEPT,
-  fetchText,
+  fetchRssAtomFeed,
   PACE_USER_AGENT,
 } from "./fetch";
 import {
@@ -71,12 +67,6 @@ interface PodcastFeedParsed {
     title?: XmlTextField;
   };
 }
-
-const parser = new XMLParser({
-  ...FEED_XML_PARSER_OPTIONS,
-  cdataPropName: "__cdata",
-  trimValues: true,
-});
 
 function parseDuration(raw: unknown): string | null {
   if (raw == null) return null;
@@ -251,12 +241,16 @@ async function fetchPodcastFeed(
   feedUrl: string,
   limit: number,
 ): Promise<ContentItem[]> {
-  const xml = await fetchText("podcast", feedUrl, feedUrl, {
-    userAgent: `${PACE_USER_AGENT} (podcast aggregator)`,
-    accept: FEED_XML_ACCEPT,
-    timeoutMs: FEED_FETCH_TIMEOUT_MS,
-  });
-  const parsed = parseXml<PodcastFeedParsed>(xml, parser, "podcast", feedUrl);
+  const { parsed, items } = await fetchRssAtomFeed<PodcastFeedItem, PodcastFeedParsed>(
+    "podcast",
+    feedUrl,
+    feedUrl,
+    {
+      userAgent: `${PACE_USER_AGENT} (podcast aggregator)`,
+      timeoutMs: FEED_FETCH_TIMEOUT_MS,
+      parser: podcastFeedXmlParser,
+    },
+  );
 
   const channel = parsed.rss?.channel;
   if (!channel) {
@@ -269,7 +263,6 @@ async function fetchPodcastFeed(
   );
   const channelLink = typeof channel.link === "string" ? channel.link : "";
 
-  const items = normalizeXmlList(channel.item);
   if (items.length === 0) return [];
 
   const episodes: ContentItem[] = [];

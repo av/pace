@@ -25,6 +25,13 @@ export const FEED_XML_PARSER_OPTIONS = {
 
 export const feedXmlParser = new XMLParser(FEED_XML_PARSER_OPTIONS);
 
+/** Podcast feeds need CDATA + trimmed values; default feed parser leaves these unparsed. */
+export const podcastFeedXmlParser = new XMLParser({
+  ...FEED_XML_PARSER_OPTIONS,
+  cdataPropName: "__cdata",
+  trimValues: true,
+});
+
 /** Parse XML with `${prefix}: error parsing xml from ${context}` on failure. */
 export function parseXml<T>(
   xml: string,
