@@ -24,14 +24,33 @@ const SE_API = "https://api.stackexchange.com/2.3";
 
 type SortType = "activity" | "votes" | "creation" | "hot" | "week" | "month";
 
-const VALID_SORTS = new Set<SortType>([
-  "activity",
-  "votes",
-  "creation",
-  "hot",
-  "week",
-  "month",
-]);
+const SORT_TYPES: Record<string, SortType> = {
+  activity: "activity",
+  votes: "votes",
+  creation: "creation",
+  hot: "hot",
+  week: "week",
+  month: "month",
+};
+
+const SORT_ALIASES: Record<string, SortType> = {
+  active: "activity",
+  new: "creation",
+  newest: "creation",
+  recent: "creation",
+  score: "votes",
+  popular: "votes",
+  trending: "hot",
+  weekly: "week",
+  monthly: "month",
+};
+
+/** Map configured sort string (canonical name or alias) to Stack Exchange API sort. Unknown → hot. */
+export function resolveStackExchangeSort(sort: string): SortType {
+  const lower = sort.toLowerCase();
+  if (lower in SORT_TYPES) return SORT_TYPES[lower];
+  return SORT_ALIASES[lower] ?? "hot";
+}
 
 interface SEQuestion {
   question_id: number;
@@ -107,10 +126,7 @@ const adapter: Adapter = {
     const limit = clampAdapterLimit(config.params?.limit, 20, 100);
     const minScore = normalizeNonNegativeNumber(config.params?.min_score);
 
-    const sortLower = sort.toLowerCase();
-    const effectiveSort: SortType = VALID_SORTS.has(sortLower as SortType)
-      ? (sortLower as SortType)
-      : "hot";
+    const effectiveSort = resolveStackExchangeSort(sort);
 
     let questions: SEQuestion[];
     if (tags.length > 1) {

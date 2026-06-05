@@ -1,10 +1,34 @@
 import { describe, expect, spyOn, test } from "bun:test";
-import stackexchangeAdapter from "./adapters/stackexchange";
+import stackexchangeAdapter, { resolveStackExchangeSort } from "./adapters/stackexchange";
 import * as typesMod from "./adapters/types";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
 const mocks = useFetchMockSuite();
 const seCfg = (params: Record<string, unknown> = {}) => adapterCfg("stackexchange", params);
+
+describe("resolveStackExchangeSort", () => {
+  test.each([
+    ["hot", "hot"],
+    ["Hot", "hot"],
+    ["votes", "votes"],
+    ["activity", "activity"],
+    ["creation", "creation"],
+    ["week", "week"],
+    ["month", "month"],
+    ["active", "activity"],
+    ["new", "creation"],
+    ["newest", "creation"],
+    ["recent", "creation"],
+    ["score", "votes"],
+    ["popular", "votes"],
+    ["trending", "hot"],
+    ["weekly", "week"],
+    ["monthly", "month"],
+    ["invalid", "hot"],
+  ] as const)("maps %s → %s", (input, expected) => {
+    expect(resolveStackExchangeSort(input)).toBe(expected);
+  });
+});
 
 describe("stackexchange", () => {
   function makeQuestion(overrides: Partial<Record<string, unknown>> = {}) {
