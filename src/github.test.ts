@@ -4,49 +4,17 @@ import { FEED_XML_ACCEPT } from "./adapters/fetch";
 import * as utilsMod from "./utils";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 import { makeErrorResponse, makeJsonResponse, makeTextResponse } from "./test/fetch-responses";
+import {
+  githubReleasesAtomFeedFixture,
+  githubReleasesEntityEntryTitleFixture,
+  githubReleasesEntityFeedTitleFixture,
+  githubReleasesHtmlBodyFixture,
+  githubTrendingEntityHtmlFixture,
+  githubTrendingHtmlFixture,
+} from "./test/github-fixtures";
 
 const mocks = useFetchMockSuite();
 const githubCfg = (params: Record<string, unknown> = {}) => adapterCfg("github", params);
-
-const releasesXml = `<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom">
-  <entry>
-    <id>tag:github.com,2008:Repository/10270250/v19.0.0</id>
-    <title>Release v19.0.0</title>
-    <link rel="alternate" type="text/html" href="https://github.com/facebook/react/releases/tag/v19.0.0"/>
-    <updated>2024-12-01T12:00:00Z</updated>
-    <content type="html">&lt;p&gt;Bug fixes and new features in React 19.&lt;/p&gt;</content>
-  </entry>
-  <entry>
-    <id>tag:github.com,2008:Repository/10270250/v18.3.0</id>
-    <title>Release v18.3.0</title>
-    <link rel="alternate" type="text/html" href="https://github.com/facebook/react/releases/tag/v18.3.0"/>
-    <published>2024-06-01T00:00:00Z</published>
-    <content type="html">Minor updates.</content>
-  </entry>
-</feed>`;
-
-const trendingHtml = `
-<article class="Box-row">
-  <h2><a href="/vercel/next.js">vercel/next.js</a></h2>
-  <p class="col-9">The React Framework for the Web</p>
-  <span itemprop="programmingLanguage">TypeScript</span>
-  <svg class="octicon-star">star icon</svg>  123,456
-  <span>2,345 stars today</span>
-</article>
-<article class="Box-row">
-  <h2><a href="/owner/html-demo">owner/html-demo</a></h2>
-  <p class="col-9 color-fg-muted"><a href="/owner/html-demo">Tools &amp; &#39;kit&#39; for &#x42;uilders</a></p>
-  <span itemprop="programmingLanguage">Rust</span>
-  <svg class="octicon-star">star</svg>  1,000
-</article>
-<article class="Box-row">
-  <h2><a href="/facebook/react">facebook/react</a></h2>
-  <p class="col-9 something">A declarative JavaScript library</p>
-  <span itemprop="programmingLanguage">JavaScript</span>
-  <svg>octicon-star</svg>  987,654
-</article>
-`;
 
 describe("resolveGitHubPeriod", () => {
   test.each([
@@ -88,7 +56,7 @@ describe("github", () => {
   test("trims whitespace from configured owner/repo strings in releases mode", async () => {
     mocks.fetchMock.mockImplementation(async (url: string) => {
       if (String(url).includes("releases.atom")) {
-        return makeTextResponse(releasesXml);
+        return makeTextResponse(githubReleasesAtomFeedFixture());
       }
       if (String(url).includes("api.github.com/repos/")) {
         return makeJsonResponse({ description: "" });
@@ -112,7 +80,7 @@ describe("github", () => {
   test("sends FEED_XML_ACCEPT when fetching releases.atom", async () => {
     mocks.fetchMock.mockImplementation(async (url: string) => {
       if (String(url).includes("releases.atom")) {
-        return makeTextResponse(releasesXml);
+        return makeTextResponse(githubReleasesAtomFeedFixture());
       }
       if (String(url).includes("api.github.com/repos/")) {
         return makeJsonResponse({ description: "" });
@@ -141,7 +109,7 @@ describe("github", () => {
   test("trims whitespace from configured mode", async () => {
     mocks.fetchMock.mockImplementation(async (url: string) => {
       if (String(url).includes("trending")) {
-        return makeTextResponse(trendingHtml);
+        return makeTextResponse(githubTrendingHtmlFixture());
       }
       throw new Error("unexpected url in test");
     });
@@ -164,7 +132,7 @@ describe("github", () => {
   test("omits Authorization on repo meta when token is whitespace-only", async () => {
     mocks.fetchMock.mockImplementation(async (url: string) => {
       if (String(url).includes("releases.atom")) {
-        return makeTextResponse(releasesXml);
+        return makeTextResponse(githubReleasesAtomFeedFixture());
       }
       if (String(url).includes("api.github.com/repos/")) {
         return makeJsonResponse({ description: "" });
@@ -187,7 +155,7 @@ describe("github", () => {
   test("trims configured token for repo meta Authorization header", async () => {
     mocks.fetchMock.mockImplementation(async (url: string) => {
       if (String(url).includes("releases.atom")) {
-        return makeTextResponse(releasesXml);
+        return makeTextResponse(githubReleasesAtomFeedFixture());
       }
       if (String(url).includes("api.github.com/repos/")) {
         return makeJsonResponse({ description: "" });
@@ -214,7 +182,7 @@ describe("github", () => {
   test("fetches releases for repos, parses atom, maps items with correct fields, id, source, body stripped, timestamp", async () => {
     mocks.fetchMock.mockImplementation(async (url: string) => {
       if (String(url).includes("releases.atom")) {
-        return makeTextResponse(releasesXml);
+        return makeTextResponse(githubReleasesAtomFeedFixture());
       }
       if (String(url).includes("api.github.com/repos/")) {
         return makeJsonResponse({
@@ -246,7 +214,7 @@ describe("github", () => {
       if (String(url).includes("api.github.com/repos/")) {
         return makeJsonResponse({ description: "" });
       }
-      return makeTextResponse(releasesXml);
+      return makeTextResponse(githubReleasesAtomFeedFixture());
     });
 
     const items = await adapter.fetch(
@@ -257,18 +225,9 @@ describe("github", () => {
   });
 
   test("decodes HTML entities in releases atom feed title for source", async () => {
-    const entityFeedTitleXml = `<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom">
-  <title>Release &amp; Notes &#8364;</title>
-  <entry>
-    <title>v1.0.0</title>
-    <link rel="alternate" type="text/html" href="https://github.com/acme/pkg/releases/tag/v1.0.0"/>
-    <updated>2024-12-01T12:00:00Z</updated>
-  </entry>
-</feed>`;
     mocks.fetchMock.mockImplementation(async (url: string) => {
       if (String(url).includes("releases.atom")) {
-        return makeTextResponse(entityFeedTitleXml);
+        return makeTextResponse(githubReleasesEntityFeedTitleFixture());
       }
       return makeErrorResponse(404);
     });
@@ -284,17 +243,9 @@ describe("github", () => {
   });
 
   test("decodes HTML entities in releases atom entry title", async () => {
-    const entityTitleXml = `<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom">
-  <entry>
-    <title>Rock &amp; Roll &#8364;</title>
-    <link rel="alternate" type="text/html" href="https://github.com/acme/pkg/releases/tag/v1.0.0"/>
-    <updated>2024-12-01T12:00:00Z</updated>
-  </entry>
-</feed>`;
     mocks.fetchMock.mockImplementation(async (url: string) => {
       if (String(url).includes("releases.atom")) {
-        return makeTextResponse(entityTitleXml);
+        return makeTextResponse(githubReleasesEntityEntryTitleFixture());
       }
       return makeErrorResponse(404);
     });
@@ -310,18 +261,9 @@ describe("github", () => {
   });
 
   test("releases atom body uses FEED_BODY_STRIP_OPTIONS (tags, links, entities)", async () => {
-    const htmlReleaseXml = `<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom">
-  <entry>
-    <title>v1.0.0</title>
-    <link rel="alternate" type="text/html" href="https://github.com/acme/pkg/releases/tag/v1.0.0"/>
-    <updated>2024-12-01T12:00:00Z</updated>
-    <content type="html">&lt;p&gt;See &lt;a href="https://docs.example.com"&gt;docs&lt;/a&gt; for &#65; details&lt;/p&gt;</content>
-  </entry>
-</feed>`;
     mocks.fetchMock.mockImplementation(async (url: string) => {
       if (String(url).includes("releases.atom")) {
-        return makeTextResponse(htmlReleaseXml);
+        return makeTextResponse(githubReleasesHtmlBodyFixture());
       }
       return makeErrorResponse(404);
     });
@@ -339,7 +281,7 @@ describe("github", () => {
   test("releases without repo meta still return items when api.github.com fails", async () => {
     mocks.fetchMock.mockImplementation(async (url: string) => {
       if (String(url).includes("releases.atom")) {
-        return makeTextResponse(releasesXml);
+        return makeTextResponse(githubReleasesAtomFeedFixture());
       }
       return makeErrorResponse(404);
     });
@@ -356,7 +298,7 @@ describe("github", () => {
   test("dedupes duplicate release urls when the same repo is listed twice", async () => {
     mocks.fetchMock.mockImplementation(async (url: string) => {
       if (String(url).includes("releases.atom")) {
-        return makeTextResponse(releasesXml);
+        return makeTextResponse(githubReleasesAtomFeedFixture());
       }
       if (String(url).includes("api.github.com/repos/")) {
         return makeJsonResponse({ description: "React" });
@@ -379,7 +321,7 @@ describe("github", () => {
   test("fetches trending with language and since, parses html, maps stars/gained/desc", async () => {
     mocks.fetchMock.mockImplementation(async (url: string) => {
       if (String(url).includes("trending")) {
-        return makeTextResponse(trendingHtml);
+        return makeTextResponse(githubTrendingHtmlFixture());
       }
       throw new Error("unexpected");
     });
@@ -401,14 +343,9 @@ describe("github", () => {
   });
 
   test("decodes HTML entities in trending repo name/title", async () => {
-    const entityTrendingHtml = `
-<article class="Box-row">
-  <h2><a href="/acme/lib&amp;tools">acme / lib&amp;tools</a></h2>
-  <p class="col-9">A &amp; &#8364; toolkit</p>
-  <span itemprop="programmingLanguage">TypeScript</span>
-  <svg class="octicon-star">star</svg>  500
-</article>`;
-    mocks.fetchMock.mockImplementation(async () => makeTextResponse(entityTrendingHtml));
+    mocks.fetchMock.mockImplementation(async () =>
+      makeTextResponse(githubTrendingEntityHtmlFixture()),
+    );
 
     const items = await adapter.fetch(githubCfg({ mode: "trending", limit: 5 }));
 
@@ -422,7 +359,7 @@ describe("github", () => {
   });
 
   test("trending default (no lang, daily) works and respects limit", async () => {
-    mocks.fetchMock.mockImplementation(async () => makeTextResponse(trendingHtml));
+    mocks.fetchMock.mockImplementation(async () => makeTextResponse(githubTrendingHtmlFixture()));
 
     const items = await adapter.fetch(githubCfg({ mode: "trending", limit: 1 }));
 
@@ -431,7 +368,7 @@ describe("github", () => {
   });
 
   test("trims whitespace from configured trending language", async () => {
-    mocks.fetchMock.mockImplementation(async () => makeTextResponse(trendingHtml));
+    mocks.fetchMock.mockImplementation(async () => makeTextResponse(githubTrendingHtmlFixture()));
 
     await adapter.fetch(
       githubCfg({ mode: "trending", language: "  typescript  ", limit: 1 }),
@@ -443,7 +380,7 @@ describe("github", () => {
   });
 
   test("whitespace-only trending language omits language path", async () => {
-    mocks.fetchMock.mockImplementation(async () => makeTextResponse(trendingHtml));
+    mocks.fetchMock.mockImplementation(async () => makeTextResponse(githubTrendingHtmlFixture()));
 
     const items = await adapter.fetch(
       githubCfg({ mode: "trending", language: "   ", limit: 1 }),
@@ -456,7 +393,7 @@ describe("github", () => {
   });
 
   test("trims whitespace from configured since", async () => {
-    mocks.fetchMock.mockImplementation(async () => makeTextResponse(trendingHtml));
+    mocks.fetchMock.mockImplementation(async () => makeTextResponse(githubTrendingHtmlFixture()));
 
     await adapter.fetch(
       githubCfg({ mode: "trending", since: "  weekly  ", limit: 1 }),
@@ -467,7 +404,7 @@ describe("github", () => {
   });
 
   test("whitespace-only since defaults to daily", async () => {
-    mocks.fetchMock.mockImplementation(async () => makeTextResponse(trendingHtml));
+    mocks.fetchMock.mockImplementation(async () => makeTextResponse(githubTrendingHtmlFixture()));
 
     await adapter.fetch(githubCfg({ mode: "trending", since: "   ", limit: 1 }));
 
@@ -476,7 +413,7 @@ describe("github", () => {
   });
 
   test("invalid since defaults to daily", async () => {
-    mocks.fetchMock.mockImplementation(async () => makeTextResponse(trendingHtml));
+    mocks.fetchMock.mockImplementation(async () => makeTextResponse(githubTrendingHtmlFixture()));
 
     await adapter.fetch(
       githubCfg({ mode: "trending", since: "INVALID", limit: 1 }),
