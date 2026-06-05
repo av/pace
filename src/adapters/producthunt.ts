@@ -3,8 +3,6 @@ import {
   extractFeedEntryTitle,
   extractFeedItemBody,
   extractFeedRootTitle,
-  parseFeedXml,
-  normalizeXmlList,
   type AtomLinkField,
   type FeedItemBodyFields,
   type XmlTextField,
@@ -17,7 +15,7 @@ import {
 } from "../utils";
 import { fetchAllBatched } from "./merge";
 import {
-  FEED_XML_ACCEPT,
+  fetchAtomFeed,
   fetchText,
   HN_ITEM_FETCH_TIMEOUT_MS,
   warnOptionalFetchFailure,
@@ -201,15 +199,14 @@ async function fetchProductHuntFeed(): Promise<{
     timestamp: Date;
   }>;
 }> {
-  const xml = await fetchText("producthunt", PH_FEED_URL, "feed", {
-    accept: FEED_XML_ACCEPT,
-  });
-
-  const parsed = parseFeedXml<PHAtomFeedParsed>(xml, "producthunt", PH_FEED_URL);
+  const { parsed, entries } = await fetchAtomFeed<PHEntry, PHAtomFeedParsed>(
+    "producthunt",
+    PH_FEED_URL,
+    "feed",
+  );
   const feedTitle = decodeNumericFeedTitle(
     extractFeedRootTitle(undefined, parsed.feed?.title) ?? "producthunt",
   );
-  const entries = normalizeXmlList(parsed.feed?.entry);
 
   if (entries.length === 0) {
     console.warn("producthunt: no entries found in feed");

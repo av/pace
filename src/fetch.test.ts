@@ -5,6 +5,7 @@ import {
   DEFAULT_FETCH_TIMEOUT_MS,
   FEED_FETCH_TIMEOUT_MS,
   FEED_XML_ACCEPT,
+  fetchAtomFeed,
   fetchJson,
   fetchText,
   fetchWithTimeout,
@@ -159,6 +160,79 @@ describe("fetchText", () => {
     await expect(fetchText("rss", "https://example.com/feed.xml")).rejects.toThrow(
       "rss: error reading https://example.com/feed.xml: stream truncated",
     );
+  });
+});
+
+describe("fetchAtomFeed", () => {
+  test("fetches with FEED_XML_ACCEPT, parses feed, and normalizes entries", async () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Test Feed</title>
+  <entry><id>e1</id><title>One</title></entry>
+  <entry><id>e2</id><title>Two</title></entry>
+</feed>`;
+    mocks.fetchMock.mockResolvedValue(new Response(xml, { status: 200 }));
+
+    const { parsed, entries } = await fetchAtomFeed<
+      { id: string; title: string },
+      { feed?: { title?: string; entry?: { id: string; title: string } | { id: string; title: string }[] } }
+    >("youtube", "https://example.com/feed.xml", "test feed");
+
+    expect(entries).toEqual([
+      { id: "e1", title: "One" },
+      { id: "e2", title: "Two" },
+    ]);
+    expect(parsed.feed?.title).toBe("Test Feed");
+
+    const headers = (mocks.fetchMock.mock.calls[0][1] as RequestInit).headers as Record<
+      string,
+      string
+    >;
+    expect(headers.Accept).toBe(FEED_XML_ACCEPT);
+  });
+
+  test("normalizes a single entry to a one-element array", async () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <entry><id>only</id></entry>
+</feed>`;
+    mocks.fetchMock.mockResolvedValue(new Response(xml, { status: 200 }));
+
+    const { entries } = await fetchAtomFeed<{ id: string }, { feed?: { entry?: { id: string } } }>(
+      "arxiv",
+      "https://example.com/query",
+    );
+
+    expect(entries).toEqual([{ id: "only" }]);
+  });
+
+  test("forwards fetch options such as timeoutMs", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      new Response('<feed xmlns="http://www.w3.org/2005/Atom"></feed>', { status: 200 }),
+    );
+
+    await fetchAtomFeed("arxiv", "https://example.com/query", "query", {
+      timeoutMs: ARXIV_FETCH_TIMEOUT_MS,
+    });
+
+    const [, init] = mocks.fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.signal).toBeDefined();
+  });
+
+  test("throws on malformed XML with adapter prefix", async () => {
+    mocks.fetchMock.mockResolvedValue(new Response("<?xml><invalid>not closed", { status: 200 }));
+
+    await expect(
+      fetchAtomFeed("youtube", "https://example.com/feed.xml"),
+    ).rejects.toThrow(/youtube: error parsing xml from/);
+  });
+
+  test("throws failed to fetch on non-2xx HTTP", async () => {
+    mocks.fetchMock.mockResolvedValue(new Response("Not Found", { status: 404 }));
+
+    await expect(
+      fetchAtomFeed("arxiv", "https://example.com/query", "query"),
+    ).rejects.toThrow(/^arxiv: failed to fetch query: HTTP error 404$/);
   });
 });
 

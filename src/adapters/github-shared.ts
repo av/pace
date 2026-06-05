@@ -8,14 +8,12 @@ import {
   extractFeedEntryTitle,
   extractFeedItemBody,
   extractFeedRootTitle,
-  normalizeXmlList,
-  parseFeedXml,
   type AtomLinkField,
   type FeedItemBodyFields,
   type XmlTextField,
 } from "./atom";
 import { parseFeedDate } from "./dates";
-import { FEED_XML_ACCEPT, fetchJson, fetchText, buildGitHubApiHeaders } from "./fetch";
+import { fetchAtomFeed, fetchJson, buildGitHubApiHeaders } from "./fetch";
 import { fetchRepoTagline } from "./github-repo-meta";
 import { decodeNumericFeedTitle, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
 import { fetchAllParallel, fetchAllParallelDedupe } from "./merge";
@@ -90,16 +88,15 @@ export async function fetchGitHubAtomReleases(
 ): Promise<ContentItem[]> {
   const url = `https://github.com/${repo}/releases.atom`;
 
-  const xml = await fetchText(adapterName, url, `releases for ${repo}`, {
-    accept: FEED_XML_ACCEPT,
-  });
-
-  const parsed = parseFeedXml<GHAtomFeedParsed>(xml, adapterName, url);
+  const { parsed, entries } = await fetchAtomFeed<GHAtomEntry, GHAtomFeedParsed>(
+    adapterName,
+    url,
+    `releases for ${repo}`,
+  );
   const feedTitle = extractFeedRootTitle(undefined, parsed.feed?.title);
   const source = feedTitle
     ? `github:${decodeNumericFeedTitle(feedTitle)}`
     : `github:${repo}`;
-  const entries = normalizeXmlList(parsed.feed?.entry);
   const tagline = await fetchRepoTagline(repo, adapterName, token);
 
   const items: ContentItem[] = [];

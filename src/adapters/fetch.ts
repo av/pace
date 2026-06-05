@@ -1,6 +1,7 @@
 /** Shared adapter HTTP helpers. Timeouts: DEFAULT 15s, HN_ITEM 10s, FEED 20s, ARXIV 30s.
  *  Errors: `${prefix}: failed to fetch` (non-2xx), `error fetching` (transport), `error reading` (body).
  *  Rethrow `failed to fetch` in outer catches; see `Adapter.fetch` in types.ts. */
+import { normalizeXmlList, parseFeedXml, type XmlTextField } from "./atom";
 import { errorMessage } from "./types";
 
 export const PACE_USER_AGENT = "pace/1.0";
@@ -108,6 +109,28 @@ export async function fetchJson<T>(
   options: FetchWithTimeoutOptions = {},
 ): Promise<T> {
   return fetchBody(prefix, url, context, options, async (res) => (await res.json()) as T);
+}
+
+export type AtomFeedShape<TEntry> = {
+  feed?: {
+    title?: XmlTextField;
+    entry?: TEntry | TEntry[];
+  };
+};
+
+/** Fetch Atom/XML feed, parse, and normalize `feed.entry` list. */
+export async function fetchAtomFeed<TEntry, TParsed extends AtomFeedShape<TEntry>>(
+  prefix: string,
+  url: string,
+  context: string = url,
+  options: FetchWithTimeoutOptions = {},
+): Promise<{ parsed: TParsed; entries: TEntry[] }> {
+  const xml = await fetchText(prefix, url, context, {
+    accept: FEED_XML_ACCEPT,
+    ...options,
+  });
+  const parsed = parseFeedXml<TParsed>(xml, prefix, url);
+  return { parsed, entries: normalizeXmlList(parsed.feed?.entry) };
 }
 
 /**
