@@ -23,7 +23,7 @@ import {
   normalizeStringList,
   sliceToLimit,
 } from "../utils";
-import { dedupeByKey } from "./merge";
+import { fetchAllParallelDedupe } from "./merge";
 import { decodeNumericFeedTitle, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
 import { fetchRepoTagline } from "./github-repo-meta";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -244,11 +244,11 @@ const adapter: Adapter = {
     const token = normalizeOptionalString(
       config.params?.token as string | undefined,
     );
-    const results = await Promise.all(
-      repos.map((repo) => fetchReleasesFeed(repo, limit, token)),
+    const deduped = await fetchAllParallelDedupe(
+      repos,
+      (repo) => fetchReleasesFeed(repo, limit, token),
+      (item) => item.url || item.id,
     );
-
-    const deduped = dedupeByKey(results.flat(), (item) => item.url || item.id);
     deduped.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
     return sliceToLimit(deduped, limit * repos.length);

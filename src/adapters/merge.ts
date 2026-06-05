@@ -1,15 +1,33 @@
 import { compareIsoTimestamp } from "../utils";
 
 /** Fetch each key sequentially and concatenate results (multi-tag / multi-endpoint merge). */
-export async function fetchAndConcat<T>(
-  keys: readonly string[],
-  fetchOne: (key: string) => Promise<T[]>,
+export async function fetchAndConcat<T, K = string>(
+  keys: readonly K[],
+  fetchOne: (key: K) => Promise<T[]>,
 ): Promise<T[]> {
   const merged: T[] = [];
   for (const key of keys) {
     merged.push(...(await fetchOne(key)));
   }
   return merged;
+}
+
+/** Fetch each key in parallel and flatten results. */
+export async function fetchAllParallel<T, K>(
+  keys: readonly K[],
+  fetchOne: (key: K) => Promise<T[]>,
+): Promise<T[]> {
+  const results = await Promise.all(keys.map(fetchOne));
+  return results.flat();
+}
+
+/** Parallel fetch + dedupe by key (overlap when merging multiple sources). */
+export async function fetchAllParallelDedupe<T, K, DedupeKey>(
+  keys: readonly K[],
+  fetchOne: (key: K) => Promise<T[]>,
+  keyOf: (item: T) => DedupeKey,
+): Promise<T[]> {
+  return dedupeByKey(await fetchAllParallel(keys, fetchOne), keyOf);
 }
 
 /** Keep first occurrence per key (overlap when merging multiple tags/endpoints). */

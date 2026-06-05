@@ -19,7 +19,7 @@ import {
   normalizeStringList,
   sliceToLimit,
 } from "../utils";
-import { dedupeByKey } from "./merge";
+import { fetchAllParallelDedupe } from "./merge";
 import {
   decodeNumericFeedTitle,
   FEED_BODY_STRIP_OPTIONS,
@@ -288,10 +288,11 @@ const adapter: Adapter = {
       return [];
     }
 
-    const results = await Promise.all(
-      feeds.map((url) => fetchPodcastFeed(url, limit)),
+    return fetchAllParallelDedupe(
+      feeds,
+      (url) => fetchPodcastFeed(url, limit),
+      (item) => item.url || item.id,
     );
-    return dedupeByKey(results.flat(), (item) => item.url || item.id);
   },
 };
 

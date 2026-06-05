@@ -20,7 +20,7 @@ import {
   stripHtml,
 } from "./html";
 import { clampAdapterLimit, normalizeStringList, sliceToLimit } from "../utils";
-import { dedupeByKey } from "./merge";
+import { fetchAllParallelDedupe } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 interface YTEntry {
@@ -109,11 +109,15 @@ const adapter: Adapter = {
       return [];
     }
 
-    const results = await Promise.all([
-      ...channels.map((ch) => fetchYoutubeFeed("channel", ch, limit)),
-      ...playlists.map((pl) => fetchYoutubeFeed("playlist", pl, limit)),
-    ]);
-    return dedupeByKey(results.flat(), (item) => item.id);
+    const sources = [
+      ...channels.map((ch) => ["channel", ch] as const),
+      ...playlists.map((pl) => ["playlist", pl] as const),
+    ];
+    return fetchAllParallelDedupe(
+      sources,
+      ([kind, id]) => fetchYoutubeFeed(kind, id, limit),
+      (item) => item.id,
+    );
   },
 };
 

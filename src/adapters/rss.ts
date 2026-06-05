@@ -12,7 +12,7 @@ import {
 import { parseFeedDate } from "./dates";
 import { fetchText } from "./fetch";
 import { decodeNumericFeedTitle, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
-import { dedupeByKey } from "./merge";
+import { fetchAllParallelDedupe } from "./merge";
 import { extractHostname } from "../dedupe";
 import { normalizeStringList } from "../utils";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -103,8 +103,7 @@ const adapter: Adapter = {
       return [];
     }
 
-    const results = await Promise.all(urls.map(fetchFeed));
-    return dedupeByKey(results.flat(), (item) => item.url || item.id);
+    return fetchAllParallelDedupe(urls, fetchFeed, (item) => item.url || item.id);
   },
 };
 

@@ -3,6 +3,7 @@ import {
   normalizeOptionalString,
   normalizeStringList,
 } from "../utils";
+import { fetchAllParallel } from "./merge";
 import { buildGitHubApiHeaders, fetchJson } from "./fetch";
 import { fetchRepoTagline } from "./github-repo-meta";
 import { decodeNumericFeedTitle } from "./html";
@@ -64,10 +65,7 @@ const adapter: Adapter = {
       MAX_RELEASES_PER_PAGE,
     );
 
-    const results = await Promise.all(
-      repos.map((repo) => fetchRepoReleases(repo, perPage, token)),
-    );
-    return results.flat();
+    return fetchAllParallel(repos, (repo) => fetchRepoReleases(repo, perPage, token));
   },
 };
 
