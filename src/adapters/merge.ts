@@ -1,4 +1,4 @@
-import { compareIsoTimestamp } from "../utils";
+import { compareIsoTimestamp, sleep } from "../utils";
 
 /** Fetch each key sequentially and concatenate results (multi-tag / multi-endpoint merge). */
 export async function fetchAndConcat<T, K = string>(
@@ -19,6 +19,24 @@ export async function fetchAllParallel<T, K>(
 ): Promise<T[]> {
   const results = await Promise.all(keys.map(fetchOne));
   return results.flat();
+}
+
+/** Parallel fetch in fixed-size batches with optional delay between batches (rate limiting). */
+export async function fetchAllBatched<T, K>(
+  keys: readonly K[],
+  batchSize: number,
+  fetchOne: (key: K) => Promise<T>,
+  delayMs = 0,
+): Promise<T[]> {
+  const results: T[] = [];
+  for (let i = 0; i < keys.length; i += batchSize) {
+    const batch = keys.slice(i, i + batchSize);
+    results.push(...(await Promise.all(batch.map(fetchOne))));
+    if (delayMs > 0 && i + batchSize < keys.length) {
+      await sleep(delayMs);
+    }
+  }
+  return results;
 }
 
 /** Parallel fetch + dedupe by key (overlap when merging multiple sources). */

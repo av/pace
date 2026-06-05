@@ -13,9 +13,9 @@ import { parseFeedDate } from "./dates";
 import {
   clampAdapterLimit,
   normalizeNonNegativeNumber,
-  sleep,
   sliceToLimit,
 } from "../utils";
+import { fetchAllBatched } from "./merge";
 import {
   FEED_XML_ACCEPT,
   fetchText,
@@ -263,17 +263,14 @@ const adapter: Adapter = {
       console.warn(
         `producthunt: enriching ${items.length} items (this may take a moment)...`,
       );
-      for (let i = 0; i < items.length; i += ENRICH_BATCH_SIZE) {
-        const batch = items.slice(i, i + ENRICH_BATCH_SIZE);
-        const results = await Promise.all(
-          batch.map((item) => enrichProduct(item.url)),
-        );
-        for (let j = 0; j < batch.length; j++) {
-          enrichedMap.set(batch[j].id, results[j]);
-        }
-        if (i + ENRICH_BATCH_SIZE < items.length) {
-          await sleep(ENRICH_DELAY_MS);
-        }
+      const enrichResults = await fetchAllBatched(
+        items,
+        ENRICH_BATCH_SIZE,
+        (item) => enrichProduct(item.url),
+        ENRICH_DELAY_MS,
+      );
+      for (let i = 0; i < items.length; i++) {
+        enrichedMap.set(items[i].id, enrichResults[i]);
       }
     }
 
