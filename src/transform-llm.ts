@@ -1,7 +1,13 @@
 import type { Model, Api } from "@mariozechner/pi-ai";
 import type { TransformConfig, LlmConfig, TransformType } from "./config";
 import type { ContentItemRow } from "./db";
-import { contentRowToItem, contentItemToRow } from "./db";
+import {
+  contentRowToItem,
+  contentRowsToItems,
+  contentRowMapById,
+  filterRowsByItemIds,
+  contentItemsToRows,
+} from "./db";
 import { summarizeItem, lensItems, mergeItems, filterItemsByLlm } from "./llm";
 import { sortRowsByInputOrder } from "./transform-steps";
 
@@ -29,14 +35,22 @@ async function summarizeRows(model: Model<Api>, items: ContentItemRow[]): Promis
   return results;
 }
 
+function rowsInItemOrder(rows: ContentItemRow[], orderedItems: { id: string }[]): ContentItemRow[] {
+  const rowById = contentRowMapById(rows);
+  const order = orderedItems.flatMap((item) => {
+    const row = rowById.get(item.id);
+    return row ? [row] : [];
+  });
+  return sortRowsByInputOrder(rows, order);
+}
+
 async function filterRows(
   model: Model<Api>,
   items: ContentItemRow[],
   criteria: string
 ): Promise<ContentItemRow[]> {
-  const filtered = await filterItemsByLlm(model, items.map(contentRowToItem), criteria);
-  const keepIds = new Set(filtered.map((i) => i.id));
-  return items.filter((row) => keepIds.has(row.id));
+  const filtered = await filterItemsByLlm(model, contentRowsToItems(items), criteria);
+  return filterRowsByItemIds(items, filtered);
 }
 
 async function rankRows(
@@ -45,13 +59,8 @@ async function rankRows(
   interests: string[]
 ): Promise<ContentItemRow[]> {
   if (interests.length === 0) return items;
-  const ranked = await lensItems(model, items.map(contentRowToItem), interests);
-  const rowById = new Map(items.map((r) => [r.id, r]));
-  const order = ranked.flatMap((item) => {
-    const row = rowById.get(item.id);
-    return row ? [row] : [];
-  });
-  return sortRowsByInputOrder(items, order);
+  const ranked = await lensItems(model, contentRowsToItems(items), interests);
+  return rowsInItemOrder(items, ranked);
 }
 
 async function mergeRows(
@@ -59,13 +68,9 @@ async function mergeRows(
   items: ContentItemRow[],
   prompt?: string
 ): Promise<ContentItemRow[]> {
-  const merged = await mergeItems(model, items.map(contentRowToItem), prompt);
-  const rowMap = new Map<string, ContentItemRow>();
-  for (const row of items) rowMap.set(row.id, row);
-  return merged.map((item) => {
-    const baseRow = rowMap.get(item.id) ?? rowMap.get(item.id.split("+")[0]);
-    return contentItemToRow(item, baseRow);
-  });
+  const rowById = contentRowMapById(items);
+  const merged = await mergeItems(model, contentRowsToItems(items), prompt);
+  return contentItemsToRows(merged, rowById);
 }
 
 type LlmTransformType = Extract<TransformType, `llm-${string}`>;

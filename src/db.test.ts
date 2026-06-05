@@ -17,6 +17,10 @@ import {
   replacePanelItems,
   contentRowToItem,
   contentItemToRow,
+  contentRowsToItems,
+  contentRowMapById,
+  filterRowsByItemIds,
+  contentItemsToRows,
   type ContentItemRow,
 } from "./db";
 import * as utilsMod from "./utils";
@@ -508,4 +512,85 @@ test("contentItemToRow without base uses merged defaults", () => {
   expect(row.summary).toBeNull();
   expect(row.body).toBeNull();
   expect(row.timestamp).toBe("2024-05-01T00:00:00.000Z");
+});
+
+test("contentRowsToItems and contentRowMapById round-trip row collections", () => {
+  const rows: ContentItemRow[] = [
+    {
+      id: "a",
+      panel_id: "p1",
+      title: "A",
+      url: "https://ex.com/a",
+      source: "src",
+      body: null,
+      timestamp: "2024-06-01T12:00:00.000Z",
+      fetched_at: "2024-06-02T08:00:00.000Z",
+      summary: null,
+    },
+    {
+      id: "b",
+      panel_id: "p1",
+      title: "B",
+      url: "https://ex.com/b",
+      source: "src",
+      body: "body",
+      timestamp: "2024-06-01T13:00:00.000Z",
+      fetched_at: "2024-06-02T08:00:00.000Z",
+      summary: "sum",
+    },
+  ];
+  const items = contentRowsToItems(rows);
+  expect(items.map((item) => item.id)).toEqual(["a", "b"]);
+  expect(contentRowMapById(rows).get("b")?.title).toBe("B");
+});
+
+test("filterRowsByItemIds keeps rows matching item ids", () => {
+  const rows: ContentItemRow[] = [
+    {
+      id: "keep",
+      panel_id: "p1",
+      title: "Keep",
+      url: "https://ex.com/keep",
+      source: "src",
+      body: null,
+      timestamp: "2024-06-01T12:00:00.000Z",
+      fetched_at: "2024-06-02T08:00:00.000Z",
+      summary: null,
+    },
+    {
+      id: "drop",
+      panel_id: "p1",
+      title: "Drop",
+      url: "https://ex.com/drop",
+      source: "src",
+      body: null,
+      timestamp: "2024-06-01T12:00:00.000Z",
+      fetched_at: "2024-06-02T08:00:00.000Z",
+      summary: null,
+    },
+  ];
+  const kept = filterRowsByItemIds(rows, [{ id: "keep" }]);
+  expect(kept.map((row) => row.id)).toEqual(["keep"]);
+});
+
+test("contentItemsToRows inherits base row metadata and split id fallback", () => {
+  const base: ContentItemRow = {
+    id: "x",
+    panel_id: "panel-z",
+    title: "Base",
+    url: "https://ex.com/x",
+    source: "src",
+    body: null,
+    timestamp: "2024-06-01T12:00:00.000Z",
+    fetched_at: "2024-06-02T08:00:00.000Z",
+    summary: "base summary",
+  };
+  const rowById = contentRowMapById([base]);
+  const merged = contentItemsToRows(
+    [makeItem({ id: "x+y", title: "Merged", timestamp: new Date("2024-07-01T00:00:00.000Z") })],
+    rowById,
+  );
+  expect(merged[0].panel_id).toBe("panel-z");
+  expect(merged[0].summary).toBe("base summary");
+  expect(merged[0].title).toBe("Merged");
 });

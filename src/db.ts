@@ -268,3 +268,29 @@ export function contentItemToRow(item: ContentItem, base?: ContentItemRow): Cont
     summary: base?.summary ?? (item.body ?? null),
   };
 }
+
+export function contentRowsToItems(rows: readonly ContentItemRow[]): ContentItem[] {
+  return rows.map(contentRowToItem);
+}
+
+export function contentRowMapById(rows: readonly ContentItemRow[]): Map<string, ContentItemRow> {
+  return new Map(rows.map((row) => [row.id, row]));
+}
+
+export function filterRowsByItemIds(
+  rows: readonly ContentItemRow[],
+  items: Iterable<{ id: string }>,
+): ContentItemRow[] {
+  const keepIds = new Set([...items].map((item) => item.id));
+  return rows.filter((row) => keepIds.has(row.id));
+}
+
+export function contentItemsToRows(
+  items: readonly ContentItem[],
+  rowById: Map<string, ContentItemRow>,
+): ContentItemRow[] {
+  return items.map((item) => {
+    const baseRow = rowById.get(item.id) ?? rowById.get(item.id.split("+")[0]);
+    return contentItemToRow(item, baseRow);
+  });
+}
