@@ -8,6 +8,7 @@ import { joinTitle } from "./title";
 
 import { parseUnixEpochSeconds } from "./dates";
 import { fetchJson, HN_ITEM_FETCH_TIMEOUT_MS, warnOptionalFetchFailure } from "./fetch";
+import { fetchAllBatched } from "./merge";
 import { decodeNumericFeedTitleOptional } from "./html";
 import {
   normalizeNonNegativeNumber,
@@ -73,18 +74,6 @@ async function fetchItem(id: number): Promise<HNItem | null> {
   }
 }
 
-async function fetchInBatches(ids: number[]): Promise<HNItem[]> {
-  const results: HNItem[] = [];
-  for (let i = 0; i < ids.length; i += BATCH_SIZE) {
-    const batch = ids.slice(i, i + BATCH_SIZE);
-    const items = await Promise.all(batch.map(fetchItem));
-    for (const item of items) {
-      if (item) results.push(item);
-    }
-  }
-  return results;
-}
-
 function buildBody(item: HNItem): string {
   const hnLink = `https://news.ycombinator.com/item?id=${item.id}`;
   return joinTitle(
@@ -122,7 +111,9 @@ const adapter: Adapter = {
     const overfetchForMinScore =
       minScore > 0 ? Math.min(limit * 3, ids.length) : limit;
     const sliced = ids.slice(0, overfetchForMinScore);
-    const items = await fetchInBatches(sliced);
+    const items = (
+      await fetchAllBatched(sliced, BATCH_SIZE, fetchItem)
+    ).filter((item): item is HNItem => item !== null);
 
     const filtered = minScore > 0
       ? items.filter((item) => (item.score ?? 0) >= minScore)
