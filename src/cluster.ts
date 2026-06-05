@@ -49,15 +49,6 @@ interface ClusterItemSignals {
 
 export type ClusterTransformConfig = Extract<TransformConfig, { type: "cluster" }>;
 
-function topMapEntry<T>(counts: Map<T, number>): [T, number] | undefined {
-  if (counts.size === 0) return undefined;
-  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
-}
-
-function incrementCount(counts: Map<string, number>, key: string): void {
-  counts.set(key, (counts.get(key) ?? 0) + 1);
-}
-
 function formatClusterDomainLabel(domain: string): string {
   const mapped = CLUSTER_DOMAIN_LABELS[domain];
   if (mapped) return mapped;
@@ -65,29 +56,31 @@ function formatClusterDomainLabel(domain: string): string {
   return base.charAt(0).toUpperCase() + base.slice(1);
 }
 
+function tallyCounts(
+  indices: number[],
+  getKeys: (idx: number) => Iterable<string | undefined>
+): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const idx of indices) {
+    for (const key of getKeys(idx)) {
+      if (key) counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+  }
+  return counts;
+}
+
 function getMajorityClusterLabel<T extends string>(
   counts: Map<T, number>,
   total: number,
   format?: (key: T) => string
 ): string | undefined {
-  const top = topMapEntry(counts);
-  if (top && top[1] >= total * 0.6) {
+  if (counts.size === 0) return undefined;
+  const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
+  if (top[1] >= total * 0.6) {
     const key = top[0];
     return format ? format(key) : key;
   }
   return undefined;
-}
-
-function tallyFromIndices(
-  counts: Map<string, number>,
-  indices: number[],
-  getKeys: (idx: number) => Iterable<string | undefined>
-): void {
-  for (const idx of indices) {
-    for (const key of getKeys(idx)) {
-      if (key) incrementCount(counts, key);
-    }
-  }
 }
 
 function getTopKeywordsClusterLabel(counts: Map<string, number>, total: number): string | undefined {
@@ -106,21 +99,23 @@ function generateClusterLabel(
   signals: ClusterItemSignals[],
   clusterCount: number
 ): string {
-  const domainCounts = new Map<string, number>();
-  const keywordCounts = new Map<string, number>();
-
-  tallyFromIndices(domainCounts, indices, (idx) => [signals[idx].domain]);
-  tallyFromIndices(keywordCounts, indices, (idx) => signals[idx].keywords);
-
-  const domainLabel = getMajorityClusterLabel(domainCounts, indices.length, formatClusterDomainLabel);
+  const domainLabel = getMajorityClusterLabel(
+    tallyCounts(indices, (idx) => [signals[idx].domain]),
+    indices.length,
+    formatClusterDomainLabel
+  );
   if (domainLabel) return domainLabel;
 
-  const kwLabel = getTopKeywordsClusterLabel(keywordCounts, indices.length);
+  const kwLabel = getTopKeywordsClusterLabel(
+    tallyCounts(indices, (idx) => signals[idx].keywords),
+    indices.length
+  );
   if (kwLabel) return kwLabel;
 
-  const sourceCounts = new Map<string, number>();
-  tallyFromIndices(sourceCounts, indices, (idx) => [signals[idx].source]);
-  const sourceLabel = getMajorityClusterLabel(sourceCounts, indices.length);
+  const sourceLabel = getMajorityClusterLabel(
+    tallyCounts(indices, (idx) => [signals[idx].source]),
+    indices.length
+  );
   if (sourceLabel) return sourceLabel;
 
   return `Cluster ${clusterCount + 1}`;
