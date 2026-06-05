@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { ADAPTER_TYPES } from "./params";
 import type { Adapter } from "./types";
 import arxivAdapter from "./arxiv";
 import devtoAdapter from "./devto";
@@ -39,6 +40,13 @@ const BUILTIN_ADAPTERS: ReadonlyArray<readonly [string, Adapter]> = [
 ];
 
 describe("builtin adapter contract", () => {
+  test("ADAPTER_PARAM_KEYS covers every built-in adapter (no config drift)", () => {
+    const builtinNames = BUILTIN_ADAPTERS.map(([name]) => name).sort();
+    const paramTypes = [...ADAPTER_TYPES].sort();
+    expect(paramTypes).toEqual(builtinNames);
+    expect(ADAPTER_TYPES).toHaveLength(BUILTIN_ADAPTERS.length);
+  });
+
   test("each built-in adapter has trimmed name and fetch", () => {
     for (const [expectedName, adapter] of BUILTIN_ADAPTERS) {
       expect(adapter.name).toBe(expectedName);

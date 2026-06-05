@@ -1,6 +1,7 @@
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import yaml from "js-yaml";
+import { ADAPTER_PARAM_KEYS, isAdapterType } from "./adapters/params";
 import type { AdapterConfig } from "./adapters/types";
 import { errorMessage, getAdapterName } from "./utils";
 
@@ -707,33 +708,13 @@ function validateTopLevelKeys(config: Record<string, unknown>): void {
   validateAllowedKeys(config, TOP_LEVEL_CONFIG_FIELDS, (key) => `${key} is not a valid top-level field`);
 }
 
-const ADAPTER_PARAM_KEYS: Readonly<Record<string, readonly string[]>> = {
-  hackernews: ["type", "feed", "stories", "limit", "min_score"],
-  lobsters: ["feed", "limit", "min_score", "tags"],
-  rss: ["urls"],
-  reddit: ["subreddits", "sort", "limit", "min_score", "time"],
-  github: ["mode", "language", "since", "limit", "repos", "token"],
-  "github-releases": ["repos", "token", "limit"],
-  devto: ["tags", "username", "limit", "per_page", "min_reactions", "top"],
-  mastodon: ["instance", "hashtags", "accounts", "limit", "min_favourites", "only_media"],
-  youtube: ["channels", "playlists", "limit"],
-  arxiv: ["categories", "query", "limit"],
-  stackexchange: ["site", "tags", "sort", "limit", "min_score"],
-  producthunt: ["limit", "min_upvotes", "enrich"],
-  podcast: ["feeds", "limit"],
-  twitter: ["lists", "searches", "bearer_token"],
-  npm: ["keywords", "scope", "limit", "sort"],
-  lemmy: ["instance", "communities", "sort", "limit", "min_score"],
-  wikipedia: ["modes", "mode", "language", "limit"],
-};
-
 function validateAdapterParams(
   type: string,
   params: Record<string, unknown>,
   path: string,
 ): void {
+  if (!isAdapterType(type)) return;
   const allowed = ADAPTER_PARAM_KEYS[type];
-  if (!allowed) return;
   validateAllowedKeys(params, allowed, (key) => `${path}.params.${key} is not a valid ${type} param`);
 }
 
