@@ -1,7 +1,6 @@
 import { clampAdapterLimit } from "../utils";
-import { fetchAllParallel } from "./merge";
 import {
-  fetchGitHubApiReleases,
+  fetchGitHubReposReleases,
   resolveGitHubRepos,
 } from "./github-shared";
 import type { Adapter, AdapterConfig } from "./types";
@@ -22,9 +21,7 @@ const adapter: Adapter = {
       MAX_RELEASES_PER_PAGE,
     );
 
-    return fetchAllParallel(resolved.repos, (repo) =>
-      fetchGitHubApiReleases(repo, perPage, ADAPTER_NAME, resolved.token),
-    );
+    return fetchGitHubReposReleases(resolved, "api", perPage, ADAPTER_NAME);
   },
 };
 

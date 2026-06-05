@@ -1,32 +1,18 @@
 import {
-  extractAtomLink,
-  extractFeedEntryTitle,
-  extractFeedItemBody,
-  extractFeedRootTitle,
-  parseFeedXml,
-  normalizeXmlList,
-  type AtomLinkField,
-  type FeedItemBodyFields,
-  type XmlTextField,
-} from "./atom";
-import { parseFeedDate } from "./dates";
-import {
   formatLanguage,
   formatStars,
 } from "./engagement";
 import { joinTitle, joinTitleWithTagline } from "./title";
 
-import { FEED_FETCH_TIMEOUT_MS, FEED_XML_ACCEPT, fetchText } from "./fetch";
+import { FEED_FETCH_TIMEOUT_MS, fetchText } from "./fetch";
 import {
   clampAdapterLimit,
   normalizeParamString,
   sliceToLimit,
 } from "../utils";
-import { fetchAllParallelDedupe } from "./merge";
 import { decodeNumericFeedTitle, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
-import { fetchRepoTagline } from "./github-repo-meta";
 import {
-  formatGitHubReleaseDisplayTitle,
+  fetchGitHubReposReleases,
   resolveGitHubRepos,
 } from "./github-shared";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -35,77 +21,8 @@ type TrendingPeriod = "daily" | "weekly" | "monthly";
 
 const VALID_PERIODS = new Set<TrendingPeriod>(["daily", "weekly", "monthly"]);
 
-interface GHAtomEntry extends FeedItemBodyFields {
-  id?: string;
-  title?: XmlTextField;
-  link?: AtomLinkField;
-  updated?: string;
-  published?: string;
-}
-
-interface GHAtomFeedParsed {
-  feed?: {
-    title?: XmlTextField;
-    entry?: GHAtomEntry | GHAtomEntry[];
-  };
-}
-
-async function fetchReleasesFeed(
-  repo: string,
-  limit: number,
-  token?: string,
-): Promise<ContentItem[]> {
-  const url = `https://github.com/${repo}/releases.atom`;
-
-  const xml = await fetchText("github", url, `releases for ${repo}`, {
-    accept: FEED_XML_ACCEPT,
-  });
-
-  const parsed = parseFeedXml<GHAtomFeedParsed>(xml, "github", url);
-  const feedTitle = extractFeedRootTitle(undefined, parsed.feed?.title);
-  const source = feedTitle
-    ? `github:${decodeNumericFeedTitle(feedTitle)}`
-    : `github:${repo}`;
-  const entries = normalizeXmlList(parsed.feed?.entry);
-  const tagline = await fetchRepoTagline(repo, "github", token);
-
-  const items: ContentItem[] = [];
-
-  for (const entry of sliceToLimit(entries, limit)) {
-    const link = extractAtomLink(entry.link);
-    const timestamp = parseFeedDate(entry.updated ?? entry.published ?? "");
-
-    const tagMatch = link.match(/\/releases\/tag\/(.+)$/);
-    const tag = tagMatch ? tagMatch[1] : "";
-
-    const rawBody = extractFeedItemBody(entry);
-    const body = rawBody
-      ? stripHtml(rawBody, FEED_BODY_STRIP_OPTIONS).slice(0, 500)
-      : undefined;
-
-    const rawTitle = extractFeedEntryTitle(entry.title, "(untitled release)");
-    const displayTitle = formatGitHubReleaseDisplayTitle(
-      repo,
-      { tag, title: rawTitle },
-      tagline,
-    );
-    const title = decodeNumericFeedTitle(rawTitle);
-
-    items.push({
-      id: `github:${repo}:${tag || title}`,
-      title: displayTitle,
-      url: link || `https://github.com/${repo}/releases`,
-      source,
-      timestamp,
-      body,
-    });
-  }
-
-  return items;
-}
-
 interface TrendingRepo {
-  name: string;        // "owner/repo"
+  name: string;
   description: string;
   language: string;
   stars: number;
@@ -204,7 +121,7 @@ async function fetchTrending(
       ),
       url: repo.url,
       source: language ? `github:trending:${language}` : "github:trending",
-      timestamp: new Date(), // trending has no specific timestamp
+      timestamp: new Date(),
       body: body || undefined,
     };
   });
@@ -229,14 +146,7 @@ const adapter: Adapter = {
     const resolved = resolveGitHubRepos(config.params, "github");
     if (!resolved) return [];
 
-    const deduped = await fetchAllParallelDedupe(
-      resolved.repos,
-      (repo) => fetchReleasesFeed(repo, limit, resolved.token),
-      (item) => item.url || item.id,
-    );
-    deduped.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-
-    return sliceToLimit(deduped, limit * resolved.repos.length);
+    return fetchGitHubReposReleases(resolved, "atom", limit, "github");
   },
 };
 

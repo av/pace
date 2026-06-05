@@ -1,10 +1,24 @@
 import {
   normalizeParamString,
   normalizeParamStringList,
+  sliceToLimit,
 } from "../utils";
-import { buildGitHubApiHeaders, fetchJson } from "./fetch";
+import {
+  extractAtomLink,
+  extractFeedEntryTitle,
+  extractFeedItemBody,
+  extractFeedRootTitle,
+  normalizeXmlList,
+  parseFeedXml,
+  type AtomLinkField,
+  type FeedItemBodyFields,
+  type XmlTextField,
+} from "./atom";
+import { parseFeedDate } from "./dates";
+import { FEED_XML_ACCEPT, fetchJson, fetchText, buildGitHubApiHeaders } from "./fetch";
 import { fetchRepoTagline } from "./github-repo-meta";
-import { decodeNumericFeedTitle } from "./html";
+import { decodeNumericFeedTitle, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
+import { fetchAllParallel, fetchAllParallelDedupe } from "./merge";
 import { joinTitleWithTagline } from "./title";
 import type { ContentItem } from "./types";
 
@@ -20,6 +34,23 @@ export interface GitHubRelease {
 export interface GitHubReposConfig {
   repos: string[];
   token: string | undefined;
+}
+
+export type GitHubReleasesSource = "atom" | "api";
+
+interface GHAtomEntry extends FeedItemBodyFields {
+  id?: string;
+  title?: XmlTextField;
+  link?: AtomLinkField;
+  updated?: string;
+  published?: string;
+}
+
+interface GHAtomFeedParsed {
+  feed?: {
+    title?: XmlTextField;
+    entry?: GHAtomEntry | GHAtomEntry[];
+  };
 }
 
 /** Shared repos/token parsing for github and github-releases adapters. */
@@ -51,6 +82,61 @@ export function formatGitHubReleaseDisplayTitle(
   return joinTitleWithTagline(releaseTitle, tagline);
 }
 
+export async function fetchGitHubAtomReleases(
+  repo: string,
+  limit: number,
+  adapterName: string,
+  token?: string,
+): Promise<ContentItem[]> {
+  const url = `https://github.com/${repo}/releases.atom`;
+
+  const xml = await fetchText(adapterName, url, `releases for ${repo}`, {
+    accept: FEED_XML_ACCEPT,
+  });
+
+  const parsed = parseFeedXml<GHAtomFeedParsed>(xml, adapterName, url);
+  const feedTitle = extractFeedRootTitle(undefined, parsed.feed?.title);
+  const source = feedTitle
+    ? `github:${decodeNumericFeedTitle(feedTitle)}`
+    : `github:${repo}`;
+  const entries = normalizeXmlList(parsed.feed?.entry);
+  const tagline = await fetchRepoTagline(repo, adapterName, token);
+
+  const items: ContentItem[] = [];
+
+  for (const entry of sliceToLimit(entries, limit)) {
+    const link = extractAtomLink(entry.link);
+    const timestamp = parseFeedDate(entry.updated ?? entry.published ?? "");
+
+    const tagMatch = link.match(/\/releases\/tag\/(.+)$/);
+    const tag = tagMatch ? tagMatch[1] : "";
+
+    const rawBody = extractFeedItemBody(entry);
+    const body = rawBody
+      ? stripHtml(rawBody, FEED_BODY_STRIP_OPTIONS).slice(0, 500)
+      : undefined;
+
+    const rawTitle = extractFeedEntryTitle(entry.title, "(untitled release)");
+    const displayTitle = formatGitHubReleaseDisplayTitle(
+      repo,
+      { tag, title: rawTitle },
+      tagline,
+    );
+    const title = decodeNumericFeedTitle(rawTitle);
+
+    items.push({
+      id: `github:${repo}:${tag || title}`,
+      title: displayTitle,
+      url: link || `https://github.com/${repo}/releases`,
+      source,
+      timestamp,
+      body,
+    });
+  }
+
+  return items;
+}
+
 export async function fetchGitHubApiReleases(
   repo: string,
   perPage: number,
@@ -70,4 +156,26 @@ export async function fetchGitHubApiReleases(
     timestamp: new Date(r.published_at),
     body: r.body ?? undefined,
   }));
+}
+
+/** Fetch releases for multiple repos via atom feed or GitHub API. */
+export async function fetchGitHubReposReleases(
+  resolved: GitHubReposConfig,
+  source: GitHubReleasesSource,
+  limit: number,
+  adapterName: string,
+): Promise<ContentItem[]> {
+  if (source === "api") {
+    return fetchAllParallel(resolved.repos, (repo) =>
+      fetchGitHubApiReleases(repo, limit, adapterName, resolved.token),
+    );
+  }
+
+  const deduped = await fetchAllParallelDedupe(
+    resolved.repos,
+    (repo) => fetchGitHubAtomReleases(repo, limit, adapterName, resolved.token),
+    (item) => item.url || item.id,
+  );
+  deduped.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+  return sliceToLimit(deduped, limit * resolved.repos.length);
 }
