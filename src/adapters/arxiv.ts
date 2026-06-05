@@ -20,13 +20,17 @@ import {
   clampAdapterLimit,
   normalizeParamString,
   normalizeParamStringList,
-  sleep,
   sliceToLimit,
 } from "../utils";
-import { dedupeByKey } from "./merge";
+import { dedupeByKey, fetchAllBatched } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 const ARXIV_API = "http://export.arxiv.org/api/query";
-const RATE_LIMIT_DELAY = 3000; // ArXiv requests 3-second delay between requests
+const RATE_LIMIT_DELAY_MS = 3000;
+
+interface ArxivSource {
+  queryStr: string;
+  sourceLabel: string;
+}
 
 interface ArxivAuthor {
   name?: string;
@@ -169,36 +173,27 @@ const adapter: Adapter = {
       return [];
     }
 
-    const allItems: ContentItem[] = [];
+    const sources: ArxivSource[] = [
+      ...categories.map((cat) => ({
+        queryStr: `cat:${cat}`,
+        sourceLabel: `arxiv:${cat}`,
+      })),
+      ...(query
+        ? [{ queryStr: `all:${query}`, sourceLabel: "arxiv:search" }]
+        : []),
+    ];
 
-    for (let i = 0; i < categories.length; i++) {
-      const cat = categories[i];
-      const queryStr = `cat:${cat}`;
-
-      if (i > 0) {
-        await sleep(RATE_LIMIT_DELAY);
-      }
-
-      const entries = await fetchArxivQuery(queryStr, limit);
-      const sourceLabel = `arxiv:${cat}`;
-
-      for (const entry of entries) {
-        allItems.push(entryToItem(entry, sourceLabel));
-      }
-    }
-
-    if (query) {
-      if (categories.length > 0) {
-        await sleep(RATE_LIMIT_DELAY);
-      }
-
-      const queryStr = `all:${query}`;
-      const entries = await fetchArxivQuery(queryStr, limit);
-
-      for (const entry of entries) {
-        allItems.push(entryToItem(entry, "arxiv:search"));
-      }
-    }
+    const allItems = (
+      await fetchAllBatched(
+        sources,
+        1,
+        async ({ queryStr, sourceLabel }) => {
+          const entries = await fetchArxivQuery(queryStr, limit);
+          return entries.map((entry) => entryToItem(entry, sourceLabel));
+        },
+        RATE_LIMIT_DELAY_MS,
+      )
+    ).flat();
 
     const deduped = dedupeByKey(allItems, (item) => item.id);
 
