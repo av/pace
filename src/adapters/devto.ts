@@ -1,4 +1,5 @@
 import {
+  formatAtHandle,
   formatBy,
   formatComments,
   formatCover,
@@ -44,7 +45,7 @@ function buildBody(article: DevToArticle): string {
     formatReactions(article.positive_reactions_count),
     formatComments(article.comments_count),
     formatReadingTime(article.reading_time_minutes),
-    formatBy(`@${article.user.username}`),
+    formatBy(formatAtHandle(article.user.username)),
     formatTags(article.tag_list),
     formatCover(article.cover_image),
   );

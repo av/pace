@@ -125,11 +125,19 @@ export function formatCover(url: string | null | undefined): string | undefined 
   return formatPrefixed("cover", url);
 }
 
-export function formatMastodonAcct(acct: string, instance: string): string {
-  if (acct.includes("@")) {
-    return `@${acct}`;
+export function formatAtHandle(handle: string, instance?: string): string {
+  const normalized = handle.startsWith("@") ? handle.slice(1) : handle;
+  if (normalized.includes("@")) {
+    return `@${normalized}`;
   }
-  return `@${acct}@${instance}`;
+  if (instance) {
+    return `@${normalized}@${instance}`;
+  }
+  return `@${normalized}`;
+}
+
+export function formatMastodonAcct(acct: string, instance: string): string {
+  return formatAtHandle(acct, instance);
 }
 
 export function formatMedia(urls: readonly string[]): string | undefined {

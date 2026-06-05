@@ -7,6 +7,7 @@ import {
   formatCount,
   formatCover,
   formatDiscuss,
+  formatAtHandle,
   formatMastodonAcct,
   formatMedia,
   formatPercent,
@@ -98,9 +99,13 @@ describe("engagement display helpers", () => {
     expect(formatTags(["typescript"])).toBe("tags: typescript");
   });
 
-  test("formatMastodonAcct handles local and remote handles", () => {
+  test("formatAtHandle normalizes local, remote, and prefixed handles", () => {
+    expect(formatAtHandle("alice", "social.example")).toBe("@alice@social.example");
+    expect(formatAtHandle("bob@remote.social", "social.example")).toBe("@bob@remote.social");
+    expect(formatAtHandle("carol")).toBe("@carol");
+    expect(formatAtHandle("@dave")).toBe("@dave");
     expect(formatMastodonAcct("alice", "social.example")).toBe("@alice@social.example");
-    expect(formatMastodonAcct("bob@remote.social", "social.example")).toBe("@bob@remote.social");
+    expect(formatBy(formatAtHandle("eve"))).toBe("by @eve");
     expect(formatMedia([])).toBeUndefined();
     expect(formatMedia(["https://ex.com/a.png"])).toBe("media: https://ex.com/a.png");
   });
