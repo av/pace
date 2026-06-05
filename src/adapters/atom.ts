@@ -8,7 +8,6 @@ export type AtomLinkField =
 
 export type XmlTextField = string | { "#text"?: string; __cdata?: string };
 
-/** RSS 2.0 / Atom / podcast item fields commonly used for body text. */
 export type FeedItemBodyFields = {
   description?: XmlTextField;
   "itunes:summary"?: XmlTextField;
