@@ -2,6 +2,7 @@ import { describe, test, expect, spyOn } from "bun:test";
 import redditAdapter, { resolveRedditPeriod, resolveRedditSort } from "./adapters/reddit";
 import * as utilsMod from "./utils";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
+import { makeErrorResponse } from "./test/fetch-responses";
 
 const mocks = useFetchMockSuite();
 const redditCfg = (params: Record<string, unknown> = {}) => adapterCfg("reddit", params);
@@ -42,10 +43,6 @@ function makeListingResponse(posts: RedditPostDataFixture[]): Response {
     JSON.stringify({ data: { children } }),
     { status: 200, headers: { "content-type": "application/json" } },
   );
-}
-
-function makeErrorResponse(status: number): Response {
-  return new Response(null, { status, headers: { "content-type": "application/json" } });
 }
 
 describe("resolveRedditSort", () => {

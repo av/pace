@@ -2,16 +2,10 @@ import { beforeEach, describe, expect, spyOn, test } from "bun:test";
 import rssAdapter from "./adapters/rss";
 import * as utilsMod from "./utils";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
+import { makeXmlResponse } from "./test/fetch-responses";
 
 const mocks = useFetchMockSuite();
 const rssCfg = (params: Record<string, unknown> = {}) => adapterCfg("rss", params);
-
-function makeResponse(body: string, ok = true, status = 200): Response {
-  return new Response(body, {
-    status: ok ? 200 : status,
-    headers: { "Content-Type": "application/xml; charset=utf-8" },
-  });
-}
 
 const rssFixture = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
@@ -60,18 +54,18 @@ const mixedLinkFixture = `<?xml version="1.0"?>
 function defaultFetchImpl(input: RequestInfo | URL): Promise<Response> {
   const url = String(input);
   if (url.includes("atom")) {
-    return Promise.resolve(makeResponse(atomFixture));
+    return Promise.resolve(makeXmlResponse(atomFixture));
   }
   if (url.includes("mixed")) {
-    return Promise.resolve(makeResponse(mixedLinkFixture));
+    return Promise.resolve(makeXmlResponse(mixedLinkFixture));
   }
   if (url.includes("badstatus")) {
-    return Promise.resolve(makeResponse("", false, 404));
+    return Promise.resolve(makeXmlResponse("", 404));
   }
   if (url.includes("badparse")) {
-    return Promise.resolve(makeResponse("<?xml><invalid>not closed"));
+    return Promise.resolve(makeXmlResponse("<?xml><invalid>not closed"));
   }
-  return Promise.resolve(makeResponse(rssFixture));
+  return Promise.resolve(makeXmlResponse(rssFixture));
 }
 
 describe("rss", () => {
@@ -136,9 +130,9 @@ describe("rss", () => {
     mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes("overlap")) {
-        return makeResponse(overlapFixture);
+        return makeXmlResponse(overlapFixture);
       }
-      return makeResponse(rssFixture);
+      return makeXmlResponse(rssFixture);
     });
 
     const items = await rssAdapter.fetch(
@@ -177,10 +171,10 @@ describe("rss", () => {
     mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes("atom-entity")) {
-        return makeResponse(atomEntityFixture);
+        return makeXmlResponse(atomEntityFixture);
       }
       if (url.includes("entity")) {
-        return makeResponse(entityFixture);
+        return makeXmlResponse(entityFixture);
       }
       return defaultFetchImpl(input);
     });
@@ -213,7 +207,7 @@ describe("rss", () => {
     </item>
   </channel>
 </rss>`;
-    mocks.fetchMock.mockResolvedValue(makeResponse(htmlBodyFixture));
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(htmlBodyFixture));
 
     const items = await rssAdapter.fetch(rssCfg({ urls: ["https://ex.com/htmlbody"] }));
     expect(items.length).toBe(2);
@@ -260,7 +254,7 @@ describe("rss", () => {
   </channel>
 </rss>`;
     const badUrl = "not-a-valid-url";
-    mocks.fetchMock.mockResolvedValue(makeResponse(noTitleFixture));
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(noTitleFixture));
 
     const items = await rssAdapter.fetch(rssCfg({ urls: [badUrl] }));
     expect(items.length).toBe(1);

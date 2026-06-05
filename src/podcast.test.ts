@@ -2,13 +2,10 @@ import { describe, expect, spyOn, test } from "bun:test";
 import podcastAdapter from "./adapters/podcast";
 import * as utilsMod from "./utils";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
+import { makeErrorResponse } from "./test/fetch-responses";
 
 const mocks = useFetchMockSuite();
 const podcastCfg = (params: Record<string, unknown> = {}) => adapterCfg("podcast", params);
-
-function makeErrorResponse(status: number): Response {
-  return new Response("", { status });
-}
 
 function makePodcastFeedFixture(): string {
   return `<?xml version="1.0" encoding="UTF-8"?>

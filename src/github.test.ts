@@ -3,20 +3,10 @@ import adapter, { resolveGitHubPeriod } from "./adapters/github";
 import { FEED_XML_ACCEPT } from "./adapters/fetch";
 import * as utilsMod from "./utils";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
+import { makeErrorResponse, makeTextResponse } from "./test/fetch-responses";
 
 const mocks = useFetchMockSuite();
 const githubCfg = (params: Record<string, unknown> = {}) => adapterCfg("github", params);
-
-function makeTextResponse(body: string, status = 200): Response {
-  return new Response(body, {
-    status,
-    headers: { "Content-Type": "text/html; charset=utf-8" },
-  });
-}
-
-function makeErrorResponse(status: number): Response {
-  return new Response("", { status });
-}
 
 const releasesXml = `<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
