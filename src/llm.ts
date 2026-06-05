@@ -131,6 +131,27 @@ async function queryLlmForJson<T>(
   return parseLlmJsonResponse<T>(text);
 }
 
+/** Query LLM for JSON and map results; passthrough on skip, empty batch, or failure. */
+async function runLlmBatchTransform<T>(
+  model: Model<Api> | null,
+  items: ContentItem[],
+  systemPrompt: string,
+  applyResult: (result: T, items: ContentItem[]) => ContentItem[],
+  options?: { maxBodyLen?: number; skip?: boolean },
+): Promise<ContentItem[]> {
+  if (shouldPassthroughLlmBatch(model, items) || options?.skip) return items;
+
+  const result = await queryLlmForJson<T>(
+    model!,
+    systemPrompt,
+    items,
+    options?.maxBodyLen ?? 0,
+  );
+  if (result == null) return items;
+
+  return applyResult(result, items);
+}
+
 /** 2–3 sentence summary, or null on error. */
 export async function summarizeItem(
   model: Model<Api> | null,
@@ -152,14 +173,39 @@ export async function summarizeItem(
   return text;
 }
 
+type MergeGroup = { merged_ids: string[]; title: string; summary: string | null };
+
+function applyMergeGroups(groups: MergeGroup[], items: ContentItem[]): ContentItem[] {
+  const itemMap = new Map(items.map((item) => [item.id, item]));
+  const result: ContentItem[] = [];
+
+  for (const group of groups) {
+    if (group.merged_ids.length === 1 && !group.summary) {
+      const original = itemMap.get(group.merged_ids[0]);
+      if (original) result.push(original);
+      continue;
+    }
+
+    const firstItem = itemMap.get(group.merged_ids[0]);
+    result.push({
+      id: group.merged_ids.join("+"),
+      title: group.title,
+      url: firstItem?.url ?? "",
+      source: firstItem?.source ?? "merged",
+      timestamp: firstItem?.timestamp ?? new Date(),
+      body: group.summary ?? undefined,
+    });
+  }
+
+  return result;
+}
+
 /** LLM merge by prompt; unchanged items pass through on failure. */
 export async function mergeItems(
   model: Model<Api> | null,
   items: ContentItem[],
   prompt?: string
 ): Promise<ContentItem[]> {
-  if (shouldPassthroughLlmBatch(model, items)) return items;
-
   const mergePrompt = prompt ?? "Group related items about the same topic into merged summaries";
   const systemPrompt = `${mergePrompt}
 
@@ -169,36 +215,7 @@ Given the content items below, decide which ones to merge together. Return a JSO
 
 Every item ID must appear exactly once. Return ONLY the JSON array.`;
 
-  const groups = await queryLlmForJson<{ merged_ids: string[]; title: string; summary: string | null }[]>(
-    model,
-    systemPrompt,
-    items,
-    300
-  );
-  if (groups == null) return items;
-
-  const itemMap = new Map<string, ContentItem>();
-  for (const item of items) itemMap.set(item.id, item);
-
-  const result: ContentItem[] = [];
-  for (const group of groups) {
-    if (group.merged_ids.length === 1 && !group.summary) {
-      const original = itemMap.get(group.merged_ids[0]);
-      if (original) result.push(original);
-    } else {
-      const firstItem = itemMap.get(group.merged_ids[0]);
-      result.push({
-        id: group.merged_ids.join("+"),
-        title: group.title,
-        url: firstItem?.url ?? "",
-        source: firstItem?.source ?? "merged",
-        timestamp: firstItem?.timestamp ?? new Date(),
-        body: group.summary ?? undefined,
-      });
-    }
-  }
-
-  return result;
+  return runLlmBatchTransform(model, items, systemPrompt, applyMergeGroups, { maxBodyLen: 300 });
 }
 
 /** LLM filter by criteria string; unchanged on failure. */
@@ -207,15 +224,18 @@ export async function filterItemsByLlm(
   items: ContentItem[],
   criteria: string
 ): Promise<ContentItem[]> {
-  if (shouldPassthroughLlmBatch(model, items)) return items;
-
   const systemPrompt = `Given the criteria: "${criteria}", decide which items to keep. Return a JSON array of item IDs that match. Return ONLY the JSON array of strings.`;
 
-  const keepIds = await queryLlmForJson<string[]>(model, systemPrompt, items, 200);
-  if (keepIds == null) return items;
-
-  const keepSet = new Set(keepIds);
-  return items.filter((item) => keepSet.has(item.id));
+  return runLlmBatchTransform(
+    model,
+    items,
+    systemPrompt,
+    (keepIds, sourceItems) => {
+      const keepSet = new Set(keepIds);
+      return sourceItems.filter((item) => keepSet.has(item.id));
+    },
+    { maxBodyLen: 200 },
+  );
 }
 
 /** Rank by LLM relevance scores; unchanged on failure. */
@@ -224,24 +244,21 @@ export async function lensItems(
   items: ContentItem[],
   interests: string[]
 ): Promise<ContentItem[]> {
-  if (shouldPassthroughLlmBatch(model, items) || interests.length === 0) return items;
-
   const interestList = interests.join(", ");
   const systemPrompt = `Score each item's relevance to these interests: ${interestList}. Return a JSON array of {id, score} objects where score is 0-10. Return ONLY the JSON array, no other text.`;
 
-  const scores = await queryLlmForJson<{ id: string; score: number }[]>(model, systemPrompt, items);
-  if (scores == null) {
-    return items;
-  }
-
-  const scoreMap = new Map<string, number>();
-  for (const { id, score } of scores) {
-    scoreMap.set(id, score);
-  }
-
-  return [...items].sort((a, b) => {
-    const sa = scoreMap.get(a.id) ?? -1;
-    const sb = scoreMap.get(b.id) ?? -1;
-    return sb - sa;
-  });
+  return runLlmBatchTransform(
+    model,
+    items,
+    systemPrompt,
+    (scores, sourceItems) => {
+      const scoreMap = new Map(scores.map(({ id, score }) => [id, score]));
+      return [...sourceItems].sort((a, b) => {
+        const sa = scoreMap.get(a.id) ?? -1;
+        const sb = scoreMap.get(b.id) ?? -1;
+        return sb - sa;
+      });
+    },
+    { skip: interests.length === 0 },
+  );
 }
