@@ -27,25 +27,25 @@ type TransformFn = (
   items: ContentItemRow[],
   config: TransformConfig,
   ctx: TransformContext
-) => Promise<ContentItemRow[]>;
+) => ContentItemRow[] | Promise<ContentItemRow[]>;
 
 const transforms = {
-  latest: async (items, config) => applyLatest(items, config as LatestTransformConfig),
+  latest: (items, config) => applyLatest(items, config as LatestTransformConfig),
 
-  filter: async (items, config) => applyFilter(items, config as FilterTransformConfig),
+  filter: (items, config) => applyFilter(items, config as FilterTransformConfig),
 
-  exclude: async (items, config) => applyExclude(items, config as ExcludeTransformConfig),
+  exclude: (items, config) => applyExclude(items, config as ExcludeTransformConfig),
 
-  sort: async (items, config) => applySort(items, config as SortTransformConfig),
+  sort: (items, config) => applySort(items, config as SortTransformConfig),
 
-  dedupe: async (items, config) => applyDedupe(items, config as DedupeTransformConfig),
+  dedupe: (items, config) => applyDedupe(items, config as DedupeTransformConfig),
 
-  "keyword-score": async (items, config) =>
+  "keyword-score": (items, config) =>
     applyKeywordScore(items, config as KeywordScoreTransformConfig),
 
-  "time-decay": async (items, config) => applyTimeDecay(items, config as TimeDecayTransformConfig),
+  "time-decay": (items, config) => applyTimeDecay(items, config as TimeDecayTransformConfig),
 
-  cluster: async (items, config) =>
+  cluster: (items, config) =>
     applyCluster(items, config as Extract<TransformConfig, { type: "cluster" }>),
 
   ...llmTransforms,
@@ -63,7 +63,7 @@ export async function runPipeline(
       console.warn(`transforms: unknown transform type "${step.type}", skipping`);
       continue;
     }
-    result = await fn(result, step, ctx);
+    result = await Promise.resolve(fn(result, step, ctx));
   }
   return result;
 }
