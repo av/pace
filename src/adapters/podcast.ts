@@ -13,7 +13,12 @@ import {
 } from "./atom";
 import { parseFeedDate } from "./dates";
 import { joinTitle } from "./title";
-import { FEED_FETCH_TIMEOUT_MS, fetchText, PACE_USER_AGENT } from "./fetch";
+import {
+  FEED_FETCH_TIMEOUT_MS,
+  FEED_XML_ACCEPT,
+  fetchText,
+  PACE_USER_AGENT,
+} from "./fetch";
 import {
   clampAdapterLimit,
   normalizeParamStringList,
@@ -247,7 +252,7 @@ async function fetchPodcastFeed(
 ): Promise<ContentItem[]> {
   const xml = await fetchText("podcast", feedUrl, feedUrl, {
     userAgent: `${PACE_USER_AGENT} (podcast aggregator)`,
-    accept: "application/rss+xml, application/xml, text/xml, */*",
+    accept: FEED_XML_ACCEPT,
     timeoutMs: FEED_FETCH_TIMEOUT_MS,
   });
   const parsed = parser.parse(xml) as PodcastFeedParsed;

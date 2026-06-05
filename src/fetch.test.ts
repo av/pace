@@ -4,6 +4,7 @@ import {
   buildGitHubApiHeaders,
   DEFAULT_FETCH_TIMEOUT_MS,
   FEED_FETCH_TIMEOUT_MS,
+  FEED_XML_ACCEPT,
   fetchJson,
   fetchText,
   fetchWithTimeout,
@@ -51,6 +52,13 @@ describe("fetchWithTimeout", () => {
       Accept: GITHUB_API_ACCEPT,
       Authorization: "Bearer ghp_test",
     });
+  });
+
+  test("FEED_XML_ACCEPT covers RSS, Atom, and generic XML feed types", () => {
+    expect(FEED_XML_ACCEPT).toContain("application/rss+xml");
+    expect(FEED_XML_ACCEPT).toContain("application/atom+xml");
+    expect(FEED_XML_ACCEPT).toContain("application/xml");
+    expect(FEED_XML_ACCEPT).toContain("text/xml");
   });
 
   test("merges custom userAgent, headers, and accept", async () => {

@@ -10,7 +10,7 @@ import {
   type XmlTextField,
 } from "./atom";
 import { parseFeedDate } from "./dates";
-import { fetchText } from "./fetch";
+import { FEED_XML_ACCEPT, fetchText } from "./fetch";
 import { decodeNumericFeedTitle, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
 import { fetchAllParallelDedupe } from "./merge";
 import { extractHostname } from "../dedupe";
@@ -73,7 +73,7 @@ function parseItem(raw: RssFeedItem, source: string): ContentItem {
 
 async function fetchFeed(url: string): Promise<ContentItem[]> {
   const xml = await fetchText("rss", url, url, {
-    accept: "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
+    accept: FEED_XML_ACCEPT,
   });
 
   const parsed = parseFeedXml<RssFeedParsed>(xml, "rss", url);

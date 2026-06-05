@@ -7,6 +7,8 @@ export const PACE_USER_AGENT = "pace/1.0";
 export const PACE_FEED_USER_AGENT =
   "pace:feed-aggregator/1.0 (github.com/everlier/pace)";
 export const GITHUB_API_ACCEPT = "application/vnd.github+json";
+export const FEED_XML_ACCEPT =
+  "application/rss+xml, application/atom+xml, application/xml, text/xml, */*";
 
 export function buildGitHubApiHeaders(token?: string): Record<string, string> {
   const headers: Record<string, string> = { Accept: GITHUB_API_ACCEPT };

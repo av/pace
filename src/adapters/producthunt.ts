@@ -16,7 +16,12 @@ import {
   sleep,
   sliceToLimit,
 } from "../utils";
-import { fetchText, HN_ITEM_FETCH_TIMEOUT_MS, warnOptionalFetchFailure } from "./fetch";
+import {
+  FEED_XML_ACCEPT,
+  fetchText,
+  HN_ITEM_FETCH_TIMEOUT_MS,
+  warnOptionalFetchFailure,
+} from "./fetch";
 import {
   decodeNumericFeedTitle,
   FEED_BODY_STRIP_OPTIONS,
@@ -197,7 +202,7 @@ async function fetchProductHuntFeed(): Promise<{
   }>;
 }> {
   const xml = await fetchText("producthunt", PH_FEED_URL, "feed", {
-    accept: "application/atom+xml, application/xml, text/xml",
+    accept: FEED_XML_ACCEPT,
   });
 
   const parsed = parseFeedXml<PHAtomFeedParsed>(xml, "producthunt", PH_FEED_URL);
