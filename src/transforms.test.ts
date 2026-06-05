@@ -4,10 +4,6 @@ import { runPipeline, type TransformContext } from "./transforms";
 import { TRANSFORM_TYPES, type TransformConfig } from "./config";
 import type { ContentItemRow } from "./db";
 
-function transformPipeline(...steps: TransformConfig[]): TransformConfig[] {
-  return steps;
-}
-
 function makeRow(overrides: Partial<ContentItemRow> = {}): ContentItemRow {
   const base: ContentItemRow = {
     id: "id-" + Math.random().toString(36).slice(2),
@@ -38,47 +34,47 @@ describe("transforms - filter and exclude", () => {
   });
 
   test("filter keeps only items matching any keyword in default fields (title, body)", async () => {
-    const steps = transformPipeline({ type: "filter", keywords: ["alpha", "beta"] });
+    const steps = [{ type: "filter", keywords: ["alpha", "beta"] }];
     const result = await runPipeline(items, steps, ctx);
     expect(result.map(r => r.id)).toEqual(["1", "2", "4"]);
   });
 
   test("filter with explicit fields limits matching to those fields", async () => {
-    const steps = transformPipeline({ type: "filter", keywords: ["alpha"], fields: ["source"] });
+    const steps = [{ type: "filter", keywords: ["alpha"], fields: ["source"] }];
     const result = await runPipeline(items, steps, ctx);
     // only item 1 has source containing? wait sources are alpha/beta etc, item1 source="alpha"
     expect(result.map(r => r.id)).toEqual(["1"]);
   });
 
   test("exclude removes items matching any keyword in default fields", async () => {
-    const steps = transformPipeline({ type: "exclude", keywords: ["alpha", "gamma"] });
+    const steps = [{ type: "exclude", keywords: ["alpha", "gamma"] }];
     const result = await runPipeline(items, steps, ctx);
     expect(result.map(r => r.id)).toEqual(["2"]); // 1 (alpha), 3 (gamma), 4 (alpha in body) removed; only 2 remains
   });
 
   test("exclude with fields option works", async () => {
-    const steps = transformPipeline({ type: "exclude", keywords: ["beta"], fields: ["source"] });
+    const steps = [{ type: "exclude", keywords: ["beta"], fields: ["source"] }];
     const result = await runPipeline(items, steps, ctx);
     expect(result.map(r => r.id)).toEqual(["1", "3", "4"]); // 2 excluded by source
   });
 
   test("combined filter then exclude pipeline produces correct intersection", async () => {
-    const steps = transformPipeline(
+    const steps = [
       { type: "filter", keywords: ["alpha", "beta", "gamma"] },
       { type: "exclude", keywords: ["gamma"] },
-    );
+    ];
     const result = await runPipeline(items, steps, ctx);
     expect(result.map(r => r.id)).toEqual(["1", "2", "4"]); // gamma excluded after filter
   });
 
   test("filter with no matching keywords returns empty", async () => {
-    const steps = transformPipeline({ type: "filter", keywords: ["nonexistent"] });
+    const steps = [{ type: "filter", keywords: ["nonexistent"] }];
     const result = await runPipeline(items, steps, ctx);
     expect(result).toHaveLength(0);
   });
 
   test("exclude with no matching keywords returns all", async () => {
-    const steps = transformPipeline({ type: "exclude", keywords: ["nonexistent"] });
+    const steps = [{ type: "exclude", keywords: ["nonexistent"] }];
     const result = await runPipeline(items, steps, ctx);
     expect(result).toHaveLength(4);
   });
@@ -105,7 +101,7 @@ describe("transforms - runPipeline basics", () => {
 
   test("latest transform limits count", async () => {
     const items = [makeRow({id:"a"}), makeRow({id:"b"}), makeRow({id:"c"})];
-    const steps = transformPipeline({ type: "latest", count: 2 });
+    const steps = [{ type: "latest", count: 2 }];
     const result = await runPipeline(items, steps, ctx);
     expect(result.map(r => r.id)).toEqual(["a", "b"]);
   });
@@ -119,7 +115,7 @@ describe("transforms - dedupe strategies", () => {
         makeRow({ id: "2", title: "Dup", url: "https://ex.com/a" }),
         makeRow({ id: "3", title: "Third", url: "https://ex.com/b" }),
       ];
-      const steps = transformPipeline({ type: "dedupe", strategy: "url", log: true });
+      const steps = [{ type: "dedupe", strategy: "url", log: true }];
       const result = await runPipeline(items, steps, ctx);
       expect(result.map((r) => r.id)).toEqual(["1", "3"]);
       expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("transforms: dedupe:url removed 1 duplicate(s):"));
@@ -134,7 +130,7 @@ describe("transforms - dedupe strategies", () => {
         makeRow({ id: "2", title: "A2", url: "https://example.com/foo?utm_source=xx", timestamp: "2024-01-02T00:00:00Z" }),
         makeRow({ id: "3", title: "B", url: "https://ex.com/other" }),
       ];
-      const steps = transformPipeline({ type: "dedupe", strategy: "domain-normalized", keep: "latest", log: true });
+      const steps = [{ type: "dedupe", strategy: "domain-normalized", keep: "latest", log: true }];
       const result = await runPipeline(items, steps, ctx);
       expect(result.map((r) => r.id)).toEqual(["2", "3"]); // latest of the group kept
       expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("transforms: dedupe:domain-normalized removed 1 duplicate(s):"));
@@ -148,7 +144,7 @@ describe("transforms - dedupe strategies", () => {
         makeRow({ id: "2", title: "Hello World Upd8", url: "u2", timestamp: "2024-01-02T00:00:00Z" }),
         makeRow({ id: "3", title: "Other News", url: "u3" }),
       ];
-      const steps = transformPipeline({ type: "dedupe", strategy: "title-similarity", threshold: 0.8, keep: "latest", log: true });
+      const steps = [{ type: "dedupe", strategy: "title-similarity", threshold: 0.8, keep: "latest", log: true }];
       const result = await runPipeline(items, steps, ctx);
       expect(result.map((r) => r.id)).toContain("2"); // or 1 depending on pick, but one kept + 3
       expect(result).toHaveLength(2);
@@ -162,7 +158,7 @@ describe("transforms - dedupe strategies", () => {
   test("dedupe log disabled does not emit console.log", async () => {
     await spyConsole(["log"], async ({ log: logSpy }) => {
       const items = [makeRow({ url: "x" }), makeRow({ url: "x" })];
-      const steps = transformPipeline({ type: "dedupe", strategy: "url", log: false });
+      const steps = [{ type: "dedupe", strategy: "url", log: false }];
       await runPipeline(items, steps, ctx);
       const dedupeCalls = logSpy.mock.calls.filter((c) => String(c[0]).includes("transforms: dedupe:"));
       expect(dedupeCalls).toHaveLength(0);
@@ -187,7 +183,7 @@ describe("transforms - dedupe strategies", () => {
       makeRow({ id: "late", url: "https://ex.com/a", timestamp: "2024-01-02T00:00:00Z" }),
       makeRow({ id: "b", url: "https://ex.com/b", timestamp: "2024-01-03T00:00:00Z" }),
     ];
-    const steps = transformPipeline({ type: "dedupe", strategy: "domain-normalized", keep: "earliest" });
+    const steps = [{ type: "dedupe", strategy: "domain-normalized", keep: "earliest" }];
     const result = await runPipeline(items, steps, ctx);
     expect(result.map((r) => r.id)).toEqual(["early", "b"]);
   });
@@ -198,7 +194,7 @@ describe("transforms - dedupe strategies", () => {
       makeRow({ id: "high", url: "https://ex.com/a", body: "upvotes: 42 score: 100", timestamp: "2024-01-02T00:00:00Z" }),
       makeRow({ id: "b", url: "https://ex.com/b" }),
     ];
-    const steps = transformPipeline({ type: "dedupe", strategy: "domain-normalized", keep: "highest-score" });
+    const steps = [{ type: "dedupe", strategy: "domain-normalized", keep: "highest-score" }];
     const result = await runPipeline(items, steps, ctx);
     expect(result.map((r) => r.id)).toEqual(["high", "b"]);
   });
@@ -209,7 +205,7 @@ describe("transforms - dedupe strategies", () => {
       makeRow({ id: "blank2", title: "", url: "https://ex.com/blank2", timestamp: "2024-01-02T00:00:00Z" }),
       makeRow({ id: "normal", title: "Real News Item", url: "https://ex.com/real" }),
     ];
-    const steps = transformPipeline({ type: "dedupe", strategy: "title-similarity", threshold: 0.5, keep: "earliest", log: false });
+    const steps = [{ type: "dedupe", strategy: "title-similarity", threshold: 0.5, keep: "earliest", log: false }];
     const result = await runPipeline(items, steps, ctx);
     expect(result).toHaveLength(3);
     const blankIds = result.filter((r) => r.title === "").map((r) => r.id);
@@ -226,12 +222,12 @@ describe("keyword-score and time-decay", () => {
         makeRow({ id: "b", title: "Beta", body: "beta beta update" }),
         makeRow({ id: "c", title: "Gamma", body: "" }),
       ];
-      const steps = transformPipeline({
+      const steps = [{
         type: "keyword-score",
         keywords: [{ term: "alpha", weight: 2 }, { term: "beta", weight: 1 }],
         min_score: 2,
         annotate: true,
-      });
+      }];
       const result = await runPipeline(items, steps, ctx);
       expect(result.map(r => r.id)).toEqual(["b", "a"]); // sorted score desc: b=3, a=2
       expect(result[0].body).toContain("[keyword-score: 3] beta(x3+1)");
@@ -242,11 +238,11 @@ describe("keyword-score and time-decay", () => {
 
   test("keyword-score supports regex entries (global count) and falls back on bad regex", async () => {
     const items = [ makeRow({ id: "r", title: "v1.2.3 and v1.2.3", body: "" }) ];
-    const steps = transformPipeline({
+    const steps = [{
       type: "keyword-score",
       keywords: [{ term: "v\\d+\\.\\d+", regex: true, weight: 1 }],
       annotate: true,
-    });
+    }];
     const result = await runPipeline(items, steps, ctx);
     expect(result.length).toBe(1);
     expect(result[0].body).toContain("[keyword-score: 2]"); // annotate adds it; term has regex pattern, 2 matches from title
@@ -254,7 +250,7 @@ describe("keyword-score and time-decay", () => {
 
   test("keyword-score with no keywords returns all items (no scoring)", async () => {
     const items = [makeRow({ id: "x" }), makeRow({ id: "y" })];
-    const steps = transformPipeline({ type: "keyword-score", keywords: [] });
+    const steps = [{ type: "keyword-score", keywords: [] }];
     const result = await runPipeline(items, steps, ctx);
     expect(result.length).toBe(2);
   });
@@ -266,13 +262,13 @@ describe("keyword-score and time-decay", () => {
         makeRow({ id: "old-low", body: "5 points", timestamp: new Date(now - 50 * 3600 * 1000).toISOString() }),
         makeRow({ id: "new-high-rec", body: "1 point", timestamp: new Date(now - 1 * 3600 * 1000).toISOString() }),
       ];
-      const steps = transformPipeline({
+      const steps = [{
         type: "time-decay",
         half_life: "12h",
         engagement_weight: 0.5,
         recency_weight: 0.5,
         decay: "exponential",
-      });
+      }];
       const result = await runPipeline(items, steps, ctx);
       expect(result.map(r => r.id)).toEqual(["new-high-rec", "old-low"]);
       expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("transforms: time-decay ranked 2 items"));
@@ -286,7 +282,7 @@ describe("keyword-score and time-decay", () => {
         makeRow({ id: "recent", body: "10 points", timestamp: new Date(now - 1 * 3600 * 1000).toISOString() }),
         makeRow({ id: "old", body: "1 point", timestamp: new Date(now - 100 * 3600 * 1000).toISOString() }),
       ];
-      const steps = transformPipeline({
+      const steps = [{
         type: "time-decay",
         half_life: "bad-unit",
         engagement_weight: 0.7,
@@ -294,7 +290,7 @@ describe("keyword-score and time-decay", () => {
         decay: "linear",
         min_score: 0.5,
         annotate: true,
-      });
+      }];
       const result = await runPipeline(items, steps, ctx);
       expect(result.length).toBe(1); // old filtered by min_score (low recency + low eng -> final <0.5)
       expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("transforms: invalid half_life"));
@@ -311,7 +307,7 @@ describe("transforms - cluster", () => {
         makeRow({ id: "g1", url: "https://github.com/foo/repo", title: "Release v1", source: "github-releases" }),
         makeRow({ id: "g2", url: "https://github.com/bar/other", title: "Release v2", source: "github-releases" }),
       ];
-      const steps = transformPipeline({ type: "cluster", min_cluster_size: 2, max_clusters: 5, annotate: true });
+      const steps = [{ type: "cluster", min_cluster_size: 2, max_clusters: 5, annotate: true }];
       const result = await runPipeline(items, steps, ctx);
       expect(result.length).toBe(2);
       // clustered GitHub items, annotated with GitHub from domain majority (exercises topDomain + 0.6 threshold + domainLabels)
@@ -327,7 +323,7 @@ describe("transforms - cluster", () => {
         makeRow({ id: "k1", url: "https://github.com/a", title: "React Server Components deep dive", source: "blog" }),
         makeRow({ id: "k2", url: "https://medium.com/b", title: "React performance tips and tricks", source: "blog" }),
       ];
-      const steps = transformPipeline({ type: "cluster", strategy: "keywords", min_cluster_size: 2, annotate: true });
+      const steps = [{ type: "cluster", strategy: "keywords", min_cluster_size: 2, annotate: true }];
       const result = await runPipeline(items, steps, ctx);
       expect(result.length).toBe(2);
       // diff domains (no 0.6 majority), keywords "react" wins -> label starts with [React...
@@ -342,7 +338,7 @@ describe("transforms - cluster", () => {
         makeRow({ id: "s1", url: "https://x.com/1", title: "News update first", source: "twitter" }),
         makeRow({ id: "s2", url: "https://news.ycombinator.com/2", title: "News update second", source: "twitter" }),
       ];
-      const steps = transformPipeline({ type: "cluster", min_cluster_size: 2, annotate: false });
+      const steps = [{ type: "cluster", min_cluster_size: 2, annotate: false }];
       const result = await runPipeline(items, steps, ctx);
       expect(result.length).toBe(2);
       // shared "news"/"update" -> high sim -> cluster forms (diff domains), label via keywords (source top calc still executed inside generateLabel)
@@ -357,7 +353,7 @@ describe("transforms - cluster", () => {
         makeRow({ id: "a2", url: "https://a.com/2", title: "Alpha second", source: "a" }),
         makeRow({ id: "b1", url: "https://b.com/1", title: "Beta singleton different", source: "b" }), // singleton < min=2 , no shared
       ];
-      const steps = transformPipeline({ type: "cluster", min_cluster_size: 2, max_clusters: 10, annotate: true });
+      const steps = [{ type: "cluster", min_cluster_size: 2, max_clusters: 10, annotate: true }];
       const result = await runPipeline(items, steps, ctx);
       expect(result.length).toBe(3);
       // one cluster a (size2 annotated), one unclustered b (exercises unclustered path + source/domain counts)
@@ -377,7 +373,7 @@ describe("transforms - cluster", () => {
         makeRow({ id: "u1", url: badUrl, title: "Shared alpha news topic", source: "s1" }),
         makeRow({ id: "u2", url: badUrl, title: "Shared alpha news topic two", source: "s2" }),
       ];
-      const steps = transformPipeline({ type: "cluster", min_cluster_size: 2, annotate: false });
+      const steps = [{ type: "cluster", min_cluster_size: 2, annotate: false }];
       const result = await runPipeline(items, steps, ctx);
       expect(result.length).toBe(2);
       expect(warnSpy).toHaveBeenCalledTimes(2);
