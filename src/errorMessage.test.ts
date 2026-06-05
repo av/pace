@@ -13,6 +13,7 @@ import {
   normalizeParamStringFirst,
   normalizeParamBoolean,
   normalizeOptionalString,
+  simpleHash,
 } from "./utils";
 
 describe("errorMessage", () => {
@@ -255,6 +256,18 @@ describe("normalizeOptionalString", () => {
   test("returns trimmed non-blank string", () => {
     expect(normalizeOptionalString("  quantum  ")).toBe("quantum");
     expect(normalizeOptionalString("types")).toBe("types");
+  });
+});
+
+describe("simpleHash", () => {
+  test("returns stable base36 hashes for the same input", () => {
+    expect(simpleHash("")).toBe("0");
+    expect(simpleHash("hello")).toBe(simpleHash("hello"));
+    expect(simpleHash("First item body text")).toBe("1pmrwku");
+  });
+
+  test("differs for different inputs", () => {
+    expect(simpleHash("a")).not.toBe(simpleHash("b"));
   });
 });
 

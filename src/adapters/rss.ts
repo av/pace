@@ -12,7 +12,7 @@ import { fetchRssAtomFeed } from "./fetch";
 import { decodeNumericFeedTitle, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
 import { fetchAllParallelDedupe } from "./merge";
 import { extractHostname } from "../dedupe";
-import { normalizeParamStringList } from "../utils";
+import { normalizeParamStringList, simpleHash } from "../utils";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 interface RssFeedItem extends FeedItemBodyFields {
@@ -34,14 +34,6 @@ interface RssFeedParsed {
     title?: XmlTextField;
     entry?: RssFeedItem | RssFeedItem[];
   };
-}
-
-function simpleHash(str: string): string {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) {
-    h = ((h << 5) - h + str.charCodeAt(i)) | 0;
-  }
-  return (h >>> 0).toString(36);
 }
 
 function parseItem(raw: RssFeedItem, source: string): ContentItem {
