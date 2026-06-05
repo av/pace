@@ -1,22 +1,5 @@
 import { normalizeStringList } from "../utils";
-import { decodeNumericFeedTitleOptional } from "./html";
 import { type Adapter, type AdapterConfig, type ContentItem } from "./types";
-
-function buildTweetItem(
-  id: string,
-  text: string | undefined,
-  url: string,
-  source: string,
-  timestamp: Date,
-): ContentItem {
-  return {
-    id,
-    title: decodeNumericFeedTitleOptional(text),
-    url,
-    source,
-    timestamp,
-  };
-}
 
 function warnAndReturnEmpty(msg: string): ContentItem[] {
   console.warn(msg.startsWith("twitter:") ? msg : `twitter: ${msg}`);
