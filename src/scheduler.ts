@@ -118,18 +118,41 @@ function gatherPipelineInputItems(
   return items;
 }
 
+type TransformLogMode = "when-changed" | "always";
+
+interface RunTransformsOptions {
+  logLabel: string;
+  logMode?: TransformLogMode;
+  logDetail?: string;
+  mapOutput?: (items: ContentItemRow[]) => ContentItemRow[];
+}
+
+async function runTransformsAndReplaceOnPanels(
+  panelIds: string[],
+  items: ContentItemRow[],
+  transforms: TransformConfig[],
+  options: RunTransformsOptions,
+): Promise<void> {
+  const transformed = await runPipeline(items, transforms, transformCtx);
+  const output = options.mapOutput ? options.mapOutput(transformed) : transformed;
+  replaceItemsOnPanels(panelIds, output);
+  const logMode = options.logMode ?? "when-changed";
+  if (logMode === "always" || items.length !== transformed.length) {
+    const detail = options.logDetail ? `${options.logDetail} ` : "";
+    console.log(`scheduler: ${options.logLabel} — ${detail}${items.length} → ${transformed.length} items`);
+  }
+}
+
 async function applyTransformsOnPanels(
   panelIds: string[],
   transforms: TransformConfig[],
   logName: string,
 ): Promise<void> {
   for (const pid of panelIds) {
-    const allItems = getAllItemsByPanel(pid);
-    const transformed = await runPipeline(allItems, transforms, transformCtx);
-    replacePanelItems(pid, transformed);
-    if (allItems.length !== transformed.length) {
-      console.log(`scheduler: ${logName} — transforms: ${allItems.length} → ${transformed.length} items`);
-    }
+    await runTransformsAndReplaceOnPanels([pid], getAllItemsByPanel(pid), transforms, {
+      logLabel: logName,
+      logDetail: "transforms:",
+    });
   }
 }
 
@@ -232,13 +255,15 @@ async function runPipelineJob(entry: PipelineEntry): Promise<RefreshResult> {
   const name = config.name;
   return executeWithRunningGuard(entry, name, "pipeline", async () => {
     const items = gatherPipelineInputItems(config.sources, readKeys);
-    const transformed = await runPipeline(items, config.transforms, transformCtx);
-    const namespaced = transformed.map((item) => ({
-      ...item,
-      id: `pipeline:${config.name}:${item.id}`,
-    }));
-    replaceItemsOnPanels(panelIds, namespaced);
-    console.log(`scheduler: pipeline "${config.name}" — ${items.length} → ${transformed.length} items`);
+    await runTransformsAndReplaceOnPanels(panelIds, items, config.transforms, {
+      logLabel: `pipeline "${config.name}"`,
+      logMode: "always",
+      mapOutput: (transformed) =>
+        transformed.map((item) => ({
+          ...item,
+          id: `pipeline:${config.name}:${item.id}`,
+        })),
+    });
   });
 }
 

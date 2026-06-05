@@ -239,6 +239,35 @@ describe("scheduler", () => {
     expect(results.length).toBe(0);
   });
 
+  test("adapter ingest transforms apply via shared transform path", async () => {
+    const items = Array.from({ length: 10 }, (_, i) => ({
+      id: `i${i}`,
+      title: `T${i}`,
+      url: `https://x/${i}`,
+      source: "src",
+      timestamp: new Date(`2024-01-${String(i + 1).padStart(2, "0")}T00:00:00Z`),
+    }));
+    const adapters = adaptersMap(["test", makeMockAdapter(items)]);
+    const config = schedulerConfig({
+      adapters: [{
+        type: "test",
+        name: "src",
+        refresh_interval: 60,
+        transforms: [{ type: "latest", count: 3 }],
+      }],
+    });
+    const pm = panelMap({ src: ["panelA"] });
+    await spyConsole(["log"], async ({ log: logSpy }) => {
+      startScheduler(config, adapters, pm, null);
+      await waitForAsync();
+      expect(getAllItemsByPanel("panelA").length).toBe(3);
+      const transformLog = logSpy.mock.calls.some((c) =>
+        String(c[0]).includes("src — transforms: 10 → 3 items"),
+      );
+      expect(transformLog).toBe(true);
+    });
+  });
+
   test("runPipelineJob preserves source concat order when timestamps tie (stable sort)", async () => {
     const ts = "2024-06-01T12:00:00.000Z";
     saveItems("srcA", [
