@@ -193,6 +193,16 @@ describe("podcast", () => {
     ).rejects.toThrow(/podcast:.*failed to fetch https:\/\/bad\.com\/404\.xml.*404/);
   });
 
+  test("throws on malformed XML with adapter prefix (contract; no swallow)", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      new Response("<?xml><broken>", { status: 200 }),
+    );
+
+    await expect(
+      podcastAdapter.fetch(podcastCfg({ feeds: ["https://ex.com/bad.xml"] })),
+    ).rejects.toThrow(/podcast: error parsing xml from https:\/\/ex\.com\/bad\.xml/);
+  });
+
   test("warns and returns [] when no channel found in feed XML", async () => {
     mocks.fetchMock.mockResolvedValue(
       new Response(makeNoChannelFixture(), { status: 200 }),

@@ -7,6 +7,7 @@ import {
   extractXmlText,
   FEED_XML_PARSER_OPTIONS,
   normalizeXmlList,
+  parseXml,
   type AtomLinkField,
   type FeedItemBodyFields,
   type XmlTextField,
@@ -255,7 +256,7 @@ async function fetchPodcastFeed(
     accept: FEED_XML_ACCEPT,
     timeoutMs: FEED_FETCH_TIMEOUT_MS,
   });
-  const parsed = parser.parse(xml) as PodcastFeedParsed;
+  const parsed = parseXml<PodcastFeedParsed>(xml, parser, "podcast", feedUrl);
 
   const channel = parsed.rss?.channel;
   if (!channel) {

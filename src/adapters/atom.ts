@@ -25,19 +25,29 @@ export const FEED_XML_PARSER_OPTIONS = {
 
 export const feedXmlParser = new XMLParser(FEED_XML_PARSER_OPTIONS);
 
-/** Parse feed XML with `${prefix}: error parsing xml from ${context}` on failure. */
-export function parseFeedXml<T>(
+/** Parse XML with `${prefix}: error parsing xml from ${context}` on failure. */
+export function parseXml<T>(
   xml: string,
+  parser: XMLParser,
   prefix: string,
   context: string,
 ): T {
   try {
-    return feedXmlParser.parse(xml) as T;
+    return parser.parse(xml) as T;
   } catch (err) {
     throw new Error(
       `${prefix}: error parsing xml from ${context}: ${errorMessage(err)}`,
     );
   }
+}
+
+/** Parse feed XML with the shared feed parser. */
+export function parseFeedXml<T>(
+  xml: string,
+  prefix: string,
+  context: string,
+): T {
+  return parseXml(xml, feedXmlParser, prefix, context);
 }
 
 export function normalizeXmlList<T>(value: T | T[] | undefined | null): T[] {
