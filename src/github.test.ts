@@ -1,5 +1,6 @@
 import { describe, test, expect, spyOn } from "bun:test";
 import adapter from "./adapters/github";
+import { FEED_XML_ACCEPT } from "./adapters/fetch";
 import * as typesMod from "./adapters/types";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
@@ -99,6 +100,30 @@ describe("github", () => {
     expect(String(atomCalls[0][0])).toBe(
       "https://github.com/facebook/react/releases.atom",
     );
+  });
+
+  test("sends FEED_XML_ACCEPT when fetching releases.atom", async () => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).includes("releases.atom")) {
+        return makeTextResponse(releasesXml);
+      }
+      if (String(url).includes("api.github.com/repos/")) {
+        return new Response(JSON.stringify({ description: "" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      throw new Error("unexpected url in test");
+    });
+
+    await adapter.fetch(githubCfg({ mode: "releases", repos: ["facebook/react"] }));
+
+    const atomCall = mocks.fetchMock.mock.calls.find((c) =>
+      String(c[0]).includes("releases.atom"),
+    );
+    expect(atomCall).toBeDefined();
+    const headers = (atomCall![1] as RequestInit).headers as Record<string, string>;
+    expect(headers.Accept).toBe(FEED_XML_ACCEPT);
   });
 
   test("blank-only mode uses default releases", async () => {

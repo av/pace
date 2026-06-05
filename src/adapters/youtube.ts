@@ -13,7 +13,7 @@ import {
 } from "./engagement";
 import { joinTitle } from "./title";
 
-import { fetchText } from "./fetch";
+import { FEED_XML_ACCEPT, fetchText } from "./fetch";
 import {
   decodeNumericFeedTitle,
   FEED_BODY_STRIP_OPTIONS,
@@ -88,7 +88,9 @@ async function fetchYoutubeFeed(
   const param = kind === "channel" ? "channel_id" : "playlist_id";
   const label = kind;
   const url = `https://www.youtube.com/feeds/videos.xml?${param}=${id}`;
-  const xml = await fetchText("youtube", url, `${label} ${id}`);
+  const xml = await fetchText("youtube", url, `${label} ${id}`, {
+    accept: FEED_XML_ACCEPT,
+  });
   const parsed = parseFeedXml<YTAtomFeedParsed>(xml, "youtube", url);
   const channelTitle = decodeNumericFeedTitle(
     extractFeedRootTitle(undefined, parsed.feed?.title) ?? "YouTube",

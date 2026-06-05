@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import adapter from "./adapters/youtube";
+import { FEED_XML_ACCEPT } from "./adapters/fetch";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
 const mocks = useFetchMockSuite();
@@ -98,6 +99,16 @@ describe("youtube", () => {
     expect(mocks.warnSpy).toHaveBeenCalledWith(
       "youtube: no channels or playlists configured",
     );
+  });
+
+  it("sends FEED_XML_ACCEPT when fetching channel feed", async () => {
+    await adapter.fetch(youtubeCfg({ channels: ["CH1"] }));
+
+    const headers = (mocks.fetchMock.mock.calls[0][1] as RequestInit).headers as Record<
+      string,
+      string
+    >;
+    expect(headers.Accept).toBe(FEED_XML_ACCEPT);
   });
 
   it("fetches from channel and maps items with correct title/source/url/body", async () => {

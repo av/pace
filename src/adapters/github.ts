@@ -16,7 +16,7 @@ import {
 } from "./engagement";
 import { joinTitle, joinTitleWithTagline } from "./title";
 
-import { FEED_FETCH_TIMEOUT_MS, fetchText } from "./fetch";
+import { FEED_FETCH_TIMEOUT_MS, FEED_XML_ACCEPT, fetchText } from "./fetch";
 import {
   normalizeOptionalString,
   clampAdapterLimit,
@@ -54,7 +54,9 @@ async function fetchReleasesFeed(
 ): Promise<ContentItem[]> {
   const url = `https://github.com/${repo}/releases.atom`;
 
-  const xml = await fetchText("github", url, `releases for ${repo}`);
+  const xml = await fetchText("github", url, `releases for ${repo}`, {
+    accept: FEED_XML_ACCEPT,
+  });
 
   const parsed = parseFeedXml<GHAtomFeedParsed>(xml, "github", url);
   const feedTitle = extractFeedRootTitle(undefined, parsed.feed?.title);

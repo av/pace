@@ -1,5 +1,6 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import arxivAdapter from "./adapters/arxiv";
+import { FEED_XML_ACCEPT } from "./adapters/fetch";
 import * as typesMod from "./adapters/types";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
@@ -148,6 +149,20 @@ describe("arxiv", () => {
     expect(items[0].body).toContain("Abstract: See paper for A details");
     expect(items[0].body).not.toContain("example.com");
     expect(items[0].body).not.toContain("<");
+  });
+
+  test("sends FEED_XML_ACCEPT when fetching category query", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      new Response(makeArxivFixture("Feed Accept Paper", "2401.00001"), { status: 200 }),
+    );
+
+    await arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"] }));
+
+    const headers = (mocks.fetchMock.mock.calls[0][1] as RequestInit).headers as Record<
+      string,
+      string
+    >;
+    expect(headers.Accept).toBe(FEED_XML_ACCEPT);
   });
 
   test("fetches by single category and maps items with correct fields, source, body parts", async () => {

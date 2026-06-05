@@ -12,7 +12,7 @@ import {
 } from "./engagement";
 import { joinTitle } from "./title";
 
-import { ARXIV_FETCH_TIMEOUT_MS, fetchText } from "./fetch";
+import { ARXIV_FETCH_TIMEOUT_MS, FEED_XML_ACCEPT, fetchText } from "./fetch";
 import {
   decodeNumericFeedTitle,
   FEED_BODY_STRIP_OPTIONS,
@@ -115,6 +115,7 @@ async function fetchArxivQuery(
   const context = `query "${queryStr}"`;
   const xml = await fetchText("arxiv", url, context, {
     timeoutMs: ARXIV_FETCH_TIMEOUT_MS,
+    accept: FEED_XML_ACCEPT,
   });
 
   const parsed = parseFeedXml<ArxivAtomFeedParsed>(xml, "arxiv", url);
