@@ -1,7 +1,7 @@
 import {
   extractFeedEntryTitle,
   extractFeedItemBody,
-  feedXmlParser,
+  parseFeedXml,
   normalizeXmlList,
   type FeedItemBodyFields,
   type XmlTextField,
@@ -117,7 +117,7 @@ async function fetchArxivQuery(
     timeoutMs: ARXIV_FETCH_TIMEOUT_MS,
   });
 
-  const parsed = feedXmlParser.parse(xml) as ArxivAtomFeedParsed;
+  const parsed = parseFeedXml<ArxivAtomFeedParsed>(xml, "arxiv", url);
   return normalizeXmlList(parsed.feed?.entry);
 }
 

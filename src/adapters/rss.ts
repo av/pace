@@ -4,7 +4,7 @@ import {
   extractFeedItemBody,
   extractFeedRootTitle,
   extractRssAtomItems,
-  feedXmlParser,
+  parseFeedXml,
   type AtomLinkField,
   type FeedItemBodyFields,
   type XmlTextField,
@@ -16,7 +16,6 @@ import { fetchAllParallelDedupe } from "./merge";
 import { extractHostname } from "../dedupe";
 import { normalizeStringList } from "../utils";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
-import { errorMessage } from "./types";
 
 interface RssFeedItem extends FeedItemBodyFields {
   title?: XmlTextField;
@@ -77,12 +76,7 @@ async function fetchFeed(url: string): Promise<ContentItem[]> {
     accept: "application/rss+xml, application/atom+xml, application/xml, text/xml, */*",
   });
 
-  let parsed: RssFeedParsed;
-  try {
-    parsed = feedXmlParser.parse(xml) as RssFeedParsed;
-  } catch (err) {
-    throw new Error(`rss: error parsing xml from ${url}: ${errorMessage(err)}`);
-  }
+  const parsed = parseFeedXml<RssFeedParsed>(xml, "rss", url);
   const feedTitle = extractFeedRootTitle(
     parsed?.rss?.channel?.title,
     parsed?.feed?.title,

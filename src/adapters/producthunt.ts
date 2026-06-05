@@ -3,7 +3,7 @@ import {
   extractFeedEntryTitle,
   extractFeedItemBody,
   extractFeedRootTitle,
-  feedXmlParser,
+  parseFeedXml,
   normalizeXmlList,
   type AtomLinkField,
   type FeedItemBodyFields,
@@ -200,7 +200,7 @@ async function fetchProductHuntFeed(): Promise<{
     accept: "application/atom+xml, application/xml, text/xml",
   });
 
-  const parsed = feedXmlParser.parse(xml) as PHAtomFeedParsed;
+  const parsed = parseFeedXml<PHAtomFeedParsed>(xml, "producthunt", PH_FEED_URL);
   const feedTitle = decodeNumericFeedTitle(
     extractFeedRootTitle(undefined, parsed.feed?.title) ?? "producthunt",
   );

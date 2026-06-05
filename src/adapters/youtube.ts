@@ -2,7 +2,7 @@ import {
   extractAtomLink,
   extractFeedEntryTitle,
   extractFeedRootTitle,
-  feedXmlParser,
+  parseFeedXml,
   normalizeXmlList,
   type AtomLinkField,
   type XmlTextField,
@@ -85,7 +85,7 @@ async function fetchYoutubeFeed(
   const label = kind;
   const url = `https://www.youtube.com/feeds/videos.xml?${param}=${id}`;
   const xml = await fetchText("youtube", url, `${label} ${id}`);
-  const parsed = feedXmlParser.parse(xml) as YTAtomFeedParsed;
+  const parsed = parseFeedXml<YTAtomFeedParsed>(xml, "youtube", url);
   const channelTitle = decodeNumericFeedTitle(
     extractFeedRootTitle(undefined, parsed.feed?.title) ?? "YouTube",
   );

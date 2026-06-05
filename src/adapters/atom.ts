@@ -1,4 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
+import { errorMessage } from "../utils";
 
 export type AtomLinkField =
   | string
@@ -23,6 +24,21 @@ export const FEED_XML_PARSER_OPTIONS = {
 };
 
 export const feedXmlParser = new XMLParser(FEED_XML_PARSER_OPTIONS);
+
+/** Parse feed XML with `${prefix}: error parsing xml from ${context}` on failure. */
+export function parseFeedXml<T>(
+  xml: string,
+  prefix: string,
+  context: string,
+): T {
+  try {
+    return feedXmlParser.parse(xml) as T;
+  } catch (err) {
+    throw new Error(
+      `${prefix}: error parsing xml from ${context}: ${errorMessage(err)}`,
+    );
+  }
+}
 
 export function normalizeXmlList<T>(value: T | T[] | undefined | null): T[] {
   if (value == null) return [];

@@ -3,7 +3,7 @@ import {
   extractFeedEntryTitle,
   extractFeedItemBody,
   extractFeedRootTitle,
-  feedXmlParser,
+  parseFeedXml,
   normalizeXmlList,
   type AtomLinkField,
   type FeedItemBodyFields,
@@ -56,7 +56,7 @@ async function fetchReleasesFeed(
 
   const xml = await fetchText("github", url, `releases for ${repo}`);
 
-  const parsed = feedXmlParser.parse(xml) as GHAtomFeedParsed;
+  const parsed = parseFeedXml<GHAtomFeedParsed>(xml, "github", url);
   const feedTitle = extractFeedRootTitle(undefined, parsed.feed?.title);
   const source = feedTitle
     ? `github:${decodeNumericFeedTitle(feedTitle)}`

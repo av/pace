@@ -7,6 +7,7 @@ import {
   extractRssAtomItems,
   extractXmlText,
   normalizeXmlList,
+  parseFeedXml,
 } from "./adapters/atom";
 
 describe("extractXmlText", () => {
@@ -140,5 +141,24 @@ describe("extractAtomLink", () => {
       { "@_href": "https://example.com/second", "@_rel": "enclosure" },
     ];
     expect(extractAtomLink(link)).toBe("https://example.com/first");
+  });
+});
+
+describe("parseFeedXml", () => {
+  test("parses valid feed XML", () => {
+    const xml = `<?xml version="1.0"?><feed><title>Test</title></feed>`;
+    const parsed = parseFeedXml<{ feed?: { title?: string } }>(
+      xml,
+      "rss",
+      "https://ex.com/feed",
+    );
+    expect(parsed.feed?.title).toBe("Test");
+  });
+
+  test("throws with adapter prefix and context on parse failure", () => {
+    const xml = "<?xml><invalid>not closed";
+    expect(() => parseFeedXml(xml, "youtube", "https://youtube.com/feeds/videos.xml")).toThrow(
+      /youtube: error parsing xml from https:\/\/youtube.com\/feeds\/videos\.xml/,
+    );
   });
 });
