@@ -11,6 +11,7 @@ import {
   formatMedia,
   formatPercent,
   formatPoints,
+  formatCategories,
   formatPrefixed,
   formatScore,
   formatStars,
@@ -59,6 +60,8 @@ describe("engagement display helpers", () => {
     expect(formatDiscuss("https://ex.com/talk")).toBe("discuss: https://ex.com/talk");
     expect(formatPrefixed("language", "TypeScript")).toBe("language: TypeScript");
     expect(formatPrefixed("site", "https://ex.com")).toBe("site: https://ex.com");
+    expect(formatScore(77)).toBe("Score: 77");
+    expect(formatCategories(["cs.LG", "cs.AI"])).toBe("Categories: cs.LG, cs.AI");
   });
 
   test("formatPercent rounds fractional scores for npm-style bodies", () => {

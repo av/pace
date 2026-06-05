@@ -57,7 +57,7 @@ export function formatPoints(score: number): string {
 }
 
 export function formatScore(score: number): string {
-  return `Score: ${score}`;
+  return formatPrefixed("Score", String(score));
 }
 
 export function formatPercent(fraction: number): string {
@@ -153,7 +153,7 @@ export function formatTags(tags: readonly string[]): string | undefined {
 }
 
 export function formatCategories(categories: string[]): string {
-  return `Categories: ${categories.join(", ")}`;
+  return formatPrefixed("Categories", categories.join(", "));
 }
 
 export function formatSite(url: string): string {
