@@ -17,23 +17,22 @@ import {
   PIPELINE_INITIAL_DELAY_MS,
   DEFAULT_REFRESH_INTERVAL_MIN,
 } from "./scheduler";
-import { testAppConfig } from "./test/app-config";
+import {
+  adapterAndPipelinePanelsLayout,
+  adapterPipelineLayout,
+  singlePanelLayout,
+  testAppConfig,
+} from "./test/app-config";
+import { waitForAsync } from "./test/async";
 
 let tempDir: string;
 let dbPath: string;
 let origEnv: string | undefined;
 
-async function waitForAsync(ms = 20): Promise<void> {
-  await new Promise((r) => setTimeout(r, ms));
-}
-
-const baseConfig = testAppConfig({
-  adapters: [{ type: "test", name: "testsrc", refresh_interval: 60 }],
-  layout: {
-    direction: "row",
-    children: [{ panel: "p1", source: "testsrc", limit: 50, id: "panel1" }],
-  },
-});
+const baseConfig = testAppConfig(
+  { adapters: [{ type: "test", name: "testsrc", refresh_interval: 60 }] },
+  singlePanelLayout("p1", "testsrc", { id: "panel1", limit: 50 }),
+);
 const basePanelMap = sourcePanelMapFromConfig(baseConfig);
 
 describe("scheduler", () => {
@@ -118,13 +117,10 @@ describe("scheduler", () => {
 
   test("run via refreshSources on error adapter returns failed result + warns with prefix", async () => {
     const adapters = adaptersMap(["err", makeErrorAdapter("simulated fail")]);
-    const config = testAppConfig({
-      adapters: [{ type: "err", name: "errsrc", refresh_interval: 60 }],
-      layout: {
-        direction: "row",
-        children: [{ panel: "ep", source: "errsrc", id: "ep1" }],
-      },
-    });
+    const config = testAppConfig(
+      { adapters: [{ type: "err", name: "errsrc", refresh_interval: 60 }] },
+      singlePanelLayout("ep", "errsrc", { id: "ep1" }),
+    );
     const pm = sourcePanelMapFromConfig(config);
     await spyConsole(["warn"], async ({ warn: warnSpy }) => {
       startScheduler(config, adapters, pm, null);
@@ -180,21 +176,17 @@ describe("scheduler", () => {
   test("refreshSources with adapter + pipeline names refreshes both (all-panel contract)", async () => {
     const items = [{ id: "a1", title: "A", url: "https://a", source: "srcA", timestamp: new Date() }];
     const adapters = adaptersMap(["test", makeMockAdapter(items)]);
-    const config = testAppConfig({
-      adapters: [{ type: "test", name: "srcA", refresh_interval: 60 }],
-      pipelines: [{
-        name: "merge",
-        sources: ["srcA"],
-        transforms: [{ type: "latest", count: 5 }],
-      }],
-      layout: {
-        direction: "column",
-        children: [
-          { panel: "a", source: "srcA", id: "panelA" },
-          { panel: "out", source: "merge", id: "outPanel" },
-        ],
+    const config = testAppConfig(
+      {
+        adapters: [{ type: "test", name: "srcA", refresh_interval: 60 }],
+        pipelines: [{
+          name: "merge",
+          sources: ["srcA"],
+          transforms: [{ type: "latest", count: 5 }],
+        }],
       },
-    });
+      adapterPipelineLayout("srcA", "merge"),
+    );
     const pm = sourcePanelMapFromConfig(config);
     startScheduler(config, adapters, pm, null);
     await waitForAsync();
@@ -223,18 +215,17 @@ describe("scheduler", () => {
       timestamp: new Date(`2024-01-${String(i + 1).padStart(2, "0")}T00:00:00Z`),
     }));
     const adapters = adaptersMap(["test", makeMockAdapter(items)]);
-    const config = testAppConfig({
-      adapters: [{
-        type: "test",
-        name: "src",
-        refresh_interval: 60,
-        transforms: [{ type: "latest", count: 3 }],
-      }],
-      layout: {
-        direction: "row",
-        children: [{ panel: "a", source: "src", id: "panelA" }],
+    const config = testAppConfig(
+      {
+        adapters: [{
+          type: "test",
+          name: "src",
+          refresh_interval: 60,
+          transforms: [{ type: "latest", count: 3 }],
+        }],
       },
-    });
+      singlePanelLayout("a", "src", { id: "panelA" }),
+    );
     const pm = sourcePanelMapFromConfig(config);
     await spyConsole(["log"], async ({ log: logSpy }) => {
       startScheduler(config, adapters, pm, null);
@@ -256,18 +247,17 @@ describe("scheduler", () => {
     saveItems("srcB", [
       { id: "b1", title: "B first", url: "https://b/1", source: "srcB", timestamp: new Date(ts) },
     ]);
-    const config = testAppConfig({
-      adapters: [],
-      pipelines: [{
-        name: "merge",
-        sources: ["srcA", "srcB"],
-        transforms: [{ type: "latest", count: 10 }],
-      }],
-      layout: {
-        direction: "row",
-        children: [{ panel: "out", source: "merge", id: "outPanel" }],
+    const config = testAppConfig(
+      {
+        adapters: [],
+        pipelines: [{
+          name: "merge",
+          sources: ["srcA", "srcB"],
+          transforms: [{ type: "latest", count: 10 }],
+        }],
       },
-    });
+      singlePanelLayout("out", "merge", { id: "outPanel" }),
+    );
     const pm = sourcePanelMapFromConfig(config);
     startScheduler(config, new Map(), pm, null);
     await refreshSources(["merge"]);
@@ -281,22 +271,18 @@ describe("scheduler", () => {
 
   test("startScheduler schedules pipelines with 5s initial delay (PIPELINE_INITIAL_DELAY_MS) before first runPipelineJob + setInterval, adapters do immediate fetch; default refresh when refresh_interval omitted (t3i)", async () => {
     const adapters = adaptersMap(["test", makeMockAdapter([])]);
-    const config = testAppConfig({
-      adapters: [{ type: "test", name: "testsrc" /* omit refresh_interval -> DEFAULT_REFRESH_INTERVAL_MIN */ }],
-      pipelines: [{
-        name: "p1",
-        sources: ["testsrc"],
-        transforms: [],
-        refresh_interval: 1,
-      }],
-      layout: {
-        direction: "column",
-        children: [
-          { panel: "src", source: "testsrc", id: "panelP" },
-          { panel: "pipe", source: "p1" },
-        ],
+    const config = testAppConfig(
+      {
+        adapters: [{ type: "test", name: "testsrc" /* omit refresh_interval -> DEFAULT_REFRESH_INTERVAL_MIN */ }],
+        pipelines: [{
+          name: "p1",
+          sources: ["testsrc"],
+          transforms: [],
+          refresh_interval: 1,
+        }],
       },
-    });
+      adapterAndPipelinePanelsLayout("testsrc", "p1"),
+    );
     const pm = sourcePanelMapFromConfig(config);
     const setTimeoutSpy = spyOn(globalThis, "setTimeout");
     const setIntervalSpy = spyOn(globalThis, "setInterval");
