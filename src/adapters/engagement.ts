@@ -54,7 +54,6 @@ export function formatPoints(score: number): string {
   return `${score} points`;
 }
 
-/** Stack Exchange and other APIs that expose vote count as "Score: N". */
 export function formatScore(score: number): string {
   return `Score: ${score}`;
 }
@@ -68,7 +67,6 @@ export function formatComments(count: number): string {
   return `${count} comments`;
 }
 
-/** Stack Exchange question answer counts in body metadata. */
 export function formatAnswers(count: number, accepted = false): string {
   return accepted ? `${count} answers (accepted)` : `${count} answers`;
 }
@@ -89,12 +87,10 @@ export function formatDiscuss(url: string): string {
   return `discuss: ${url}`;
 }
 
-/** Lemmy community slug in body metadata (e.g. c/technology). */
 export function formatCommunity(name: string): string {
   return `c/${name}`;
 }
 
-/** Reddit subreddit slug in body metadata (e.g. r/programming). */
 export function formatSubreddit(name: string): string {
   return `r/${name}`;
 }
@@ -111,12 +107,10 @@ export function formatReplies(count: number): string {
   return `${count} replies`;
 }
 
-/** Dev.to reading_time_minutes in body metadata (e.g. "5 min read"). */
 export function formatReadingTime(minutes: number): string {
   return `${minutes} min read`;
 }
 
-/** Dev.to cover_image URL in body metadata (omitted when absent). */
 export function formatCover(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
   return `cover: ${url}`;
@@ -130,18 +124,15 @@ export function formatMastodonAcct(acct: string, instance: string): string {
   return `@${acct}@${instance}`;
 }
 
-/** Mastodon (and similar) media attachment URLs in body metadata. */
 export function formatMedia(urls: readonly string[]): string | undefined {
   if (urls.length === 0) return undefined;
   return `media: ${urls.join(" ")}`;
 }
 
-/** GitHub trending and similar star-count metadata in body text. */
 export function formatStars(count: number): string {
   return `${count.toLocaleString()} stars`;
 }
 
-/** Wikipedia most-read, Stack Exchange questions, and similar view counts in body text. */
 export function formatViews(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}m views`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k views`;
@@ -156,13 +147,11 @@ export function formatTopics(topics: string[]): string {
   return `topics: ${topics.join(", ")}`;
 }
 
-/** Dev.to, Lobsters, Stack Exchange, npm keywords, and similar tag lists in body metadata. */
 export function formatTags(tags: readonly string[]): string | undefined {
   if (tags.length === 0) return undefined;
   return `tags: ${tags.join(", ")}`;
 }
 
-/** ArXiv primary/secondary category terms in body metadata. */
 export function formatCategories(categories: string[]): string {
   return `Categories: ${categories.join(", ")}`;
 }
