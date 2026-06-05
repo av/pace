@@ -4,6 +4,7 @@ import {
   extractScore,
   formatComments,
   formatCommunity,
+  formatCount,
   formatCover,
   formatDiscuss,
   formatMastodonAcct,
@@ -45,6 +46,13 @@ describe("engagement body roundtrips", () => {
 });
 
 describe("engagement display helpers", () => {
+  test("formatCount backs count-bearing display helpers", () => {
+    expect(formatCount(42, "points")).toBe("42 points");
+    expect(formatPoints(42)).toBe("42 points");
+    expect(formatComments(10)).toBe("10 comments");
+    expect(formatStars(1_500)).toBe("1,500 stars");
+  });
+
   test("formatPercent rounds fractional scores for npm-style bodies", () => {
     expect(formatPercent(0.806)).toBe("81%");
     expect(formatPercent(0)).toBe("0%");

@@ -44,8 +44,12 @@ export function parseFirstIntMatch(text: string, re: RegExp): number | undefined
   return parseInt(match[1], 10);
 }
 
+export function formatCount(value: number | string, label: string): string {
+  return `${value} ${label}`;
+}
+
 export function formatPoints(score: number): string {
-  return `${score} points`;
+  return formatCount(score, "points");
 }
 
 export function formatScore(score: number): string {
@@ -57,7 +61,7 @@ export function formatPercent(fraction: number): string {
 }
 
 export function formatComments(count: number): string {
-  return `${count} comments`;
+  return formatCount(count, "comments");
 }
 
 export function formatAnswers(count: number, accepted = false): string {
@@ -65,11 +69,11 @@ export function formatAnswers(count: number, accepted = false): string {
 }
 
 export function formatReactions(count: number): string {
-  return `${count} reactions`;
+  return formatCount(count, "reactions");
 }
 
 export function formatUpvotes(count: number): string {
-  return `${count} upvotes`;
+  return formatCount(count, "upvotes");
 }
 
 export function formatBy(author: string): string {
@@ -89,19 +93,19 @@ export function formatSubreddit(name: string): string {
 }
 
 export function formatBoosts(count: number): string {
-  return `${count} boosts`;
+  return formatCount(count, "boosts");
 }
 
 export function formatFavorites(count: number): string {
-  return `${count} favorites`;
+  return formatCount(count, "favorites");
 }
 
 export function formatReplies(count: number): string {
-  return `${count} replies`;
+  return formatCount(count, "replies");
 }
 
 export function formatReadingTime(minutes: number): string {
-  return `${minutes} min read`;
+  return formatCount(minutes, "min read");
 }
 
 export function formatCover(url: string | null | undefined): string | undefined {
@@ -122,7 +126,7 @@ export function formatMedia(urls: readonly string[]): string | undefined {
 }
 
 export function formatStars(count: number): string {
-  return `${count.toLocaleString()} stars`;
+  return formatCount(count.toLocaleString(), "stars");
 }
 
 export function formatViews(n: number): string {
