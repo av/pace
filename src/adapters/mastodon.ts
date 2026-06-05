@@ -1,7 +1,7 @@
 import {
+  formatAtHandle,
   formatBoosts,
   formatFavorites,
-  formatMastodonAcct,
   formatMedia,
   formatReplies,
 } from "./engagement";
@@ -92,7 +92,7 @@ function buildBody(status: MastodonStatus, instance: string): string {
   return joinTitle(
     formatBoosts(status.reblogs_count),
     formatFavorites(status.favourites_count),
-    formatMastodonAcct(status.account.acct, instance),
+    formatAtHandle(status.account.acct, instance),
     status.replies_count > 0 ? formatReplies(status.replies_count) : undefined,
     formatMedia(status.media_attachments.map((m) => m.url)),
   );

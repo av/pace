@@ -136,10 +136,6 @@ export function formatAtHandle(handle: string, instance?: string): string {
   return `@${normalized}`;
 }
 
-export function formatMastodonAcct(acct: string, instance: string): string {
-  return formatAtHandle(acct, instance);
-}
-
 export function formatMedia(urls: readonly string[]): string | undefined {
   if (urls.length === 0) return undefined;
   return formatPrefixed("media", urls.join(" "));

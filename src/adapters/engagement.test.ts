@@ -8,7 +8,6 @@ import {
   formatCover,
   formatDiscuss,
   formatAtHandle,
-  formatMastodonAcct,
   formatMedia,
   formatPercent,
   formatPoints,
@@ -104,7 +103,6 @@ describe("engagement display helpers", () => {
     expect(formatAtHandle("bob@remote.social", "social.example")).toBe("@bob@remote.social");
     expect(formatAtHandle("carol")).toBe("@carol");
     expect(formatAtHandle("@dave")).toBe("@dave");
-    expect(formatMastodonAcct("alice", "social.example")).toBe("@alice@social.example");
     expect(formatBy(formatAtHandle("eve"))).toBe("by @eve");
     expect(formatMedia([])).toBeUndefined();
     expect(formatMedia(["https://ex.com/a.png"])).toBe("media: https://ex.com/a.png");
