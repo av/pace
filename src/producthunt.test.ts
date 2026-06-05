@@ -1,6 +1,7 @@
 import { describe, test, expect, spyOn } from "bun:test";
 import producthuntAdapter from "./adapters/producthunt";
 import * as utilsMod from "./utils";
+import { makeErrorResponse, makeTextResponse, makeXmlResponse } from "./test/fetch-responses";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
 const mocks = useFetchMockSuite();
@@ -51,12 +52,7 @@ function makeEnrichHtml(
 
 describe("producthunt", () => {
   test("fetches feed and maps basic items with correct id/source/timestamp/body (no enrich)", async () => {
-    mocks.fetchMock.mockResolvedValue(
-      new Response(makePHFeedFixture(), {
-        status: 200,
-        headers: { "content-type": "application/atom+xml" },
-      }),
-    );
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(makePHFeedFixture()));
 
     const items = await producthuntAdapter.fetch(producthuntCfg());
 
@@ -88,12 +84,7 @@ describe("producthunt", () => {
     <author><name>Pat Lee</name></author>
   </entry>
 </feed>`;
-    mocks.fetchMock.mockResolvedValue(
-      new Response(entityFeedTitleFixture, {
-        status: 200,
-        headers: { "content-type": "application/atom+xml" },
-      }),
-    );
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(entityFeedTitleFixture));
 
     const items = await producthuntAdapter.fetch(producthuntCfg());
 
@@ -115,12 +106,7 @@ describe("producthunt", () => {
     <author><name>Pat Lee</name></author>
   </entry>
 </feed>`;
-    mocks.fetchMock.mockResolvedValue(
-      new Response(entityTitleFeed, {
-        status: 200,
-        headers: { "content-type": "application/atom+xml" },
-      }),
-    );
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(entityTitleFeed));
 
     const items = await producthuntAdapter.fetch(producthuntCfg());
 
@@ -145,9 +131,9 @@ describe("producthunt", () => {
     mocks.fetchMock.mockImplementation(async (url: string) => {
       const u = String(url);
       if (u.includes("feed")) {
-        return new Response(htmlFeed, { status: 200 });
+        return makeXmlResponse(htmlFeed);
       }
-      return new Response(makeEnrichHtml(10, 2), { status: 200 });
+      return makeTextResponse(makeEnrichHtml(10, 2));
     });
 
     const noEnrich = await producthuntAdapter.fetch(producthuntCfg());
@@ -162,7 +148,7 @@ describe("producthunt", () => {
 
   test("respects limit param (caps at 50)", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(makePHFeedFixture(), { status: 200 }),
+      makeXmlResponse(makePHFeedFixture()),
     );
 
     const items = await producthuntAdapter.fetch(producthuntCfg({ limit: 1 }));
@@ -185,7 +171,7 @@ describe("producthunt", () => {
 <feed xmlns="http://www.w3.org/2005/Atom">
 ${entries}
 </feed>`;
-      mocks.fetchMock.mockResolvedValue(new Response(feed, { status: 200 }));
+      mocks.fetchMock.mockResolvedValue(makeXmlResponse(feed));
 
       const items = await producthuntAdapter.fetch(producthuntCfg({ limit }));
 
@@ -206,7 +192,7 @@ ${entries}
 <feed xmlns="http://www.w3.org/2005/Atom">
 ${entries}
 </feed>`;
-    mocks.fetchMock.mockResolvedValue(new Response(feed, { status: 200 }));
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(feed));
 
     const items = await producthuntAdapter.fetch(producthuntCfg({ limit: 500 }));
 
@@ -225,7 +211,7 @@ ${entries}
 <feed xmlns="http://www.w3.org/2005/Atom">
 ${entries}
 </feed>`;
-    mocks.fetchMock.mockResolvedValue(new Response(feed, { status: 200 }));
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(feed));
 
     const items = await producthuntAdapter.fetch(producthuntCfg({ limit: 7.9 }));
 
@@ -234,7 +220,7 @@ ${entries}
 
   test("without limit param returns all feed entries", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(makePHFeedFixture(), { status: 200 }),
+      makeXmlResponse(makePHFeedFixture()),
     );
 
     const items = await producthuntAdapter.fetch(producthuntCfg());
@@ -248,13 +234,13 @@ ${entries}
       const u = String(url);
       callCount++;
       if (u.includes("producthunt.com/feed")) {
-        return new Response(makePHFeedFixture(), { status: 200 });
+        return makeXmlResponse(makePHFeedFixture());
       }
       // enrich calls for the two product pages
       if (u.includes("123456")) {
-        return new Response(makeEnrichHtml(215, 67, ["ai", "devtools"], ["johndoe"]), { status: 200 });
+        return makeTextResponse(makeEnrichHtml(215, 67, ["ai", "devtools"], ["johndoe"]));
       }
-      return new Response(makeEnrichHtml(42, 12, ["design"], ["janesmith"]), { status: 200 });
+      return makeTextResponse(makeEnrichHtml(42, 12, ["design"], ["janesmith"]));
     });
 
     const items = await producthuntAdapter.fetch(producthuntCfg({ enrich: true }));
@@ -272,15 +258,12 @@ ${entries}
     mocks.fetchMock.mockImplementation(async (url: string) => {
       const u = String(url);
       if (u.includes("producthunt.com/feed")) {
-        return new Response(makePHFeedFixture(), { status: 200 });
+        return makeXmlResponse(makePHFeedFixture());
       }
       if (u.includes("123456")) {
-        return new Response(
-          makeEnrichHtml(10, 5, ["AI &amp; ML", "Dev&#39;Tools"], ["johndoe"], true),
-          { status: 200 },
-        );
+        return makeTextResponse(makeEnrichHtml(10, 5, ["AI &amp; ML", "Dev&#39;Tools"], ["johndoe"], true));
       }
-      return new Response(makeEnrichHtml(1, 1), { status: 200 });
+      return makeTextResponse(makeEnrichHtml(1, 1));
     });
 
     const items = await producthuntAdapter.fetch(producthuntCfg({ enrich: true }));
@@ -294,12 +277,12 @@ ${entries}
       const u = String(url);
       call++;
       if (u.includes("feed")) {
-        return new Response(makePHFeedFixture(), { status: 200 });
+        return makeXmlResponse(makePHFeedFixture());
       }
       if (u.includes("123456")) {
-        return new Response(makeEnrichHtml(50, 10), { status: 200 });
+        return makeTextResponse(makeEnrichHtml(50, 10));
       }
-      return new Response(makeEnrichHtml(300, 99), { status: 200 });
+      return makeTextResponse(makeEnrichHtml(300, 99));
     });
 
     const items = await producthuntAdapter.fetch(
@@ -315,9 +298,9 @@ ${entries}
     mocks.fetchMock.mockImplementation(async (url: string) => {
       const u = String(url);
       if (u.includes("feed")) {
-        return new Response(makePHFeedFixture(), { status: 200 });
+        return makeXmlResponse(makePHFeedFixture());
       }
-      return new Response(makeEnrichHtml(50, 10), { status: 200 });
+      return makeTextResponse(makeEnrichHtml(50, 10));
     });
 
     const items = await producthuntAdapter.fetch(
@@ -332,7 +315,7 @@ ${entries}
 
   test("warns when min_upvotes set without enrich (threshold ignored)", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(makePHFeedFixture(), { status: 200 }),
+      makeXmlResponse(makePHFeedFixture()),
     );
 
     const items = await producthuntAdapter.fetch(
@@ -349,7 +332,7 @@ ${entries}
     "invalid min_upvotes (%s) treated as 0 without misconfig warn",
     async (min_upvotes) => {
       mocks.fetchMock.mockResolvedValue(
-        new Response(makePHFeedFixture(), { status: 200 }),
+        makeXmlResponse(makePHFeedFixture()),
       );
 
       const items = await producthuntAdapter.fetch(
@@ -365,9 +348,9 @@ ${entries}
     mocks.fetchMock.mockImplementation(async (url: string) => {
       const u = String(url);
       if (u.includes("feed")) {
-        return new Response(makePHFeedFixture(), { status: 200 });
+        return makeXmlResponse(makePHFeedFixture());
       }
-      return new Response(makeEnrichHtml(50, 10), { status: 200 });
+      return makeTextResponse(makeEnrichHtml(50, 10));
     });
 
     const items = await producthuntAdapter.fetch(
@@ -384,7 +367,7 @@ ${entries}
 
   test("warns and returns [] when feed has no entries", async () => {
     const emptyFeed = `<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"></feed>`;
-    mocks.fetchMock.mockResolvedValue(new Response(emptyFeed, { status: 200 }));
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(emptyFeed));
 
     const items = await producthuntAdapter.fetch(producthuntCfg());
 
@@ -394,7 +377,7 @@ ${entries}
 
   test("errorMessage on !ok", async () => {
     const emSpy = spyOn(utilsMod, "errorMessage");
-    mocks.fetchMock.mockResolvedValue(new Response("rate limited", { status: 429 }));
+    mocks.fetchMock.mockResolvedValue(makeErrorResponse(429));
 
     await expect(
       producthuntAdapter.fetch(producthuntCfg()),
@@ -428,9 +411,9 @@ ${entries}
       const u = String(url);
       c++;
       if (u.includes("feed")) {
-        return new Response(makePHFeedFixture(), { status: 200 });
+        return makeXmlResponse(makePHFeedFixture());
       }
-      return new Response("<html>no data</html>", { status: 200 }); // !ok? no, but no matches -> null
+      return makeTextResponse("<html>no data</html>"); // !ok? no, but no matches -> null
     });
 
     const items = await producthuntAdapter.fetch(producthuntCfg({ enrich: true }));
@@ -444,9 +427,9 @@ ${entries}
     mocks.fetchMock.mockImplementation(async (url: string) => {
       const u = String(url);
       if (u.includes("feed")) {
-        return new Response(makePHFeedFixture(), { status: 200 });
+        return makeXmlResponse(makePHFeedFixture());
       }
-      return new Response("not found", { status: 404 });
+      return makeErrorResponse(404);
     });
 
     const items = await producthuntAdapter.fetch(producthuntCfg({ enrich: true }));
@@ -466,7 +449,7 @@ ${entries}
     mocks.fetchMock.mockImplementation(async (url: string) => {
       const u = String(url);
       if (u.includes("feed")) {
-        return new Response(makePHFeedFixture(), { status: 200 });
+        return makeXmlResponse(makePHFeedFixture());
       }
       throw new Error("enrich connection refused");
     });

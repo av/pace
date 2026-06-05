@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 
 import adapter, { resolveMastodonMode } from "./adapters/mastodon";
+import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
 const mocks = useFetchMockSuite();
@@ -75,48 +76,36 @@ describe("mastodon", () => {
       const urlStr = typeof input === "string" ? input : input.toString();
 
       if (urlStr.includes("/accounts/lookup")) {
-        return new Response(
-          JSON.stringify({
-            id: "acct42",
-            username: "test",
-            acct: "test",
-            display_name: "Test",
-            url: "https://ex.com/@test",
-          }),
-          { status: 200 },
-        );
+        return makeJsonResponse({
+          id: "acct42",
+          username: "test",
+          acct: "test",
+          display_name: "Test",
+          url: "https://ex.com/@test",
+        });
       }
 
       if (urlStr.includes("/timelines/tag/foo")) {
-        return new Response(
-          JSON.stringify([
-            makeStatus("1", "<p>post one</p>", "2024-01-01T10:00:00Z"),
-            makeStatus("2", "<p>post two</p>", "2024-01-01T11:00:00Z"),
-          ]),
-          { status: 200 },
-        );
+        return makeJsonResponse([
+          makeStatus("1", "<p>post one</p>", "2024-01-01T10:00:00Z"),
+          makeStatus("2", "<p>post two</p>", "2024-01-01T11:00:00Z"),
+        ]);
       }
       if (urlStr.includes("/timelines/tag/bar")) {
-        return new Response(
-          JSON.stringify([
-            makeStatus("2", "<p>post two</p>", "2024-01-01T11:00:00Z"),
-            makeStatus("3", "<p>post three</p>", "2024-01-01T12:00:00Z"),
-          ]),
-          { status: 200 },
-        );
+        return makeJsonResponse([
+          makeStatus("2", "<p>post two</p>", "2024-01-01T11:00:00Z"),
+          makeStatus("3", "<p>post three</p>", "2024-01-01T12:00:00Z"),
+        ]);
       }
 
       if (urlStr.includes("/timelines/") || (urlStr.includes("/accounts/") && urlStr.includes("/statuses"))) {
-        return new Response(
-          JSON.stringify([
-            makeStatus("10", "<p>hello <b>world</b></p>", "2024-05-01T00:00:00Z"),
-            makeStatus("11", "short", "2024-05-02T00:00:00Z"),
-          ]),
-          { status: 200 },
-        );
+        return makeJsonResponse([
+          makeStatus("10", "<p>hello <b>world</b></p>", "2024-05-01T00:00:00Z"),
+          makeStatus("11", "short", "2024-05-02T00:00:00Z"),
+        ]);
       }
 
-      return new Response(null, { status: 404 });
+      return makeErrorResponse(404);
     });
   });
 
@@ -129,7 +118,7 @@ describe("mastodon", () => {
       ],
     });
     mocks.fetchMock.mockImplementation(async () =>
-      new Response(JSON.stringify([withMedia]), { status: 200 }),
+      makeJsonResponse([withMedia]),
     );
 
     const items = await adapter.fetch(mastodonCfg({ instance: "ex.com", limit: 5 }));
@@ -146,7 +135,7 @@ describe("mastodon", () => {
       replies_count: 0,
     });
     mocks.fetchMock.mockImplementation(async () =>
-      new Response(JSON.stringify([remote]), { status: 200 }),
+      makeJsonResponse([remote]),
     );
 
     const items = await adapter.fetch(mastodonCfg({ instance: "ex.com", limit: 5 }));
@@ -158,7 +147,7 @@ describe("mastodon", () => {
   test("decodes HTML entities in item titles after stripHtml", async () => {
     const status = makeStatus("50", "<p>A &amp; B &#8364; C</p>", "2024-07-01T00:00:00Z");
     mocks.fetchMock.mockImplementation(async () =>
-      new Response(JSON.stringify([status]), { status: 200 }),
+      makeJsonResponse([status]),
     );
 
     const items = await adapter.fetch(mastodonCfg({ instance: "ex.com", limit: 5 }));
@@ -169,7 +158,7 @@ describe("mastodon", () => {
     const status = makeStatus("51", "<p></p>", "2024-07-02T00:00:00Z");
     status.spoiler_text = "Spoiler &amp; &#8364;";
     mocks.fetchMock.mockImplementation(async () =>
-      new Response(JSON.stringify([status]), { status: 200 }),
+      makeJsonResponse([status]),
     );
 
     const items = await adapter.fetch(mastodonCfg({ instance: "ex.com", limit: 5 }));
@@ -180,7 +169,7 @@ describe("mastodon", () => {
     const longText = "x".repeat(250);
     const status = makeStatus("52", `<p>${longText}</p>`, "2024-07-03T00:00:00Z");
     mocks.fetchMock.mockImplementation(async () =>
-      new Response(JSON.stringify([status]), { status: 200 }),
+      makeJsonResponse([status]),
     );
 
     const items = await adapter.fetch(mastodonCfg({ instance: "ex.com", limit: 5 }));
@@ -308,7 +297,7 @@ describe("mastodon", () => {
     statuses[1].favourites_count = 12;
     statuses[2].favourites_count = 50;
     mocks.fetchMock.mockImplementation(async () =>
-      new Response(JSON.stringify(statuses), { status: 200 }),
+      makeJsonResponse(statuses),
     );
 
     const items = await adapter.fetch(
@@ -327,7 +316,7 @@ describe("mastodon", () => {
     statuses[0].favourites_count = 1;
     statuses[1].favourites_count = 2;
     mocks.fetchMock.mockImplementation(async () =>
-      new Response(JSON.stringify(statuses), { status: 200 }),
+      makeJsonResponse(statuses),
     );
 
     const items = await adapter.fetch(
@@ -351,7 +340,7 @@ describe("mastodon", () => {
   });
 
   test("throws on !ok fetch error (contract; no swallow)", async () => {
-    mocks.fetchMock.mockImplementation(async () => new Response(null, { status: 500 }));
+    mocks.fetchMock.mockImplementation(async () => makeErrorResponse(500));
 
     await expect(adapter.fetch(mastodonCfg({ instance: "bad.com" }))).rejects.toThrow(
       /mastodon: failed to fetch public timeline from bad\.com: HTTP error 500/,
@@ -372,9 +361,9 @@ describe("mastodon", () => {
     mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
       const urlStr = typeof input === "string" ? input : input.toString();
       if (urlStr.includes("/accounts/lookup")) {
-        return new Response(null, { status: 404 });
+        return makeErrorResponse(404);
       }
-      return new Response(JSON.stringify([]), { status: 200 });
+      return makeJsonResponse([]);
     });
 
     const items = await adapter.fetch(mastodonCfg({ accounts: ["missing@ex.com"] }));
@@ -391,7 +380,7 @@ describe("mastodon", () => {
       if (urlStr.includes("/accounts/lookup")) {
         throw new Error("lookup connection refused");
       }
-      return new Response(JSON.stringify([]), { status: 200 });
+      return makeJsonResponse([]);
     });
 
     const items = await adapter.fetch(mastodonCfg({ accounts: ["user@ex.com"] }));

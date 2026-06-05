@@ -1,6 +1,7 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import lemmyAdapter, { resolveLemmySort } from "./adapters/lemmy";
 import * as utilsMod from "./utils";
+import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
 const mocks = useFetchMockSuite();
@@ -67,7 +68,7 @@ describe("lemmy", () => {
   test("buildBody joins engagement helpers with community and optional discuss", async () => {
     const view = makePostView();
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makePostListResponse([view])), { status: 200 }),
+      makeJsonResponse(makePostListResponse([view])),
     );
 
     const items = await lemmyAdapter.fetch(lemmyCfg());
@@ -82,7 +83,7 @@ describe("lemmy", () => {
       post: { id: 8, url: "https://lemmy.ml/post/8", ap_id: "https://lemmy.ml/post/8" },
     });
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makePostListResponse([selfPost])), { status: 200 }),
+      makeJsonResponse(makePostListResponse([selfPost])),
     );
 
     const items = await lemmyAdapter.fetch(lemmyCfg());
@@ -94,7 +95,7 @@ describe("lemmy", () => {
   test("decodes HTML entities in item titles from API", async () => {
     const view = makePostView({ post: { name: "A &amp; B &#8364; C" } });
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makePostListResponse([view])), { status: 200 }),
+      makeJsonResponse(makePostListResponse([view])),
     );
 
     const items = await lemmyAdapter.fetch(lemmyCfg());
@@ -104,7 +105,7 @@ describe("lemmy", () => {
   test("fetches frontpage from default instance when no communities specified", async () => {
     const view = makePostView();
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makePostListResponse([view])), { status: 200 }),
+      makeJsonResponse(makePostListResponse([view])),
     );
 
     const items = await lemmyAdapter.fetch(lemmyCfg());
@@ -129,7 +130,7 @@ describe("lemmy", () => {
   test("treats blank-only communities as frontpage (no community_name requests)", async () => {
     const view = makePostView();
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makePostListResponse([view])), { status: 200 }),
+      makeJsonResponse(makePostListResponse([view])),
     );
 
     const items = await lemmyAdapter.fetch(lemmyCfg({ communities: ["", "  "] }));
@@ -144,7 +145,7 @@ describe("lemmy", () => {
   test("trims whitespace from configured community names", async () => {
     const view = makePostView({ community: { name: "linux" } });
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makePostListResponse([view])), { status: 200 }),
+      makeJsonResponse(makePostListResponse([view])),
     );
 
     await lemmyAdapter.fetch(lemmyCfg({ communities: ["  linux  ", ""] }));
@@ -159,10 +160,10 @@ describe("lemmy", () => {
 
     mocks.fetchMock
       .mockResolvedValueOnce(
-        new Response(JSON.stringify(makePostListResponse([view1])), { status: 200 }),
+        makeJsonResponse(makePostListResponse([view1])),
       )
       .mockResolvedValueOnce(
-        new Response(JSON.stringify(makePostListResponse([view2])), { status: 200 }),
+        makeJsonResponse(makePostListResponse([view2])),
       );
 
     const items = await lemmyAdapter.fetch(lemmyCfg({ communities: ["linux", "rust"] }));
@@ -178,7 +179,7 @@ describe("lemmy", () => {
 
   test("uses custom instance", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makePostListResponse([])), { status: 200 }),
+      makeJsonResponse(makePostListResponse([])),
     );
 
     await lemmyAdapter.fetch(lemmyCfg({ instance: "lemmy.world", communities: ["test"] }));
@@ -190,7 +191,7 @@ describe("lemmy", () => {
   test("treats blank-only instance as default lemmy.ml", async () => {
     const view = makePostView();
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makePostListResponse([view])), { status: 200 }),
+      makeJsonResponse(makePostListResponse([view])),
     );
 
     const items = await lemmyAdapter.fetch(lemmyCfg({ instance: "   " }));
@@ -203,7 +204,7 @@ describe("lemmy", () => {
 
   test("trims whitespace from configured instance", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makePostListResponse([])), { status: 200 }),
+      makeJsonResponse(makePostListResponse([])),
     );
 
     await lemmyAdapter.fetch(
@@ -217,7 +218,7 @@ describe("lemmy", () => {
 
   test("applies sort parameter (case-insensitive)", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makePostListResponse([])), { status: 200 }),
+      makeJsonResponse(makePostListResponse([])),
     );
 
     await lemmyAdapter.fetch(lemmyCfg({ sort: "new" }));
@@ -228,7 +229,7 @@ describe("lemmy", () => {
 
   test("defaults invalid sort to Hot", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makePostListResponse([])), { status: 200 }),
+      makeJsonResponse(makePostListResponse([])),
     );
 
     await lemmyAdapter.fetch(lemmyCfg({ sort: "invalid" }));
@@ -239,7 +240,7 @@ describe("lemmy", () => {
 
   test("resolves sort aliases (most_comments -> MostComments)", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makePostListResponse([])), { status: 200 }),
+      makeJsonResponse(makePostListResponse([])),
     );
 
     await lemmyAdapter.fetch(lemmyCfg({ sort: "most_comments" }));
@@ -255,7 +256,7 @@ describe("lemmy", () => {
       makePostView({ post: { id: 3 }, counts: { score: 20 } }),
     ];
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makePostListResponse(posts)), { status: 200 }),
+      makeJsonResponse(makePostListResponse(posts)),
     );
 
     const items = await lemmyAdapter.fetch(lemmyCfg({ min_score: 10 }));
@@ -273,7 +274,7 @@ describe("lemmy", () => {
         makePostView({ post: { id: 2 }, counts: { score: 100 } }),
       ];
       mocks.fetchMock.mockResolvedValue(
-        new Response(JSON.stringify(makePostListResponse(posts)), { status: 200 }),
+        makeJsonResponse(makePostListResponse(posts)),
       );
 
       const items = await lemmyAdapter.fetch(lemmyCfg({ min_score }));
@@ -287,7 +288,7 @@ describe("lemmy", () => {
       makePostView({ post: { id: i + 1 }, counts: { score: 100 - i * 10 } }),
     );
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makePostListResponse(posts)), { status: 200 }),
+      makeJsonResponse(makePostListResponse(posts)),
     );
 
     const items = await lemmyAdapter.fetch(lemmyCfg({ limit: 3 }));
@@ -300,10 +301,10 @@ describe("lemmy", () => {
 
     mocks.fetchMock
       .mockResolvedValueOnce(
-        new Response(JSON.stringify(makePostListResponse([samePost])), { status: 200 }),
+        makeJsonResponse(makePostListResponse([samePost])),
       )
       .mockResolvedValueOnce(
-        new Response(JSON.stringify(makePostListResponse([samePost])), { status: 200 }),
+        makeJsonResponse(makePostListResponse([samePost])),
       );
 
     const items = await lemmyAdapter.fetch(lemmyCfg({ communities: ["linux", "opensource"] }));
@@ -316,7 +317,7 @@ describe("lemmy", () => {
       post: { id: 5, url: undefined, ap_id: "https://lemmy.ml/post/5" },
     });
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makePostListResponse([selfPost])), { status: 200 }),
+      makeJsonResponse(makePostListResponse([selfPost])),
     );
 
     const items = await lemmyAdapter.fetch(lemmyCfg());
@@ -329,7 +330,7 @@ describe("lemmy", () => {
       post: { id: 7, url: "https://example.com/article", ap_id: "https://lemmy.ml/post/7" },
     });
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makePostListResponse([linkPost])), { status: 200 }),
+      makeJsonResponse(makePostListResponse([linkPost])),
     );
 
     const items = await lemmyAdapter.fetch(lemmyCfg());
@@ -339,7 +340,7 @@ describe("lemmy", () => {
 
   test("sets source label for single community", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makePostListResponse([makePostView()])), { status: 200 }),
+      makeJsonResponse(makePostListResponse([makePostView()])),
     );
 
     const items = await lemmyAdapter.fetch(
@@ -350,7 +351,7 @@ describe("lemmy", () => {
   });
 
   test("throws on HTTP error with adapter prefix", async () => {
-    mocks.fetchMock.mockResolvedValue(new Response("Server Error", { status: 500 }));
+    mocks.fetchMock.mockResolvedValue(makeErrorResponse(500));
 
     await expect(lemmyAdapter.fetch(lemmyCfg())).rejects.toThrow("lemmy:");
   });
@@ -364,7 +365,7 @@ describe("lemmy", () => {
   test("errorMessage on !ok and network", async () => {
     const emSpy = spyOn(utilsMod, "errorMessage");
     try {
-      mocks.fetchMock.mockResolvedValue(new Response("Server Error", { status: 500 }));
+      mocks.fetchMock.mockResolvedValue(makeErrorResponse(500));
       await expect(lemmyAdapter.fetch(lemmyCfg())).rejects.toThrow("lemmy:");
 
       mocks.fetchMock.mockRejectedValue(new Error("connection refused"));

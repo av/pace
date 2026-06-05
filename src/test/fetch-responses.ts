@@ -11,6 +11,14 @@ export function makeTextResponse(body: string, status = 200): Response {
   });
 }
 
+/** Build an application/json Response for API fixture payloads. */
+export function makeJsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
 /** Build an application/xml Response for RSS/Atom feed fixtures. */
 export function makeXmlResponse(body: string, status = 200): Response {
   return new Response(body, {

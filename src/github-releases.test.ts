@@ -1,6 +1,7 @@
 import { describe, test, expect, spyOn } from "bun:test";
 import githubReleasesAdapter from "./adapters/github-releases";
 import * as utilsMod from "./utils";
+import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
 const mocks = useFetchMockSuite();
@@ -28,8 +29,7 @@ describe("github-releases", () => {
     mocks.fetchMock.mockImplementation(async (url: string) => {
       const u = String(url);
       if (u.includes("/releases?")) {
-        return new Response(
-          JSON.stringify([
+        return makeJsonResponse([
             {
               id: 1,
               tag_name: "v1.0.0",
@@ -38,15 +38,10 @@ describe("github-releases", () => {
               body: "Release notes here",
               published_at: "2024-01-01T00:00:00Z",
             },
-          ]),
-          { status: 200, headers: { "Content-Type": "application/json" } },
-        );
+          ]);
       }
       if (u.includes("api.github.com/repos/o/r")) {
-        return new Response(JSON.stringify({ description: "A cool repo" }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
+        return makeJsonResponse({ description: "A cool repo" });
       }
       throw new Error(`unexpected url: ${u}`);
     });
@@ -64,25 +59,19 @@ describe("github-releases", () => {
     mocks.fetchMock.mockImplementation(async (url: string) => {
       const u = String(url);
       if (u.includes("/releases?")) {
-        return new Response(
-          JSON.stringify([
-            {
-              id: 2,
-              tag_name: "v2.0.0",
-              name: "A &amp; B &#8364; C",
-              html_url: "https://github.com/o/r/releases/tag/v2.0.0",
-              body: null,
-              published_at: "2024-02-01T00:00:00Z",
-            },
-          ]),
-          { status: 200, headers: { "Content-Type": "application/json" } },
-        );
+        return makeJsonResponse([
+          {
+            id: 2,
+            tag_name: "v2.0.0",
+            name: "A &amp; B &#8364; C",
+            html_url: "https://github.com/o/r/releases/tag/v2.0.0",
+            body: null,
+            published_at: "2024-02-01T00:00:00Z",
+          },
+        ]);
       }
       if (u.includes("api.github.com/repos/o/r")) {
-        return new Response(JSON.stringify({ description: null }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" } },
-        );
+        return makeJsonResponse({ description: null });
       }
       throw new Error(`unexpected url: ${u}`);
     });
@@ -99,25 +88,19 @@ describe("github-releases", () => {
     mocks.fetchMock.mockImplementation(async (url: string) => {
       const u = String(url);
       if (u.includes("/releases?")) {
-        return new Response(
-          JSON.stringify([
-            {
-              id: 3,
-              tag_name: "v&amp;3",
-              name: null,
-              html_url: "https://github.com/o/r/releases/tag/v%263",
-              body: null,
-              published_at: "2024-03-01T00:00:00Z",
-            },
-          ]),
-          { status: 200, headers: { "Content-Type": "application/json" } },
-        );
+        return makeJsonResponse([
+          {
+            id: 3,
+            tag_name: "v&amp;3",
+            name: null,
+            html_url: "https://github.com/o/r/releases/tag/v%263",
+            body: null,
+            published_at: "2024-03-01T00:00:00Z",
+          },
+        ]);
       }
       if (u.includes("api.github.com/repos/o/r")) {
-        return new Response(JSON.stringify({ description: null }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" } },
-        );
+        return makeJsonResponse({ description: null });
       }
       throw new Error(`unexpected url: ${u}`);
     });
@@ -134,25 +117,19 @@ describe("github-releases", () => {
     mocks.fetchMock.mockImplementation(async (url: string) => {
       const u = String(url);
       if (u.includes("/releases?")) {
-        return new Response(
-          JSON.stringify([
-            {
-              id: 1,
-              tag_name: "v1.0.0",
-              name: "One",
-              html_url: "https://github.com/o/r/releases/tag/v1.0.0",
-              body: null,
-              published_at: "2024-01-01T00:00:00Z",
-            },
-          ]),
-          { status: 200, headers: { "Content-Type": "application/json" } },
-        );
+        return makeJsonResponse([
+          {
+            id: 1,
+            tag_name: "v1.0.0",
+            name: "One",
+            html_url: "https://github.com/o/r/releases/tag/v1.0.0",
+            body: null,
+            published_at: "2024-01-01T00:00:00Z",
+          },
+        ]);
       }
       if (u.includes("api.github.com/repos/o/r")) {
-        return new Response(JSON.stringify({ description: null }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
+        return makeJsonResponse({ description: null });
       }
       throw new Error(`unexpected url: ${u}`);
     });
@@ -175,25 +152,19 @@ describe("github-releases", () => {
     mocks.fetchMock.mockImplementation(async (url: string) => {
       const u = String(url);
       if (u.includes("/releases?")) {
-        return new Response(
-          JSON.stringify([
-            {
-              id: 1,
-              tag_name: "v1.0.0",
-              name: "One",
-              html_url: "https://github.com/o/r/releases/tag/v1.0.0",
-              body: null,
-              published_at: "2024-01-01T00:00:00Z",
-            },
-          ]),
-          { status: 200, headers: { "Content-Type": "application/json" } },
-        );
+        return makeJsonResponse([
+          {
+            id: 1,
+            tag_name: "v1.0.0",
+            name: "One",
+            html_url: "https://github.com/o/r/releases/tag/v1.0.0",
+            body: null,
+            published_at: "2024-01-01T00:00:00Z",
+          },
+        ]);
       }
       if (u.includes("api.github.com/repos/o/r")) {
-        return new Response(JSON.stringify({ description: null }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
+        return makeJsonResponse({ description: null });
       }
       throw new Error(`unexpected url: ${u}`);
     });
@@ -216,16 +187,10 @@ describe("github-releases", () => {
     mocks.fetchMock.mockImplementation(async (url: string) => {
       const u = String(url);
       if (u.includes("/releases?")) {
-        return new Response(JSON.stringify([]), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
+        return makeJsonResponse([]);
       }
       if (u.includes("api.github.com/repos/")) {
-        return new Response(JSON.stringify({ description: null }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
+        return makeJsonResponse({ description: null });
       }
       throw new Error(`unexpected url: ${u}`);
     });
@@ -300,7 +265,7 @@ describe("github-releases", () => {
   test("errorMessage on !ok", async () => {
     const emSpy = spyOn(utilsMod, "errorMessage");
     const callsBefore = emSpy.mock.calls.length;
-    mocks.fetchMock.mockResolvedValue(new Response("not found", { status: 404 }));
+    mocks.fetchMock.mockResolvedValue(makeErrorResponse(404));
 
     await expect(
       githubReleasesAdapter.fetch(githubReleasesCfg({ repos: ["missing/repo"] })),
