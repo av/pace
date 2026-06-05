@@ -82,6 +82,7 @@ a:hover {
 
 .flex-root,
 .flex-container,
+.flex-panel,
 .flex-panel > .panel,
 .flex-panel > .panel > .panel-body {
   min-height: 0;
@@ -104,6 +105,7 @@ a:hover {
 }
 
 .flex-panel {
+  min-width: 0;
   flex-direction: column;
   height: 100%;
 }

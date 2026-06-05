@@ -20,9 +20,12 @@ function relativeTime(timestamp: string): string {
   return `${days}d ago`;
 }
 
-function flexStyle(f?: number, extra = ""): string {
-  const base = `flex:${f ?? 1};`;
-  return extra ? `${base} ${extra}` : base;
+function flexStyle(f?: number): string {
+  return `flex:${f ?? 1};`;
+}
+
+function flexContainerStyle(container: FlexContainerConfig): string {
+  return `display:flex; flex-direction:${container.direction}; gap:${container.gap ?? "1rem"}; ${flexStyle(container.flex)}`;
 }
 
 const ContentItemCard: FC<{ item: ContentItemRow }> = ({ item }) => {
@@ -74,7 +77,7 @@ const LayoutNode: FC<{ node: LayoutNodeConfig; panelData: Map<string, PanelData>
     const data = panelData.get(node.panel);
     const pid = resolvePanelId(node);
     return (
-      <div class="flex-panel" style={flexStyle(node.flex, "min-width:0; min-height:0;")}>
+      <div class="flex-panel" style={flexStyle(node.flex)}>
         <Panel title={node.panel} panelId={pid} items={data?.items ?? []} lastRefreshedAt={data?.lastRefreshedAt} />
       </div>
     );
@@ -84,7 +87,7 @@ const LayoutNode: FC<{ node: LayoutNodeConfig; panelData: Map<string, PanelData>
   return (
     <div
       class="flex-container"
-      style={`display:flex; flex-direction:${container.direction}; gap:${container.gap ?? "1rem"}; ${flexStyle(container.flex)}`}
+      style={flexContainerStyle(container)}
     >
       {container.children.map((child) => (
         <LayoutNode node={child} panelData={panelData} />
