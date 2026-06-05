@@ -42,6 +42,25 @@ const FEED_ENDPOINTS: Record<FeedType, string> = {
   job: "jobstories",
 };
 
+const FEED_ALIASES: Record<string, FeedType> = {
+  newest: "new",
+  recent: "new",
+  front: "top",
+  frontpage: "top",
+  askhn: "ask",
+  ask_hn: "ask",
+  showhn: "show",
+  show_hn: "show",
+  jobs: "job",
+};
+
+/** Map configured feed string (canonical name or alias) to HN feed type. Unknown → top. */
+export function resolveHnFeedType(feed: string): FeedType {
+  const lower = feed.toLowerCase();
+  if (lower in FEED_ENDPOINTS) return lower as FeedType;
+  return FEED_ALIASES[lower] ?? "top";
+}
+
 async function fetchItem(id: number): Promise<HNItem | null> {
   const subpath = `item/${id}.json`;
   try {
@@ -90,23 +109,7 @@ const adapter: Adapter = {
     const limit = clampAdapterLimit(config.params?.limit, 30, 200);
     const minScore = normalizeNonNegativeNumber(config.params?.min_score);
 
-    let feedType: FeedType;
-    const feedLower = feed.toLowerCase();
-    if (feedLower in FEED_ENDPOINTS) {
-      feedType = feedLower as FeedType;
-    } else if (feedLower === "newest" || feedLower === "recent") {
-      feedType = "new";
-    } else if (feedLower === "front" || feedLower === "frontpage") {
-      feedType = "top";
-    } else if (feedLower === "askhn" || feedLower === "ask_hn") {
-      feedType = "ask";
-    } else if (feedLower === "showhn" || feedLower === "show_hn") {
-      feedType = "show";
-    } else if (feedLower === "jobs") {
-      feedType = "job";
-    } else {
-      feedType = "top";
-    }
+    const feedType = resolveHnFeedType(feed);
 
     const endpoint = FEED_ENDPOINTS[feedType];
 

@@ -1,5 +1,5 @@
 import { describe, test, expect, spyOn } from "bun:test";
-import hackernewsAdapter from "./adapters/hackernews";
+import hackernewsAdapter, { resolveHnFeedType } from "./adapters/hackernews";
 import * as typesMod from "./adapters/types";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
@@ -42,6 +42,26 @@ function makeItemResponse(item: HNItemFixture | null, status = 200): Response {
     headers: { "content-type": "application/json" },
   });
 }
+
+describe("resolveHnFeedType", () => {
+  test.each([
+    ["top", "top"],
+    ["NEW", "new"],
+    ["Best", "best"],
+    ["newest", "new"],
+    ["recent", "new"],
+    ["front", "top"],
+    ["frontpage", "top"],
+    ["askhn", "ask"],
+    ["ask_hn", "ask"],
+    ["showhn", "show"],
+    ["show_hn", "show"],
+    ["jobs", "job"],
+    ["unknown-feed", "top"],
+  ] as const)("maps %s → %s", (input, expected) => {
+    expect(resolveHnFeedType(input)).toBe(expected);
+  });
+});
 
 describe("hackernews", () => {
   test("fetches default top feed and maps items with body", async () => {
