@@ -1,61 +1,20 @@
-import {
-  clampAdapterLimit,
-  normalizeParamString,
-  normalizeParamStringList,
-} from "../utils";
+import { clampAdapterLimit } from "../utils";
 import { fetchAllParallel } from "./merge";
-import { buildGitHubApiHeaders, fetchJson } from "./fetch";
-import { fetchRepoTagline } from "./github-repo-meta";
-import { decodeNumericFeedTitle } from "./html";
-import { joinTitleWithTagline } from "./title";
-import type { Adapter, AdapterConfig, ContentItem } from "./types";
-
-interface GitHubRelease {
-  id: number;
-  tag_name: string;
-  name: string | null;
-  html_url: string;
-  body: string | null;
-  published_at: string;
-}
+import {
+  fetchGitHubApiReleases,
+  resolveGitHubRepos,
+} from "./github-shared";
+import type { Adapter, AdapterConfig } from "./types";
 
 const ADAPTER_NAME = "github-releases";
 const DEFAULT_RELEASES_PER_PAGE = 5;
 const MAX_RELEASES_PER_PAGE = 30;
 
-async function fetchRepoReleases(
-  repo: string,
-  perPage: number,
-  token?: string,
-): Promise<ContentItem[]> {
-  const url = `https://api.github.com/repos/${repo}/releases?per_page=${perPage}`;
-  const releases = await fetchJson<GitHubRelease[]>(ADAPTER_NAME, url, repo, {
-    headers: buildGitHubApiHeaders(token),
-  });
-  const tagline = await fetchRepoTagline(repo, ADAPTER_NAME, token);
-  return releases.map((r) => {
-    const releaseName = decodeNumericFeedTitle(r.name ?? r.tag_name);
-    const title = joinTitleWithTagline(`${repo}: ${releaseName}`, tagline);
-    return {
-      id: `github:${repo}:${r.id}`,
-      title,
-      url: r.html_url,
-      source: `github:${repo}`,
-      timestamp: new Date(r.published_at),
-      body: r.body ?? undefined,
-    };
-  });
-}
-
 const adapter: Adapter = {
   name: ADAPTER_NAME,
-  async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const repos = normalizeParamStringList(config.params, "repos");
-    const token = normalizeParamString(config.params, "token");
-    if (repos.length === 0) {
-      console.warn("github-releases: no repos configured");
-      return [];
-    }
+  async fetch(config: AdapterConfig) {
+    const resolved = resolveGitHubRepos(config.params, ADAPTER_NAME);
+    if (!resolved) return [];
 
     const perPage = clampAdapterLimit(
       config.params?.limit,
@@ -63,7 +22,9 @@ const adapter: Adapter = {
       MAX_RELEASES_PER_PAGE,
     );
 
-    return fetchAllParallel(repos, (repo) => fetchRepoReleases(repo, perPage, token));
+    return fetchAllParallel(resolved.repos, (repo) =>
+      fetchGitHubApiReleases(repo, perPage, ADAPTER_NAME, resolved.token),
+    );
   },
 };
 

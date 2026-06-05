@@ -20,12 +20,15 @@ import { FEED_FETCH_TIMEOUT_MS, FEED_XML_ACCEPT, fetchText } from "./fetch";
 import {
   clampAdapterLimit,
   normalizeParamString,
-  normalizeParamStringList,
   sliceToLimit,
 } from "../utils";
 import { fetchAllParallelDedupe } from "./merge";
 import { decodeNumericFeedTitle, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
 import { fetchRepoTagline } from "./github-repo-meta";
+import {
+  formatGitHubReleaseDisplayTitle,
+  resolveGitHubRepos,
+} from "./github-shared";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 type TrendingPeriod = "daily" | "weekly" | "monthly";
@@ -69,9 +72,6 @@ async function fetchReleasesFeed(
   const items: ContentItem[] = [];
 
   for (const entry of sliceToLimit(entries, limit)) {
-    const title = decodeNumericFeedTitle(
-      extractFeedEntryTitle(entry.title, "(untitled release)"),
-    );
     const link = extractAtomLink(entry.link);
     const timestamp = parseFeedDate(entry.updated ?? entry.published ?? "");
 
@@ -83,12 +83,13 @@ async function fetchReleasesFeed(
       ? stripHtml(rawBody, FEED_BODY_STRIP_OPTIONS).slice(0, 500)
       : undefined;
 
-    const releaseTitle = tag && title !== tag
-      ? `${repo}: ${tag} | ${title}`
-      : tag
-        ? `${repo}: ${tag}`
-        : `${repo}: ${title}`;
-    const displayTitle = joinTitleWithTagline(releaseTitle, tagline);
+    const rawTitle = extractFeedEntryTitle(entry.title, "(untitled release)");
+    const displayTitle = formatGitHubReleaseDisplayTitle(
+      repo,
+      { tag, title: rawTitle },
+      tagline,
+    );
+    const title = decodeNumericFeedTitle(rawTitle);
 
     items.push({
       id: `github:${repo}:${tag || title}`,
@@ -225,21 +226,17 @@ const adapter: Adapter = {
       return fetchTrending(language, since, limit);
     }
 
-    const repos = normalizeParamStringList(config.params, "repos");
-    if (repos.length === 0) {
-      console.warn("github: no repos configured");
-      return [];
-    }
+    const resolved = resolveGitHubRepos(config.params, "github");
+    if (!resolved) return [];
 
-    const token = normalizeParamString(config.params, "token");
     const deduped = await fetchAllParallelDedupe(
-      repos,
-      (repo) => fetchReleasesFeed(repo, limit, token),
+      resolved.repos,
+      (repo) => fetchReleasesFeed(repo, limit, resolved.token),
       (item) => item.url || item.id,
     );
     deduped.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
-    return sliceToLimit(deduped, limit * repos.length);
+    return sliceToLimit(deduped, limit * resolved.repos.length);
   },
 };
 
