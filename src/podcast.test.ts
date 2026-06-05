@@ -107,6 +107,31 @@ describe("podcast", () => {
     expect(items[1].title).toBe("Episode Two");
   });
 
+  test("truncates long episode descriptions in body", async () => {
+    const longDesc = "d".repeat(250);
+    const feed = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Long Desc Show</title>
+    <item>
+      <title>Long Desc Ep</title>
+      <link>https://example.com/long</link>
+      <pubDate>Mon, 01 Jan 2024 10:00:00 GMT</pubDate>
+      <description>${longDesc}</description>
+    </item>
+  </channel>
+</rss>`;
+    mocks.fetchMock.mockResolvedValue(new Response(feed, { status: 200 }));
+
+    const items = await podcastAdapter.fetch(
+      podcastCfg({ feeds: ["https://example.com/feed.xml"] }),
+    );
+
+    const descPart = items[0].body?.match(/Description: (.+)/)?.[1];
+    expect(descPart).toBe(`${"d".repeat(200)}...`);
+    expect(descPart?.length).toBe(203);
+  });
+
   test("respects limit param (caps per-feed)", async () => {
     mocks.fetchMock.mockResolvedValue(
       new Response(makePodcastFeedFixture(), { status: 200 }),

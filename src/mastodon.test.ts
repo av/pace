@@ -176,6 +176,18 @@ describe("mastodon", () => {
     expect(items[0].title).toBe("Spoiler & €");
   });
 
+  test("truncates long post titles to 200 characters with ellipsis", async () => {
+    const longText = "x".repeat(250);
+    const status = makeStatus("52", `<p>${longText}</p>`, "2024-07-03T00:00:00Z");
+    mocks.fetchMock.mockImplementation(async () =>
+      new Response(JSON.stringify([status]), { status: 200 }),
+    );
+
+    const items = await adapter.fetch(mastodonCfg({ instance: "ex.com", limit: 5 }));
+    expect(items[0].title).toBe(`${"x".repeat(197)}...`);
+    expect(items[0].title.length).toBe(200);
+  });
+
   test("treats blank-only instance as default mastodon.social", async () => {
     const items = await adapter.fetch(mastodonCfg({ instance: "   " }));
 

@@ -5,7 +5,7 @@ import {
   formatMedia,
   formatReplies,
 } from "./engagement";
-import { joinTitle } from "./title";
+import { joinTitle, truncateText } from "./title";
 
 import { fetchJson, HN_ITEM_FETCH_TIMEOUT_MS, warnOptionalFetchFailure } from "./fetch";
 import { decodeNumericFeedTitle, stripHtml } from "./html";
@@ -105,10 +105,8 @@ function buildTitle(status: MastodonStatus): string {
   if (!content && status.spoiler_text) {
     return decodeNumericFeedTitle(status.spoiler_text);
   }
-  if (content.length > 200) {
-    return content.slice(0, 197) + "...";
-  }
-  return content || "(empty post)";
+  if (!content) return "(empty post)";
+  return truncateText(content, 200, { ellipsis: "...", trim: false });
 }
 
 async function lookupAccount(

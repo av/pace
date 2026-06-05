@@ -10,7 +10,7 @@ import {
   type XmlTextField,
 } from "./atom";
 import { parseFeedDate } from "./dates";
-import { joinTitle } from "./title";
+import { joinTitle, truncateText } from "./title";
 import {
   FEED_FETCH_TIMEOUT_MS,
   fetchRssAtomFeed,
@@ -210,9 +210,11 @@ function podcastSeasonEpisode(ep: PodcastEpisode): string | undefined {
 
 function buildBody(ep: PodcastEpisode): string {
   const description = ep.description
-    ? ep.description.length > 200
-      ? ep.description.slice(0, 200) + "..."
-      : ep.description
+    ? truncateText(ep.description, 200, {
+        ellipsis: "...",
+        inclusive: false,
+        trim: false,
+      })
     : undefined;
 
   return joinTitle(
