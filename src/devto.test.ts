@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, spyOn, test } from "bun:test";
-import devtoAdapter from "./adapters/devto";
+import devtoAdapter, { resolveDevToPeriod } from "./adapters/devto";
 import * as typesMod from "./adapters/types";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
@@ -80,6 +80,37 @@ async function devtoDefaultFetchMock(
   }
   return new Response("[]", { status: 200 });
 }
+
+describe("resolveDevToPeriod", () => {
+  test.each([
+    [1, 1],
+    [0, 1],
+    [3, 7],
+    [7, 7],
+    [14, 30],
+    [30, 30],
+    [100, 365],
+    [365, 365],
+    [1000, 365],
+    ["day", 1],
+    ["DAY", 1],
+    ["1", 1],
+    ["week", 7],
+    ["7", 7],
+    ["month", 30],
+    ["30", 30],
+    ["year", 365],
+    ["365", 365],
+    ["infinity", 365],
+    ["all", 365],
+    ["unknown", 7],
+    [undefined, 7],
+    [NaN, 365],
+    [Infinity, 365],
+  ] as const)("maps %s → %s", (input, expected) => {
+    expect(resolveDevToPeriod(input)).toBe(expected);
+  });
+});
 
 describe("devto", () => {
   beforeEach(() => {

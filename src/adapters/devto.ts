@@ -66,23 +66,40 @@ async function fetchDevToArticles(
   });
 }
 
-function resolvePeriod(top: unknown): number {
+type DevToPeriod = 1 | 7 | 30 | 365;
+
+const DEFAULT_PERIOD: DevToPeriod = 7;
+
+const PERIOD_ALIASES: Record<string, DevToPeriod> = {
+  day: 1,
+  "1": 1,
+  week: 7,
+  "7": 7,
+  month: 30,
+  "30": 30,
+  year: 365,
+  "365": 365,
+  infinity: 365,
+  all: 365,
+};
+
+function bucketPeriodDays(n: number): DevToPeriod {
+  if (n <= 1) return 1;
+  if (n <= 7) return 7;
+  if (n <= 30) return 30;
+  return 365;
+}
+
+/** Map configured top param (days or alias) to Dev.to API top query value. */
+export function resolveDevToPeriod(top: unknown): DevToPeriod {
   if (typeof top === "number") {
-    if (top <= 1) return 1;
-    if (top <= 7) return 7;
-    if (top <= 30) return 30;
-    if (top <= 365) return 365;
-    return 365; // "infinity" isn't a valid API param, use largest
+    return bucketPeriodDays(top);
   }
   if (typeof top === "string") {
-    const lower = top.toLowerCase();
-    if (lower === "day" || lower === "1") return 1;
-    if (lower === "week" || lower === "7") return 7;
-    if (lower === "month" || lower === "30") return 30;
-    if (lower === "year" || lower === "365") return 365;
-    if (lower === "infinity" || lower === "all") return 365;
+    const mapped = PERIOD_ALIASES[top.toLowerCase()];
+    if (mapped !== undefined) return mapped;
   }
-  return 7; // default: week
+  return DEFAULT_PERIOD;
 }
 
 const adapter: Adapter = {
@@ -96,7 +113,7 @@ const adapter: Adapter = {
       30,
     );
     const minReactions = normalizeNonNegativeNumber(config.params?.min_reactions);
-    const top = resolvePeriod(config.params?.top);
+    const top = resolveDevToPeriod(config.params?.top);
 
     if (tags.length === 0 && !username) {
       console.warn("devto: no tags or username configured");
