@@ -192,12 +192,6 @@ function buildBody(
   );
 }
 
-function extractFeedTitle(parsed: PHAtomFeedParsed): string {
-  return decodeNumericFeedTitle(
-    extractFeedRootTitle(undefined, parsed.feed?.title) ?? "producthunt",
-  );
-}
-
 async function fetchProductHuntFeed(): Promise<{
   feedTitle: string;
   items: Array<{
@@ -215,7 +209,9 @@ async function fetchProductHuntFeed(): Promise<{
   });
 
   const parsed = feedXmlParser.parse(xml) as PHAtomFeedParsed;
-  const feedTitle = extractFeedTitle(parsed);
+  const feedTitle = decodeNumericFeedTitle(
+    extractFeedRootTitle(undefined, parsed.feed?.title) ?? "producthunt",
+  );
   const entries = normalizeXmlList(parsed.feed?.entry);
 
   if (entries.length === 0) {
