@@ -47,15 +47,6 @@ function simpleHash(str: string): string {
   return (h >>> 0).toString(36);
 }
 
-function extractFeedTitle(parsed: RssFeedParsed, url: string): string {
-  const title = extractFeedRootTitle(
-    parsed?.rss?.channel?.title,
-    parsed?.feed?.title,
-  );
-  if (title) return decodeNumericFeedTitle(title);
-  return extractHostname(url, "rss") || url;
-}
-
 function parseItem(raw: RssFeedItem, source: string): ContentItem {
   const title = decodeNumericFeedTitle(extractFeedEntryTitle(raw.title));
 
@@ -92,7 +83,13 @@ async function fetchFeed(url: string): Promise<ContentItem[]> {
   } catch (err) {
     throw new Error(`rss: error parsing xml from ${url}: ${errorMessage(err)}`);
   }
-  const source = extractFeedTitle(parsed, url);
+  const feedTitle = extractFeedRootTitle(
+    parsed?.rss?.channel?.title,
+    parsed?.feed?.title,
+  );
+  const source = feedTitle
+    ? decodeNumericFeedTitle(feedTitle)
+    : extractHostname(url, "rss") || url;
   const items = extractRssAtomItems(parsed);
   return items.map((item) => parseItem(item, source));
 }
