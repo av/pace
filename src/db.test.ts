@@ -88,6 +88,30 @@ test("saveItems and getRecentItems dedup by normalized url keeping latest timest
   expect(new Date(dupRow!.timestamp).getTime()).toBeGreaterThan(new Date(older.timestamp).getTime());
 });
 
+test("getItemsByPanel dedups per panel while getRecentItems dedups globally", () => {
+  initDb();
+  const sharedUrl = "https://ex.com/shared";
+  const p1Old = makeItem({ id: "s1", url: sharedUrl, timestamp: new Date("2021-01-01") });
+  const p1New = makeItem({ id: "s2", url: `${sharedUrl}/`, timestamp: new Date("2021-01-02") });
+  const p2Item = makeItem({ id: "s3", url: sharedUrl, timestamp: new Date("2021-01-03") });
+  saveItems("p1", [p1Old, p1New]);
+  saveItems("p2", [p2Item]);
+
+  const panel1 = getItemsByPanel("p1", 10);
+  expect(panel1.length).toBe(1);
+  expect(panel1[0].id).toBe("s2");
+  expect(panel1[0].panel_id).toBe("p1");
+
+  const panel2 = getItemsByPanel("p2", 10);
+  expect(panel2.length).toBe(1);
+  expect(panel2[0].id).toBe("s3");
+  expect(panel2[0].panel_id).toBe("p2");
+
+  const recent = getRecentItems(10);
+  expect(recent.length).toBe(1);
+  expect(recent[0].id).toBe("s3");
+});
+
 test("getItemsByPanel returns only for that panel and dedups within panel", () => {
   initDb();
   const a1 = makeItem({ id: "a1", url: "https://ex.com/x", timestamp: new Date("2021-01-01") });

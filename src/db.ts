@@ -141,31 +141,11 @@ function dedupWinnerSubquery(panelFilter: string): string {
   )`;
 }
 
-function getDedupInClause(panelId?: string): { clause: string; params: unknown[] } {
-  if (panelId != null) {
-    return {
-      clause: dedupWinnerSubquery("WHERE panel_id = ?"),
-      params: [panelId],
-    };
-  }
-  return {
-    clause: dedupWinnerSubquery(""),
-    params: [],
-  };
-}
-
 function getDedupedItems(panelId?: string, limit?: number): ContentItemRow[] {
   const db = getDb();
-  const dedup = getDedupInClause(panelId);
-  const whereParts: string[] = [];
-  const params: unknown[] = [];
-  if (panelId != null) {
-    whereParts.push("panel_id = ?");
-    params.push(panelId);
-  }
-  whereParts.push(dedup.clause);
-  params.push(...dedup.params);
-  let sql = `SELECT * FROM content_items WHERE ${whereParts.join(" AND ")} ORDER BY timestamp DESC`;
+  const panelFilter = panelId != null ? "WHERE panel_id = ?" : "";
+  const params: unknown[] = panelId != null ? [panelId] : [];
+  let sql = `SELECT * FROM content_items WHERE ${dedupWinnerSubquery(panelFilter)} ORDER BY timestamp DESC`;
   if (limit != null) {
     sql += ` LIMIT ?`;
     params.push(limit);
