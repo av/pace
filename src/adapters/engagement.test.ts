@@ -59,6 +59,7 @@ describe("engagement display helpers", () => {
     expect(formatStars(1_500)).toBe("1,500 stars");
     expect(formatAnswers(3)).toBe("3 answers");
     expect(formatAnswers(1, true)).toBe("1 answers (accepted)");
+    expect(formatViews(1_000)).toBe("1.0k views");
   });
 
   test("formatLeadIn backs space-prefixed display helpers", () => {

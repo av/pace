@@ -141,10 +141,20 @@ export function formatStars(count: number): string {
   return formatCount(count.toLocaleString(), "stars");
 }
 
+const COUNT_SCALES = [
+  [1_000_000, 1_000_000, "m"],
+  [1_000, 1_000, "k"],
+] as const;
+
+function formatScaledCount(n: number): string {
+  for (const [threshold, divisor, suffix] of COUNT_SCALES) {
+    if (n >= threshold) return `${(n / divisor).toFixed(1)}${suffix}`;
+  }
+  return String(n);
+}
+
 export function formatViews(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}m views`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k views`;
-  return `${n} views`;
+  return formatCount(formatScaledCount(n), "views");
 }
 
 export function formatLanguage(language: string): string {
