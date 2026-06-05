@@ -3,6 +3,7 @@ import type { Adapter, AdapterConfig } from "./adapters/types";
 import rssAdapter from "./adapters/rss";
 import producthuntAdapter from "./adapters/producthunt";
 import { useFetchMockSuite } from "./test/adapter-mocks";
+import { makeErrorResponse, makeXmlResponse } from "./test/fetch-responses";
 
 const mocks = useFetchMockSuite();
 
@@ -36,11 +37,9 @@ describe("types", () => {
         mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
           const url = String(input);
           if (url.includes("badstatus")) {
-            return new Response("", { status: 404 });
+            return makeErrorResponse(404);
           }
-          return new Response(rssEmptyChannelFixture(), {
-            headers: { "Content-Type": "application/xml" },
-          });
+          return makeXmlResponse(rssEmptyChannelFixture());
         });
       });
 
@@ -64,10 +63,7 @@ describe("types", () => {
     describe("producthunt", () => {
       test("empty feed: [] with misconfiguration warn, no throw", async () => {
         mocks.fetchMock.mockResolvedValue(
-          new Response(
-            `<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"></feed>`,
-            { status: 200 },
-          ),
+          makeXmlResponse(`<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"></feed>`),
         );
         const items = await producthuntAdapter.fetch({ type: "producthunt" });
         expect(items).toEqual([]);
@@ -75,7 +71,7 @@ describe("types", () => {
       });
 
       test("primary feed HTTP !ok: throws, not warn+[]", async () => {
-        mocks.fetchMock.mockResolvedValue(new Response("rate limited", { status: 429 }));
+        mocks.fetchMock.mockResolvedValue(makeErrorResponse(429));
         await expect(producthuntAdapter.fetch({ type: "producthunt" })).rejects.toThrow(
           /producthunt: failed to fetch feed: HTTP error 429/,
         );
@@ -85,9 +81,9 @@ describe("types", () => {
       test("enrich HTTP !ok: warns per item and returns feed items", async () => {
         mocks.fetchMock.mockImplementation(async (url: string) => {
           if (String(url).includes("feed")) {
-            return new Response(phFeedFixture(), { status: 200 });
+            return makeXmlResponse(phFeedFixture());
           }
-          return new Response("not found", { status: 404 });
+          return makeErrorResponse(404);
         });
         const items = await producthuntAdapter.fetch({
           type: "producthunt",

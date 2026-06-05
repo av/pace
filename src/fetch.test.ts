@@ -17,12 +17,18 @@ import {
   PACE_USER_AGENT,
 } from "./adapters/fetch";
 import { useFetchMockSuite } from "./test/adapter-mocks";
+import {
+  makeErrorResponse,
+  makeJsonResponse,
+  makeTextResponse,
+  makeXmlResponse,
+} from "./test/fetch-responses";
 
 const mocks = useFetchMockSuite();
 
 describe("fetchWithTimeout", () => {
   beforeEach(() => {
-    mocks.fetchMock.mockImplementation(async () => new Response("ok"));
+    mocks.fetchMock.mockImplementation(async () => makeTextResponse("ok"));
   });
 
   test("sends default User-Agent and AbortSignal.timeout", async () => {
@@ -81,7 +87,7 @@ describe("fetchWithTimeout", () => {
   });
 
   test("does not check res.ok — returns non-2xx responses", async () => {
-    mocks.fetchMock.mockResolvedValue(new Response("nope", { status: 503 }));
+    mocks.fetchMock.mockResolvedValue(makeTextResponse("nope", 503));
 
     const res = await fetchWithTimeout("https://example.com/missing");
     expect(res.ok).toBe(false);
@@ -91,9 +97,7 @@ describe("fetchWithTimeout", () => {
 
 describe("fetchText / fetchJson default User-Agent", () => {
   test("fetchText and fetchJson share default feed User-Agent via fetchWithTimeout", async () => {
-    mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ ok: true }), { status: 200 }),
-    );
+    mocks.fetchMock.mockResolvedValue(makeJsonResponse({ ok: true }));
 
     await fetchText("rss", "https://example.com/feed.xml");
     const textUa = (mocks.fetchMock.mock.calls[0] as [string, RequestInit])[1].headers as Record<
@@ -102,9 +106,7 @@ describe("fetchText / fetchJson default User-Agent", () => {
     >;
 
     mocks.fetchMock.mockClear();
-    mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ ok: true }), { status: 200 }),
-    );
+    mocks.fetchMock.mockResolvedValue(makeJsonResponse({ ok: true }));
 
     await fetchJson("npm", "https://example.com/search");
     const jsonUa = (mocks.fetchMock.mock.calls[0] as [string, RequestInit])[1].headers as Record<
@@ -120,7 +122,7 @@ describe("fetchText / fetchJson default User-Agent", () => {
 
 describe("fetchText", () => {
   test("returns response body on success", async () => {
-    mocks.fetchMock.mockResolvedValue(new Response("feed body", { status: 200 }));
+    mocks.fetchMock.mockResolvedValue(makeTextResponse("feed body"));
 
     const text = await fetchText("rss", "https://example.com/feed.xml");
     expect(text).toBe("feed body");
@@ -135,7 +137,7 @@ describe("fetchText", () => {
   });
 
   test("throws failed to fetch on non-2xx HTTP", async () => {
-    mocks.fetchMock.mockResolvedValue(new Response("Not Found", { status: 404 }));
+    mocks.fetchMock.mockResolvedValue(makeErrorResponse(404));
 
     await expect(fetchText("arxiv", "https://example.com/query")).rejects.toThrow(
       /^arxiv: failed to fetch https:\/\/example\.com\/query: HTTP error 404$/,
@@ -173,7 +175,7 @@ describe("fetchAtomFeed", () => {
   <entry><id>e1</id><title>One</title></entry>
   <entry><id>e2</id><title>Two</title></entry>
 </feed>`;
-    mocks.fetchMock.mockResolvedValue(new Response(xml, { status: 200 }));
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(xml));
 
     const { parsed, entries } = await fetchAtomFeed<
       { id: string; title: string },
@@ -198,7 +200,7 @@ describe("fetchAtomFeed", () => {
 <feed xmlns="http://www.w3.org/2005/Atom">
   <entry><id>only</id></entry>
 </feed>`;
-    mocks.fetchMock.mockResolvedValue(new Response(xml, { status: 200 }));
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(xml));
 
     const { entries } = await fetchAtomFeed<{ id: string }, { feed?: { entry?: { id: string } } }>(
       "arxiv",
@@ -210,7 +212,7 @@ describe("fetchAtomFeed", () => {
 
   test("forwards fetch options such as timeoutMs", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response('<feed xmlns="http://www.w3.org/2005/Atom"></feed>', { status: 200 }),
+      makeXmlResponse('<feed xmlns="http://www.w3.org/2005/Atom"></feed>'),
     );
 
     await fetchAtomFeed("arxiv", "https://example.com/query", "query", {
@@ -222,7 +224,7 @@ describe("fetchAtomFeed", () => {
   });
 
   test("throws on malformed XML with adapter prefix", async () => {
-    mocks.fetchMock.mockResolvedValue(new Response("<?xml><invalid>not closed", { status: 200 }));
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse("<?xml><invalid>not closed"));
 
     await expect(
       fetchAtomFeed("youtube", "https://example.com/feed.xml"),
@@ -230,7 +232,7 @@ describe("fetchAtomFeed", () => {
   });
 
   test("throws failed to fetch on non-2xx HTTP", async () => {
-    mocks.fetchMock.mockResolvedValue(new Response("Not Found", { status: 404 }));
+    mocks.fetchMock.mockResolvedValue(makeErrorResponse(404));
 
     await expect(
       fetchAtomFeed("arxiv", "https://example.com/query", "query"),
@@ -248,7 +250,7 @@ describe("fetchRssAtomFeed", () => {
     <item><title>Two</title><link>https://example.com/2</link></item>
   </channel>
 </rss>`;
-    mocks.fetchMock.mockResolvedValue(new Response(xml, { status: 200 }));
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(xml));
 
     const { parsed, items } = await fetchRssAtomFeed<
       { title: string; link: string },
@@ -281,7 +283,7 @@ describe("fetchRssAtomFeed", () => {
   <title>Atom Feed</title>
   <entry><title>Atom One</title></entry>
 </feed>`;
-    mocks.fetchMock.mockResolvedValue(new Response(xml, { status: 200 }));
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(xml));
 
     const { items } = await fetchRssAtomFeed<{ title: string }, { feed?: { entry?: { title: string } } }>(
       "rss",
@@ -292,7 +294,7 @@ describe("fetchRssAtomFeed", () => {
   });
 
   test("throws on malformed XML with adapter prefix", async () => {
-    mocks.fetchMock.mockResolvedValue(new Response("<?xml><invalid>not closed", { status: 200 }));
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse("<?xml><invalid>not closed"));
 
     await expect(
       fetchRssAtomFeed("rss", "https://example.com/feed.xml"),
@@ -310,7 +312,7 @@ describe("fetchRssAtomFeed", () => {
     </item>
   </channel>
 </rss>`;
-    mocks.fetchMock.mockResolvedValue(new Response(xml, { status: 200 }));
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(xml));
 
     const { parsed, items } = await fetchRssAtomFeed<
       { title?: { __cdata?: string }; description?: { __cdata?: string } },
@@ -334,12 +336,7 @@ describe("fetchRssAtomFeed", () => {
 
 describe("fetchJson", () => {
   test("returns parsed JSON on success", async () => {
-    mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ items: [1, 2] }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }),
-    );
+    mocks.fetchMock.mockResolvedValue(makeJsonResponse({ items: [1, 2] }));
 
     const data = await fetchJson<{ items: number[] }>("npm", "https://example.com/search");
     expect(data).toEqual({ items: [1, 2] });
@@ -354,7 +351,7 @@ describe("fetchJson", () => {
   });
 
   test("throws failed to fetch on non-2xx HTTP", async () => {
-    mocks.fetchMock.mockResolvedValue(new Response("Not Found", { status: 404 }));
+    mocks.fetchMock.mockResolvedValue(makeErrorResponse(404));
 
     await expect(fetchJson("github-releases", "https://example.com/releases")).rejects.toThrow(
       /^github-releases: failed to fetch https:\/\/example\.com\/releases: HTTP error 404$/,

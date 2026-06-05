@@ -191,9 +191,7 @@ describe("podcast", () => {
   });
 
   test("throws on HTTP !ok from feed (contract; no swallow)", async () => {
-    mocks.fetchMock.mockResolvedValue(
-      new Response("not found", { status: 404, statusText: "Not Found" }),
-    );
+    mocks.fetchMock.mockResolvedValue(makeErrorResponse(404));
 
     await expect(
       podcastAdapter.fetch(podcastCfg({ feeds: ["https://bad.com/404.xml"] })),

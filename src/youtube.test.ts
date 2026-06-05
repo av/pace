@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "bun:test";
 import adapter from "./adapters/youtube";
 import { FEED_XML_ACCEPT } from "./adapters/fetch";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
+import { makeErrorResponse, makeXmlResponse } from "./test/fetch-responses";
 
 const mocks = useFetchMockSuite();
 const youtubeCfg = (params: Record<string, unknown> = {}) => adapterCfg("youtube", params);
@@ -65,21 +66,15 @@ describe("youtube", () => {
     mocks.fetchMock.mockImplementation(async (url: string | URL) => {
       const urlStr = String(url);
       if (urlStr.includes("channel_id=CH1")) {
-        return new Response(channelXml, {
-          status: 200,
-          headers: { "content-type": "application/xml" },
-        });
+        return makeXmlResponse(channelXml);
       }
       if (urlStr.includes("playlist_id=PL1")) {
-        return new Response(playlistXml, {
-          status: 200,
-          headers: { "content-type": "application/xml" },
-        });
+        return makeXmlResponse(playlistXml);
       }
       if (urlStr.includes("channel_id=ERR")) {
-        return new Response("not found", { status: 404 });
+        return makeErrorResponse(404);
       }
-      return new Response("not found", { status: 404 });
+      return makeErrorResponse(404);
     });
   });
 
@@ -150,12 +145,12 @@ describe("youtube", () => {
     mocks.fetchMock.mockImplementation(async (url: string | URL) => {
       const urlStr = String(url);
       if (urlStr.includes("channel_id=CH1")) {
-        return new Response(channelXml, { status: 200 });
+        return makeXmlResponse(channelXml);
       }
       if (urlStr.includes("playlist_id=OVERLAP")) {
-        return new Response(overlapPlaylistXml, { status: 200 });
+        return makeXmlResponse(overlapPlaylistXml);
       }
-      return new Response("not found", { status: 404 });
+      return makeErrorResponse(404);
     });
 
     const items = await adapter.fetch(
@@ -188,9 +183,9 @@ describe("youtube", () => {
 </feed>`;
     mocks.fetchMock.mockImplementation(async (url: string | URL) => {
       if (String(url).includes("channel_id=HTML")) {
-        return new Response(htmlDescXml, { status: 200 });
+        return makeXmlResponse(htmlDescXml);
       }
-      return new Response("not found", { status: 404 });
+      return makeErrorResponse(404);
     });
 
     const items = await adapter.fetch(youtubeCfg({ channels: ["HTML"], limit: 5 }));
@@ -209,9 +204,9 @@ describe("youtube", () => {
 </feed>`;
     mocks.fetchMock.mockImplementation(async (url: string | URL) => {
       if (String(url).includes("channel_id=ENT")) {
-        return new Response(entityXml, { status: 200 });
+        return makeXmlResponse(entityXml);
       }
-      return new Response("not found", { status: 404 });
+      return makeErrorResponse(404);
     });
 
     const items = await adapter.fetch(youtubeCfg({ channels: ["ENT"], limit: 5 }));
@@ -229,9 +224,9 @@ describe("youtube", () => {
     async (limit) => {
       mocks.fetchMock.mockImplementation(async (url: string | URL) => {
         if (String(url).includes("channel_id=MULTI")) {
-          return new Response(makeYoutubeChannelFeedFixture(20), { status: 200 });
+          return makeXmlResponse(makeYoutubeChannelFeedFixture(20));
         }
-        return new Response("not found", { status: 404 });
+        return makeErrorResponse(404);
       });
 
       const items = await adapter.fetch(
@@ -246,9 +241,9 @@ describe("youtube", () => {
   it("caps limit at 50 per feed", async () => {
     mocks.fetchMock.mockImplementation(async (url: string | URL) => {
       if (String(url).includes("channel_id=MULTI")) {
-        return new Response(makeYoutubeChannelFeedFixture(60), { status: 200 });
+        return makeXmlResponse(makeYoutubeChannelFeedFixture(60));
       }
-      return new Response("not found", { status: 404 });
+      return makeErrorResponse(404);
     });
 
     const items = await adapter.fetch(
@@ -261,9 +256,9 @@ describe("youtube", () => {
   it("floors fractional limit per feed", async () => {
     mocks.fetchMock.mockImplementation(async (url: string | URL) => {
       if (String(url).includes("channel_id=MULTI")) {
-        return new Response(makeYoutubeChannelFeedFixture(5), { status: 200 });
+        return makeXmlResponse(makeYoutubeChannelFeedFixture(5));
       }
-      return new Response("not found", { status: 404 });
+      return makeErrorResponse(404);
     });
 
     const items = await adapter.fetch(

@@ -2,7 +2,7 @@ import { describe, expect, spyOn, test } from "bun:test";
 import npmAdapter, { resolveNpmSort } from "./adapters/npm";
 import * as utilsMod from "./utils";
 import { useFetchMockSuite } from "./test/adapter-mocks";
-import { makeJsonResponse } from "./test/fetch-responses";
+import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 
 const mocks = useFetchMockSuite();
 
@@ -343,7 +343,7 @@ describe("npm", () => {
   });
 
   test("throws on HTTP error with adapter prefix", async () => {
-    mocks.fetchMock.mockResolvedValue(new Response("Rate limited", { status: 429 }));
+    mocks.fetchMock.mockResolvedValue(makeErrorResponse(429));
 
     await expect(
       npmAdapter.fetch({ type: "npm", params: { keywords: ["test"] } }),
@@ -361,7 +361,7 @@ describe("npm", () => {
   test("errorMessage on !ok and network", async () => {
     const emSpy = spyOn(utilsMod, "errorMessage");
     try {
-      mocks.fetchMock.mockResolvedValue(new Response("Rate limited", { status: 429 }));
+      mocks.fetchMock.mockResolvedValue(makeErrorResponse(429));
       await expect(
         npmAdapter.fetch({ type: "npm", params: { keywords: ["test"] } }),
       ).rejects.toThrow("npm:");
