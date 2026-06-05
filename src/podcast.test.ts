@@ -3,62 +3,15 @@ import podcastAdapter from "./adapters/podcast";
 import * as utilsMod from "./utils";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 import { makeErrorResponse, makeXmlResponse } from "./test/fetch-responses";
+import {
+  podcastFeedFixture,
+  podcastLongDescriptionFeedFixture,
+  podcastMultiEpisodeFeedFixture,
+  podcastNoChannelFixture,
+} from "./test/podcast-fixtures";
 
 const mocks = useFetchMockSuite();
 const podcastCfg = (params: Record<string, unknown> = {}) => adapterCfg("podcast", params);
-
-function makePodcastFeedFixture(): string {
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
-  <channel>
-    <title>Test Podcast Show</title>
-    <link>https://example.com/podcast</link>
-    <item>
-      <title>Episode One Title</title>
-      <link>https://example.com/ep1</link>
-      <enclosure url="https://audio.com/ep1.mp3" type="audio/mpeg" />
-      <pubDate>Mon, 01 Jan 2024 10:00:00 GMT</pubDate>
-      <itunes:duration>12:34</itunes:duration>
-      <description>Some desc here with &amp; stuff</description>
-      <itunes:episode>1</itunes:episode>
-      <itunes:season>1</itunes:season>
-      <itunes:author>Host One</itunes:author>
-    </item>
-    <item>
-      <title>Episode Two</title>
-      <enclosure url="https://audio.com/ep2.mp3" />
-      <pubDate>2024-01-02</pubDate>
-      <description>Second episode short</description>
-    </item>
-    <item>
-      <title>Bad Item No Title</title>
-    </item>
-  </channel>
-</rss>`;
-}
-
-function makeNoChannelFixture(): string {
-  return `<?xml version="1.0"?><rss><foo>no channel</foo></rss>`;
-}
-
-function makeMultiEpisodeFeedFixture(episodeCount: number): string {
-  const items = Array.from({ length: episodeCount }, (_, i) => {
-    const n = episodeCount - i;
-    return `    <item>
-      <title>Episode ${n}</title>
-      <link>https://example.com/ep${n}</link>
-      <pubDate>Mon, ${String(n).padStart(2, "0")} Jan 2024 10:00:00 GMT</pubDate>
-    </item>`;
-  }).join("\n");
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0">
-  <channel>
-    <title>Limit Test Show</title>
-    <link>https://example.com/podcast</link>
-${items}
-  </channel>
-</rss>`;
-}
 
 describe("podcast", () => {
   test("returns empty when no feeds configured", async () => {
@@ -78,7 +31,7 @@ describe("podcast", () => {
   });
 
   test("fetches single feed and maps episodes with correct id/source/timestamp/body (duration, show, ep, audio, desc)", async () => {
-    mocks.fetchMock.mockResolvedValue(makeXmlResponse(makePodcastFeedFixture()));
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(podcastFeedFixture()));
 
     const items = await podcastAdapter.fetch(
       podcastCfg({ feeds: ["https://example.com/feed.xml"] }),
@@ -104,19 +57,7 @@ describe("podcast", () => {
 
   test("truncates long episode descriptions in body", async () => {
     const longDesc = "d".repeat(250);
-    const feed = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0">
-  <channel>
-    <title>Long Desc Show</title>
-    <item>
-      <title>Long Desc Ep</title>
-      <link>https://example.com/long</link>
-      <pubDate>Mon, 01 Jan 2024 10:00:00 GMT</pubDate>
-      <description>${longDesc}</description>
-    </item>
-  </channel>
-</rss>`;
-    mocks.fetchMock.mockResolvedValue(makeXmlResponse(feed));
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(podcastLongDescriptionFeedFixture(longDesc)));
 
     const items = await podcastAdapter.fetch(
       podcastCfg({ feeds: ["https://example.com/feed.xml"] }),
@@ -128,7 +69,7 @@ describe("podcast", () => {
   });
 
   test("respects limit param (caps per-feed)", async () => {
-    mocks.fetchMock.mockResolvedValue(makeXmlResponse(makePodcastFeedFixture()));
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(podcastFeedFixture()));
 
     const items = await podcastAdapter.fetch(
       podcastCfg({ feeds: ["https://ex.com/f.xml"], limit: 1 }),
@@ -141,7 +82,7 @@ describe("podcast", () => {
   test.each([NaN, "10", Infinity, -5, 0] as unknown[])(
     "invalid limit (%s) uses default slice of 10 per feed",
     async (limit) => {
-      mocks.fetchMock.mockResolvedValue(makeXmlResponse(makeMultiEpisodeFeedFixture(15)));
+      mocks.fetchMock.mockResolvedValue(makeXmlResponse(podcastMultiEpisodeFeedFixture(15)));
 
       const items = await podcastAdapter.fetch(
         podcastCfg({ feeds: ["https://ex.com/f.xml"], limit }),
@@ -153,7 +94,7 @@ describe("podcast", () => {
   );
 
   test("caps limit at 50 per feed", async () => {
-    mocks.fetchMock.mockResolvedValue(makeXmlResponse(makeMultiEpisodeFeedFixture(60)));
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(podcastMultiEpisodeFeedFixture(60)));
 
     const items = await podcastAdapter.fetch(
       podcastCfg({ feeds: ["https://ex.com/f.xml"], limit: 500 }),
@@ -163,7 +104,7 @@ describe("podcast", () => {
   });
 
   test("floors fractional limit per feed", async () => {
-    mocks.fetchMock.mockResolvedValue(makeXmlResponse(makeMultiEpisodeFeedFixture(5)));
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(podcastMultiEpisodeFeedFixture(5)));
 
     const items = await podcastAdapter.fetch(
       podcastCfg({ feeds: ["https://ex.com/f.xml"], limit: 2.9 }),
@@ -175,7 +116,7 @@ describe("podcast", () => {
   });
 
   test("fetches multiple feeds and dedupes episodes by url", async () => {
-    mocks.fetchMock.mockImplementation(async () => makeXmlResponse(makePodcastFeedFixture()));
+    mocks.fetchMock.mockImplementation(async () => makeXmlResponse(podcastFeedFixture()));
 
     const items = await podcastAdapter.fetch(
       podcastCfg({ feeds: ["https://a.com/1.xml", "https://b.com/2.xml"] }),
@@ -207,7 +148,7 @@ describe("podcast", () => {
   });
 
   test("warns and returns [] when no channel found in feed XML", async () => {
-    mocks.fetchMock.mockResolvedValue(makeXmlResponse(makeNoChannelFixture()));
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(podcastNoChannelFixture()));
 
     const items = await podcastAdapter.fetch(
       podcastCfg({ feeds: ["https://ex.com/nochan.xml"] }),
