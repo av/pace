@@ -2,7 +2,7 @@ import { describe, expect, spyOn, test } from "bun:test";
 import podcastAdapter from "./adapters/podcast";
 import * as utilsMod from "./utils";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
-import { makeErrorResponse } from "./test/fetch-responses";
+import { makeErrorResponse, makeXmlResponse } from "./test/fetch-responses";
 
 const mocks = useFetchMockSuite();
 const podcastCfg = (params: Record<string, unknown> = {}) => adapterCfg("podcast", params);
@@ -78,12 +78,7 @@ describe("podcast", () => {
   });
 
   test("fetches single feed and maps episodes with correct id/source/timestamp/body (duration, show, ep, audio, desc)", async () => {
-    mocks.fetchMock.mockResolvedValue(
-      new Response(makePodcastFeedFixture(), {
-        status: 200,
-        headers: { "content-type": "application/xml" },
-      }),
-    );
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(makePodcastFeedFixture()));
 
     const items = await podcastAdapter.fetch(
       podcastCfg({ feeds: ["https://example.com/feed.xml"] }),
@@ -121,7 +116,7 @@ describe("podcast", () => {
     </item>
   </channel>
 </rss>`;
-    mocks.fetchMock.mockResolvedValue(new Response(feed, { status: 200 }));
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(feed));
 
     const items = await podcastAdapter.fetch(
       podcastCfg({ feeds: ["https://example.com/feed.xml"] }),
@@ -133,9 +128,7 @@ describe("podcast", () => {
   });
 
   test("respects limit param (caps per-feed)", async () => {
-    mocks.fetchMock.mockResolvedValue(
-      new Response(makePodcastFeedFixture(), { status: 200 }),
-    );
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(makePodcastFeedFixture()));
 
     const items = await podcastAdapter.fetch(
       podcastCfg({ feeds: ["https://ex.com/f.xml"], limit: 1 }),
@@ -148,9 +141,7 @@ describe("podcast", () => {
   test.each([NaN, "10", Infinity, -5, 0] as unknown[])(
     "invalid limit (%s) uses default slice of 10 per feed",
     async (limit) => {
-      mocks.fetchMock.mockResolvedValue(
-        new Response(makeMultiEpisodeFeedFixture(15), { status: 200 }),
-      );
+      mocks.fetchMock.mockResolvedValue(makeXmlResponse(makeMultiEpisodeFeedFixture(15)));
 
       const items = await podcastAdapter.fetch(
         podcastCfg({ feeds: ["https://ex.com/f.xml"], limit }),
@@ -162,9 +153,7 @@ describe("podcast", () => {
   );
 
   test("caps limit at 50 per feed", async () => {
-    mocks.fetchMock.mockResolvedValue(
-      new Response(makeMultiEpisodeFeedFixture(60), { status: 200 }),
-    );
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(makeMultiEpisodeFeedFixture(60)));
 
     const items = await podcastAdapter.fetch(
       podcastCfg({ feeds: ["https://ex.com/f.xml"], limit: 500 }),
@@ -174,9 +163,7 @@ describe("podcast", () => {
   });
 
   test("floors fractional limit per feed", async () => {
-    mocks.fetchMock.mockResolvedValue(
-      new Response(makeMultiEpisodeFeedFixture(5), { status: 200 }),
-    );
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(makeMultiEpisodeFeedFixture(5)));
 
     const items = await podcastAdapter.fetch(
       podcastCfg({ feeds: ["https://ex.com/f.xml"], limit: 2.9 }),
@@ -188,9 +175,7 @@ describe("podcast", () => {
   });
 
   test("fetches multiple feeds and dedupes episodes by url", async () => {
-    mocks.fetchMock.mockImplementation(async () =>
-      new Response(makePodcastFeedFixture(), { status: 200 }),
-    );
+    mocks.fetchMock.mockImplementation(async () => makeXmlResponse(makePodcastFeedFixture()));
 
     const items = await podcastAdapter.fetch(
       podcastCfg({ feeds: ["https://a.com/1.xml", "https://b.com/2.xml"] }),
@@ -216,9 +201,7 @@ describe("podcast", () => {
   });
 
   test("throws on malformed XML with adapter prefix (contract; no swallow)", async () => {
-    mocks.fetchMock.mockResolvedValue(
-      new Response("<?xml><broken>", { status: 200 }),
-    );
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse("<?xml><broken>"));
 
     await expect(
       podcastAdapter.fetch(podcastCfg({ feeds: ["https://ex.com/bad.xml"] })),
@@ -226,9 +209,7 @@ describe("podcast", () => {
   });
 
   test("warns and returns [] when no channel found in feed XML", async () => {
-    mocks.fetchMock.mockResolvedValue(
-      new Response(makeNoChannelFixture(), { status: 200 }),
-    );
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(makeNoChannelFixture()));
 
     const items = await podcastAdapter.fetch(
       podcastCfg({ feeds: ["https://ex.com/nochan.xml"] }),

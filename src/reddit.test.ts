@@ -2,7 +2,7 @@ import { describe, test, expect, spyOn } from "bun:test";
 import redditAdapter, { resolveRedditPeriod, resolveRedditSort } from "./adapters/reddit";
 import * as utilsMod from "./utils";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
-import { makeErrorResponse } from "./test/fetch-responses";
+import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 
 const mocks = useFetchMockSuite();
 const redditCfg = (params: Record<string, unknown> = {}) => adapterCfg("reddit", params);
@@ -39,10 +39,7 @@ function makePost(id: string, title = "Test Post", isSelf = false, score = 100, 
 
 function makeListingResponse(posts: RedditPostDataFixture[]): Response {
   const children = posts.map((p) => ({ data: p }));
-  return new Response(
-    JSON.stringify({ data: { children } }),
-    { status: 200, headers: { "content-type": "application/json" } },
-  );
+  return makeJsonResponse({ data: { children } });
 }
 
 describe("resolveRedditSort", () => {

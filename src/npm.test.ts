@@ -2,6 +2,7 @@ import { describe, expect, spyOn, test } from "bun:test";
 import npmAdapter, { resolveNpmSort } from "./adapters/npm";
 import * as utilsMod from "./utils";
 import { useFetchMockSuite } from "./test/adapter-mocks";
+import { makeJsonResponse } from "./test/fetch-responses";
 
 const mocks = useFetchMockSuite();
 
@@ -80,7 +81,7 @@ describe("npm", () => {
 
   test("trims whitespace from configured keywords and scope", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeSearchResponse([makePackageResult()])), { status: 200 }),
+      makeJsonResponse(makeSearchResponse([makePackageResult()])),
     );
 
     await npmAdapter.fetch({
@@ -96,7 +97,7 @@ describe("npm", () => {
   test("fetches packages by keywords", async () => {
     const pkg = makePackageResult();
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeSearchResponse([pkg])), { status: 200 }),
+      makeJsonResponse(makeSearchResponse([pkg])),
     );
 
     const items = await npmAdapter.fetch({
@@ -123,7 +124,7 @@ describe("npm", () => {
 
   test("searches with scope parameter", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeSearchResponse([makePackageResult()])), { status: 200 }),
+      makeJsonResponse(makeSearchResponse([makePackageResult()])),
     );
 
     await npmAdapter.fetch({
@@ -137,7 +138,7 @@ describe("npm", () => {
 
   test("works with scope only (no keywords)", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeSearchResponse([makePackageResult()])), { status: 200 }),
+      makeJsonResponse(makeSearchResponse([makePackageResult()])),
     );
 
     const items = await npmAdapter.fetch({
@@ -151,7 +152,7 @@ describe("npm", () => {
 
   test("applies sort=popularity by boosting popularity score weight", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeSearchResponse([])), { status: 200 }),
+      makeJsonResponse(makeSearchResponse([])),
     );
 
     await npmAdapter.fetch({
@@ -167,7 +168,7 @@ describe("npm", () => {
 
   test("applies sort=quality by boosting quality score weight", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeSearchResponse([])), { status: 200 }),
+      makeJsonResponse(makeSearchResponse([])),
     );
 
     await npmAdapter.fetch({
@@ -182,7 +183,7 @@ describe("npm", () => {
 
   test("applies sort=maintenance by boosting maintenance score weight", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeSearchResponse([])), { status: 200 }),
+      makeJsonResponse(makeSearchResponse([])),
     );
 
     await npmAdapter.fetch({
@@ -198,7 +199,7 @@ describe("npm", () => {
 
   test("defaults to optimal sort (no weight params) for invalid sort", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeSearchResponse([])), { status: 200 }),
+      makeJsonResponse(makeSearchResponse([])),
     );
 
     await npmAdapter.fetch({
@@ -216,7 +217,7 @@ describe("npm", () => {
     "invalid limit (%s) uses default size=20 in API URL",
     async (limit) => {
       mocks.fetchMock.mockResolvedValue(
-        new Response(JSON.stringify(makeSearchResponse([])), { status: 200 }),
+        makeJsonResponse(makeSearchResponse([])),
       );
 
       await npmAdapter.fetch({
@@ -231,7 +232,7 @@ describe("npm", () => {
 
   test("floors fractional limit in API URL", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeSearchResponse([])), { status: 200 }),
+      makeJsonResponse(makeSearchResponse([])),
     );
 
     await npmAdapter.fetch({
@@ -245,7 +246,7 @@ describe("npm", () => {
 
   test("respects limit parameter", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeSearchResponse([])), { status: 200 }),
+      makeJsonResponse(makeSearchResponse([])),
     );
 
     await npmAdapter.fetch({
@@ -259,7 +260,7 @@ describe("npm", () => {
 
   test("caps limit at 50", async () => {
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeSearchResponse([])), { status: 200 }),
+      makeJsonResponse(makeSearchResponse([])),
     );
 
     await npmAdapter.fetch({
@@ -282,7 +283,7 @@ describe("npm", () => {
       },
     });
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeSearchResponse([pkg])), { status: 200 }),
+      makeJsonResponse(makeSearchResponse([pkg])),
     );
 
     const items = await npmAdapter.fetch({
@@ -303,7 +304,7 @@ describe("npm", () => {
       },
     });
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeSearchResponse([pkg])), { status: 200 }),
+      makeJsonResponse(makeSearchResponse([pkg])),
     );
 
     const items = await npmAdapter.fetch({
@@ -326,7 +327,7 @@ describe("npm", () => {
       },
     });
     mocks.fetchMock.mockResolvedValue(
-      new Response(JSON.stringify(makeSearchResponse([pkg])), { status: 200 }),
+      makeJsonResponse(makeSearchResponse([pkg])),
     );
 
     const items = await npmAdapter.fetch({
