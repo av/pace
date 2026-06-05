@@ -3,6 +3,7 @@ import stackexchangeAdapter, { resolveStackExchangeSort } from "./adapters/stack
 import * as utilsMod from "./utils";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
+import { makeApiResponse, makeQuestion } from "./test/stackexchange-fixtures";
 
 const mocks = useFetchMockSuite();
 const seCfg = (params: Record<string, unknown> = {}) => adapterCfg("stackexchange", params);
@@ -32,35 +33,6 @@ describe("resolveStackExchangeSort", () => {
 });
 
 describe("stackexchange", () => {
-  function makeQuestion(overrides: Partial<Record<string, unknown>> = {}) {
-    return {
-      question_id: 123,
-      title: "How to use Bun with TypeScript?",
-      link: "https://stackoverflow.com/questions/123",
-      score: 42,
-      answer_count: 3,
-      view_count: 1500,
-      tags: ["typescript", "bun"],
-      owner: { display_name: "bunfan" },
-      creation_date: 1700000000,
-      is_answered: true,
-      accepted_answer_id: 456,
-      ...overrides,
-    };
-  }
-
-  function makeApiResponse(
-    items: unknown[],
-    overrides: Partial<{ has_more: boolean; quota_remaining: number }> = {},
-  ) {
-    return makeJsonResponse({
-      items,
-      has_more: false,
-      quota_remaining: 100,
-      ...overrides,
-    });
-  }
-
   test("default site", async () => {
     const q = makeQuestion();
     mocks.fetchMock.mockResolvedValue(makeApiResponse([q]));
