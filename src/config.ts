@@ -4,8 +4,11 @@ import yaml from "js-yaml";
 import type { AdapterConfig } from "./adapters/types";
 import { errorMessage, getAdapterName } from "./utils";
 
+export const LAYOUT_DIRECTIONS = ["row", "column"] as const;
+export type LayoutDirection = (typeof LAYOUT_DIRECTIONS)[number];
+
 export interface FlexContainerConfig {
-  direction: "row" | "column";
+  direction: LayoutDirection;
   flex?: number;
   gap?: string;
   children: LayoutNodeConfig[];
@@ -45,6 +48,18 @@ export type DedupeStrategy = (typeof DEDUPE_STRATEGIES)[number];
 export const DEDUPE_KEEP_OPTIONS = ["highest-score", "earliest", "latest"] as const;
 export type DedupeKeep = (typeof DEDUPE_KEEP_OPTIONS)[number];
 
+export const SORT_FIELDS = ["timestamp", "title", "source"] as const;
+export type SortField = (typeof SORT_FIELDS)[number];
+
+export const SORT_DIRECTIONS = ["asc", "desc"] as const;
+export type SortDirection = (typeof SORT_DIRECTIONS)[number];
+
+export const DECAY_TYPES = ["exponential", "linear"] as const;
+export type DecayType = (typeof DECAY_TYPES)[number];
+
+export const CLUSTER_STRATEGIES = ["domain", "keywords", "source", "auto"] as const;
+export type ClusterStrategy = (typeof CLUSTER_STRATEGIES)[number];
+
 /** Runtime defaults for dedupe transform (must match apply logic in transforms.ts). */
 export const DEDUPE_DEFAULT_STRATEGY: DedupeStrategy = "url";
 export const DEDUPE_DEFAULT_THRESHOLD = 0.85;
@@ -58,11 +73,11 @@ export type TransformConfig =
   | { type: "latest"; count: number }
   | { type: "filter"; keywords: string[]; fields?: KeywordField[] }
   | { type: "exclude"; keywords: string[]; fields?: KeywordField[] }
-  | { type: "sort"; field: "timestamp" | "title" | "source"; direction?: "asc" | "desc" }
+  | { type: "sort"; field: SortField; direction?: SortDirection }
   | { type: "dedupe"; strategy?: DedupeStrategy; threshold?: number; keep?: DedupeKeep; log?: boolean }
   | { type: "keyword-score"; keywords: KeywordScoreEntry[]; min_score?: number; annotate?: boolean }
-  | { type: "time-decay"; half_life?: string; engagement_weight?: number; recency_weight?: number; decay?: "exponential" | "linear"; annotate?: boolean; min_score?: number }
-  | { type: "cluster"; strategy?: "domain" | "keywords" | "source" | "auto"; min_cluster_size?: number; max_clusters?: number; similarity_threshold?: number; annotate?: boolean }
+  | { type: "time-decay"; half_life?: string; engagement_weight?: number; recency_weight?: number; decay?: DecayType; annotate?: boolean; min_score?: number }
+  | { type: "cluster"; strategy?: ClusterStrategy; min_cluster_size?: number; max_clusters?: number; similarity_threshold?: number; annotate?: boolean }
   | { type: "llm-summarize" }
   | { type: "llm-filter"; criteria: string }
   | { type: "llm-rank"; interests?: string[] }
@@ -264,7 +279,7 @@ function validateLayoutContainer(node: Record<string, unknown>, path: string): v
   validateAllowedKeys(node, ["direction", "flex", "gap", "children"], (key) =>
     `${path}.${key} is not a valid layout container field`,
   );
-  validateEnum(node.direction, ["row", "column"], `${path}.direction`);
+  validateEnum(node.direction, LAYOUT_DIRECTIONS, `${path}.direction`);
   if (!Array.isArray(node.children)) {
     throw new Error(`config: ${path}.children must be a list`);
   }
@@ -567,8 +582,8 @@ const TRANSFORM_SCHEMAS: Readonly<Record<TransformType, TransformSchema>> = {
   sort: {
     fields: ["type", "field", "direction"],
     validate: (transform, path) => {
-      validateEnum(transform.field, ["timestamp", "title", "source"], `${path}.field`);
-      validateOptionalEnum(transform.direction, ["asc", "desc"], `${path}.direction`);
+      validateEnum(transform.field, SORT_FIELDS, `${path}.field`);
+      validateOptionalEnum(transform.direction, SORT_DIRECTIONS, `${path}.direction`);
     },
   },
   dedupe: {
@@ -595,7 +610,7 @@ const TRANSFORM_SCHEMAS: Readonly<Record<TransformType, TransformSchema>> = {
       validateOptionalNonEmptyString(transform.half_life, `${path}.half_life`);
       validateOptionalFiniteNumber(transform.engagement_weight, `${path}.engagement_weight`);
       validateOptionalFiniteNumber(transform.recency_weight, `${path}.recency_weight`);
-      validateOptionalEnum(transform.decay, ["exponential", "linear"], `${path}.decay`);
+      validateOptionalEnum(transform.decay, DECAY_TYPES, `${path}.decay`);
       validateOptionalBoolean(transform.annotate, `${path}.annotate`);
       validateOptionalFiniteNumber(transform.min_score, `${path}.min_score`);
     },
@@ -603,7 +618,7 @@ const TRANSFORM_SCHEMAS: Readonly<Record<TransformType, TransformSchema>> = {
   cluster: {
     fields: ["type", "strategy", "min_cluster_size", "max_clusters", "similarity_threshold", "annotate"],
     validate: (transform, path) => {
-      validateOptionalEnum(transform.strategy, ["domain", "keywords", "source", "auto"], `${path}.strategy`);
+      validateOptionalEnum(transform.strategy, CLUSTER_STRATEGIES, `${path}.strategy`);
       validateOptionalPositiveInteger(transform.min_cluster_size, `${path}.min_cluster_size`);
       validateOptionalPositiveInteger(transform.max_clusters, `${path}.max_clusters`);
       validateOptionalUnitNumber(transform.similarity_threshold, `${path}.similarity_threshold`);

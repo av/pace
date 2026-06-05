@@ -542,6 +542,26 @@ layout:
     );
   });
 
+  test("rejects invalid sort transform direction enum", () => {
+    const yaml = `
+adapters:
+  - type: rss
+    transforms:
+      - type: sort
+        field: title
+        direction: sideways
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: adapters\[0\].transforms\[0\].direction must be one of: asc, desc/,
+    );
+  });
+
   test("rejects keyword-score empty term", () => {
     const yaml = `
 adapters:
