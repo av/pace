@@ -1,7 +1,12 @@
 /** Shared adapter HTTP helpers. Timeouts: DEFAULT 15s, HN_ITEM 10s, FEED 20s, ARXIV 30s.
  *  Errors: `${prefix}: failed to fetch` (non-2xx), `error fetching` (transport), `error reading` (body).
  *  Rethrow `failed to fetch` in outer catches; see `Adapter.fetch` in types.ts. */
-import { normalizeXmlList, parseFeedXml, type XmlTextField } from "./atom";
+import {
+  extractRssAtomItems,
+  normalizeXmlList,
+  parseFeedXml,
+  type XmlTextField,
+} from "./atom";
 import { errorMessage } from "./types";
 
 export const PACE_USER_AGENT = "pace/1.0";
@@ -118,6 +123,19 @@ export type AtomFeedShape<TEntry> = {
   };
 };
 
+export type RssAtomFeedShape<TEntry> = {
+  rss?: {
+    channel?: {
+      title?: XmlTextField;
+      item?: TEntry | TEntry[];
+    };
+  };
+  feed?: {
+    title?: XmlTextField;
+    entry?: TEntry | TEntry[];
+  };
+};
+
 /** Fetch Atom/XML feed, parse, and normalize `feed.entry` list. */
 export async function fetchAtomFeed<TEntry, TParsed extends AtomFeedShape<TEntry>>(
   prefix: string,
@@ -131,6 +149,24 @@ export async function fetchAtomFeed<TEntry, TParsed extends AtomFeedShape<TEntry
   });
   const parsed = parseFeedXml<TParsed>(xml, prefix, url);
   return { parsed, entries: normalizeXmlList(parsed.feed?.entry) };
+}
+
+/** Fetch RSS/Atom feed XML, parse, and normalize items (`rss.channel.item` or `feed.entry`). */
+export async function fetchRssAtomFeed<
+  TEntry,
+  TParsed extends RssAtomFeedShape<TEntry>,
+>(
+  prefix: string,
+  url: string,
+  context: string = url,
+  options: FetchWithTimeoutOptions = {},
+): Promise<{ parsed: TParsed; items: TEntry[] }> {
+  const xml = await fetchText(prefix, url, context, {
+    accept: FEED_XML_ACCEPT,
+    ...options,
+  });
+  const parsed = parseFeedXml<TParsed>(xml, prefix, url);
+  return { parsed, items: extractRssAtomItems(parsed) };
 }
 
 /**

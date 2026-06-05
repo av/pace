@@ -6,6 +6,7 @@ import {
   FEED_FETCH_TIMEOUT_MS,
   FEED_XML_ACCEPT,
   fetchAtomFeed,
+  fetchRssAtomFeed,
   fetchJson,
   fetchText,
   fetchWithTimeout,
@@ -233,6 +234,68 @@ describe("fetchAtomFeed", () => {
     await expect(
       fetchAtomFeed("arxiv", "https://example.com/query", "query"),
     ).rejects.toThrow(/^arxiv: failed to fetch query: HTTP error 404$/);
+  });
+});
+
+describe("fetchRssAtomFeed", () => {
+  test("fetches RSS channel items with FEED_XML_ACCEPT", async () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>RSS Feed</title>
+    <item><title>One</title><link>https://example.com/1</link></item>
+    <item><title>Two</title><link>https://example.com/2</link></item>
+  </channel>
+</rss>`;
+    mocks.fetchMock.mockResolvedValue(new Response(xml, { status: 200 }));
+
+    const { parsed, items } = await fetchRssAtomFeed<
+      { title: string; link: string },
+      {
+        rss?: {
+          channel?: {
+            title?: string;
+            item?: { title: string; link: string } | { title: string; link: string }[];
+          };
+        };
+      }
+    >("rss", "https://example.com/feed.xml");
+
+    expect(items).toEqual([
+      { title: "One", link: "https://example.com/1" },
+      { title: "Two", link: "https://example.com/2" },
+    ]);
+    expect(parsed.rss?.channel?.title).toBe("RSS Feed");
+
+    const headers = (mocks.fetchMock.mock.calls[0][1] as RequestInit).headers as Record<
+      string,
+      string
+    >;
+    expect(headers.Accept).toBe(FEED_XML_ACCEPT);
+  });
+
+  test("falls back to Atom entries when RSS channel items are absent", async () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Atom Feed</title>
+  <entry><title>Atom One</title></entry>
+</feed>`;
+    mocks.fetchMock.mockResolvedValue(new Response(xml, { status: 200 }));
+
+    const { items } = await fetchRssAtomFeed<{ title: string }, { feed?: { entry?: { title: string } } }>(
+      "rss",
+      "https://example.com/atom.xml",
+    );
+
+    expect(items).toEqual([{ title: "Atom One" }]);
+  });
+
+  test("throws on malformed XML with adapter prefix", async () => {
+    mocks.fetchMock.mockResolvedValue(new Response("<?xml><invalid>not closed", { status: 200 }));
+
+    await expect(
+      fetchRssAtomFeed("rss", "https://example.com/feed.xml"),
+    ).rejects.toThrow(/rss: error parsing xml from/);
   });
 });
 
