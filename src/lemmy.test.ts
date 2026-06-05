@@ -2,6 +2,7 @@ import { describe, expect, spyOn, test } from "bun:test";
 import lemmyAdapter, { resolveLemmySort } from "./adapters/lemmy";
 import * as utilsMod from "./utils";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
+import { invalidMinScoreParams } from "./test/invalid-params";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 import { makePostListResponse, makePostView } from "./test/lemmy-fixtures";
 
@@ -231,7 +232,7 @@ describe("lemmy", () => {
     expect(items[1].id).toBe("lemmy:lemmy.ml:3");
   });
 
-  test.each([NaN, "10", Infinity, -5] as unknown[])(
+  test.each(invalidMinScoreParams(10))(
     "invalid min_score (%s) treated as 0 (no score filter)",
     async (min_score) => {
       const posts = [

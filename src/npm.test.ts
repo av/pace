@@ -3,6 +3,7 @@ import npmAdapter, { resolveNpmSort } from "./adapters/npm";
 import * as utilsMod from "./utils";
 import { useFetchMockSuite } from "./test/adapter-mocks";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
+import { invalidLimitParams } from "./test/invalid-params";
 import { makePackageResult, makeSearchResponse } from "./test/npm-fixtures";
 
 const mocks = useFetchMockSuite();
@@ -181,7 +182,7 @@ describe("npm", () => {
     expect(calledUrl).not.toContain("maintenance=");
   });
 
-  test.each([NaN, "20", Infinity, -5, 0] as unknown[])(
+  test.each(invalidLimitParams(20))(
     "invalid limit (%s) uses default size=20 in API URL",
     async (limit) => {
       mocks.fetchMock.mockResolvedValue(

@@ -3,6 +3,7 @@ import hackernewsAdapter, { resolveHnFeedType } from "./adapters/hackernews";
 import * as utilsMod from "./utils";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
+import { invalidLimitParams, invalidMinScoreParams } from "./test/invalid-params";
 import { makeHNItem } from "./test/hackernews-fixtures";
 
 const mocks = useFetchMockSuite();
@@ -145,7 +146,7 @@ describe("hackernews", () => {
     expect(results.every((r) => (r.body.match(/(\d+) points/)?.[1] ?? 0) >= 50)).toBe(true);
   });
 
-  test.each([NaN, "50", Infinity, -5] as unknown[])(
+  test.each(invalidMinScoreParams(50))(
     "invalid min_score (%s) treated as 0 (no score filter)",
     async (min_score) => {
       const ids = [1, 2];
@@ -165,7 +166,7 @@ describe("hackernews", () => {
     },
   );
 
-  test.each([NaN, "30", Infinity, -5, 0] as unknown[])(
+  test.each(invalidLimitParams(30))(
     "invalid limit (%s) uses default fetch slice of 30",
     async (limit) => {
       const ids = Array.from({ length: 40 }, (_, i) => i + 1);

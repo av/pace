@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import lobstersAdapter, { resolveLobstersFeedType } from "./adapters/lobsters";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 import { makeJsonResponse } from "./test/fetch-responses";
+import { invalidLimitParams, invalidMinScoreParams } from "./test/invalid-params";
 
 const mocks = useFetchMockSuite();
 const lobstersCfg = (params: Record<string, unknown> = {}) => adapterCfg("lobsters", params);
@@ -210,7 +211,7 @@ describe("lobsters", () => {
     expect(results[1].id).toBe("lobsters:quiet");
   });
 
-  test.each([NaN, "25", Infinity, -5, 0] as unknown[])(
+  test.each(invalidLimitParams(25))(
     "invalid limit (%s) uses default slice of 25",
     async (limit) => {
       const items = Array.from({ length: 30 }, (_, i) =>
@@ -262,7 +263,7 @@ describe("lobsters", () => {
     expect(results[0].id).toBe("lobsters:mid"); // first qualifying after filter (order preserved, no sort for standard)
   });
 
-  test.each([NaN, "50", Infinity, -5] as unknown[])(
+  test.each(invalidMinScoreParams(50))(
     "invalid min_score (%s) treated as 0 (no score filter)",
     async (min_score) => {
       const items = [

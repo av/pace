@@ -4,6 +4,7 @@ import { truncateText } from "./adapters/title";
 import * as utilsMod from "./utils";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
+import { invalidLimitParams } from "./test/invalid-params";
 import { makeFeaturedResponse, makeMostReadArticle } from "./test/wikipedia-fixtures";
 
 const mocks = useFetchMockSuite();
@@ -96,7 +97,7 @@ describe("wikipedia", () => {
     expect(items[0].source).toBe("wikipedia:news");
   });
 
-  test.each([NaN, "20", Infinity, -5, 0] as unknown[])(
+  test.each(invalidLimitParams(20))(
     "invalid limit (%s) uses default slice of 20 for most_read",
     async (limit) => {
       const articles = Array.from({ length: 30 }, (_, i) =>

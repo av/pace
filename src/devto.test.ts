@@ -3,6 +3,7 @@ import devtoAdapter, { resolveDevToPeriod } from "./adapters/devto";
 import * as utilsMod from "./utils";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 import { makeJsonResponse } from "./test/fetch-responses";
+import { invalidLimitParams, invalidMinScoreParams } from "./test/invalid-params";
 
 const mocks = useFetchMockSuite();
 const devtoCfg = (params: Record<string, unknown> = {}) => adapterCfg("devto", params);
@@ -109,7 +110,7 @@ describe("devto", () => {
     mocks.fetchMock.mockImplementation(devtoDefaultFetchMock);
   });
 
-  test.each([NaN, "20", Infinity, -5, 0] as unknown[])(
+  test.each(invalidLimitParams(20))(
     "invalid limit (%s) sends per_page=20 to API",
     async (limit) => {
       await devtoAdapter.fetch(devtoCfg({ tags: ["typescript"], limit }));
@@ -221,7 +222,7 @@ describe("devto", () => {
     expect(calls.filter((c) => c.url.includes("tag=react")).length).toBe(1);
   });
 
-  test.each([NaN, "10", Infinity, -5] as unknown[])(
+  test.each(invalidMinScoreParams(10))(
     "invalid min_reactions (%s) treated as 0 (no reactions filter)",
     async (min_reactions) => {
       mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {

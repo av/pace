@@ -3,6 +3,7 @@ import stackexchangeAdapter, { resolveStackExchangeSort } from "./adapters/stack
 import * as utilsMod from "./utils";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
+import { invalidLimitParams, invalidMinScoreParams } from "./test/invalid-params";
 import { makeApiResponse, makeQuestion } from "./test/stackexchange-fixtures";
 
 const mocks = useFetchMockSuite();
@@ -182,7 +183,7 @@ describe("stackexchange", () => {
     );
   });
 
-  test.each([NaN, "20", Infinity, -5, 0] as unknown[])(
+  test.each(invalidLimitParams(20))(
     "invalid limit (%s) uses default pagesize=20",
     async (limit) => {
       mocks.fetchMock.mockResolvedValue(makeApiResponse([]));
@@ -226,7 +227,7 @@ describe("stackexchange", () => {
     expect(items[0].id).toBe("se:stackoverflow:20");
   });
 
-  test.each([NaN, "10", Infinity, -5] as unknown[])(
+  test.each(invalidMinScoreParams(10))(
     "invalid min_score (%s) treated as 0 (no score filter)",
     async (min_score) => {
       const questions = [

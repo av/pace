@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, test } from "bun:test";
 
 import adapter, { resolveMastodonMode } from "./adapters/mastodon";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
+import { invalidLimitParams } from "./test/invalid-params";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
 const mocks = useFetchMockSuite();
@@ -258,7 +259,7 @@ describe("mastodon", () => {
     expect(fetchUrls().some((u) => u.includes("/statuses"))).toBe(true);
   });
 
-  test.each([NaN, "20", Infinity, -5, 0] as unknown[])(
+  test.each(invalidLimitParams(20))(
     "invalid limit (%s) uses default limit=20 in API URL",
     async (limit) => {
       await adapter.fetch(mastodonCfg({ instance: "ex.com", limit }));

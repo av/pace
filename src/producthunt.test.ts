@@ -2,6 +2,7 @@ import { describe, test, expect, spyOn } from "bun:test";
 import producthuntAdapter from "./adapters/producthunt";
 import * as utilsMod from "./utils";
 import { makeErrorResponse, makeTextResponse, makeXmlResponse } from "./test/fetch-responses";
+import { invalidLimitParams, invalidMinScoreParams } from "./test/invalid-params";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 import {
   productHuntEmptyFeedFixture,
@@ -89,7 +90,7 @@ describe("producthunt", () => {
     expect(items[0].title).toBe("Test Product | Cool new AI tool tagline");
   });
 
-  test.each([NaN, "20", Infinity, -5, 0] as unknown[])(
+  test.each(invalidLimitParams(20))(
     "invalid limit (%s) uses default slice of 20 when limit param set",
     async (limit) => {
       mocks.fetchMock.mockResolvedValue(
@@ -260,7 +261,7 @@ describe("producthunt", () => {
     );
   });
 
-  test.each([NaN, "100", Infinity, -5] as unknown[])(
+  test.each(invalidMinScoreParams(100))(
     "invalid min_upvotes (%s) treated as 0 without misconfig warn",
     async (min_upvotes) => {
       mocks.fetchMock.mockResolvedValue(

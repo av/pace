@@ -3,6 +3,7 @@ import adapter from "./adapters/youtube";
 import { FEED_XML_ACCEPT } from "./adapters/fetch";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 import { makeErrorResponse, makeXmlResponse } from "./test/fetch-responses";
+import { invalidLimitParams } from "./test/invalid-params";
 import {
   youtubeChannelOneFeedFixture,
   youtubeEntityTitlesFeedFixture,
@@ -145,7 +146,7 @@ describe("youtube", () => {
     expect(items.length).toBe(1);
   });
 
-  it.each([NaN, "10", Infinity, -5, 0] as unknown[])(
+  it.each(invalidLimitParams(10))(
     "invalid limit (%s) uses default slice of 15 per feed",
     async (limit) => {
       mocks.fetchMock.mockImplementation(async (url: string | URL) => {

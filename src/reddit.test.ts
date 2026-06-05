@@ -3,6 +3,7 @@ import redditAdapter, { resolveRedditPeriod, resolveRedditSort } from "./adapter
 import * as utilsMod from "./utils";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 import { makeErrorResponse } from "./test/fetch-responses";
+import { invalidLimitParams, invalidMinScoreParams } from "./test/invalid-params";
 import { makeListingResponse, makePost } from "./test/reddit-fixtures";
 
 const mocks = useFetchMockSuite();
@@ -112,7 +113,7 @@ describe("reddit", () => {
     expect(items[0].timestamp instanceof Date).toBe(true);
   });
 
-  test.each([NaN, "25", Infinity, -5, 0] as unknown[])(
+  test.each(invalidLimitParams(25))(
     "invalid limit (%s) uses default limit=25 in API URL",
     async (limit) => {
       mocks.fetchMock.mockResolvedValue(makeListingResponse([]));
@@ -163,7 +164,7 @@ describe("reddit", () => {
     expect(items[1].title).toBe("Med");
   });
 
-  test.each([NaN, "10", Infinity, -5] as unknown[])(
+  test.each(invalidMinScoreParams(10))(
     "invalid min_score (%s) treated as 0 (no score filter)",
     async (min_score) => {
       const posts = [

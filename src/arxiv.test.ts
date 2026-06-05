@@ -3,6 +3,7 @@ import arxivAdapter from "./adapters/arxiv";
 import { FEED_XML_ACCEPT } from "./adapters/fetch";
 import * as utilsMod from "./utils";
 import { makeErrorResponse, makeXmlResponse } from "./test/fetch-responses";
+import { invalidLimitParams } from "./test/invalid-params";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 import {
   arxivDedupOverlapQueryFeedFixture,
@@ -187,7 +188,7 @@ describe("arxiv", () => {
     expect(items.some((i) => i.source === "arxiv:search")).toBe(true);
   });
 
-  test.each([NaN, "20", Infinity, -5, 0] as unknown[])(
+  test.each(invalidLimitParams(20))(
     "invalid limit (%s) uses default max_results=20",
     async (limit) => {
       mocks.fetchMock.mockResolvedValue(

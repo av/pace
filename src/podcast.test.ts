@@ -3,6 +3,7 @@ import podcastAdapter from "./adapters/podcast";
 import * as utilsMod from "./utils";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 import { makeErrorResponse, makeXmlResponse } from "./test/fetch-responses";
+import { invalidLimitParams } from "./test/invalid-params";
 import {
   podcastFeedFixture,
   podcastLongDescriptionFeedFixture,
@@ -79,7 +80,7 @@ describe("podcast", () => {
     expect(items[0].title).toBe("Episode One Title");
   });
 
-  test.each([NaN, "10", Infinity, -5, 0] as unknown[])(
+  test.each(invalidLimitParams(10))(
     "invalid limit (%s) uses default slice of 10 per feed",
     async (limit) => {
       mocks.fetchMock.mockResolvedValue(makeXmlResponse(podcastMultiEpisodeFeedFixture(15)));

@@ -2,6 +2,7 @@ import { describe, test, expect, spyOn } from "bun:test";
 import githubReleasesAdapter from "./adapters/github-releases";
 import * as utilsMod from "./utils";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
+import { invalidLimitParams } from "./test/invalid-params";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
 const mocks = useFetchMockSuite();
@@ -207,7 +208,7 @@ describe("github-releases", () => {
     expect(releasesUrl).toContain("per_page=5");
   });
 
-  test.each([NaN, "10", Infinity, -5, 0] as unknown[])(
+  test.each(invalidLimitParams(10))(
     "invalid limit (%s) uses default per_page=5 in API URL",
     async (limit) => {
       mockReleasesAndRepoMeta();
