@@ -13,7 +13,7 @@ import {
   normalizeNonNegativeNumber,
   normalizeOptionalString,
   clampAdapterLimit,
-  normalizeStringList,
+  normalizeParamStringList,
   sliceToLimit,
 } from "../utils";
 import { dedupeByKey, fetchAndConcat, sortByCreatedAtDesc } from "./merge";
@@ -61,7 +61,7 @@ const adapter: Adapter = {
         : undefined) ?? "hottest";
     const limit = clampAdapterLimit(config.params?.limit, 25, 100);
     const minScore = normalizeNonNegativeNumber(config.params?.min_score);
-    const tags = normalizeStringList((config.params?.tags as string[]) ?? []);
+    const tags = normalizeParamStringList(config.params, "tags");
 
     let feedType: FeedType;
     const feedLower = feed.toLowerCase();

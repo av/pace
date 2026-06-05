@@ -10,7 +10,7 @@ import { decodeNumericFeedTitle } from "./html";
 import {
   clampAdapterLimit,
   normalizeOptionalString,
-  normalizeStringList,
+  normalizeParamStringList,
 } from "../utils";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
@@ -118,9 +118,7 @@ function buildSearchQuery(
 const adapter: Adapter = {
   name: "npm",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const keywords = normalizeStringList(
-      (config.params?.keywords as string[]) ?? [],
-    );
+    const keywords = normalizeParamStringList(config.params, "keywords");
     const scope = normalizeOptionalString(
       config.params?.scope as string | undefined,
     );

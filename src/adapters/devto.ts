@@ -14,7 +14,7 @@ import {
   normalizeNonNegativeNumber,
   normalizeOptionalString,
   clampAdapterLimit,
-  normalizeStringList,
+  normalizeParamStringList,
   sliceToLimit,
 } from "../utils";
 import { dedupeByKey, fetchAndConcat } from "./merge";
@@ -88,7 +88,7 @@ function resolvePeriod(top: unknown): number {
 const adapter: Adapter = {
   name: "devto",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const tags = normalizeStringList((config.params?.tags as string[]) ?? []);
+    const tags = normalizeParamStringList(config.params, "tags");
     const username = normalizeOptionalString(
       config.params?.username as string | undefined,
     );

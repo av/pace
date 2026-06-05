@@ -14,7 +14,7 @@ import {
   clampAdapterLimit,
   normalizeNonNegativeNumber,
   normalizeOptionalString,
-  normalizeStringList,
+  normalizeParamStringList,
   sliceToLimit,
 } from "../utils";
 import { dedupeByKey, fetchAndConcat } from "./merge";
@@ -104,7 +104,7 @@ const adapter: Adapter = {
     const site =
       normalizeOptionalString(config.params?.site as string | undefined) ??
       "stackoverflow";
-    const tags = normalizeStringList((config.params?.tags as string[]) ?? []);
+    const tags = normalizeParamStringList(config.params, "tags");
     const sortRaw = config.params?.sort;
     const sort =
       (typeof sortRaw === "string"

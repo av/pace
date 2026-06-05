@@ -14,7 +14,7 @@ import { fetchText } from "./fetch";
 import { decodeNumericFeedTitle, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
 import { fetchAllParallelDedupe } from "./merge";
 import { extractHostname } from "../dedupe";
-import { normalizeStringList } from "../utils";
+import { normalizeParamStringList } from "../utils";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 interface RssFeedItem extends FeedItemBodyFields {
@@ -91,7 +91,7 @@ async function fetchFeed(url: string): Promise<ContentItem[]> {
 const adapter: Adapter = {
   name: "rss",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const urls = normalizeStringList((config.params?.urls as string[]) ?? []);
+    const urls = normalizeParamStringList(config.params, "urls");
     if (urls.length === 0) {
       console.warn("rss: no urls configured");
       return [];

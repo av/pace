@@ -90,6 +90,14 @@ export function normalizeStringList(items: readonly string[]): string[] {
   return items.map((item) => item.trim()).filter(Boolean);
 }
 
+/** Read string-list adapter param, trim entries, drop blanks. Missing → []. */
+export function normalizeParamStringList(
+  params: Record<string, unknown> | undefined,
+  key: string,
+): string[] {
+  return normalizeStringList((params?.[key] as string[]) ?? []);
+}
+
 /** Trim optional string; return undefined if missing or blank after trim. */
 export function normalizeOptionalString(
   value: string | undefined,

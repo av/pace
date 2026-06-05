@@ -13,7 +13,7 @@ import {
   clampAdapterLimit,
   normalizeNonNegativeNumber,
   normalizeOptionalString,
-  normalizeStringList,
+  normalizeParamStringList,
   sliceToLimit,
 } from "../utils";
 import { dedupeByKey, fetchAndConcat, sortByCreatedAtDesc } from "./merge";
@@ -177,12 +177,8 @@ const adapter: Adapter = {
     const instance =
       normalizeOptionalString(config.params?.instance as string | undefined) ??
       "mastodon.social";
-    const hashtags = normalizeStringList(
-      (config.params?.hashtags as string[]) ?? [],
-    );
-    const accounts = normalizeStringList(
-      (config.params?.accounts as string[]) ?? [],
-    );
+    const hashtags = normalizeParamStringList(config.params, "hashtags");
+    const accounts = normalizeParamStringList(config.params, "accounts");
     const limit = clampAdapterLimit(config.params?.limit, 20, 40);
     const minFavourites = normalizeNonNegativeNumber(config.params?.min_favourites);
     const onlyMedia = (config.params?.only_media as boolean) ?? false;

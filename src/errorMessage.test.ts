@@ -8,6 +8,7 @@ import {
   sliceToLimit,
   compareIsoTimestamp,
   normalizeStringList,
+  normalizeParamStringList,
   normalizeOptionalString,
 } from "./utils";
 
@@ -151,6 +152,18 @@ describe("normalizeStringList", () => {
   test("trims entries and drops blank strings", () => {
     expect(normalizeStringList([" a ", "b", "  ", ""])).toEqual(["a", "b"]);
     expect(normalizeStringList([])).toEqual([]);
+  });
+});
+
+describe("normalizeParamStringList", () => {
+  test("reads and normalizes string-list adapter params", () => {
+    expect(
+      normalizeParamStringList({ tags: [" a ", "b"] }, "tags"),
+    ).toEqual(["a", "b"]);
+    expect(normalizeParamStringList({ tags: [" a ", "b"] }, "missing")).toEqual(
+      [],
+    );
+    expect(normalizeParamStringList(undefined, "tags")).toEqual([]);
   });
 });
 

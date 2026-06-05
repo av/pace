@@ -1,4 +1,4 @@
-import { normalizeStringList } from "../utils";
+import { normalizeParamStringList } from "../utils";
 import { type Adapter, type AdapterConfig, type ContentItem } from "./types";
 
 function warnAndReturnEmpty(msg: string): ContentItem[] {
@@ -9,12 +9,8 @@ function warnAndReturnEmpty(msg: string): ContentItem[] {
 const adapter: Adapter = {
   name: "twitter",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const lists = normalizeStringList(
-      (config.params?.lists as string[]) ?? [],
-    );
-    const searches = normalizeStringList(
-      (config.params?.searches as string[]) ?? [],
-    );
+    const lists = normalizeParamStringList(config.params, "lists");
+    const searches = normalizeParamStringList(config.params, "searches");
 
     const terms = lists.length > 0 ? lists : searches;
     if (terms.length > 0) {

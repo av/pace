@@ -16,7 +16,7 @@ import { joinTitle } from "./title";
 import { FEED_FETCH_TIMEOUT_MS, fetchText, PACE_USER_AGENT } from "./fetch";
 import {
   clampAdapterLimit,
-  normalizeStringList,
+  normalizeParamStringList,
   sliceToLimit,
 } from "../utils";
 import { fetchAllParallelDedupe } from "./merge";
@@ -280,7 +280,7 @@ async function fetchPodcastFeed(
 const adapter: Adapter = {
   name: "podcast",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const feeds = normalizeStringList((config.params?.feeds as string[]) ?? []);
+    const feeds = normalizeParamStringList(config.params, "feeds");
     const limit = clampAdapterLimit(config.params?.limit, 10, 50);
 
     if (feeds.length === 0) {

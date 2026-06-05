@@ -20,7 +20,7 @@ import { FEED_FETCH_TIMEOUT_MS, fetchText } from "./fetch";
 import {
   normalizeOptionalString,
   clampAdapterLimit,
-  normalizeStringList,
+  normalizeParamStringList,
   sliceToLimit,
 } from "../utils";
 import { fetchAllParallelDedupe } from "./merge";
@@ -235,7 +235,7 @@ const adapter: Adapter = {
       return fetchTrending(language, since, limit);
     }
 
-    const repos = normalizeStringList((config.params?.repos as string[]) ?? []);
+    const repos = normalizeParamStringList(config.params, "repos");
     if (repos.length === 0) {
       console.warn("github: no repos configured");
       return [];

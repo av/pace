@@ -21,7 +21,7 @@ import {
 import {
   clampAdapterLimit,
   normalizeOptionalString,
-  normalizeStringList,
+  normalizeParamStringList,
   sleep,
   sliceToLimit,
 } from "../utils";
@@ -161,9 +161,7 @@ function entryToItem(entry: ArxivEntry, sourceLabel: string): ContentItem {
 const adapter: Adapter = {
   name: "arxiv",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const categories = normalizeStringList(
-      (config.params?.categories as string[]) ?? [],
-    );
+    const categories = normalizeParamStringList(config.params, "categories");
     const query = normalizeOptionalString(
       config.params?.query as string | undefined,
     );

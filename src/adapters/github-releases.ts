@@ -1,7 +1,7 @@
 import {
   clampAdapterLimit,
   normalizeOptionalString,
-  normalizeStringList,
+  normalizeParamStringList,
 } from "../utils";
 import { fetchAllParallel } from "./merge";
 import { buildGitHubApiHeaders, fetchJson } from "./fetch";
@@ -50,7 +50,7 @@ async function fetchRepoReleases(
 const adapter: Adapter = {
   name: ADAPTER_NAME,
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const repos = normalizeStringList((config.params?.repos as string[]) ?? []);
+    const repos = normalizeParamStringList(config.params, "repos");
     const token = normalizeOptionalString(
       config.params?.token as string | undefined,
     );

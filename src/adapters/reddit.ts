@@ -14,7 +14,7 @@ import {
   normalizeNonNegativeNumber,
   normalizeOptionalString,
   clampAdapterLimit,
-  normalizeStringList,
+  normalizeParamStringList,
   sliceToLimit,
 } from "../utils";
 import { dedupeByKey } from "./merge";
@@ -106,9 +106,7 @@ async function fetchRedditListing(
 const adapter: Adapter = {
   name: "reddit",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const subreddits = normalizeStringList(
-      (config.params?.subreddits as string[]) ?? [],
-    );
+    const subreddits = normalizeParamStringList(config.params, "subreddits");
     const sortRaw = config.params?.sort;
     const sort =
       (typeof sortRaw === "string"

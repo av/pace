@@ -13,7 +13,7 @@ import {
   normalizeNonNegativeNumber,
   normalizeOptionalString,
   clampAdapterLimit,
-  normalizeStringList,
+  normalizeParamStringList,
   sliceToLimit,
 } from "../utils";
 import { dedupeByKey } from "./merge";
@@ -102,9 +102,7 @@ const adapter: Adapter = {
     const instance =
       normalizeOptionalString(config.params?.instance as string | undefined) ??
       "lemmy.ml";
-    const communities = normalizeStringList(
-      (config.params?.communities as string[]) ?? [],
-    );
+    const communities = normalizeParamStringList(config.params, "communities");
     const sort = resolveSort(config.params?.sort as string);
     const limit = clampAdapterLimit(config.params?.limit, 25, 50);
     const minScore = normalizeNonNegativeNumber(config.params?.min_score);
