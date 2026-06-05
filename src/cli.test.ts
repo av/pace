@@ -3,7 +3,9 @@ import { spawnSync, spawn, type SpawnSyncReturns, type ChildProcess } from "node
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import os from "node:os";
-import { formatCliHelpStdout, isCliFatalStartupError } from "./cli-help";
+import { formatCliHelp, readPackageVersion, isCliFatalStartupError } from "./cli-help";
+
+const cliHelpStdout = () => formatCliHelp(readPackageVersion()) + "\n";
 
 function runCli(args: string[]): SpawnSyncReturns<string> {
   return spawnSync(process.execPath, ["src/cli.ts", ...args], {
@@ -38,7 +40,7 @@ describe("cli", () => {
   });
 
   test("--help/-h prints usage", () => {
-    const help = formatCliHelpStdout();
+    const help = cliHelpStdout();
     for (const flag of ["--help", "-h"]) {
       const res = runCli([flag]);
       expect(res.status).toBe(0);
@@ -59,14 +61,14 @@ describe("cli", () => {
     const res = runCli(["foo"]);
     expect(res.status).toBe(1);
     expect(res.stderr).toContain("Unknown command: foo");
-    expect(res.stdout).toBe(formatCliHelpStdout());
+    expect(res.stdout).toBe(cliHelpStdout());
   });
 
   test("unknown options rejected with HELP", () => {
     const res = runCli(["--badflag", "--prt"]);
     expect(res.status).toBe(1);
     expect(res.stderr).toContain("Unknown option(s): --badflag, --prt");
-    expect(res.stdout).toBe(formatCliHelpStdout());
+    expect(res.stdout).toBe(cliHelpStdout());
   });
 
   test("invalid --port rejected", () => {

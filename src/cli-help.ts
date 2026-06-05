@@ -66,7 +66,3 @@ Options:
   -v, --version         Show version
 `;
 }
-
-export function formatCliHelpStdout(version = readPackageVersion()): string {
-  return formatCliHelp(version) + "\n";
-}
