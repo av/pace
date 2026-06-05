@@ -1,5 +1,5 @@
 import { describe, expect, spyOn, test } from "bun:test";
-import lemmyAdapter from "./adapters/lemmy";
+import lemmyAdapter, { resolveLemmySort } from "./adapters/lemmy";
 import * as typesMod from "./adapters/types";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
@@ -41,6 +41,27 @@ function makePostView(overrides: Partial<Record<string, unknown>> = {}): Record<
 function makePostListResponse(posts: Record<string, unknown>[]) {
   return { posts };
 }
+
+describe("resolveLemmySort", () => {
+  test.each([
+    ["hot", "Hot"],
+    ["Hot", "Hot"],
+    ["HOT", "Hot"],
+    ["new", "New"],
+    ["New", "New"],
+    ["top", "Top"],
+    ["Top", "Top"],
+    ["active", "Active"],
+    ["Active", "Active"],
+    ["mostcomments", "MostComments"],
+    ["MostComments", "MostComments"],
+    ["most_comments", "MostComments"],
+    ["comments", "MostComments"],
+    ["invalid", "Hot"],
+  ] as const)("maps %s → %s", (input, expected) => {
+    expect(resolveLemmySort(input)).toBe(expected);
+  });
+});
 
 describe("lemmy", () => {
   test("buildBody joins engagement helpers with community and optional discuss", async () => {

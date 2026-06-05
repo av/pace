@@ -21,7 +21,25 @@ import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 type SortType = "Hot" | "New" | "Top" | "Active" | "MostComments";
 
-const VALID_SORTS = new Set<SortType>(["Hot", "New", "Top", "Active", "MostComments"]);
+const SORT_TYPES: Record<string, SortType> = {
+  hot: "Hot",
+  new: "New",
+  top: "Top",
+  active: "Active",
+  mostcomments: "MostComments",
+};
+
+const SORT_ALIASES: Record<string, SortType> = {
+  most_comments: "MostComments",
+  comments: "MostComments",
+};
+
+/** Map configured sort string (canonical name or alias) to Lemmy API sort. Unknown → Hot. */
+export function resolveLemmySort(sort: string): SortType {
+  const lower = sort.toLowerCase();
+  if (lower in SORT_TYPES) return SORT_TYPES[lower];
+  return SORT_ALIASES[lower] ?? "Hot";
+}
 
 interface LemmyPostView {
   post: {
@@ -65,23 +83,6 @@ function buildBody(view: LemmyPostView): string {
   );
 }
 
-function resolveSort(input: string | undefined): SortType {
-  if (!input) return "Hot";
-  const capitalized = input.charAt(0).toUpperCase() + input.slice(1).toLowerCase();
-  if (VALID_SORTS.has(capitalized as SortType)) return capitalized as SortType;
-
-  const aliases: Record<string, SortType> = {
-    hot: "Hot",
-    new: "New",
-    top: "Top",
-    active: "Active",
-    mostcomments: "MostComments",
-    most_comments: "MostComments",
-    comments: "MostComments",
-  };
-  return aliases[input.toLowerCase()] ?? "Hot";
-}
-
 async function fetchLemmyPosts(
   instance: string,
   params: Record<string, string>,
@@ -101,7 +102,7 @@ const adapter: Adapter = {
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
     const instance = normalizeParamString(config.params, "instance", "lemmy.ml");
     const communities = normalizeParamStringList(config.params, "communities");
-    const sort = resolveSort(normalizeParamString(config.params, "sort"));
+    const sort = resolveLemmySort(normalizeParamString(config.params, "sort", "hot"));
     const limit = clampAdapterLimit(config.params?.limit, 25, 50);
     const minScore = normalizeNonNegativeNumber(config.params?.min_score);
 
