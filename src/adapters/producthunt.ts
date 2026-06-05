@@ -98,10 +98,6 @@ function extractContent(entry: PHEntry): { tagline: string; productLink: string 
   return { tagline, productLink };
 }
 
-function matchCaptures(html: string, re: RegExp): string[] {
-  return [...html.matchAll(re)].map((m) => m[1]).filter(Boolean);
-}
-
 function topicLabelFromSlug(slug: string): string {
   return slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -119,9 +115,10 @@ function extractTopics(html: string): string[] {
 
 function extractMakers(html: string): string[] {
   const handles = [...new Set(
-    matchCaptures(html, RE_ENRICH_PROFILE).filter(
-      (h) => !EXCLUDED_MAKER_HANDLES.has(h.toLowerCase()),
-    ),
+    [...html.matchAll(RE_ENRICH_PROFILE)]
+      .map((m) => m[1])
+      .filter(Boolean)
+      .filter((h) => !EXCLUDED_MAKER_HANDLES.has(h.toLowerCase())),
   )].slice(0, 3);
   return handles.map((h) => `@${h}`);
 }
