@@ -161,7 +161,7 @@ export function getItemsByPanel(panelId: string, limit: number = 50): ContentIte
   return getDedupedItems(panelId, limit);
 }
 
-function getLastFetchedAtQuery(panelId?: string): string | null {
+export function getLastFetchedAt(panelId?: string): string | null {
   const db = getDb();
   const sql = panelId !== undefined
     ? "SELECT MAX(fetched_at) as last_fetched FROM content_items WHERE panel_id = ?"
@@ -169,14 +169,6 @@ function getLastFetchedAtQuery(panelId?: string): string | null {
   const params = panelId !== undefined ? [panelId] : [];
   const row = db.prepare(sql).get(...params) as { last_fetched: string | null } | null;
   return row?.last_fetched ?? null;
-}
-
-export function getLastFetchedAt(panelId: string): string | null {
-  return getLastFetchedAtQuery(panelId);
-}
-
-export function getLastFetchedAtAll(): string | null {
-  return getLastFetchedAtQuery();
 }
 
 export function getAllItemsByPanel(panelId: string): ContentItemRow[] {

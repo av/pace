@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { readFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig, buildLayoutRuntimeMaps } from "./config";
-import { initDb, closeDb, getRecentItems, getItemsByPanel, getLastFetchedAt, getLastFetchedAtAll, type ContentItemRow } from "./db";
+import { initDb, closeDb, getRecentItems, getItemsByPanel, getLastFetchedAt, type ContentItemRow } from "./db";
 import { discoverAdapters } from "./adapters/index";
 import { renderDashboard, type PanelData } from "./layout";
 import { createModel } from "./llm";
@@ -97,7 +97,7 @@ async function start() {
         items = getItemsByPanel(pid, limit);
       }
 
-      const lastRefreshedAt = isAll ? getLastFetchedAtAll() : getLastFetchedAt(pid);
+      const lastRefreshedAt = getLastFetchedAt(isAll ? undefined : pid);
 
       panelData.set(panel.panel, { items, lastRefreshedAt });
     }

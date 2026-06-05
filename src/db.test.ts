@@ -13,7 +13,6 @@ import {
   getItemsByPanel,
   getAllItemsByPanel,
   getLastFetchedAt,
-  getLastFetchedAtAll,
   pruneOldItems,
   replacePanelItems,
   contentRowToItem,
@@ -155,17 +154,17 @@ test("getRecentItems and panel getters respect limit", () => {
   expect(getItemsByPanel("plim", 3).length).toBe(3);
 });
 
-test("getLastFetchedAt / getLastFetchedAtAll return recent fetched_at or null", () => {
+test("getLastFetchedAt returns recent fetched_at per panel or globally", () => {
   initDb();
   expect(getLastFetchedAt("nope")).toBeNull();
-  expect(getLastFetchedAtAll()).toBeNull();
+  expect(getLastFetchedAt()).toBeNull();
 
   saveItems("pf", [makeItem({ id: "f1", url: "https://f", timestamp: new Date() })]);
   const lastP = getLastFetchedAt("pf");
   expect(lastP).not.toBeNull();
   expect(typeof lastP).toBe("string");
 
-  const lastAll = getLastFetchedAtAll();
+  const lastAll = getLastFetchedAt();
   expect(lastAll).not.toBeNull();
 });
 
