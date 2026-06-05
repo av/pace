@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 
-import adapter from "./adapters/mastodon";
+import adapter, { resolveMastodonMode } from "./adapters/mastodon";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
 const mocks = useFetchMockSuite();
@@ -55,6 +55,19 @@ function makeStatus(id: string, content: string, created: string): MastodonStatu
 function fetchUrls(): string[] {
   return mocks.fetchMock.mock.calls.map((c) => String(c[0]));
 }
+
+describe("resolveMastodonMode", () => {
+  test.each([
+    [[], [], "public"],
+    [[], ["rust"], "hashtag"],
+    [[], ["#rust", "dev"], "hashtag"],
+    [["user@ex.com"], [], "account"],
+    [["@user@ex.com"], ["rust"], "account"],
+    [["a@x.com", "b@y.com"], ["tag"], "account"],
+  ] as const)("accounts=%j hashtags=%j → %s", (accounts, hashtags, expected) => {
+    expect(resolveMastodonMode(accounts, hashtags)).toBe(expected);
+  });
+});
 
 describe("mastodon", () => {
   beforeEach(() => {

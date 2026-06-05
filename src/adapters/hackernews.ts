@@ -119,10 +119,9 @@ const adapter: Adapter = {
       endpoint,
     );
 
-    // Fetch more items than needed if we're filtering by score,
-    // since some may be below threshold
-    const fetchCount = minScore > 0 ? Math.min(limit * 3, ids.length) : limit;
-    const sliced = ids.slice(0, fetchCount);
+    const overfetchForMinScore =
+      minScore > 0 ? Math.min(limit * 3, ids.length) : limit;
+    const sliced = ids.slice(0, overfetchForMinScore);
     const items = await fetchInBatches(sliced);
 
     const filtered = minScore > 0

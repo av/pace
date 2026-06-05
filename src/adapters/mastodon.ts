@@ -23,7 +23,7 @@ interface MastodonStatus {
   id: string;
   uri: string;
   url: string | null;
-  content: string; // HTML
+  content: string;
   created_at: string;
   reblogs_count: number;
   favourites_count: number;
@@ -31,7 +31,7 @@ interface MastodonStatus {
   account: {
     id: string;
     username: string;
-    acct: string; // local users: "username", remote: "user@instance"
+    acct: string;
     display_name: string;
     url: string;
   };
@@ -43,7 +43,7 @@ interface MastodonStatus {
 
 interface MastodonMedia {
   id: string;
-  type: string; // "image", "video", "gifv", "audio"
+  type: string;
   url: string;
   preview_url: string;
   description: string | null;
@@ -62,7 +62,30 @@ interface MastodonAccount {
   url: string;
 }
 
-type Mode = "public" | "hashtag" | "account";
+type MastodonMode = "public" | "hashtag" | "account";
+
+/** Pick timeline mode from configured accounts/hashtags (accounts take precedence). */
+export function resolveMastodonMode(
+  accounts: readonly string[],
+  hashtags: readonly string[],
+): MastodonMode {
+  if (accounts.length > 0) return "account";
+  if (hashtags.length > 0) return "hashtag";
+  return "public";
+}
+
+function mastodonSourceLabel(
+  mode: MastodonMode,
+  instance: string,
+  hashtags: readonly string[],
+): string {
+  if (mode === "hashtag") {
+    const tagNames = hashtags.map((t) => t.replace(/^#/, "")).join("+");
+    return `mastodon:${instance}:#${tagNames}`;
+  }
+  if (mode === "account") return `mastodon:${instance}:accounts`;
+  return `mastodon:${instance}`;
+}
 
 function buildBody(status: MastodonStatus, instance: string): string {
   return joinTitle(
@@ -134,7 +157,7 @@ async function fetchHashtagTimeline(
   limit: number,
   onlyMedia: boolean,
 ): Promise<MastodonStatus[]> {
-  const tag = hashtag.replace(/^#/, ""); // strip leading # if present
+  const tag = hashtag.replace(/^#/, "");
   const url = withOnlyMedia(
     `https://${instance}/api/v1/timelines/tag/${encodeURIComponent(tag)}?limit=${limit}`,
     onlyMedia,
@@ -164,11 +187,47 @@ async function fetchAccountStatuses(
 }
 
 function parseAccountHandle(handle: string): { username: string; instance: string } | null {
-  // Accepts: @user@instance, user@instance
   const cleaned = handle.startsWith("@") ? handle.slice(1) : handle;
   const parts = cleaned.split("@");
   if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
   return { username: parts[0], instance: parts[1] };
+}
+
+async function fetchMastodonStatuses(
+  mode: MastodonMode,
+  instance: string,
+  hashtags: string[],
+  accounts: string[],
+  limit: number,
+  onlyMedia: boolean,
+): Promise<MastodonStatus[]> {
+  if (mode === "public") {
+    return fetchPublicTimeline(instance, limit, onlyMedia);
+  }
+  if (mode === "hashtag") {
+    return fetchAndConcat(hashtags, (tag) =>
+      fetchHashtagTimeline(instance, tag, limit, onlyMedia),
+    );
+  }
+
+  const allStatuses: MastodonStatus[] = [];
+  for (const handle of accounts) {
+    const parsed = parseAccountHandle(handle);
+    if (!parsed) {
+      console.warn(`mastodon: invalid account handle: ${handle}`);
+      continue;
+    }
+    const account = await lookupAccount(parsed.instance, parsed.username);
+    if (!account) continue;
+    const statuses = await fetchAccountStatuses(
+      parsed.instance,
+      account.id,
+      limit,
+      onlyMedia,
+    );
+    allStatuses.push(...statuses);
+  }
+  return allStatuses;
 }
 
 const adapter: Adapter = {
@@ -185,41 +244,15 @@ const adapter: Adapter = {
     const minFavourites = normalizeNonNegativeNumber(config.params?.min_favourites);
     const onlyMedia = (config.params?.only_media as boolean) ?? false;
 
-    let mode: Mode;
-    if (accounts.length > 0) {
-      mode = "account";
-    } else if (hashtags.length > 0) {
-      mode = "hashtag";
-    } else {
-      mode = "public";
-    }
-
-    let allStatuses: MastodonStatus[] = [];
-
-    if (mode === "public") {
-      allStatuses = await fetchPublicTimeline(instance, limit, onlyMedia);
-    } else if (mode === "hashtag") {
-      allStatuses = await fetchAndConcat(hashtags, (tag) =>
-        fetchHashtagTimeline(instance, tag, limit, onlyMedia),
-      );
-    } else if (mode === "account") {
-      for (const handle of accounts) {
-        const parsed = parseAccountHandle(handle);
-        if (!parsed) {
-          console.warn(`mastodon: invalid account handle: ${handle}`);
-          continue;
-        }
-        const account = await lookupAccount(parsed.instance, parsed.username);
-        if (!account) continue;
-        const statuses = await fetchAccountStatuses(
-          parsed.instance,
-          account.id,
-          limit,
-          onlyMedia,
-        );
-        allStatuses.push(...statuses);
-      }
-    }
+    const mode = resolveMastodonMode(accounts, hashtags);
+    let allStatuses = await fetchMastodonStatuses(
+      mode,
+      instance,
+      hashtags,
+      accounts,
+      limit,
+      onlyMedia,
+    );
 
     allStatuses = dedupeByKey(allStatuses, (status) => status.id);
 
@@ -233,15 +266,7 @@ const adapter: Adapter = {
 
     const limited = sliceToLimit(allStatuses, limit);
 
-    let sourceLabel: string;
-    if (mode === "hashtag") {
-      const tagNames = hashtags.map((t) => t.replace(/^#/, "")).join("+");
-      sourceLabel = `mastodon:${instance}:#${tagNames}`;
-    } else if (mode === "account") {
-      sourceLabel = `mastodon:${instance}:accounts`;
-    } else {
-      sourceLabel = `mastodon:${instance}`;
-    }
+    const sourceLabel = mastodonSourceLabel(mode, instance, hashtags);
 
     return limited.map((status) => ({
       id: `mastodon:${instance}:${status.id}`,
