@@ -271,3 +271,28 @@ export interface ContentItemRow extends ContentItemFields {
   fetched_at: string;
   summary: string | null;
 }
+
+export function contentRowToItem(row: ContentItemRow): ContentItem {
+  return {
+    id: row.id,
+    title: row.title,
+    url: row.url,
+    source: row.source,
+    timestamp: new Date(row.timestamp),
+    body: row.body ?? undefined,
+  };
+}
+
+export function contentItemToRow(item: ContentItem, base?: ContentItemRow): ContentItemRow {
+  return {
+    id: item.id,
+    panel_id: base?.panel_id ?? "merged",
+    title: item.title,
+    url: item.url,
+    source: item.source,
+    body: item.body ?? null,
+    timestamp: item.timestamp.toISOString(),
+    fetched_at: base?.fetched_at ?? new Date().toISOString(),
+    summary: base?.summary ?? (item.body ?? null),
+  };
+}

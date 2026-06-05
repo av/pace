@@ -1,7 +1,7 @@
 import type { Model, Api } from "@mariozechner/pi-ai";
 import type { TransformConfig, LlmConfig } from "./config";
 import type { ContentItemRow } from "./db";
-import type { ContentItem } from "./adapters/types";
+import { contentRowToItem, contentItemToRow } from "./db";
 import { summarizeItem, lensItems, mergeItems, filterItemsByLlm } from "./llm";
 import { sortRowsByInputOrder } from "./transform-steps";
 
@@ -10,81 +10,42 @@ export interface TransformContext {
   llmConfig?: LlmConfig;
 }
 
-export type LlmSummarizeTransformConfig = Extract<TransformConfig, { type: "llm-summarize" }>;
-export type LlmFilterTransformConfig = Extract<TransformConfig, { type: "llm-filter" }>;
-export type LlmRankTransformConfig = Extract<TransformConfig, { type: "llm-rank" }>;
-export type LlmMergeTransformConfig = Extract<TransformConfig, { type: "llm-merge" }>;
-
-function rowToContentItem(row: ContentItemRow): ContentItem {
-  return {
-    id: row.id,
-    title: row.title,
-    url: row.url,
-    source: row.source,
-    timestamp: new Date(row.timestamp),
-    body: row.body ?? undefined,
-  };
-}
-
-function contentItemToRow(item: ContentItem, base?: ContentItemRow): ContentItemRow {
-  return {
-    id: item.id,
-    panel_id: base?.panel_id ?? "merged",
-    title: item.title,
-    url: item.url,
-    source: item.source,
-    body: item.body ?? null,
-    timestamp: item.timestamp.toISOString(),
-    fetched_at: base?.fetched_at ?? new Date().toISOString(),
-    summary: base?.summary ?? (item.body ?? null),
-  };
-}
-
-function withLlmModel<T extends ContentItemRow>(
-  ctx: TransformContext,
-  items: T[],
-  work: (model: NonNullable<TransformContext["llmModel"]>) => Promise<T[]>
-): Promise<T[]> {
-  if (!ctx.llmModel) return Promise.resolve(items);
-  return work(ctx.llmModel);
-}
-
-export async function applyLlmSummarize(
-  model: Model<Api>,
+type LlmTransformFn = (
   items: ContentItemRow[],
-  _config: LlmSummarizeTransformConfig
-): Promise<ContentItemRow[]> {
+  config: TransformConfig,
+  ctx: TransformContext
+) => Promise<ContentItemRow[]>;
+
+async function summarizeRows(model: Model<Api>, items: ContentItemRow[]): Promise<ContentItemRow[]> {
   const results: ContentItemRow[] = [];
   for (const item of items) {
     if (item.summary) {
       results.push(item);
       continue;
     }
-    const summary = await summarizeItem(model, rowToContentItem(item));
+    const summary = await summarizeItem(model, contentRowToItem(item));
     results.push({ ...item, summary: summary ?? item.summary });
   }
   return results;
 }
 
-export async function applyLlmFilter(
+async function filterRows(
   model: Model<Api>,
   items: ContentItemRow[],
-  { criteria }: LlmFilterTransformConfig
+  criteria: string
 ): Promise<ContentItemRow[]> {
-  const filtered = await filterItemsByLlm(model, items.map(rowToContentItem), criteria);
+  const filtered = await filterItemsByLlm(model, items.map(contentRowToItem), criteria);
   const keepIds = new Set(filtered.map((i) => i.id));
   return items.filter((row) => keepIds.has(row.id));
 }
 
-export async function applyLlmRank(
+async function rankRows(
   model: Model<Api>,
   items: ContentItemRow[],
-  config: LlmRankTransformConfig,
-  ctx: TransformContext
+  interests: string[]
 ): Promise<ContentItemRow[]> {
-  const effectiveInterests = config.interests ?? ctx.llmConfig?.interests ?? [];
-  if (effectiveInterests.length === 0) return items;
-  const ranked = await lensItems(model, items.map(rowToContentItem), effectiveInterests);
+  if (interests.length === 0) return items;
+  const ranked = await lensItems(model, items.map(contentRowToItem), interests);
   const rowById = new Map(items.map((r) => [r.id, r]));
   const order = ranked.flatMap((item) => {
     const row = rowById.get(item.id);
@@ -93,12 +54,12 @@ export async function applyLlmRank(
   return sortRowsByInputOrder(items, order);
 }
 
-export async function applyLlmMerge(
+async function mergeRows(
   model: Model<Api>,
   items: ContentItemRow[],
-  { prompt }: LlmMergeTransformConfig
+  prompt?: string
 ): Promise<ContentItemRow[]> {
-  const merged = await mergeItems(model, items.map(rowToContentItem), prompt);
+  const merged = await mergeItems(model, items.map(contentRowToItem), prompt);
   const rowMap = new Map<string, ContentItemRow>();
   for (const row of items) rowMap.set(row.id, row);
   return merged.map((item) => {
@@ -107,26 +68,24 @@ export async function applyLlmMerge(
   });
 }
 
-type LlmTransformFn = (
-  items: ContentItemRow[],
-  config: TransformConfig,
-  ctx: TransformContext
-) => Promise<ContentItemRow[]>;
-
 export const llmTransforms: Record<string, LlmTransformFn> = {
-  "llm-summarize": (items, config, ctx) =>
-    withLlmModel(ctx, items, (model) =>
-      applyLlmSummarize(model, items, config as LlmSummarizeTransformConfig)),
+  "llm-summarize": (items, _config, ctx) =>
+    ctx.llmModel ? summarizeRows(ctx.llmModel, items) : Promise.resolve(items),
 
   "llm-filter": (items, config, ctx) =>
-    withLlmModel(ctx, items, (model) =>
-      applyLlmFilter(model, items, config as LlmFilterTransformConfig)),
+    ctx.llmModel
+      ? filterRows(ctx.llmModel, items, (config as Extract<TransformConfig, { type: "llm-filter" }>).criteria)
+      : Promise.resolve(items),
 
-  "llm-rank": (items, config, ctx) =>
-    withLlmModel(ctx, items, (model) =>
-      applyLlmRank(model, items, config as LlmRankTransformConfig, ctx)),
+  "llm-rank": (items, config, ctx) => {
+    if (!ctx.llmModel) return Promise.resolve(items);
+    const cfg = config as Extract<TransformConfig, { type: "llm-rank" }>;
+    const interests = cfg.interests ?? ctx.llmConfig?.interests ?? [];
+    return rankRows(ctx.llmModel, items, interests);
+  },
 
   "llm-merge": (items, config, ctx) =>
-    withLlmModel(ctx, items, (model) =>
-      applyLlmMerge(model, items, config as LlmMergeTransformConfig)),
+    ctx.llmModel
+      ? mergeRows(ctx.llmModel, items, (config as Extract<TransformConfig, { type: "llm-merge" }>).prompt)
+      : Promise.resolve(items),
 };

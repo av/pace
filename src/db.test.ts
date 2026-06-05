@@ -16,6 +16,8 @@ import {
   getLastFetchedAtAll,
   pruneOldItems,
   replacePanelItems,
+  contentRowToItem,
+  contentItemToRow,
   type ContentItemRow,
 } from "./db";
 import * as utilsMod from "./utils";
@@ -403,4 +405,84 @@ test("closeDb warns with errorMessage when db.close throws", () => {
     emSpy.mockRestore();
     warnSpy.mockRestore();
   }
+});
+
+test("contentRowToItem maps persisted row fields to ContentItem", () => {
+  const row: ContentItemRow = {
+    id: "r1",
+    panel_id: "panel-a",
+    title: "Title",
+    url: "https://ex.com/r1",
+    source: "src",
+    body: "body text",
+    timestamp: "2024-06-01T12:00:00.000Z",
+    fetched_at: "2024-06-02T08:00:00.000Z",
+    summary: "summary text",
+  };
+  const item = contentRowToItem(row);
+  expect(item).toEqual({
+    id: "r1",
+    title: "Title",
+    url: "https://ex.com/r1",
+    source: "src",
+    timestamp: new Date("2024-06-01T12:00:00.000Z"),
+    body: "body text",
+  });
+});
+
+test("contentRowToItem converts null body to undefined", () => {
+  const row: ContentItemRow = {
+    id: "r2",
+    panel_id: "panel-a",
+    title: "No body",
+    url: "https://ex.com/r2",
+    source: "src",
+    body: null,
+    timestamp: "2024-06-01T12:00:00.000Z",
+    fetched_at: "2024-06-02T08:00:00.000Z",
+    summary: null,
+  };
+  expect(contentRowToItem(row).body).toBeUndefined();
+});
+
+test("contentItemToRow preserves base row metadata and defaults merged panel", () => {
+  const base: ContentItemRow = {
+    id: "b1",
+    panel_id: "panel-x",
+    title: "Old",
+    url: "https://ex.com/old",
+    source: "old-src",
+    body: "old body",
+    timestamp: "2024-01-01T00:00:00.000Z",
+    fetched_at: "2024-01-02T00:00:00.000Z",
+    summary: "kept summary",
+  };
+  const item = makeItem({
+    id: "b1",
+    title: "New",
+    url: "https://ex.com/new",
+    source: "new-src",
+    body: "new body",
+    timestamp: new Date("2024-03-01T00:00:00.000Z"),
+  });
+  const row = contentItemToRow(item, base);
+  expect(row.panel_id).toBe("panel-x");
+  expect(row.fetched_at).toBe("2024-01-02T00:00:00.000Z");
+  expect(row.summary).toBe("kept summary");
+  expect(row.timestamp).toBe("2024-03-01T00:00:00.000Z");
+  expect(row.body).toBe("new body");
+});
+
+test("contentItemToRow without base uses merged defaults", () => {
+  const item = makeItem({
+    id: "m1",
+    title: "Merged",
+    body: undefined,
+    timestamp: new Date("2024-05-01T00:00:00.000Z"),
+  });
+  const row = contentItemToRow(item);
+  expect(row.panel_id).toBe("merged");
+  expect(row.summary).toBeNull();
+  expect(row.body).toBeNull();
+  expect(row.timestamp).toBe("2024-05-01T00:00:00.000Z");
 });
