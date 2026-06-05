@@ -143,12 +143,8 @@ function extractNews(data: WikiFeaturedResponse, limit: number): ContentItem[] {
   });
 }
 
-function normalizeModeToken(raw: string): string {
-  return raw.trim().toLowerCase().replace(/-/g, "_");
-}
-
 function parseModeToken(token: string): Mode | null {
-  const normalized = normalizeModeToken(token);
+  const normalized = token.trim().toLowerCase().replace(/-/g, "_");
   return VALID_MODES.has(normalized as Mode) ? (normalized as Mode) : null;
 }
 
