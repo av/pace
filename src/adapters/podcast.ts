@@ -72,12 +72,6 @@ const parser = new XMLParser({
   trimValues: true,
 });
 
-/**
- * Parse duration from various formats:
- * - "HH:MM:SS" or "MM:SS" (already formatted)
- * - Seconds as a number or numeric string
- * - "1h 23m 45s" style
- */
 function parseDuration(raw: unknown): string | null {
   if (raw == null) return null;
   const str = String(raw).trim();
