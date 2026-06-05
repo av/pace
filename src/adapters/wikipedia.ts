@@ -17,7 +17,29 @@ import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 type Mode = "most_read" | "featured" | "on_this_day" | "news";
 
-const VALID_MODES = new Set<Mode>(["most_read", "featured", "on_this_day", "news"]);
+const MODE_TYPES: Record<string, Mode> = {
+  most_read: "most_read",
+  featured: "featured",
+  on_this_day: "on_this_day",
+  news: "news",
+};
+
+const MODE_ALIASES: Record<string, Mode> = {
+  mostread: "most_read",
+  popular: "most_read",
+  tfa: "featured",
+  onthisday: "on_this_day",
+  otd: "on_this_day",
+  current_events: "news",
+  currentevents: "news",
+};
+
+/** Map configured mode string (canonical name or alias) to Wikipedia feed section. Unknown → null. */
+export function resolveWikipediaMode(token: string): Mode | null {
+  const normalized = token.trim().toLowerCase().replace(/-/g, "_");
+  if (normalized in MODE_TYPES) return MODE_TYPES[normalized];
+  return MODE_ALIASES[normalized] ?? null;
+}
 
 interface WikiFeaturedResponse {
   tfa?: WikiArticle;
@@ -144,11 +166,6 @@ function extractNews(data: WikiFeaturedResponse, limit: number): ContentItem[] {
   });
 }
 
-function parseModeToken(token: string): Mode | null {
-  const normalized = token.trim().toLowerCase().replace(/-/g, "_");
-  return VALID_MODES.has(normalized as Mode) ? (normalized as Mode) : null;
-}
-
 function resolveModes(config: AdapterConfig): Mode[] {
   const params = config.params;
   const tokens = Array.isArray(params?.modes)
@@ -158,7 +175,7 @@ function resolveModes(config: AdapterConfig): Mode[] {
       );
 
   const resolved = tokens
-    .map(parseModeToken)
+    .map(resolveWikipediaMode)
     .filter((mode): mode is Mode => mode !== null);
 
   return resolved.length > 0 ? resolved : ["most_read"];

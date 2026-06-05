@@ -1,5 +1,5 @@
 import { describe, expect, spyOn, test } from "bun:test";
-import wikipediaAdapter from "./adapters/wikipedia";
+import wikipediaAdapter, { resolveWikipediaMode } from "./adapters/wikipedia";
 import * as typesMod from "./adapters/types";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
@@ -60,6 +60,30 @@ function makeFeaturedResponse(overrides: Partial<Record<string, unknown>> = {}) 
     ...overrides,
   };
 }
+
+describe("resolveWikipediaMode", () => {
+  test.each([
+    ["most_read", "most_read"],
+    ["featured", "featured"],
+    ["on_this_day", "on_this_day"],
+    ["news", "news"],
+    ["MOST_READ", "most_read"],
+    ["on-this-day", "on_this_day"],
+    ["  featured  ", "featured"],
+    ["mostread", "most_read"],
+    ["popular", "most_read"],
+    ["tfa", "featured"],
+    ["onthisday", "on_this_day"],
+    ["otd", "on_this_day"],
+    ["current_events", "news"],
+    ["currentevents", "news"],
+    ["invalid", null],
+    ["", null],
+    ["   ", null],
+  ] as const)("maps %s → %s", (input, expected) => {
+    expect(resolveWikipediaMode(input)).toBe(expected);
+  });
+});
 
 describe("wikipedia", () => {
   test("fetches most_read articles by default", async () => {
