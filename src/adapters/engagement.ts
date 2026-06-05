@@ -1,9 +1,6 @@
-
-/** Primary vote/score signals (HN, Lobsters, Reddit, Product Hunt enrich). */
 export const RE_POINTS = /(\d+)\s*points?/i;
 export const RE_SCORE_LABEL = /score:\s*(\d+)/i;
 export const RE_UPVOTES = /(\d+)\s*upvotes?/i;
-/** Product Hunt enrich HTML accepts points or upvotes wording. */
 export const RE_POINTS_OR_UPVOTES = /(\d+)\s*(?:points|upvotes?)/i;
 
 export const ENGAGEMENT_PATTERNS: Array<{ re: RegExp; weight: number }> = [
