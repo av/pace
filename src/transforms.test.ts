@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach } from "bun:test";
 import { spyConsole } from "./test/console-spy";
 import { runPipeline, type TransformContext } from "./transforms";
 import { extractEngagementScore } from "./adapters/engagement";
-import type { TransformConfig } from "./config";
+import { TRANSFORM_TYPES, type TransformConfig } from "./config";
 import type { ContentItemRow } from "./db";
 
 function transformPipeline(...steps: TransformConfig[]): TransformConfig[] {
@@ -86,6 +86,11 @@ describe("transforms - filter and exclude", () => {
 });
 
 describe("transforms - runPipeline basics", () => {
+  test("TRANSFORM_TYPES matches every registry entry (no config/runtime drift)", () => {
+    expect(TRANSFORM_TYPES).toHaveLength(12);
+    expect(new Set(TRANSFORM_TYPES).size).toBe(TRANSFORM_TYPES.length);
+  });
+
   test("empty pipeline returns items unchanged", async () => {
     const items = [makeRow({ title: "only" })];
     const result = await runPipeline(items, [], ctx);

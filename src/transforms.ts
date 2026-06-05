@@ -1,4 +1,4 @@
-import type { TransformConfig } from "./config";
+import type { TransformConfig, TransformType } from "./config";
 import type { ContentItemRow } from "./db";
 import { applyCluster } from "./cluster";
 import {
@@ -29,7 +29,7 @@ type TransformFn = (
   ctx: TransformContext
 ) => Promise<ContentItemRow[]>;
 
-const transforms: Record<string, TransformFn> = {
+const transforms = {
   latest: async (items, config) => applyLatest(items, config as LatestTransformConfig),
 
   filter: async (items, config) => applyFilter(items, config as FilterTransformConfig),
@@ -49,7 +49,7 @@ const transforms: Record<string, TransformFn> = {
     applyCluster(items, config as Extract<TransformConfig, { type: "cluster" }>),
 
   ...llmTransforms,
-};
+} satisfies Record<TransformType, TransformFn>;
 
 export async function runPipeline(
   items: ContentItemRow[],

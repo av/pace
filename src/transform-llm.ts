@@ -1,5 +1,5 @@
 import type { Model, Api } from "@mariozechner/pi-ai";
-import type { TransformConfig, LlmConfig } from "./config";
+import type { TransformConfig, LlmConfig, TransformType } from "./config";
 import type { ContentItemRow } from "./db";
 import { contentRowToItem, contentItemToRow } from "./db";
 import { summarizeItem, lensItems, mergeItems, filterItemsByLlm } from "./llm";
@@ -68,7 +68,9 @@ async function mergeRows(
   });
 }
 
-export const llmTransforms: Record<string, LlmTransformFn> = {
+type LlmTransformType = Extract<TransformType, `llm-${string}`>;
+
+export const llmTransforms = {
   "llm-summarize": (items, _config, ctx) =>
     ctx.llmModel ? summarizeRows(ctx.llmModel, items) : Promise.resolve(items),
 
@@ -88,4 +90,4 @@ export const llmTransforms: Record<string, LlmTransformFn> = {
     ctx.llmModel
       ? mergeRows(ctx.llmModel, items, (config as Extract<TransformConfig, { type: "llm-merge" }>).prompt)
       : Promise.resolve(items),
-};
+} satisfies Record<LlmTransformType, LlmTransformFn>;

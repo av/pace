@@ -68,6 +68,8 @@ export type TransformConfig =
   | { type: "llm-rank"; interests?: string[] }
   | { type: "llm-merge"; prompt?: string };
 
+export type TransformType = TransformConfig["type"];
+
 export interface LlmConfig {
   provider?: string;
   model?: string;
@@ -549,7 +551,7 @@ function validateFilterExcludeFields(transform: Record<string, unknown>, path: s
   }
 }
 
-const TRANSFORM_SCHEMAS: Readonly<Record<string, TransformSchema>> = {
+const TRANSFORM_SCHEMAS: Readonly<Record<TransformType, TransformSchema>> = {
   latest: {
     fields: ["type", "count"],
     validate: (transform, path) => validatePositiveInteger(transform.count, `${path}.count`),
@@ -630,12 +632,21 @@ const TRANSFORM_SCHEMAS: Readonly<Record<string, TransformSchema>> = {
   },
 };
 
+/** Canonical transform type ids (keys of TRANSFORM_SCHEMAS / TransformConfig discriminant). */
+export const TRANSFORM_TYPES: readonly TransformType[] = Object.keys(
+  TRANSFORM_SCHEMAS,
+) as TransformType[];
+
+function isTransformType(value: string): value is TransformType {
+  return value in TRANSFORM_SCHEMAS;
+}
+
 function validateTransform(transform: Record<string, unknown>, path: string): void {
   const transformType = transform.type;
-  const schema = TRANSFORM_SCHEMAS[transformType as string];
-  if (!schema) {
+  if (typeof transformType !== "string" || !isTransformType(transformType)) {
     throw new Error(`config: ${path}.type references unknown transform "${transformType}"`);
   }
+  const schema = TRANSFORM_SCHEMAS[transformType];
   validateAllowedKeys(transform, schema.fields, (key) =>
     `${path}.${key} is not a valid ${transformType} transform field`,
   );
