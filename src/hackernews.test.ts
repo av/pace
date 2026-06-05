@@ -1,6 +1,6 @@
 import { describe, test, expect, spyOn } from "bun:test";
 import hackernewsAdapter, { resolveHnFeedType } from "./adapters/hackernews";
-import * as typesMod from "./adapters/types";
+import * as utilsMod from "./utils";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
 const mocks = useFetchMockSuite();
@@ -320,7 +320,7 @@ describe("hackernews", () => {
   test("errorMessage on !ok", async () => {
     mocks.fetchMock.mockResolvedValue(new Response("[]", { status: 500 }));
 
-    const emSpy = spyOn(typesMod, "errorMessage");
+    const emSpy = spyOn(utilsMod, "errorMessage");
     try {
       const cfg = hnCfg({ feed: "top" });
       await expect(hackernewsAdapter.fetch(cfg)).rejects.toThrow(

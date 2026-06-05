@@ -1,6 +1,6 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import wikipediaAdapter, { resolveWikipediaMode } from "./adapters/wikipedia";
-import * as typesMod from "./adapters/types";
+import * as utilsMod from "./utils";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
 const mocks = useFetchMockSuite();
@@ -547,7 +547,7 @@ describe("wikipedia", () => {
   });
 
   test("errorMessage on !ok and network", async () => {
-    const emSpy = spyOn(typesMod, "errorMessage");
+    const emSpy = spyOn(utilsMod, "errorMessage");
     try {
       mocks.fetchMock.mockResolvedValue(new Response("Not Found", { status: 404 }));
       await expect(wikipediaAdapter.fetch(wikiCfg())).rejects.toThrow("wikipedia:");

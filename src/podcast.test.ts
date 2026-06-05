@@ -1,6 +1,6 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import podcastAdapter from "./adapters/podcast";
-import * as typesMod from "./adapters/types";
+import * as utilsMod from "./utils";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
 const mocks = useFetchMockSuite();
@@ -227,7 +227,7 @@ describe("podcast", () => {
   });
 
   test("errorMessage on !ok", async () => {
-    const emSpy = spyOn(typesMod, "errorMessage");
+    const emSpy = spyOn(utilsMod, "errorMessage");
     mocks.fetchMock.mockResolvedValue(makeErrorResponse(404));
 
     await expect(

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, spyOn, test } from "bun:test";
 import devtoAdapter, { resolveDevToPeriod } from "./adapters/devto";
-import * as typesMod from "./adapters/types";
+import * as utilsMod from "./utils";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
 const mocks = useFetchMockSuite();
@@ -363,7 +363,7 @@ describe("devto", () => {
   });
 
   test("errorMessage on !ok", async () => {
-    const emSpy = spyOn(typesMod, "errorMessage");
+    const emSpy = spyOn(utilsMod, "errorMessage");
     const callsBefore = emSpy.mock.calls.length;
 
     mocks.fetchMock.mockImplementation(async () => ({

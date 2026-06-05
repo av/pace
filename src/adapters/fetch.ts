@@ -9,7 +9,7 @@ import {
   parseXml,
   type XmlTextField,
 } from "./atom";
-import { errorMessage } from "./types";
+import { errorMessage } from "../utils";
 
 export const PACE_USER_AGENT = "pace/1.0";
 export const PACE_FEED_USER_AGENT =

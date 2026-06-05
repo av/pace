@@ -1,6 +1,6 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import lemmyAdapter, { resolveLemmySort } from "./adapters/lemmy";
-import * as typesMod from "./adapters/types";
+import * as utilsMod from "./utils";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
 const mocks = useFetchMockSuite();
@@ -362,7 +362,7 @@ describe("lemmy", () => {
   });
 
   test("errorMessage on !ok and network", async () => {
-    const emSpy = spyOn(typesMod, "errorMessage");
+    const emSpy = spyOn(utilsMod, "errorMessage");
     try {
       mocks.fetchMock.mockResolvedValue(new Response("Server Error", { status: 500 }));
       await expect(lemmyAdapter.fetch(lemmyCfg())).rejects.toThrow("lemmy:");

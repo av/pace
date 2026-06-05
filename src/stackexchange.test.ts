@@ -1,6 +1,6 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import stackexchangeAdapter, { resolveStackExchangeSort } from "./adapters/stackexchange";
-import * as typesMod from "./adapters/types";
+import * as utilsMod from "./utils";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
 const mocks = useFetchMockSuite();
@@ -417,7 +417,7 @@ describe("stackexchange", () => {
   });
 
   test("errorMessage on !ok and network", async () => {
-    const emSpy = spyOn(typesMod, "errorMessage");
+    const emSpy = spyOn(utilsMod, "errorMessage");
     try {
       mocks.fetchMock.mockResolvedValue(
         new Response("rate limit", { status: 429, statusText: "Too Many Requests" }),

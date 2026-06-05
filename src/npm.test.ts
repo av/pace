@@ -1,6 +1,6 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import npmAdapter, { resolveNpmSort } from "./adapters/npm";
-import * as typesMod from "./adapters/types";
+import * as utilsMod from "./utils";
 import { useFetchMockSuite } from "./test/adapter-mocks";
 
 const mocks = useFetchMockSuite();
@@ -358,7 +358,7 @@ describe("npm", () => {
   });
 
   test("errorMessage on !ok and network", async () => {
-    const emSpy = spyOn(typesMod, "errorMessage");
+    const emSpy = spyOn(utilsMod, "errorMessage");
     try {
       mocks.fetchMock.mockResolvedValue(new Response("Rate limited", { status: 429 }));
       await expect(

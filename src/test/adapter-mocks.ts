@@ -23,7 +23,7 @@ export function useFetchMockSuite(): FetchMockSuite {
     globalThis.fetch = originalFetch;
     warnSpy.mockRestore();
     // Do not call mock.restore() here — it clears mock.module() from other files
-    // (e.g. discoverAdapters fs mocks) and races with per-test errorMessage spies.
+    // (e.g. discoverAdapters fs mocks) and races with per-test utils.errorMessage spies.
   });
 
   return {

@@ -1,6 +1,6 @@
 import { describe, test, expect, spyOn } from "bun:test";
 import redditAdapter, { resolveRedditPeriod, resolveRedditSort } from "./adapters/reddit";
-import * as typesMod from "./adapters/types";
+import * as utilsMod from "./utils";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
 const mocks = useFetchMockSuite();
@@ -366,7 +366,7 @@ describe("reddit", () => {
   });
 
   test("errorMessage on !ok", async () => {
-    const emSpy = spyOn(typesMod, "errorMessage");
+    const emSpy = spyOn(utilsMod, "errorMessage");
     try {
       mocks.fetchMock.mockResolvedValue(makeErrorResponse(404));
 

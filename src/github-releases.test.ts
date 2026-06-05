@@ -1,6 +1,6 @@
 import { describe, test, expect, spyOn } from "bun:test";
 import githubReleasesAdapter from "./adapters/github-releases";
-import * as typesMod from "./adapters/types";
+import * as utilsMod from "./utils";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
 const mocks = useFetchMockSuite();
@@ -298,7 +298,7 @@ describe("github-releases", () => {
   });
 
   test("errorMessage on !ok", async () => {
-    const emSpy = spyOn(typesMod, "errorMessage");
+    const emSpy = spyOn(utilsMod, "errorMessage");
     const callsBefore = emSpy.mock.calls.length;
     mocks.fetchMock.mockResolvedValue(new Response("not found", { status: 404 }));
 

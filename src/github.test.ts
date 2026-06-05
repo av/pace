@@ -1,7 +1,7 @@
 import { describe, test, expect, spyOn } from "bun:test";
 import adapter, { resolveGitHubPeriod } from "./adapters/github";
 import { FEED_XML_ACCEPT } from "./adapters/fetch";
-import * as typesMod from "./adapters/types";
+import * as utilsMod from "./utils";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
 const mocks = useFetchMockSuite();
@@ -534,7 +534,7 @@ describe("github", () => {
   });
 
   test("errorMessage on !ok and network", async () => {
-    const emSpy = spyOn(typesMod, "errorMessage");
+    const emSpy = spyOn(utilsMod, "errorMessage");
     try {
       mocks.fetchMock.mockImplementation(async () => makeErrorResponse(404));
 

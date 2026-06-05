@@ -1,7 +1,7 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import arxivAdapter from "./adapters/arxiv";
 import { FEED_XML_ACCEPT } from "./adapters/fetch";
-import * as typesMod from "./adapters/types";
+import * as utilsMod from "./utils";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
 const mocks = useFetchMockSuite();
@@ -355,7 +355,7 @@ describe("arxiv", () => {
   });
 
   test("errorMessage on !ok and network", async () => {
-    const emSpy = spyOn(typesMod, "errorMessage");
+    const emSpy = spyOn(utilsMod, "errorMessage");
     try {
       mocks.fetchMock.mockResolvedValue(new Response("rate limit", { status: 429 }));
       await expect(

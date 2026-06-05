@@ -1,6 +1,6 @@
 import { describe, test, expect, spyOn } from "bun:test";
 import producthuntAdapter from "./adapters/producthunt";
-import * as typesMod from "./adapters/types";
+import * as utilsMod from "./utils";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 
 const mocks = useFetchMockSuite();
@@ -393,7 +393,7 @@ ${entries}
   });
 
   test("errorMessage on !ok", async () => {
-    const emSpy = spyOn(typesMod, "errorMessage");
+    const emSpy = spyOn(utilsMod, "errorMessage");
     mocks.fetchMock.mockResolvedValue(new Response("rate limited", { status: 429 }));
 
     await expect(

@@ -1,7 +1,8 @@
 import type { Dirent } from "node:fs";
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
-import { errorMessage, type Adapter } from "./types";
+import { errorMessage } from "../utils";
+import type { Adapter } from "./types";
 
 const EXCLUDED = new Set(["types.ts", "index.ts"]);
 const ADAPTERS_DIR = import.meta.dir;
