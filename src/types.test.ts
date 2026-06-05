@@ -4,22 +4,9 @@ import rssAdapter from "./adapters/rss";
 import producthuntAdapter from "./adapters/producthunt";
 import { useFetchMockSuite } from "./test/adapter-mocks";
 import { makeErrorResponse, makeXmlResponse } from "./test/fetch-responses";
+import { productHuntFeedFixture } from "./test/producthunt-fixtures";
 
 const mocks = useFetchMockSuite();
-
-function phFeedFixture(): string {
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom">
-  <entry>
-    <id>tag:www.producthunt.com,2005:Post/123456</id>
-    <title>Test Product</title>
-    <content type="html">&lt;p&gt;Tagline&lt;/p&gt;</content>
-    <link rel="alternate" href="https://www.producthunt.com/posts/test-product-123456" />
-    <published>2024-05-20T10:00:00Z</published>
-    <author><name>John Doe</name></author>
-  </entry>
-</feed>`;
-}
 
 describe("types", () => {
   describe("Adapter.fetch contract", () => {
@@ -81,7 +68,7 @@ describe("types", () => {
       test("enrich HTTP !ok: warns per item and returns feed items", async () => {
         mocks.fetchMock.mockImplementation(async (url: string) => {
           if (String(url).includes("feed")) {
-            return makeXmlResponse(phFeedFixture());
+            return makeXmlResponse(productHuntFeedFixture(1));
           }
           return makeErrorResponse(404);
         });
