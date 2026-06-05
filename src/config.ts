@@ -238,12 +238,7 @@ function validateSource(source: unknown, path: string): void {
   }
 
   validateNonEmptyString(source.adapter, `${path}.adapter`);
-  if (source.params !== undefined && !isRecord(source.params)) {
-    throw new Error(`config: ${path}.params must be an object`);
-  }
-  if (isRecord(source.params)) {
-    validateAdapterParams(source.adapter as string, source.params, path);
-  }
+  validateNestedParams(source.adapter as string, source.params, path);
   validateAllowedKeys(source, ["adapter", "params"], (key) =>
     `${path}.${key} is not a valid source field`,
   );
@@ -370,27 +365,36 @@ function validateOptional(value: unknown, path: string, validator: (v: unknown, 
   }
 }
 
-function validateOptionalPositiveNumber(value: unknown, path: string): void {
-  validateOptional(value, path, validatePositiveNumber);
+function optionalValidator(validator: (v: unknown, p: string) => void): (value: unknown, path: string) => void {
+  return (value, path) => validateOptional(value, path, validator);
 }
 
-function validateOptionalPositiveInteger(value: unknown, path: string): void {
-  validateOptional(value, path, validatePositiveInteger);
-}
-
-function validateOptionalFiniteNumber(value: unknown, path: string): void {
-  validateOptional(value, path, validateFiniteNumber);
-}
-
-function validateOptionalBoolean(value: unknown, path: string): void {
-  if (value !== undefined && typeof value !== "boolean") {
+function validateBoolean(value: unknown, path: string): void {
+  if (typeof value !== "boolean") {
     throw new Error(`config: ${path} must be a boolean`);
   }
 }
 
-function validateOptionalNonEmptyString(value: unknown, path: string): void {
-  validateOptional(value, path, validateNonEmptyString);
+function validateList(value: unknown, path: string): void {
+  if (!Array.isArray(value)) {
+    throw new Error(`config: ${path} must be a list`);
+  }
 }
+
+function validateUnitNumber(value: unknown, path: string): void {
+  validateFiniteNumber(value, path);
+  if ((value as number) < 0 || (value as number) > 1) {
+    throw new Error(`config: ${path} must be between 0 and 1`);
+  }
+}
+
+const validateOptionalPositiveNumber = optionalValidator(validatePositiveNumber);
+const validateOptionalPositiveInteger = optionalValidator(validatePositiveInteger);
+const validateOptionalFiniteNumber = optionalValidator(validateFiniteNumber);
+const validateOptionalBoolean = optionalValidator(validateBoolean);
+const validateOptionalNonEmptyString = optionalValidator(validateNonEmptyString);
+const validateOptionalList = optionalValidator(validateList);
+const validateOptionalUnitNumber = optionalValidator(validateUnitNumber);
 
 function validateNonEmptyString(value: unknown, path: string): void {
   if (typeof value !== "string" || value.trim().length === 0) {
@@ -404,12 +408,6 @@ function validateNonEmptyArray(value: unknown, path: string): asserts value is u
   }
   if (value.length === 0) {
     throw new Error(`config: ${path} must not be empty`);
-  }
-}
-
-function validateOptionalList(value: unknown, path: string): void {
-  if (value !== undefined && !Array.isArray(value)) {
-    throw new Error(`config: ${path} must be a list`);
   }
 }
 
@@ -472,11 +470,7 @@ function validateUniqueStringList(
   }
 }
 
-function validateOptionalStringList(value: unknown, path: string): void {
-  if (value !== undefined) {
-    validateStringList(value, path);
-  }
-}
+const validateOptionalStringList = optionalValidator(validateStringList);
 
 function validateEnum<T extends string>(
   value: unknown,
@@ -493,17 +487,7 @@ function validateOptionalEnum<T extends string>(
   allowed: readonly T[],
   path: string,
 ): void {
-  if (value !== undefined) {
-    validateEnum(value, allowed, path);
-  }
-}
-
-function validateOptionalUnitNumber(value: unknown, path: string): void {
-  if (value === undefined) return;
-  validateFiniteNumber(value, path);
-  if ((value as number) < 0 || (value as number) > 1) {
-    throw new Error(`config: ${path} must be between 0 and 1`);
-  }
+  validateOptional(value, path, (v, p) => validateEnum(v, allowed, p));
 }
 
 function resolveDedupeStrategyForValidation(strategy: unknown): DedupeStrategy {
@@ -705,6 +689,14 @@ function validateAdapterParams(
   validateAllowedKeys(params, allowed, (key) => `${path}.params.${key} is not a valid ${type} param`);
 }
 
+function validateNestedParams(type: string, params: unknown, path: string): void {
+  if (params === undefined) return;
+  if (!isRecord(params)) {
+    throw new Error(`config: ${path}.params must be an object`);
+  }
+  validateAdapterParams(type, params, path);
+}
+
 function validateAdapterConfig(adapter: unknown, index: number): asserts adapter is IngestAdapterConfig {
   const path = `adapters[${index}]`;
   if (!isRecord(adapter)) {
@@ -715,12 +707,7 @@ function validateAdapterConfig(adapter: unknown, index: number): asserts adapter
   );
   validateNonEmptyString(adapter.type, `${path}.type`);
   validateOptionalNonEmptyString(adapter.name, `${path}.name`);
-  if (adapter.params !== undefined && !isRecord(adapter.params)) {
-    throw new Error(`config: ${path}.params must be an object`);
-  }
-  if (isRecord(adapter.params)) {
-    validateAdapterParams(adapter.type as string, adapter.params, path);
-  }
+  validateNestedParams(adapter.type as string, adapter.params, path);
   validateOptionalPositiveNumber(adapter.refresh_interval, `${path}.refresh_interval`);
   if (adapter.transforms !== undefined) {
     validateTransforms(adapter.transforms, `${path}.transforms`);
