@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, mock, spyOn } from "bun:test";
-import type { AdapterConfig } from "../adapters/types";
+import type { Adapter, AdapterConfig, ContentItem } from "../adapters/types";
 
 const originalFetch = globalThis.fetch;
 
@@ -39,4 +39,27 @@ export function useFetchMockSuite(): FetchMockSuite {
 /** Minimal AdapterConfig for adapter tests (not a fetch mock). */
 export function adapterCfg(type: string, params: Record<string, unknown> = {}): AdapterConfig {
   return { type, params };
+}
+
+/** Stub adapter that returns fixed items (scheduler/integration tests). */
+export function makeMockAdapter(items: ContentItem[] = []): Adapter {
+  return {
+    name: "mock",
+    fetch: async () => items,
+  };
+}
+
+/** Stub adapter whose fetch always throws (scheduler error-path tests). */
+export function makeErrorAdapter(msg = "boom"): Adapter {
+  return {
+    name: "err",
+    fetch: async () => {
+      throw new Error(msg);
+    },
+  };
+}
+
+/** Build a type→adapter map from [type, adapter] pairs. */
+export function adaptersMap(...entries: [string, Adapter][]): Map<string, Adapter> {
+  return new Map(entries);
 }

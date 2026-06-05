@@ -4,7 +4,8 @@ import { emptyPanelMap, sourcePanelMapFromConfig } from "./test/panel-map";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import type { Adapter, ContentItem } from "./adapters/types";
+import type { ContentItem } from "./adapters/types";
+import { adaptersMap, makeErrorAdapter, makeMockAdapter } from "./test/adapter-mocks";
 import * as dbMod from "./db";
 import { initDb, closeDb, getAllItemsByPanel, saveItems } from "./db";
 import * as utilsMod from "./utils";
@@ -22,28 +23,8 @@ let tempDir: string;
 let dbPath: string;
 let origEnv: string | undefined;
 
-function makeMockAdapter(items: ContentItem[] = []): Adapter {
-  return {
-    name: "mock",
-    fetch: async () => items,
-  };
-}
-
-function makeErrorAdapter(msg = "boom"): Adapter {
-  return {
-    name: "err",
-    fetch: async () => {
-      throw new Error(msg);
-    },
-  };
-}
-
 async function waitForAsync(ms = 20): Promise<void> {
   await new Promise((r) => setTimeout(r, ms));
-}
-
-function adaptersMap(...entries: [string, Adapter][]): Map<string, Adapter> {
-  return new Map(entries);
 }
 
 const baseConfig = testAppConfig({
