@@ -23,7 +23,6 @@ export const FEED_XML_PARSER_OPTIONS = {
   attributeNamePrefix: "@_" as const,
 };
 
-/** Shared XMLParser for feed adapters using {@link FEED_XML_PARSER_OPTIONS}. */
 export const feedXmlParser = new XMLParser(FEED_XML_PARSER_OPTIONS);
 
 export function normalizeXmlList<T>(value: T | T[] | undefined | null): T[] {
@@ -31,7 +30,6 @@ export function normalizeXmlList<T>(value: T | T[] | undefined | null): T[] {
   return Array.isArray(value) ? value : [value];
 }
 
-/** Extract string from an XML text field; undefined when absent or empty. */
 export function extractXmlText(
   field: XmlTextField | undefined | null,
 ): string | undefined {
@@ -41,7 +39,6 @@ export function extractXmlText(
   return typeof text === "string" && text ? text : undefined;
 }
 
-/** First non-empty body among RSS/Atom/podcast description fields. */
 export function extractFeedItemBody(
   item: FeedItemBodyFields,
 ): string | undefined {
@@ -55,7 +52,6 @@ export function extractFeedItemBody(
   );
 }
 
-/** Atom/RSS entry title; uses fallback when field is missing or empty. */
 export function extractFeedEntryTitle(
   title: XmlTextField | undefined,
   fallback = "(untitled)",
@@ -63,7 +59,6 @@ export function extractFeedEntryTitle(
   return extractXmlText(title) ?? fallback;
 }
 
-/** Channel/feed title from RSS 2.0 or Atom root, whichever is present. */
 export function extractFeedRootTitle(
   rssTitle: XmlTextField | undefined,
   atomTitle: XmlTextField | undefined,
@@ -71,7 +66,6 @@ export function extractFeedRootTitle(
   return extractXmlText(rssTitle) ?? extractXmlText(atomTitle);
 }
 
-/** Items from RSS channel.item or Atom feed.entry. */
 export function extractRssAtomItems<T>(parsed: {
   rss?: { channel?: { item?: T | T[] } };
   feed?: { entry?: T | T[] };
