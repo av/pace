@@ -3,32 +3,10 @@ import hackernewsAdapter, { resolveHnFeedType } from "./adapters/hackernews";
 import * as utilsMod from "./utils";
 import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
+import { makeHNItem } from "./test/hackernews-fixtures";
 
 const mocks = useFetchMockSuite();
 const hnCfg = (params: Record<string, unknown> = {}) => adapterCfg("hackernews", params);
-
-interface HNItemFixture {
-  id: number;
-  title?: string;
-  url?: string;
-  score?: number;
-  time?: number;
-  by?: string;
-  descendants?: number;
-}
-
-function makeHNItem(id: number, overrides: Partial<HNItemFixture> = {}): HNItemFixture {
-  return {
-    id,
-    title: `Story ${id}`,
-    url: `https://example.com/story-${id}`,
-    score: 100 + id,
-    time: 1716200000 + id,
-    by: "testuser",
-    descendants: 5,
-    ...overrides,
-  };
-}
 
 describe("resolveHnFeedType", () => {
   test.each([
