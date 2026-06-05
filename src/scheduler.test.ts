@@ -123,6 +123,19 @@ describe("scheduler", () => {
     );
   });
 
+  test("startScheduler throws on multiple missing adapter types with plural message", () => {
+    const config = schedulerConfig({
+      adapters: [
+        { type: "missing-a", refresh_interval: 1 },
+        { type: "missing-b", refresh_interval: 1 },
+      ],
+    });
+    const adapters = new Map<string, Adapter>();
+    expect(() => startScheduler(config, adapters, emptyPanelMap(), null)).toThrow(
+      'scheduler: adapter types "missing-a", "missing-b" are configured but no matching adapter modules were discovered'
+    );
+  });
+
   test("startScheduler with adapter fetches, saves to DB, logs success (no transforms)", async () => {
     const items = [
       { id: "g1", title: "GitHub Release", url: "https://ex", source: "gh", timestamp: new Date() },

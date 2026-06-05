@@ -85,6 +85,14 @@ function logScheduledRefresh(label: string, intervalMin: number): void {
   console.log(`scheduler: ${label} — every ${intervalMin}m`);
 }
 
+function missingAdapterTypesMessage(types: readonly string[]): string {
+  const quoted = types.map((type) => `"${type}"`).join(", ");
+  if (types.length === 1) {
+    return `scheduler: adapter type ${quoted} is configured but no matching adapter module was discovered`;
+  }
+  return `scheduler: adapter types ${quoted} are configured but no matching adapter modules were discovered`;
+}
+
 function panelIdsForSource(sourceName: string, panelMap: SourcePanelMap): string[] {
   return panelMap.sourceToPanels.get(sourceName) ?? [sourceName];
 }
@@ -138,15 +146,8 @@ export function startScheduler(
   const missingAdapterTypes = Array.from(
     new Set(config.adapters.map((adapterCfg) => adapterCfg.type).filter((type) => !adapters.has(type)))
   );
-  if (missingAdapterTypes.length === 1) {
-    throw new Error(
-      `scheduler: adapter type "${missingAdapterTypes[0]}" is configured but no matching adapter module was discovered`
-    );
-  }
-  if (missingAdapterTypes.length > 1) {
-    throw new Error(
-      `scheduler: adapter types ${missingAdapterTypes.map((type) => `"${type}"`).join(", ")} are configured but no matching adapter modules were discovered`
-    );
+  if (missingAdapterTypes.length > 0) {
+    throw new Error(missingAdapterTypesMessage(missingAdapterTypes));
   }
 
   transformCtx = { llmModel: model ?? null, llmConfig: config.llm };
@@ -263,6 +264,33 @@ function dependentPipelineNames(adapterNames: Set<string>, seed: Set<string>): S
   return names;
 }
 
+function planRefresh(sourceNames: readonly string[]): {
+  adapters: AdapterEntry[];
+  pipelines: PipelineEntry[];
+} {
+  const sourceNameSet = new Set(sourceNames);
+
+  const selectedPipelines = pipelineEntries.filter((entry) =>
+    sourceNameSet.has(entry.config.name),
+  );
+  const adapterNameSet = new Set(
+    adapterEntries.filter((entry) => sourceNameSet.has(entry.name)).map((entry) => entry.name),
+  );
+  for (const pipeline of selectedPipelines) {
+    for (const source of pipeline.config.sources) adapterNameSet.add(source);
+  }
+
+  const pipelineNameSet = dependentPipelineNames(
+    adapterNameSet,
+    new Set(selectedPipelines.map((entry) => entry.config.name)),
+  );
+
+  return {
+    adapters: adapterEntries.filter((entry) => adapterNameSet.has(entry.name)),
+    pipelines: pipelineEntries.filter((entry) => pipelineNameSet.has(entry.config.name)),
+  };
+}
+
 export function allPanelRefreshSourceNames(
   adapterNames: readonly string[],
   pipelines: readonly { name: string }[] | undefined,
@@ -275,30 +303,10 @@ export function allPanelRefreshSourceNames(
 }
 
 export async function refreshSources(sourceNames: string[]): Promise<RefreshResult[]> {
-  const sourceNameSet = new Set(sourceNames);
+  const { adapters, pipelines } = planRefresh(sourceNames);
 
-  const selectedPipelines = pipelineEntries.filter((e) =>
-    sourceNameSet.has(e.config.name),
-  );
-  const adapterNameSet = new Set(
-    adapterEntries.filter((e) => sourceNameSet.has(e.name)).map((e) => e.name),
-  );
-  for (const pipeline of selectedPipelines) {
-    for (const source of pipeline.config.sources) adapterNameSet.add(source);
-  }
-
-  const adapterResults = await Promise.all(
-    adapterEntries.filter((e) => adapterNameSet.has(e.name)).map((e) => runAdapter(e)),
-  );
-
-  const pipelineNameSet = dependentPipelineNames(
-    adapterNameSet,
-    new Set(selectedPipelines.map((e) => e.config.name)),
-  );
-  const pipelinesToRefresh = pipelineEntries.filter((e) =>
-    pipelineNameSet.has(e.config.name),
-  );
-  const pipelineResults = await Promise.all(pipelinesToRefresh.map((e) => runPipelineJob(e)));
+  const adapterResults = await Promise.all(adapters.map((entry) => runAdapter(entry)));
+  const pipelineResults = await Promise.all(pipelines.map((entry) => runPipelineJob(entry)));
 
   return adapterResults.concat(pipelineResults);
 }
@@ -309,9 +317,8 @@ function clearScheduledTimers(entry: TimedEntryBase): void {
 }
 
 export function stopScheduler(): void {
-  for (const entry of adapterEntries) clearScheduledTimers(entry);
+  for (const entry of [...adapterEntries, ...pipelineEntries]) clearScheduledTimers(entry);
   adapterEntries.length = 0;
-  for (const entry of pipelineEntries) clearScheduledTimers(entry);
   pipelineEntries.length = 0;
   if (pruneTimer) {
     clearInterval(pruneTimer);
