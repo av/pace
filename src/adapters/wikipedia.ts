@@ -8,6 +8,7 @@ import { decodeNumericFeedTitle, stripHtml } from "./html";
 import {
   clampAdapterLimit,
   normalizeParamString,
+  normalizeParamStringList,
   normalizeStringList,
   sliceToLimit,
 } from "../utils";
@@ -149,15 +150,12 @@ function parseModeToken(token: string): Mode | null {
 }
 
 function resolveModes(config: AdapterConfig): Mode[] {
-  const modesParam = config.params?.modes;
-  const tokens: string[] = [];
-
-  if (Array.isArray(modesParam)) {
-    tokens.push(...normalizeStringList(modesParam as string[]));
-  } else {
-    const modeParam = normalizeParamString(config.params, "mode", "most_read");
-    tokens.push(...normalizeStringList(modeParam.split(",")));
-  }
+  const params = config.params;
+  const tokens = Array.isArray(params?.modes)
+    ? normalizeParamStringList(params, "modes")
+    : normalizeStringList(
+        (normalizeParamString(params, "mode", "most_read") ?? "most_read").split(","),
+      );
 
   const resolved = tokens
     .map(parseModeToken)

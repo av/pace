@@ -165,6 +165,7 @@ describe("normalizeParamStringList", () => {
       [],
     );
     expect(normalizeParamStringList(undefined, "tags")).toEqual([]);
+    expect(normalizeParamStringList({ tags: "a,b" }, "tags")).toEqual([]);
   });
 });
 
