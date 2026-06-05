@@ -42,7 +42,6 @@ const ENRICH_BATCH_SIZE = 5;
 const ENRICH_DELAY_MS = 500;
 
 const RE_ENRICH_COMMENTS = /commentsCount":\s*(\d+)/;
-/** Prefer data-test topic labels; else capture /topics/{slug} hrefs. */
 const RE_ENRICH_TOPIC =
   /data-test="topic[^"]*"[^>]*>([^<]+)<|href="\/topics\/([^"]+)"/gi;
 const RE_ENRICH_PROFILE = /href="\/@([a-zA-Z0-9_]{2,30})"/gi;
@@ -139,7 +138,6 @@ function parseEnrichedData(html: string): EnrichedData {
 }
 
 function extractId(entry: PHEntry): string {
-  // id format: "tag:www.producthunt.com,2005:Post/1143406"
   if (entry.id) {
     const match = entry.id.match(/Post\/(\d+)/);
     if (match) return match[1];
