@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { errorMessage, parseCliPort } from "./utils";
+import { errorMessage, normalizeParamBoolean, parseCliPort } from "./utils";
 
 export const CLI_FATAL_ERROR_PREFIXES = ["config:", "scheduler:", "index:"] as const;
 
@@ -52,7 +52,7 @@ export type CliParsedValues = Record<string, unknown> & {
 /** Map kebab-case flags from parseArgs (e.g. list-presets) onto camelCase fields. */
 export function normalizeCliParsedValues(values: CliParsedValues): void {
   if (values["list-presets"] !== undefined) {
-    values.listPresets = values["list-presets"] as boolean;
+    values.listPresets = normalizeParamBoolean(values, "list-presets");
   }
 }
 

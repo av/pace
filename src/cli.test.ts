@@ -38,6 +38,12 @@ describe("cli-help", () => {
     expect(values.listPresets).toBe(true);
   });
 
+  test("normalizeCliParsedValues coerces non-boolean list-presets to false", () => {
+    const values = { "list-presets": "true" } as Record<string, unknown>;
+    normalizeCliParsedValues(values);
+    expect(values.listPresets).toBe(false);
+  });
+
   test("applyCliConfigEnv sets PACE_CONFIG from preset and validates explicit config", () => {
     const orig = process.env.PACE_CONFIG;
     try {
