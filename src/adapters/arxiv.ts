@@ -8,7 +8,7 @@ import { parseFeedDate } from "./dates";
 import {
   formatCategories,
 } from "./engagement";
-import { joinTitle } from "./title";
+import { joinTitle, truncateText } from "./title";
 
 import { ARXIV_FETCH_TIMEOUT_MS, fetchAtomFeed } from "./fetch";
 import {
@@ -104,11 +104,6 @@ function extractArxivId(idUrl: string | undefined): string {
   return match ? match[1] : idUrl;
 }
 
-function truncate(text: string, maxLen: number): string {
-  if (text.length <= maxLen) return text;
-  return text.slice(0, maxLen).trimEnd() + "...";
-}
-
 async function fetchArxivQuery(
   queryStr: string,
   limit: number,
@@ -138,7 +133,9 @@ function buildBody(entry: ArxivEntry): string {
   return joinTitle(
     authors ? `Authors: ${authors}` : undefined,
     categories.length > 0 ? formatCategories(categories) : undefined,
-    abstract ? `Abstract: ${truncate(abstract, 300)}` : undefined,
+    abstract
+      ? `Abstract: ${truncateText(abstract, 300, { ellipsis: "...", inclusive: false, trim: false })}`
+      : undefined,
     pdfUrl ? `PDF: ${pdfUrl}` : undefined,
   );
 }

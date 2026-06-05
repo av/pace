@@ -3,6 +3,7 @@ import {
   joinTitle,
   joinTitleWithTagline,
   truncateForTitle,
+  truncateText,
 } from "./adapters/title";
 
 describe("joinTitle", () => {
@@ -12,6 +13,20 @@ describe("joinTitle", () => {
 
   test("skips empty and null parts", () => {
     expect(joinTitle("a", "", null, undefined, "  ", "b")).toBe("a | b");
+  });
+});
+
+describe("truncateText", () => {
+  test("exclusive mode appends ASCII ellipsis after content max", () => {
+    const long = "word ".repeat(120).trim();
+    const truncated = truncateText(long, 300, {
+      ellipsis: "...",
+      inclusive: false,
+      trim: false,
+    });
+    expect(truncated.endsWith("...")).toBe(true);
+    expect(truncated.length).toBeLessThanOrEqual(303);
+    expect(truncated).not.toBe(long);
   });
 });
 

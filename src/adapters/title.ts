@@ -6,10 +6,33 @@ export function joinTitle(...parts: (string | undefined | null)[]): string {
     .join(" | ");
 }
 
+export type TruncateTextOptions = {
+  /** Ellipsis suffix when truncating. Default "…". */
+  ellipsis?: string;
+  /** When true (default), `max` is total output length including ellipsis. When false, `max` is content length before ellipsis. */
+  inclusive?: boolean;
+  /** Trim whitespace from input before measuring. Default true. */
+  trim?: boolean;
+};
+
+/** Truncate text with ellipsis; used for titles (inclusive) and body snippets (exclusive). */
+export function truncateText(
+  text: string,
+  max: number,
+  options: TruncateTextOptions = {},
+): string {
+  const { ellipsis = "…", inclusive = true, trim = true } = options;
+  const source = trim ? text.trim() : text;
+  if (source.length <= max) return source;
+  const contentMax = inclusive ? max - ellipsis.length : max;
+  const slice = inclusive
+    ? source.slice(0, contentMax)
+    : source.slice(0, contentMax).trimEnd();
+  return `${slice}${ellipsis}`;
+}
+
 export function truncateForTitle(text: string, max = 100): string {
-  const t = text.trim();
-  if (t.length <= max) return t;
-  return `${t.slice(0, max - 1)}…`;
+  return truncateText(text, max);
 }
 
 /** Join primary with optional truncated tagline and more title segments. */
