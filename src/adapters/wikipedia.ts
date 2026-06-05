@@ -49,14 +49,6 @@ interface WikiNewsItem {
   links: WikiArticle[];
 }
 
-function formatArticleTitle(title: string): string {
-  return decodeNumericFeedTitle(title.replace(/_/g, " "));
-}
-
-function formatPlainFeedText(text: string): string {
-  return decodeNumericFeedTitle(stripHtml(text, { whitespace: "preserve" }));
-}
-
 function buildBody(article: WikiMostReadArticle): string {
   return joinTitle(
     formatViews(article.views),
@@ -91,7 +83,7 @@ function extractMostRead(data: WikiFeaturedResponse, limit: number): ContentItem
   const articles = data.mostread?.articles ?? [];
   return sliceToLimit(articles, limit).map((article) => ({
     id: `wikipedia:mostread:${article.title}`,
-    title: formatArticleTitle(article.title),
+    title: decodeNumericFeedTitle(article.title.replace(/_/g, " ")),
     url: article.content_urls.desktop.page,
     source: "wikipedia:most_read",
     timestamp: new Date(),
@@ -105,7 +97,7 @@ function extractFeatured(data: WikiFeaturedResponse): ContentItem[] {
   return [
     {
       id: `wikipedia:tfa:${tfa.title}`,
-      title: `Featured: ${formatArticleTitle(tfa.title)}`,
+      title: `Featured: ${decodeNumericFeedTitle(tfa.title.replace(/_/g, " "))}`,
       url: tfa.content_urls.desktop.page,
       source: "wikipedia:featured",
       timestamp: new Date(),
@@ -118,7 +110,9 @@ function extractOnThisDay(data: WikiFeaturedResponse, limit: number): ContentIte
   const events = data.onthisday ?? [];
   return sliceToLimit(events, limit).map((event) => {
     const page = event.pages?.[0];
-    const text = formatPlainFeedText(event.text);
+    const text = decodeNumericFeedTitle(
+      stripHtml(event.text, { whitespace: "preserve" }),
+    );
     const url = page?.content_urls?.desktop?.page ?? `https://en.wikipedia.org/wiki/Portal:Current_events`;
     return {
       id: `wikipedia:otd:${event.year}:${text.slice(0, 40)}`,
@@ -138,7 +132,9 @@ function extractNews(data: WikiFeaturedResponse, limit: number): ContentItem[] {
     const url = link?.content_urls?.desktop?.page ?? "https://en.wikipedia.org/wiki/Portal:Current_events";
     return {
       id: `wikipedia:news:${link?.title ?? `untitled-${i}`}`,
-      title: formatPlainFeedText(item.story),
+      title: decodeNumericFeedTitle(
+        stripHtml(item.story, { whitespace: "preserve" }),
+      ),
       url,
       source: "wikipedia:news",
       timestamp: new Date(),
