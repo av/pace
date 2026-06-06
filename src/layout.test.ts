@@ -1,4 +1,5 @@
-import { describe, it, expect, spyOn } from "bun:test";
+import { describe, it, expect } from "bun:test";
+import { spyConsole } from "./test/console-spy";
 import { renderDashboard, type PanelData } from "./layout";
 import { resolvePanelId } from "./config";
 import { makeContentItemRow as makeItem } from "./test/content-items";
@@ -47,9 +48,8 @@ describe("renderDashboard", () => {
     expect(html).toContain("<span>No Link</span>");
   });
 
-  it("warns on safeLinkUrl parse failure; disallowed protocols stay silent", () => {
-    const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
-    try {
+  it("warns on safeLinkUrl parse failure; disallowed protocols stay silent", async () => {
+    await spyConsole(["warn"], ({ warn: warnSpy }) => {
       const invalid = makeItem({ title: "No Link", url: "not-a-url" });
       const ftp = makeItem({ title: "Bad Link", url: "ftp://bad.com" });
       const layout = panelCfg("P", "s");
@@ -59,9 +59,7 @@ describe("renderDashboard", () => {
       expect(warnSpy).toHaveBeenCalledWith(
         expect.stringMatching(/^layout: safeUrl failed for "not-a-url": /),
       );
-    } finally {
-      warnSpy.mockRestore();
-    }
+    });
   });
 
   it("renders mailto: links as safe anchors", () => {

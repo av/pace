@@ -1,4 +1,5 @@
 import { describe, test, expect, spyOn } from "bun:test";
+import { spyConsole } from "./test/console-spy";
 import {
   stripJsonCodeFences,
   safeComplete,
@@ -89,18 +90,18 @@ describe("llm", () => {
       const completeSpy = spyOn(piAi, "complete").mockResolvedValue({
         content: [{ type: "text", text: "not valid json {{{" }],
       } as Awaited<ReturnType<typeof piAi.complete>>);
-      const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
       try {
-        const items = [makeItem({ id: "x" })];
-        const res = await filterItemsByLlm(fakeThrowingModel, items, "keep tech");
-        expect(res).toEqual(items);
-        expect(warnSpy).toHaveBeenCalledTimes(1);
-        expect(warnSpy).toHaveBeenCalledWith(
-          expect.stringMatching(/^llm: JSON parse failed: /),
-        );
+        await spyConsole(["warn"], async ({ warn: warnSpy }) => {
+          const items = [makeItem({ id: "x" })];
+          const res = await filterItemsByLlm(fakeThrowingModel, items, "keep tech");
+          expect(res).toEqual(items);
+          expect(warnSpy).toHaveBeenCalledTimes(1);
+          expect(warnSpy).toHaveBeenCalledWith(
+            expect.stringMatching(/^llm: JSON parse failed: /),
+          );
+        });
       } finally {
         completeSpy.mockRestore();
-        warnSpy.mockRestore();
       }
     });
 
@@ -128,8 +129,7 @@ describe("llm", () => {
     });
 
     test("warns on complete failure", async () => {
-      const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
-      try {
+      await spyConsole(["warn"], async ({ warn: warnSpy }) => {
         const ctx: Context = {
           systemPrompt: "test",
           messages: [{ role: "user", content: "hi", timestamp: Date.now() }],
@@ -140,9 +140,7 @@ describe("llm", () => {
         expect(warnSpy).toHaveBeenCalledWith(
           expect.stringMatching(/^llm: complete failed: /),
         );
-      } finally {
-        warnSpy.mockRestore();
-      }
+      });
     });
 
     test("empty context returns null", async () => {
@@ -190,9 +188,8 @@ describe("llm", () => {
       expect(createModel({ provider: "openai", api_key: "k" })).toBe(null);
     });
 
-    test("warns on unknown provider", () => {
-      const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
-      try {
+    test("warns on unknown provider", async () => {
+      await spyConsole(["warn"], ({ warn: warnSpy }) => {
         const model = createModel({
           provider: "totally-unknown-provider",
           model: "custom-model-id",
@@ -207,14 +204,11 @@ describe("llm", () => {
         expect(model!.provider).toBe("totally-unknown-provider");
         expect(model!.api).toBe("openai-completions");
         expect(model!.baseUrl).toBe("http://localhost:11434/v1");
-      } finally {
-        warnSpy.mockRestore();
-      }
+      });
     });
 
-    test("warns on unknown model id", () => {
-      const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
-      try {
+    test("warns on unknown model id", async () => {
+      await spyConsole(["warn"], ({ warn: warnSpy }) => {
         const model = createModel({
           provider: "openai",
           model: "__pace_test_nonexistent_model__",
@@ -225,9 +219,7 @@ describe("llm", () => {
           "llm: unknown provider/model (openai/__pace_test_nonexistent_model__), using OpenAI-compatible fallback",
         );
         expect(model!.id).toBe("__pace_test_nonexistent_model__");
-      } finally {
-        warnSpy.mockRestore();
-      }
+      });
     });
   });
 

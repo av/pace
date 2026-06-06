@@ -1,4 +1,5 @@
-import { describe, test, expect, spyOn } from "bun:test";
+import { describe, test, expect } from "bun:test";
+import { spyConsole } from "./test/console-spy";
 import {
   normalizeUrl,
   extractHostname,
@@ -33,30 +34,24 @@ describe("dedupe utils", () => {
       expect(normalizeUrl("HTTP://Bad Host With Spaces")).toBe("http://bad host with spaces");
     });
 
-    test("warns with errorMessage on parse failure", () => {
-      const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
-      try {
+    test("warns with errorMessage on parse failure", async () => {
+      await spyConsole(["warn"], ({ warn: warnSpy }) => {
         const bad = "not a valid url at all";
         expect(normalizeUrl(bad)).toBe(bad);
         expect(warnSpy).toHaveBeenCalledTimes(1);
         expect(warnSpy).toHaveBeenCalledWith(
           expect.stringMatching(/^dedupe: normalizeUrl failed for "not a valid url at all": /),
         );
-      } finally {
-        warnSpy.mockRestore();
-      }
+      });
     });
   });
 
   describe("extractHostname", () => {
-    test("returns empty string for falsy input without warning", () => {
-      const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
-      try {
+    test("returns empty string for falsy input without warning", async () => {
+      await spyConsole(["warn"], ({ warn: warnSpy }) => {
         expect(extractHostname("")).toBe("");
         expect(warnSpy).not.toHaveBeenCalled();
-      } finally {
-        warnSpy.mockRestore();
-      }
+      });
     });
 
     test("returns lowercased host without www", () => {
@@ -67,16 +62,13 @@ describe("dedupe utils", () => {
       expect(extractHostname("mailto:user@example.com")).toBe("");
     });
 
-    test("returns empty string and warns on parse failure", () => {
-      const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
-      try {
+    test("returns empty string and warns on parse failure", async () => {
+      await spyConsole(["warn"], ({ warn: warnSpy }) => {
         expect(extractHostname("not a url", "test")).toBe("");
         expect(warnSpy).toHaveBeenCalledWith(
           expect.stringMatching(/^test: extractHostname failed for "not a url": /),
         );
-      } finally {
-        warnSpy.mockRestore();
-      }
+      });
     });
   });
 
