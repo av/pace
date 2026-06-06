@@ -2,7 +2,8 @@ import { describe, test, expect, spyOn } from "bun:test";
 import { spyConsole } from "./test/console-spy";
 import { emptyPanelMap, sourcePanelMapFromConfig } from "./test/panel-map";
 import { installTempDbHooks } from "./test/temp-db";
-import type { Adapter, ContentItem } from "./adapters/types";
+import type { Adapter } from "./adapters/types";
+import { makeContentItem } from "./test/content-items";
 import { adaptersMap, makeErrorAdapter, makeMockAdapter } from "./test/adapter-mocks";
 import * as dbMod from "./db";
 import { getAllItemsByPanel, saveItems } from "./db";
@@ -41,7 +42,7 @@ describe("scheduler", () => {
   });
 
   test("startScheduler duplicate guard prevents re-registration (early return, no double logs)", async () => {
-    const items = [{ id: "i1", title: "t", url: "u", source: "s", timestamp: new Date() }];
+    const items = [makeContentItem({ id: "i1", title: "t", url: "u", source: "s" })];
     const adapters = adaptersMap(["test", makeMockAdapter(items)]);
     await spyConsole(["log"], ({ log: logSpy }) => {
       startScheduler(baseConfig, adapters, basePanelMap, null);
@@ -74,7 +75,7 @@ describe("scheduler", () => {
 
   test("startScheduler with adapter fetches, saves to DB, logs success (no transforms)", async () => {
     const items = [
-      { id: "g1", title: "GitHub Release", url: "https://ex", source: "gh", timestamp: new Date() },
+      makeContentItem({ id: "g1", title: "GitHub Release", url: "https://ex", source: "gh" }),
     ];
     const adapters = adaptersMap(["test", makeMockAdapter(items)]);
     await spyConsole(["log"], async ({ log: logSpy }) => {
@@ -149,7 +150,7 @@ describe("scheduler", () => {
   });
 
   test("refreshSources with adapter + pipeline names refreshes both (all-panel contract)", async () => {
-    const items = [{ id: "a1", title: "A", url: "https://a", source: "srcA", timestamp: new Date() }];
+    const items = [makeContentItem({ id: "a1", title: "A", url: "https://a", source: "srcA" })];
     const adapters = adaptersMap(["test", makeMockAdapter(items)]);
     const config = testAppConfig(
       {
@@ -182,13 +183,15 @@ describe("scheduler", () => {
   });
 
   test("adapter ingest transforms apply via shared transform path", async () => {
-    const items = Array.from({ length: 10 }, (_, i) => ({
-      id: `i${i}`,
-      title: `T${i}`,
-      url: `https://x/${i}`,
-      source: "src",
-      timestamp: new Date(`2024-01-${String(i + 1).padStart(2, "0")}T00:00:00Z`),
-    }));
+    const items = Array.from({ length: 10 }, (_, i) =>
+      makeContentItem({
+        id: `i${i}`,
+        title: `T${i}`,
+        url: `https://x/${i}`,
+        source: "src",
+        timestamp: new Date(`2024-01-${String(i + 1).padStart(2, "0")}T00:00:00Z`),
+      }),
+    );
     const adapters = adaptersMap(["test", makeMockAdapter(items)]);
     const config = testAppConfig(
       {
@@ -216,11 +219,11 @@ describe("scheduler", () => {
   test("runPipelineJob preserves source concat order when timestamps tie (stable sort)", async () => {
     const ts = "2024-06-01T12:00:00.000Z";
     saveItems("srcA", [
-      { id: "a1", title: "A first", url: "https://a/1", source: "srcA", timestamp: new Date(ts) },
-      { id: "a2", title: "A second", url: "https://a/2", source: "srcA", timestamp: new Date(ts) },
+      makeContentItem({ id: "a1", title: "A first", url: "https://a/1", source: "srcA", timestamp: new Date(ts) }),
+      makeContentItem({ id: "a2", title: "A second", url: "https://a/2", source: "srcA", timestamp: new Date(ts) }),
     ]);
     saveItems("srcB", [
-      { id: "b1", title: "B first", url: "https://b/1", source: "srcB", timestamp: new Date(ts) },
+      makeContentItem({ id: "b1", title: "B first", url: "https://b/1", source: "srcB", timestamp: new Date(ts) }),
     ]);
     const config = testAppConfig(
       {
