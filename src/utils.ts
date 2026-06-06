@@ -184,6 +184,18 @@ export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** Map a configured token to a canonical value via lowercase lookup in types then aliases. */
+export function resolveAliasedOption<T extends string>(
+  input: string,
+  types: Record<string, T>,
+  aliases: Record<string, T>,
+  fallback: T,
+): T {
+  const lower = input.toLowerCase();
+  if (lower in types) return types[lower];
+  return aliases[lower] ?? fallback;
+}
+
 /** Fast deterministic string hash (base36) for stable IDs when no URL is available. */
 export function simpleHash(str: string): string {
   let h = 0;

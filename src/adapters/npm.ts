@@ -11,6 +11,7 @@ import {
   clampAdapterLimit,
   normalizeParamString,
   normalizeParamStringList,
+  resolveAliasedOption,
 } from "../utils";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
@@ -92,9 +93,7 @@ const SORT_ALIASES: Record<string, SortBy> = {
 
 /** Map configured sort string (canonical name or alias) to npm search sort. Unknown → optimal. */
 export function resolveNpmSort(sort: string): SortBy {
-  const lower = sort.toLowerCase();
-  if (lower in SORT_TYPES) return SORT_TYPES[lower];
-  return SORT_ALIASES[lower] ?? "optimal";
+  return resolveAliasedOption(sort, SORT_TYPES, SORT_ALIASES, "optimal");
 }
 
 function buildSearchQuery(

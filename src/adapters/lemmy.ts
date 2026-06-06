@@ -14,6 +14,7 @@ import {
   clampAdapterLimit,
   normalizeParamString,
   normalizeParamStringList,
+  resolveAliasedOption,
   sliceToLimit,
 } from "../utils";
 import { dedupeByKey } from "./merge";
@@ -36,9 +37,7 @@ const SORT_ALIASES: Record<string, SortType> = {
 
 /** Map configured sort string (canonical name or alias) to Lemmy API sort. Unknown → Hot. */
 export function resolveLemmySort(sort: string): SortType {
-  const lower = sort.toLowerCase();
-  if (lower in SORT_TYPES) return SORT_TYPES[lower];
-  return SORT_ALIASES[lower] ?? "Hot";
+  return resolveAliasedOption(sort, SORT_TYPES, SORT_ALIASES, "Hot");
 }
 
 interface LemmyPostView {

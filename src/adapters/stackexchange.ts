@@ -15,6 +15,7 @@ import {
   normalizeNonNegativeNumber,
   normalizeParamString,
   normalizeParamStringList,
+  resolveAliasedOption,
   sliceToLimit,
 } from "../utils";
 import { dedupeByKey, fetchAndConcat } from "./merge";
@@ -47,9 +48,7 @@ const SORT_ALIASES: Record<string, SortType> = {
 
 /** Map configured sort string (canonical name or alias) to Stack Exchange API sort. Unknown → hot. */
 export function resolveStackExchangeSort(sort: string): SortType {
-  const lower = sort.toLowerCase();
-  if (lower in SORT_TYPES) return SORT_TYPES[lower];
-  return SORT_ALIASES[lower] ?? "hot";
+  return resolveAliasedOption(sort, SORT_TYPES, SORT_ALIASES, "hot");
 }
 
 interface SEQuestion {

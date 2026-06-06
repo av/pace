@@ -15,6 +15,7 @@ import {
   clampAdapterLimit,
   normalizeParamString,
   normalizeParamStringList,
+  resolveAliasedOption,
   sliceToLimit,
 } from "../utils";
 import { dedupeByKey } from "./merge";
@@ -40,9 +41,7 @@ const SORT_ALIASES: Record<string, SortType> = {
 
 /** Map configured sort string (canonical name or alias) to Reddit listing sort. Unknown → hot. */
 export function resolveRedditSort(sort: string): SortType {
-  const lower = sort.toLowerCase();
-  if (lower in SORT_TYPES) return SORT_TYPES[lower];
-  return SORT_ALIASES[lower] ?? "hot";
+  return resolveAliasedOption(sort, SORT_TYPES, SORT_ALIASES, "hot");
 }
 
 const PERIOD_TYPES: Record<string, TimePeriod> = {
@@ -70,9 +69,7 @@ const PERIOD_ALIASES: Record<string, TimePeriod> = {
 
 /** Map configured time period string (canonical name or alias) to Reddit top-sort window. Unknown → day. */
 export function resolveRedditPeriod(period: string): TimePeriod {
-  const lower = period.toLowerCase();
-  if (lower in PERIOD_TYPES) return PERIOD_TYPES[lower];
-  return PERIOD_ALIASES[lower] ?? "day";
+  return resolveAliasedOption(period, PERIOD_TYPES, PERIOD_ALIASES, "day");
 }
 
 interface RedditPostData {

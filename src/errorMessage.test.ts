@@ -13,6 +13,7 @@ import {
   normalizeParamStringFirst,
   normalizeParamBoolean,
   normalizeOptionalString,
+  resolveAliasedOption,
   simpleHash,
 } from "./utils";
 
@@ -256,6 +257,21 @@ describe("normalizeOptionalString", () => {
   test("returns trimmed non-blank string", () => {
     expect(normalizeOptionalString("  quantum  ")).toBe("quantum");
     expect(normalizeOptionalString("types")).toBe("types");
+  });
+});
+
+describe("resolveAliasedOption", () => {
+  const types = { hot: "hot", new: "new" } as const;
+  const aliases = { popular: "hot", recent: "new" } as const;
+
+  test("resolves canonical names case-insensitively", () => {
+    expect(resolveAliasedOption("Hot", types, aliases, "new")).toBe("hot");
+    expect(resolveAliasedOption("NEW", types, aliases, "hot")).toBe("new");
+  });
+
+  test("resolves aliases and falls back when unknown", () => {
+    expect(resolveAliasedOption("popular", types, aliases, "new")).toBe("hot");
+    expect(resolveAliasedOption("missing", types, aliases, "new")).toBe("new");
   });
 });
 
