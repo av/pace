@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import adapter from "./adapters/youtube";
 import { FEED_XML_ACCEPT } from "./adapters/fetch";
-import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
+import { useFetchMockSuite } from "./test/adapter-mocks";
+import { youtubeCfg } from "./test/adapter-cfg";
 import { makeErrorResponse, makeXmlResponse } from "./test/fetch-responses";
 import { invalidLimitParams } from "./test/invalid-params";
 import {
@@ -14,7 +15,7 @@ import {
 } from "./test/youtube-fixtures";
 
 const mocks = useFetchMockSuite();
-const youtubeCfg = (params: Record<string, unknown> = {}) => adapterCfg("youtube", params);
+
 
 describe("youtube", () => {
   const channelXml = youtubeChannelOneFeedFixture();

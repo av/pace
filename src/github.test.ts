@@ -2,7 +2,8 @@ import { describe, test, expect, spyOn } from "bun:test";
 import adapter, { resolveGitHubPeriod } from "./adapters/github";
 import { FEED_XML_ACCEPT } from "./adapters/fetch";
 import * as utilsMod from "./utils";
-import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
+import { useFetchMockSuite } from "./test/adapter-mocks";
+import { githubCfg } from "./test/adapter-cfg";
 import { makeErrorResponse, makeJsonResponse, makeTextResponse } from "./test/fetch-responses";
 import {
   githubReleasesAtomFeedFixture,
@@ -14,7 +15,7 @@ import {
 } from "./test/github-fixtures";
 
 const mocks = useFetchMockSuite();
-const githubCfg = (params: Record<string, unknown> = {}) => adapterCfg("github", params);
+
 
 describe("resolveGitHubPeriod", () => {
   test.each([

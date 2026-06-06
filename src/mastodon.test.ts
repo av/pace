@@ -3,10 +3,11 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import adapter, { resolveMastodonMode } from "./adapters/mastodon";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { invalidLimitParams } from "./test/invalid-params";
-import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
+import { useFetchMockSuite } from "./test/adapter-mocks";
+import { mastodonCfg } from "./test/adapter-cfg";
 
 const mocks = useFetchMockSuite();
-const mastodonCfg = (params: Record<string, unknown> = {}) => adapterCfg("mastodon", params);
+
 
 interface MastodonStatusFixture {
   id: string;

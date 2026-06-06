@@ -1,13 +1,14 @@
 import { describe, test, expect, spyOn } from "bun:test";
 import redditAdapter, { resolveRedditPeriod, resolveRedditSort } from "./adapters/reddit";
 import * as utilsMod from "./utils";
-import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
+import { useFetchMockSuite } from "./test/adapter-mocks";
+import { redditCfg } from "./test/adapter-cfg";
 import { makeErrorResponse } from "./test/fetch-responses";
 import { invalidLimitParams, invalidMinScoreParams } from "./test/invalid-params";
 import { makeListingResponse, makePost } from "./test/reddit-fixtures";
 
 const mocks = useFetchMockSuite();
-const redditCfg = (params: Record<string, unknown> = {}) => adapterCfg("reddit", params);
+
 
 describe("resolveRedditSort", () => {
   test.each([

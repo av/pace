@@ -1,13 +1,14 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import stackexchangeAdapter, { resolveStackExchangeSort } from "./adapters/stackexchange";
 import * as utilsMod from "./utils";
-import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
+import { useFetchMockSuite } from "./test/adapter-mocks";
+import { seCfg } from "./test/adapter-cfg";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { invalidLimitParams, invalidMinScoreParams } from "./test/invalid-params";
 import { makeApiResponse, makeQuestion } from "./test/stackexchange-fixtures";
 
 const mocks = useFetchMockSuite();
-const seCfg = (params: Record<string, unknown> = {}) => adapterCfg("stackexchange", params);
+
 
 describe("resolveStackExchangeSort", () => {
   test.each([

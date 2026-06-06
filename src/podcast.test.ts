@@ -1,7 +1,8 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import podcastAdapter from "./adapters/podcast";
 import * as utilsMod from "./utils";
-import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
+import { useFetchMockSuite } from "./test/adapter-mocks";
+import { podcastCfg } from "./test/adapter-cfg";
 import { makeErrorResponse, makeXmlResponse } from "./test/fetch-responses";
 import { invalidLimitParams } from "./test/invalid-params";
 import {
@@ -12,7 +13,7 @@ import {
 } from "./test/podcast-fixtures";
 
 const mocks = useFetchMockSuite();
-const podcastCfg = (params: Record<string, unknown> = {}) => adapterCfg("podcast", params);
+
 
 describe("podcast", () => {
   test("returns empty when no feeds configured", async () => {

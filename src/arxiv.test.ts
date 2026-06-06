@@ -4,7 +4,8 @@ import { FEED_XML_ACCEPT } from "./adapters/fetch";
 import * as utilsMod from "./utils";
 import { makeErrorResponse, makeXmlResponse } from "./test/fetch-responses";
 import { invalidLimitParams } from "./test/invalid-params";
-import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
+import { useFetchMockSuite } from "./test/adapter-mocks";
+import { arxivCfg } from "./test/adapter-cfg";
 import {
   arxivDedupOverlapQueryFeedFixture,
   arxivDoubleEncodedAbstractFeedFixture,
@@ -16,7 +17,7 @@ import {
 } from "./test/arxiv-fixtures";
 
 const mocks = useFetchMockSuite();
-const arxivCfg = (params: Record<string, unknown> = {}) => adapterCfg("arxiv", params);
+
 
 describe("arxiv", () => {
   test("warns and returns empty when no categories and no query configured", async () => {

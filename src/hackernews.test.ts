@@ -1,13 +1,14 @@
 import { describe, test, expect, spyOn } from "bun:test";
 import hackernewsAdapter, { resolveHnFeedType } from "./adapters/hackernews";
 import * as utilsMod from "./utils";
-import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
+import { useFetchMockSuite } from "./test/adapter-mocks";
+import { hnCfg } from "./test/adapter-cfg";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { invalidLimitParams, invalidMinScoreParams } from "./test/invalid-params";
 import { makeHNItem } from "./test/hackernews-fixtures";
 
 const mocks = useFetchMockSuite();
-const hnCfg = (params: Record<string, unknown> = {}) => adapterCfg("hackernews", params);
+
 
 describe("resolveHnFeedType", () => {
   test.each([

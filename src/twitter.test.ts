@@ -1,9 +1,10 @@
 import { describe, expect, it, test } from "bun:test";
 import adapter from "./adapters/twitter";
-import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
+import { useFetchMockSuite } from "./test/adapter-mocks";
+import { twitterCfg } from "./test/adapter-cfg";
 
 const mocks = useFetchMockSuite();
-const twitterCfg = (params: Record<string, unknown> = {}) => adapterCfg("twitter", params);
+
 
 describe("twitter", () => {
   it("returns [] and warns configured message when lists provided", async () => {
@@ -34,7 +35,7 @@ describe("twitter", () => {
   });
 
   it("returns [] and warns no-config message when no params at all", async () => {
-    const items = await adapter.fetch(adapterCfg("twitter"));
+    const items = await adapter.fetch(twitterCfg());
     expect(items).toEqual([]);
     expect(mocks.warnSpy).toHaveBeenCalledTimes(1);
     expect(mocks.warnSpy).toHaveBeenCalledWith(

@@ -1,11 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import lobstersAdapter, { resolveLobstersFeedType } from "./adapters/lobsters";
-import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
+import { useFetchMockSuite } from "./test/adapter-mocks";
+import { lobstersCfg } from "./test/adapter-cfg";
 import { makeJsonResponse } from "./test/fetch-responses";
 import { invalidLimitParams, invalidMinScoreParams } from "./test/invalid-params";
 
 const mocks = useFetchMockSuite();
-const lobstersCfg = (params: Record<string, unknown> = {}) => adapterCfg("lobsters", params);
+
 
 interface LobstersFixture {
   short_id: string;

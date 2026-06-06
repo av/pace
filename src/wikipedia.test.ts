@@ -2,13 +2,14 @@ import { describe, expect, spyOn, test } from "bun:test";
 import wikipediaAdapter, { resolveWikipediaMode } from "./adapters/wikipedia";
 import { truncateText } from "./adapters/title";
 import * as utilsMod from "./utils";
-import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
+import { useFetchMockSuite } from "./test/adapter-mocks";
+import { wikiCfg } from "./test/adapter-cfg";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { invalidLimitParams } from "./test/invalid-params";
 import { makeFeaturedResponse, makeMostReadArticle } from "./test/wikipedia-fixtures";
 
 const mocks = useFetchMockSuite();
-const wikiCfg = (params: Record<string, unknown> = {}) => adapterCfg("wikipedia", params);
+
 
 describe("resolveWikipediaMode", () => {
   test.each([

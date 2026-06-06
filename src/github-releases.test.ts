@@ -3,11 +3,10 @@ import githubReleasesAdapter from "./adapters/github-releases";
 import * as utilsMod from "./utils";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { invalidLimitParams } from "./test/invalid-params";
-import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
+import { useFetchMockSuite } from "./test/adapter-mocks";
+import { githubReleasesCfg } from "./test/adapter-cfg";
 
 const mocks = useFetchMockSuite();
-const githubReleasesCfg = (params: Record<string, unknown> = {}) =>
-  adapterCfg("github-releases", params);
 
 describe("github-releases", () => {
   test("returns [] and no fetch when no repos configured", async () => {

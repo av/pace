@@ -3,7 +3,8 @@ import producthuntAdapter from "./adapters/producthunt";
 import * as utilsMod from "./utils";
 import { makeErrorResponse, makeTextResponse, makeXmlResponse } from "./test/fetch-responses";
 import { invalidLimitParams, invalidMinScoreParams } from "./test/invalid-params";
-import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
+import { useFetchMockSuite } from "./test/adapter-mocks";
+import { producthuntCfg } from "./test/adapter-cfg";
 import {
   productHuntEmptyFeedFixture,
   productHuntEnrichHtml,
@@ -15,7 +16,7 @@ import {
 } from "./test/producthunt-fixtures";
 
 const mocks = useFetchMockSuite();
-const producthuntCfg = (params: Record<string, unknown> = {}) => adapterCfg("producthunt", params);
+
 
 describe("producthunt", () => {
   test("fetches feed and maps basic items with correct id/source/timestamp/body (no enrich)", async () => {

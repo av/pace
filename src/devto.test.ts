@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, spyOn, test } from "bun:test";
 import devtoAdapter, { resolveDevToPeriod } from "./adapters/devto";
 import * as utilsMod from "./utils";
-import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
+import { useFetchMockSuite } from "./test/adapter-mocks";
+import { devtoCfg } from "./test/adapter-cfg";
 import { makeJsonResponse } from "./test/fetch-responses";
 import { invalidLimitParams, invalidMinScoreParams } from "./test/invalid-params";
 
 const mocks = useFetchMockSuite();
-const devtoCfg = (params: Record<string, unknown> = {}) => adapterCfg("devto", params);
 
 function devtoFetchCalls(): Array<{ url: string; init?: RequestInit }> {
   return mocks.fetchMock.mock.calls.map((c) => ({

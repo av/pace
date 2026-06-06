@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, spyOn, test } from "bun:test";
 import rssAdapter from "./adapters/rss";
 import * as utilsMod from "./utils";
-import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
+import { useFetchMockSuite } from "./test/adapter-mocks";
+import { rssCfg } from "./test/adapter-cfg";
 import { makeXmlResponse } from "./test/fetch-responses";
 import {
   atomEntityTitlesFeedFixture,
@@ -15,7 +16,7 @@ import {
 } from "./test/rss-fixtures";
 
 const mocks = useFetchMockSuite();
-const rssCfg = (params: Record<string, unknown> = {}) => adapterCfg("rss", params);
+
 
 function defaultFetchImpl(input: RequestInfo | URL): Promise<Response> {
   const url = String(input);

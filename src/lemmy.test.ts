@@ -3,11 +3,12 @@ import lemmyAdapter, { resolveLemmySort } from "./adapters/lemmy";
 import * as utilsMod from "./utils";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { invalidMinScoreParams } from "./test/invalid-params";
-import { adapterCfg, useFetchMockSuite } from "./test/adapter-mocks";
+import { useFetchMockSuite } from "./test/adapter-mocks";
+import { lemmyCfg } from "./test/adapter-cfg";
 import { makePostListResponse, makePostView } from "./test/lemmy-fixtures";
 
 const mocks = useFetchMockSuite();
-const lemmyCfg = (params: Record<string, unknown> = {}) => adapterCfg("lemmy", params);
+
 
 describe("resolveLemmySort", () => {
   test.each([
