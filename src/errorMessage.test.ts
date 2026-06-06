@@ -273,6 +273,11 @@ describe("resolveAliasedOption", () => {
     expect(resolveAliasedOption("popular", types, aliases, "new")).toBe("hot");
     expect(resolveAliasedOption("missing", types, aliases, "new")).toBe("new");
   });
+
+  test("returns null fallback for unknown tokens", () => {
+    expect(resolveAliasedOption("missing", types, aliases, null)).toBeNull();
+    expect(resolveAliasedOption("hot", types, aliases, null)).toBe("hot");
+  });
 });
 
 describe("simpleHash", () => {

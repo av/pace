@@ -185,15 +185,29 @@ export function sleep(ms: number): Promise<void> {
 }
 
 /** Map a configured token to a canonical value via lowercase lookup in types then aliases. */
-export function resolveAliasedOption<T extends string>(
+export function resolveAliasedOption<T>(
   input: string,
   types: Record<string, T>,
   aliases: Record<string, T>,
   fallback: T,
-): T {
+): T;
+export function resolveAliasedOption<T>(
+  input: string,
+  types: Record<string, T>,
+  aliases: Record<string, T>,
+  fallback: null,
+): T | null;
+export function resolveAliasedOption<T>(
+  input: string,
+  types: Record<string, T>,
+  aliases: Record<string, T>,
+  fallback: T | null,
+): T | null {
   const lower = input.toLowerCase();
   if (lower in types) return types[lower];
-  return aliases[lower] ?? fallback;
+  const alias = aliases[lower];
+  if (alias !== undefined) return alias;
+  return fallback;
 }
 
 /** Fast deterministic string hash (base36) for stable IDs when no URL is available. */

@@ -14,6 +14,7 @@ import {
   clampAdapterLimit,
   normalizeParamString,
   normalizeParamStringList,
+  resolveAliasedOption,
   sliceToLimit,
 } from "../utils";
 import { dedupeByKey, fetchAndConcat, sortByCreatedAtDesc } from "./merge";
@@ -38,9 +39,7 @@ const FEED_ALIASES: Record<string, FeedType> = {
 
 /** Map configured feed string (canonical name or alias) to Lobsters feed type. Unknown → hottest. */
 export function resolveLobstersFeedType(feed: string): FeedType {
-  const lower = feed.toLowerCase();
-  if (lower in FEED_TYPES) return FEED_TYPES[lower];
-  return FEED_ALIASES[lower] ?? "hottest";
+  return resolveAliasedOption(feed, FEED_TYPES, FEED_ALIASES, "hottest");
 }
 
 interface LobstersItem {

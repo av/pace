@@ -8,6 +8,7 @@ import { FEED_FETCH_TIMEOUT_MS, fetchText } from "./fetch";
 import {
   clampAdapterLimit,
   normalizeParamString,
+  resolveAliasedOption,
   sliceToLimit,
 } from "../utils";
 import { decodeNumericFeedTitle, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
@@ -40,9 +41,7 @@ const PERIOD_ALIASES: Record<string, TrendingPeriod> = {
 
 /** Map configured since param (canonical name or alias) to GitHub trending period. Unknown → daily. */
 export function resolveGitHubPeriod(period: string): TrendingPeriod {
-  const lower = period.toLowerCase();
-  if (lower in PERIOD_TYPES) return PERIOD_TYPES[lower];
-  return PERIOD_ALIASES[lower] ?? DEFAULT_PERIOD;
+  return resolveAliasedOption(period, PERIOD_TYPES, PERIOD_ALIASES, DEFAULT_PERIOD);
 }
 
 interface TrendingRepo {

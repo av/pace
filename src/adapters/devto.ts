@@ -16,6 +16,7 @@ import {
   clampAdapterLimit,
   normalizeParamString,
   normalizeParamStringList,
+  resolveAliasedOption,
   sliceToLimit,
 } from "../utils";
 import { dedupeByKey, fetchAndConcat } from "./merge";
@@ -71,15 +72,18 @@ type DevToPeriod = 1 | 7 | 30 | 365;
 
 const DEFAULT_PERIOD: DevToPeriod = 7;
 
+const PERIOD_TYPES: Record<string, DevToPeriod> = {
+  "1": 1,
+  "7": 7,
+  "30": 30,
+  "365": 365,
+};
+
 const PERIOD_ALIASES: Record<string, DevToPeriod> = {
   day: 1,
-  "1": 1,
   week: 7,
-  "7": 7,
   month: 30,
-  "30": 30,
   year: 365,
-  "365": 365,
   infinity: 365,
   all: 365,
 };
@@ -97,8 +101,7 @@ export function resolveDevToPeriod(top: unknown): DevToPeriod {
     return bucketPeriodDays(top);
   }
   if (typeof top === "string") {
-    const mapped = PERIOD_ALIASES[top.toLowerCase()];
-    if (mapped !== undefined) return mapped;
+    return resolveAliasedOption(top, PERIOD_TYPES, PERIOD_ALIASES, DEFAULT_PERIOD);
   }
   return DEFAULT_PERIOD;
 }

@@ -14,6 +14,7 @@ import {
   normalizeNonNegativeNumber,
   normalizeParamStringFirst,
   clampAdapterLimit,
+  resolveAliasedOption,
   sliceToLimit,
 } from "../utils";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -33,6 +34,15 @@ interface HNItem {
 }
 
 type FeedType = "top" | "new" | "best" | "ask" | "show" | "job";
+
+const FEED_TYPES: Record<string, FeedType> = {
+  top: "top",
+  new: "new",
+  best: "best",
+  ask: "ask",
+  show: "show",
+  job: "job",
+};
 
 const FEED_ENDPOINTS: Record<FeedType, string> = {
   top: "topstories",
@@ -57,9 +67,7 @@ const FEED_ALIASES: Record<string, FeedType> = {
 
 /** Map configured feed string (canonical name or alias) to HN feed type. Unknown → top. */
 export function resolveHnFeedType(feed: string): FeedType {
-  const lower = feed.toLowerCase();
-  if (lower in FEED_ENDPOINTS) return lower as FeedType;
-  return FEED_ALIASES[lower] ?? "top";
+  return resolveAliasedOption(feed, FEED_TYPES, FEED_ALIASES, "top");
 }
 
 async function fetchItem(id: number): Promise<HNItem | null> {

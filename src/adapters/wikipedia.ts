@@ -10,6 +10,7 @@ import {
   normalizeParamString,
   normalizeParamStringList,
   normalizeStringList,
+  resolveAliasedOption,
   sliceToLimit,
 } from "../utils";
 import { dedupeByKey } from "./merge";
@@ -37,8 +38,8 @@ const MODE_ALIASES: Record<string, Mode> = {
 /** Map configured mode string (canonical name or alias) to Wikipedia feed section. Unknown → null. */
 export function resolveWikipediaMode(token: string): Mode | null {
   const normalized = token.trim().toLowerCase().replace(/-/g, "_");
-  if (normalized in MODE_TYPES) return MODE_TYPES[normalized];
-  return MODE_ALIASES[normalized] ?? null;
+  if (!normalized) return null;
+  return resolveAliasedOption(normalized, MODE_TYPES, MODE_ALIASES, null);
 }
 
 interface WikiFeaturedResponse {
