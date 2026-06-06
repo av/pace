@@ -1,10 +1,8 @@
-import type {
-  TransformConfig,
-  KeywordField,
-  DedupeStrategy,
-  DedupeKeep,
-} from "./config";
 import {
+  type TransformConfig,
+  type KeywordField,
+  type DedupeStrategy,
+  type DedupeKeep,
   DEDUPE_DEFAULT_STRATEGY,
   DEDUPE_DEFAULT_THRESHOLD,
   DEDUPE_DEFAULT_KEEP,

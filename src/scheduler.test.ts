@@ -6,7 +6,6 @@ import type { Adapter } from "./adapters/types";
 import { makeContentItem } from "./test/content-items";
 import { adaptersMap, makeErrorAdapter, makeMockAdapter } from "./test/adapter-mocks";
 import * as dbMod from "./db";
-import { getAllItemsByPanel, saveItems } from "./db";
 import * as utilsMod from "./utils";
 import {
   startScheduler,
@@ -81,7 +80,7 @@ describe("scheduler", () => {
     await spyConsole(["log"], async ({ log: logSpy }) => {
       startScheduler(baseConfig, adapters, basePanelMap, null);
       await waitForAsync();
-      const saved = getAllItemsByPanel("panel1");
+      const saved = dbMod.getAllItemsByPanel("panel1");
       expect(saved.length).toBe(1);
       expect(saved[0].title).toBe("GitHub Release");
       const fetchedLog = logSpy.mock.calls.some((c) =>
@@ -171,7 +170,7 @@ describe("scheduler", () => {
     const kinds = new Set(results.map((r) => `${r.kind}:${r.name}`));
     expect(kinds.has("adapter:srcA")).toBe(true);
     expect(kinds.has("pipeline:merge")).toBe(true);
-    expect(getAllItemsByPanel("outPanel").length).toBeGreaterThan(0);
+    expect(dbMod.getAllItemsByPanel("outPanel").length).toBeGreaterThan(0);
   });
 
   test("refreshSources with unknown names returns no results (no crash)", async () => {
@@ -208,7 +207,7 @@ describe("scheduler", () => {
     await spyConsole(["log"], async ({ log: logSpy }) => {
       startScheduler(config, adapters, pm, null);
       await waitForAsync();
-      expect(getAllItemsByPanel("panelA").length).toBe(3);
+      expect(dbMod.getAllItemsByPanel("panelA").length).toBe(3);
       const transformLog = logSpy.mock.calls.some((c) =>
         String(c[0]).includes("src — transforms: 10 → 3 items"),
       );
@@ -218,11 +217,11 @@ describe("scheduler", () => {
 
   test("runPipelineJob preserves source concat order when timestamps tie (stable sort)", async () => {
     const ts = "2024-06-01T12:00:00.000Z";
-    saveItems("srcA", [
+    dbMod.saveItems("srcA", [
       makeContentItem({ id: "a1", title: "A first", url: "https://a/1", source: "srcA", timestamp: new Date(ts) }),
       makeContentItem({ id: "a2", title: "A second", url: "https://a/2", source: "srcA", timestamp: new Date(ts) }),
     ]);
-    saveItems("srcB", [
+    dbMod.saveItems("srcB", [
       makeContentItem({ id: "b1", title: "B first", url: "https://b/1", source: "srcB", timestamp: new Date(ts) }),
     ]);
     const config = testAppConfig(
@@ -239,7 +238,7 @@ describe("scheduler", () => {
     const pm = sourcePanelMapFromConfig(config);
     startScheduler(config, new Map(), pm, null);
     await refreshSources(["merge"]);
-    const out = getAllItemsByPanel("outPanel");
+    const out = dbMod.getAllItemsByPanel("outPanel");
     expect(out.map((r) => r.id)).toEqual([
       "pipeline:merge:a1",
       "pipeline:merge:a2",

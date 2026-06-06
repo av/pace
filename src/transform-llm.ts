@@ -1,7 +1,7 @@
 import type { Model, Api } from "@mariozechner/pi-ai";
 import type { TransformConfig, LlmConfig, TransformType } from "./config";
-import type { ContentItemRow } from "./db";
 import {
+  type ContentItemRow,
   contentRowToItem,
   contentRowsToItems,
   contentRowMapById,

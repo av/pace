@@ -189,7 +189,7 @@ describe("github", () => {
       githubCfg({ mode: "releases", repos: ["facebook/react"], limit: 10 }),
     );
 
-    expect(mocks.fetchMock.mock.calls.length).toBe(2);
+    expect(githubFetchCalls().length).toBe(2);
     expect(items.length).toBe(2);
     expect(items[0].title).toContain("facebook/react: v19.0.0");
     expect(items[0].title).toContain("The library for web and native user interfaces");
@@ -303,7 +303,7 @@ describe("github", () => {
       githubCfg({ mode: "releases", repos: ["facebook/react", "facebook/react"], limit: 10 }),
     );
 
-    expect(mocks.fetchMock.mock.calls.length).toBe(4);
+    expect(githubFetchCalls().length).toBe(4);
     expect(items.length).toBe(2);
     expect(items.map((i) => i.url)).toEqual([
       "https://github.com/facebook/react/releases/tag/v19.0.0",

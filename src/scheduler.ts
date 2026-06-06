@@ -1,10 +1,15 @@
 import type { Adapter, ContentItem } from "./adapters/types";
 import { compareIsoTimestamp, errorMessage, getAdapterName } from "./utils";
 import type { Model, Api } from "@mariozechner/pi-ai";
-import { saveItems, getAllItemsByPanel, replacePanelItems, pruneOldItems as dbPruneOldItems } from "./db";
+import {
+  type ContentItemRow,
+  saveItems,
+  getAllItemsByPanel,
+  replacePanelItems,
+  pruneOldItems as dbPruneOldItems,
+} from "./db";
 import type { AppConfig, IngestAdapterConfig, PipelineConfig, TransformConfig } from "./config";
 import { runPipeline, type TransformContext } from "./transforms";
-import type { ContentItemRow } from "./db";
 
 interface RunningGuarded {
   running: boolean;

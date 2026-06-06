@@ -1,6 +1,5 @@
 import { test, expect, spyOn } from "bun:test";
 import * as fs from "node:fs";
-import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { installTempDbHooks, tempDbFixture } from "./test/temp-db";
@@ -360,7 +359,7 @@ test("getDb path switch warns when closing previous db fails", () => {
   const closeSpy = spyOn(database, "close").mockImplementation(() => {
     throw new Error("switch close fail");
   });
-  const otherDir = mkdtempSync(join(tmpdir(), "pace-dbtest-switch-"));
+  const otherDir = fs.mkdtempSync(join(tmpdir(), "pace-dbtest-switch-"));
   const otherPath = join(otherDir, "other.db");
   try {
     process.env.PACE_DB_PATH = otherPath;
@@ -372,7 +371,7 @@ test("getDb path switch warns when closing previous db fails", () => {
     closeDb();
     process.env.PACE_DB_PATH = tempDbFixture().dbPath;
     try {
-      rmSync(otherDir, { recursive: true, force: true });
+      fs.rmSync(otherDir, { recursive: true, force: true });
     } catch (err) {
       console.warn(`db.test: failed to remove switch temp dir: ${utilsMod.errorMessage(err)}`);
     }
