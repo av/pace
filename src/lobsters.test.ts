@@ -4,34 +4,9 @@ import { useFetchMockSuite } from "./test/adapter-mocks";
 import { lobstersCfg } from "./test/adapter-cfg";
 import { makeJsonResponse } from "./test/fetch-responses";
 import { invalidLimitParams, invalidMinScoreParams } from "./test/invalid-params";
+import { makeLobstersItem } from "./test/lobsters-fixtures";
 
 const mocks = useFetchMockSuite();
-
-
-interface LobstersFixture {
-  short_id: string;
-  title: string;
-  url: string;
-  score: number;
-  comment_count: number;
-  comments_url: string;
-  submitter_user: string;
-  created_at: string;
-  tags: string[];
-}
-
-const makeItem = (overrides: Partial<LobstersFixture> = {}): LobstersFixture => ({
-  short_id: "abc123",
-  title: "Example Lobsters Post",
-  url: "https://example.com/post",
-  score: 42,
-  comment_count: 7,
-  comments_url: "https://lobste.rs/s/abc123",
-  submitter_user: "alice",
-  created_at: "2024-05-20T12:00:00Z",
-  tags: ["programming"],
-  ...overrides,
-});
 
 describe("resolveLobstersFeedType", () => {
   test.each([
@@ -52,7 +27,7 @@ describe("resolveLobstersFeedType", () => {
 
 describe("lobsters", () => {
   test("fetches standard hottest feed with defaults and maps fields", async () => {
-    const item = makeItem({ short_id: "def456", title: "Hot Post", score: 99 });
+    const item = makeLobstersItem({ short_id: "def456", title: "Hot Post", score: 99 });
     mocks.fetchMock.mockResolvedValue(makeJsonResponse([item]));
 
     const results = await lobstersAdapter.fetch(lobstersCfg());
@@ -74,7 +49,7 @@ describe("lobsters", () => {
   });
 
   test("blank-only feed uses default hottest", async () => {
-    const item = makeItem({ short_id: "blankfeed1" });
+    const item = makeLobstersItem({ short_id: "blankfeed1" });
     mocks.fetchMock.mockResolvedValue(makeJsonResponse([item]));
 
     await lobstersAdapter.fetch(lobstersCfg({ feed: "   " }));
@@ -86,7 +61,7 @@ describe("lobsters", () => {
   });
 
   test("trims whitespace from configured feed", async () => {
-    const item = makeItem({ short_id: "trimfeed1" });
+    const item = makeLobstersItem({ short_id: "trimfeed1" });
     mocks.fetchMock.mockResolvedValue(makeJsonResponse([item]));
 
     await lobstersAdapter.fetch(lobstersCfg({ feed: "  newest  " }));
@@ -98,7 +73,7 @@ describe("lobsters", () => {
   });
 
   test("resolves feed aliases (hot/front -> hottest, new/recent -> newest)", async () => {
-    const item = makeItem();
+    const item = makeLobstersItem();
     mocks.fetchMock.mockImplementation(() => makeJsonResponse([item]));
 
     await lobstersAdapter.fetch(lobstersCfg({ feed: "hot" }));
@@ -113,7 +88,7 @@ describe("lobsters", () => {
   });
 
   test("blank-only tags behave like no tags configured", async () => {
-    const item = makeItem({ short_id: "blank1" });
+    const item = makeLobstersItem({ short_id: "blank1" });
     mocks.fetchMock.mockResolvedValue(makeJsonResponse([item]));
 
     const results = await lobstersAdapter.fetch(
@@ -131,7 +106,7 @@ describe("lobsters", () => {
   });
 
   test("trims whitespace from configured tag names", async () => {
-    const item = makeItem({ short_id: "trim1", title: "Trimmed" });
+    const item = makeLobstersItem({ short_id: "trim1", title: "Trimmed" });
     mocks.fetchMock
       .mockResolvedValueOnce(makeJsonResponse([]))
       .mockResolvedValueOnce(makeJsonResponse([item]));
@@ -153,9 +128,9 @@ describe("lobsters", () => {
   });
 
   test("fetches by tags, merges results, dedupes by short_id, sets composite source, sorts by score for hottest", async () => {
-    const foo = makeItem({ short_id: "foo", score: 5, tags: ["foo"] });
-    const bar = makeItem({ short_id: "bar", score: 20, tags: ["bar"] });
-    const dup = makeItem({ short_id: "foo", score: 10, tags: ["foo"] }); // dup short_id
+    const foo = makeLobstersItem({ short_id: "foo", score: 5, tags: ["foo"] });
+    const bar = makeLobstersItem({ short_id: "bar", score: 20, tags: ["bar"] });
+    const dup = makeLobstersItem({ short_id: "foo", score: 10, tags: ["foo"] }); // dup short_id
 
     mocks.fetchMock
       .mockResolvedValueOnce(makeJsonResponse([foo, dup]))
@@ -181,8 +156,8 @@ describe("lobsters", () => {
   });
 
   test("sorts tag results by date for newest feed", async () => {
-    const older = makeItem({ short_id: "old", created_at: "2024-01-01T00:00:00Z", score: 100 });
-    const newer = makeItem({ short_id: "new", created_at: "2024-05-21T00:00:00Z", score: 1 });
+    const older = makeLobstersItem({ short_id: "old", created_at: "2024-01-01T00:00:00Z", score: 100 });
+    const newer = makeLobstersItem({ short_id: "new", created_at: "2024-05-21T00:00:00Z", score: 1 });
 
     mocks.fetchMock
       .mockResolvedValueOnce(makeJsonResponse([older]))
@@ -197,8 +172,8 @@ describe("lobsters", () => {
   });
 
   test("sorts tag results by comment_count for active feed", async () => {
-    const quiet = makeItem({ short_id: "quiet", comment_count: 2, score: 100 });
-    const busy = makeItem({ short_id: "busy", comment_count: 50, score: 1 });
+    const quiet = makeLobstersItem({ short_id: "quiet", comment_count: 2, score: 100 });
+    const busy = makeLobstersItem({ short_id: "busy", comment_count: 50, score: 1 });
 
     mocks.fetchMock
       .mockResolvedValueOnce(makeJsonResponse([quiet]))
@@ -216,7 +191,7 @@ describe("lobsters", () => {
     "invalid limit (%s) uses default slice of 25",
     async (limit) => {
       const items = Array.from({ length: 30 }, (_, i) =>
-        makeItem({ short_id: `id${i}`, title: `Post ${i}` }),
+        makeLobstersItem({ short_id: `id${i}`, title: `Post ${i}` }),
       );
       mocks.fetchMock.mockResolvedValue(makeJsonResponse(items));
 
@@ -228,7 +203,7 @@ describe("lobsters", () => {
 
   test("caps limit at 100", async () => {
     const items = Array.from({ length: 120 }, (_, i) =>
-      makeItem({ short_id: `id${i}`, title: `Post ${i}` }),
+      makeLobstersItem({ short_id: `id${i}`, title: `Post ${i}` }),
     );
     mocks.fetchMock.mockResolvedValue(makeJsonResponse(items));
 
@@ -239,7 +214,7 @@ describe("lobsters", () => {
 
   test("floors fractional limit", async () => {
     const items = Array.from({ length: 10 }, (_, i) =>
-      makeItem({ short_id: `id${i}`, title: `Post ${i}` }),
+      makeLobstersItem({ short_id: `id${i}`, title: `Post ${i}` }),
     );
     mocks.fetchMock.mockResolvedValue(makeJsonResponse(items));
 
@@ -250,9 +225,9 @@ describe("lobsters", () => {
 
   test("applies min_score filter and limit after fetch", async () => {
     const items = [
-      makeItem({ short_id: "low", score: 3 }),
-      makeItem({ short_id: "mid", score: 15 }),
-      makeItem({ short_id: "high", score: 50 }),
+      makeLobstersItem({ short_id: "low", score: 3 }),
+      makeLobstersItem({ short_id: "mid", score: 15 }),
+      makeLobstersItem({ short_id: "high", score: 50 }),
     ];
     mocks.fetchMock.mockResolvedValue(makeJsonResponse(items));
 
@@ -268,8 +243,8 @@ describe("lobsters", () => {
     "invalid min_score (%s) treated as 0 (no score filter)",
     async (min_score) => {
       const items = [
-        makeItem({ short_id: "low", score: 3 }),
-        makeItem({ short_id: "high", score: 50 }),
+        makeLobstersItem({ short_id: "low", score: 3 }),
+        makeLobstersItem({ short_id: "high", score: 50 }),
       ];
       mocks.fetchMock.mockResolvedValue(makeJsonResponse(items));
 
@@ -290,7 +265,7 @@ describe("lobsters", () => {
   });
 
   test("throws on !ok for first failing tag (no partial merge on fetch error)", async () => {
-    const good = makeItem({ short_id: "good", score: 10 });
+    const good = makeLobstersItem({ short_id: "good", score: 10 });
     mocks.fetchMock
       .mockResolvedValueOnce(makeJsonResponse([], 503))
       .mockResolvedValueOnce(makeJsonResponse([good]));
@@ -301,7 +276,7 @@ describe("lobsters", () => {
   });
 
   test("decodes HTML entities in item titles", async () => {
-    const item = makeItem({ title: "A &amp; B &#8364; C" });
+    const item = makeLobstersItem({ title: "A &amp; B &#8364; C" });
     mocks.fetchMock.mockResolvedValue(makeJsonResponse([item]));
 
     const results = await lobstersAdapter.fetch(lobstersCfg());
