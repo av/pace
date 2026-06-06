@@ -5,59 +5,9 @@ import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { invalidLimitParams } from "./test/invalid-params";
 import { useFetchMockSuite } from "./test/adapter-mocks";
 import { mastodonCfg } from "./test/adapter-cfg";
+import { fetchUrls, makeStatus } from "./test/mastodon-fixtures";
 
 const mocks = useFetchMockSuite();
-
-
-interface MastodonStatusFixture {
-  id: string;
-  uri: string;
-  url: string;
-  content: string;
-  created_at: string;
-  reblogs_count: number;
-  favourites_count: number;
-  replies_count: number;
-  account: {
-    id: string;
-    username: string;
-    acct: string;
-    display_name: string;
-    url: string;
-  };
-  media_attachments: [];
-  tags: [];
-  spoiler_text: string;
-  reblog: null;
-}
-
-function makeStatus(id: string, content: string, created: string): MastodonStatusFixture {
-  return {
-    id,
-    uri: `https://ex.com/status/${id}`,
-    url: `https://ex.com/@u/${id}`,
-    content,
-    created_at: created,
-    reblogs_count: 3,
-    favourites_count: 7,
-    replies_count: 1,
-    account: {
-      id: "a1",
-      username: "u",
-      acct: "u",
-      display_name: "U",
-      url: "https://ex.com/@u",
-    },
-    media_attachments: [],
-    tags: [],
-    spoiler_text: "",
-    reblog: null,
-  };
-}
-
-function fetchUrls(): string[] {
-  return mocks.fetchMock.mock.calls.map((c) => String(c[0]));
-}
 
 describe("resolveMastodonMode", () => {
   test.each([
@@ -184,7 +134,7 @@ describe("mastodon", () => {
 
     expect(items.length).toBeGreaterThan(0);
     expect(items[0].source).toBe("mastodon:mastodon.social");
-    expect(fetchUrls().some((u) => u.includes("mastodon.social"))).toBe(true);
+    expect(fetchUrls(mocks).some((u) => u.includes("mastodon.social"))).toBe(true);
   });
 
   test("trims whitespace from configured instance", async () => {
@@ -192,8 +142,8 @@ describe("mastodon", () => {
 
     expect(items.length).toBeGreaterThan(0);
     expect(items[0].source).toBe("mastodon:ex.com");
-    expect(fetchUrls().some((u) => u.includes("ex.com"))).toBe(true);
-    expect(fetchUrls().every((u) => !u.includes("ex.com%20"))).toBe(true);
+    expect(fetchUrls(mocks).some((u) => u.includes("ex.com"))).toBe(true);
+    expect(fetchUrls(mocks).every((u) => !u.includes("ex.com%20"))).toBe(true);
   });
 
   test("fetches from public timeline (default) and maps items", async () => {
@@ -202,14 +152,14 @@ describe("mastodon", () => {
     expect(items.map((i) => i.title).join(" ")).toContain("hello");
     expect(items[0].source).toBe("mastodon:ex.com");
     expect(items[0].body).toContain("boosts");
-    expect(fetchUrls().some((u) => u.includes("/timelines/public"))).toBe(true);
+    expect(fetchUrls(mocks).some((u) => u.includes("/timelines/public"))).toBe(true);
   });
 
   test("fetches from hashtag timeline and builds source label", async () => {
     const items = await adapter.fetch(mastodonCfg({ instance: "ex.com", hashtags: ["foo"] }));
     expect(items.length).toBe(2);
     expect(items[0].source).toBe("mastodon:ex.com:#foo");
-    expect(fetchUrls().some((u) => u.includes("/timelines/tag/foo"))).toBe(true);
+    expect(fetchUrls(mocks).some((u) => u.includes("/timelines/tag/foo"))).toBe(true);
   });
 
   test("treats blank-only hashtags as public timeline", async () => {
@@ -217,8 +167,8 @@ describe("mastodon", () => {
 
     expect(items.length).toBeGreaterThan(0);
     expect(items[0].source).toBe("mastodon:ex.com");
-    expect(fetchUrls().some((u) => u.includes("/timelines/public"))).toBe(true);
-    expect(fetchUrls().some((u) => u.includes("/timelines/tag/"))).toBe(false);
+    expect(fetchUrls(mocks).some((u) => u.includes("/timelines/public"))).toBe(true);
+    expect(fetchUrls(mocks).some((u) => u.includes("/timelines/tag/"))).toBe(false);
   });
 
   test("trims whitespace from configured hashtag names", async () => {
@@ -228,16 +178,16 @@ describe("mastodon", () => {
 
     expect(items.length).toBe(2);
     expect(items[0].source).toBe("mastodon:ex.com:#foo");
-    expect(fetchUrls().some((u) => u.includes("/timelines/tag/foo"))).toBe(true);
-    expect(fetchUrls().filter((u) => u.includes("/timelines/tag/")).length).toBe(1);
+    expect(fetchUrls(mocks).some((u) => u.includes("/timelines/tag/foo"))).toBe(true);
+    expect(fetchUrls(mocks).filter((u) => u.includes("/timelines/tag/")).length).toBe(1);
   });
 
   test("fetches from account mode (lookup + statuses) and uses :accounts source", async () => {
     const items = await adapter.fetch(mastodonCfg({ accounts: ["test@ex.com"] }));
     expect(items.length).toBeGreaterThan(0);
     expect(items[0].source).toBe("mastodon:mastodon.social:accounts");
-    expect(fetchUrls().some((u) => u.includes("/accounts/lookup"))).toBe(true);
-    expect(fetchUrls().some((u) => u.includes("/statuses"))).toBe(true);
+    expect(fetchUrls(mocks).some((u) => u.includes("/accounts/lookup"))).toBe(true);
+    expect(fetchUrls(mocks).some((u) => u.includes("/statuses"))).toBe(true);
   });
 
   test("treats blank-only accounts as public timeline", async () => {
@@ -245,8 +195,8 @@ describe("mastodon", () => {
 
     expect(items.length).toBeGreaterThan(0);
     expect(items[0].source).toBe("mastodon:ex.com");
-    expect(fetchUrls().some((u) => u.includes("/timelines/public"))).toBe(true);
-    expect(fetchUrls().some((u) => u.includes("/accounts/lookup"))).toBe(false);
+    expect(fetchUrls(mocks).some((u) => u.includes("/timelines/public"))).toBe(true);
+    expect(fetchUrls(mocks).some((u) => u.includes("/accounts/lookup"))).toBe(false);
   });
 
   test("trims whitespace from configured account handles", async () => {
@@ -256,8 +206,8 @@ describe("mastodon", () => {
 
     expect(items.length).toBeGreaterThan(0);
     expect(items[0].source).toBe("mastodon:ex.com:accounts");
-    expect(fetchUrls().filter((u) => u.includes("/accounts/lookup")).length).toBe(1);
-    expect(fetchUrls().some((u) => u.includes("/statuses"))).toBe(true);
+    expect(fetchUrls(mocks).filter((u) => u.includes("/accounts/lookup")).length).toBe(1);
+    expect(fetchUrls(mocks).some((u) => u.includes("/statuses"))).toBe(true);
   });
 
   test.each(invalidLimitParams(20))(
@@ -265,7 +215,7 @@ describe("mastodon", () => {
     async (limit) => {
       await adapter.fetch(mastodonCfg({ instance: "ex.com", limit }));
 
-      const url = fetchUrls().find((u) => u.includes("/timelines/public"));
+      const url = fetchUrls(mocks).find((u) => u.includes("/timelines/public"));
       expect(url ?? "").toContain("limit=20");
     },
   );
@@ -273,14 +223,14 @@ describe("mastodon", () => {
   test("caps limit at 40 in API URL", async () => {
     await adapter.fetch(mastodonCfg({ instance: "ex.com", limit: 500 }));
 
-    const url = fetchUrls().find((u) => u.includes("/timelines/public"));
+    const url = fetchUrls(mocks).find((u) => u.includes("/timelines/public"));
     expect(url ?? "").toContain("limit=40");
   });
 
   test("floors fractional limit in API URL", async () => {
     await adapter.fetch(mastodonCfg({ instance: "ex.com", limit: 7.9 }));
 
-    const url = fetchUrls().find((u) => u.includes("/timelines/public"));
+    const url = fetchUrls(mocks).find((u) => u.includes("/timelines/public"));
     expect(url ?? "").toContain("limit=7");
   });
 
@@ -330,7 +280,7 @@ describe("mastodon", () => {
 
   test("passes only_media query when configured", async () => {
     await adapter.fetch(mastodonCfg({ only_media: true }));
-    expect(fetchUrls().some((u) => u.includes("only_media=true"))).toBe(true);
+    expect(fetchUrls(mocks).some((u) => u.includes("only_media=true"))).toBe(true);
   });
 
   test("merges multiple hashtags and deduplicates by status id", async () => {
