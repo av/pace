@@ -1,8 +1,9 @@
-import { test, expect, beforeEach, afterEach, spyOn } from "bun:test";
+import { test, expect, spyOn } from "bun:test";
 import * as fs from "node:fs";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { installTempDbHooks, tempDbFixture } from "./test/temp-db";
 import {
   getDb,
   initDb,
@@ -27,32 +28,7 @@ import { makeContentItem as makeItem } from "./test/content-items";
 
 type ContentItemUpsertRow = Pick<ContentItemRow, "id" | "panel_id" | "title" | "url" | "fetched_at">;
 
-let tempDir: string;
-let dbPath: string;
-let origEnv: string | undefined;
-
-beforeEach(() => {
-  origEnv = process.env.PACE_DB_PATH;
-  tempDir = mkdtempSync(join(tmpdir(), "pace-dbtest-"));
-  dbPath = join(tempDir, "test.db");
-  process.env.PACE_DB_PATH = dbPath;
-  // ensure clean singleton
-  closeDb();
-});
-
-afterEach(() => {
-  closeDb();
-  if (origEnv === undefined) {
-    delete process.env.PACE_DB_PATH;
-  } else {
-    process.env.PACE_DB_PATH = origEnv;
-  }
-  try {
-    rmSync(tempDir, { recursive: true, force: true });
-  } catch (err) {
-    console.warn(`db.test: failed to remove temp dir ${tempDir}: ${utilsMod.errorMessage(err)}`);
-  }
-});
+installTempDbHooks({ prefix: "pace-dbtest-", init: false, warnOnRmFail: true });
 
 test("initDb creates table and indexes without error", () => {
   expect(() => initDb()).not.toThrow();
@@ -393,7 +369,7 @@ test("getDb path switch warns when closing previous db fails", () => {
     closeSpy.mockRestore();
     warnSpy.mockRestore();
     closeDb();
-    process.env.PACE_DB_PATH = dbPath;
+    process.env.PACE_DB_PATH = tempDbFixture().dbPath;
     try {
       rmSync(otherDir, { recursive: true, force: true });
     } catch (err) {

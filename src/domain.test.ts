@@ -1,37 +1,14 @@
-import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
-import { initDb, closeDb, getAllItemsByPanel, saveItems } from "./db";
-import { startScheduler, stopScheduler, refreshSources } from "./scheduler";
+import { describe, it, expect } from "bun:test";
+import { getAllItemsByPanel, saveItems } from "./db";
+import { installTempDbHooks } from "./test/temp-db";
+import { startScheduler, refreshSources } from "./scheduler";
 import { isPanel } from "./config";
 import type { PanelConfig } from "./config";
 import { DOMAIN_TEST_LAYOUT, testAppConfig } from "./test/app-config";
 import { sourcePanelMapFromConfig } from "./test/panel-map";
 
 describe("domain", () => {
-  let tempDir: string;
-  let origEnv: string | undefined;
-
-  beforeEach(() => {
-    tempDir = mkdtempSync(join(tmpdir(), "pace-domain-test-"));
-    origEnv = process.env.PACE_DB_PATH;
-    process.env.PACE_DB_PATH = join(tempDir, "test.db");
-    stopScheduler();
-    closeDb();
-    initDb();
-  });
-
-  afterEach(() => {
-    stopScheduler();
-    closeDb();
-    if (origEnv !== undefined) {
-      process.env.PACE_DB_PATH = origEnv;
-    } else {
-      delete process.env.PACE_DB_PATH;
-    }
-    rmSync(tempDir, { recursive: true, force: true });
-  });
+  installTempDbHooks({ prefix: "pace-domain-test-", stopSchedulerOnTeardown: true });
 
   it("layout panel source all bypass", () => {
     const layout = {

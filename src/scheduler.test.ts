@@ -1,13 +1,11 @@
-import { describe, test, expect, beforeEach, afterEach, spyOn } from "bun:test";
+import { describe, test, expect, spyOn } from "bun:test";
 import { spyConsole } from "./test/console-spy";
 import { emptyPanelMap, sourcePanelMapFromConfig } from "./test/panel-map";
-import { mkdtempSync, rmSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
-import type { ContentItem } from "./adapters/types";
+import { installTempDbHooks } from "./test/temp-db";
+import type { Adapter, ContentItem } from "./adapters/types";
 import { adaptersMap, makeErrorAdapter, makeMockAdapter } from "./test/adapter-mocks";
 import * as dbMod from "./db";
-import { initDb, closeDb, getAllItemsByPanel, saveItems } from "./db";
+import { getAllItemsByPanel, saveItems } from "./db";
 import * as utilsMod from "./utils";
 import {
   startScheduler,
@@ -25,10 +23,6 @@ import {
 } from "./test/app-config";
 import { waitForAsync } from "./test/async";
 
-let tempDir: string;
-let dbPath: string;
-let origEnv: string | undefined;
-
 const baseConfig = testAppConfig(
   { adapters: [{ type: "test", name: "testsrc", refresh_interval: 60 }] },
   singlePanelLayout("p1", "testsrc", { id: "panel1", limit: 50 }),
@@ -36,26 +30,7 @@ const baseConfig = testAppConfig(
 const basePanelMap = sourcePanelMapFromConfig(baseConfig);
 
 describe("scheduler", () => {
-  beforeEach(() => {
-    tempDir = mkdtempSync(join(tmpdir(), "pace-scheduler-test-"));
-    dbPath = join(tempDir, "test.db");
-    origEnv = process.env.PACE_DB_PATH;
-    process.env.PACE_DB_PATH = dbPath;
-    stopScheduler();
-    closeDb();
-    initDb();
-  });
-
-  afterEach(() => {
-    stopScheduler();
-    closeDb();
-    if (origEnv !== undefined) {
-      process.env.PACE_DB_PATH = origEnv;
-    } else {
-      delete process.env.PACE_DB_PATH;
-    }
-    rmSync(tempDir, { recursive: true, force: true });
-  });
+  installTempDbHooks({ prefix: "pace-scheduler-test-", stopSchedulerOnTeardown: true });
 
   test("startScheduler with no adapters/pipelines is safe and refreshSources returns empty", async () => {
     const config = testAppConfig({ adapters: [] });
