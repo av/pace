@@ -3,7 +3,7 @@ import githubReleasesAdapter from "./adapters/github-releases";
 import * as utilsMod from "./utils";
 import { makeErrorResponse } from "./test/fetch-responses";
 import { invalidLimitParams } from "./test/invalid-params";
-import { useFetchMockSuite } from "./test/adapter-mocks";
+import { fetchMockCalls, useFetchMockSuite } from "./test/adapter-mocks";
 import { githubReleasesCfg } from "./test/adapter-cfg";
 import {
   githubReleasesApiFetchMock,
@@ -11,6 +11,10 @@ import {
 } from "./test/github-releases-fixtures";
 
 const mocks = useFetchMockSuite();
+
+const githubReleasesFetchCalls = () => fetchMockCalls(mocks.fetchMock);
+const releasesApiUrl = () =>
+  githubReleasesFetchCalls().find((c) => c.url.includes("/releases?"))?.url ?? "";
 
 describe("github-releases", () => {
   test("returns [] and no fetch when no repos configured", async () => {
@@ -103,12 +107,10 @@ describe("github-releases", () => {
       githubReleasesCfg({ repos: ["o/r"], token: "   " }),
     );
 
-    const apiCalls = mocks.fetchMock.mock.calls.filter((c) =>
-      String(c[0]).includes("api.github.com"),
-    );
+    const apiCalls = githubReleasesFetchCalls().filter((c) => c.url.includes("api.github.com"));
     expect(apiCalls.length).toBeGreaterThan(0);
-    for (const [, init] of apiCalls) {
-      const headers = (init as RequestInit).headers as Record<string, string>;
+    for (const call of apiCalls) {
+      const headers = (call.init?.headers ?? {}) as Record<string, string>;
       expect(headers.Authorization).toBeUndefined();
     }
   });
@@ -124,12 +126,10 @@ describe("github-releases", () => {
       githubReleasesCfg({ repos: ["o/r"], token: "  ghp_test  " }),
     );
 
-    const apiCalls = mocks.fetchMock.mock.calls.filter((c) =>
-      String(c[0]).includes("api.github.com"),
-    );
+    const apiCalls = githubReleasesFetchCalls().filter((c) => c.url.includes("api.github.com"));
     expect(apiCalls.length).toBeGreaterThan(0);
-    for (const [, init] of apiCalls) {
-      const headers = (init as RequestInit).headers as Record<string, string>;
+    for (const call of apiCalls) {
+      const headers = (call.init?.headers ?? {}) as Record<string, string>;
       expect(headers.Authorization).toBe("Bearer ghp_test");
     }
   });
@@ -145,10 +145,7 @@ describe("github-releases", () => {
 
     await githubReleasesAdapter.fetch(githubReleasesCfg({ repos: ["o/r"] }));
 
-    const releasesUrl = String(
-      mocks.fetchMock.mock.calls.find((c) => String(c[0]).includes("/releases?"))?.[0],
-    );
-    expect(releasesUrl).toContain("per_page=5");
+    expect(releasesApiUrl()).toContain("per_page=5");
   });
 
   test.each(invalidLimitParams(10))(
@@ -160,10 +157,7 @@ describe("github-releases", () => {
         githubReleasesCfg({ repos: ["o/r"], limit }),
       );
 
-      const releasesUrl = String(
-        mocks.fetchMock.mock.calls.find((c) => String(c[0]).includes("/releases?"))?.[0],
-      );
-      expect(releasesUrl).toContain("per_page=5");
+      expect(releasesApiUrl()).toContain("per_page=5");
     },
   );
 
@@ -174,10 +168,7 @@ describe("github-releases", () => {
       githubReleasesCfg({ repos: ["o/r"], limit: 7.9 }),
     );
 
-    const releasesUrl = String(
-      mocks.fetchMock.mock.calls.find((c) => String(c[0]).includes("/releases?"))?.[0],
-    );
-    expect(releasesUrl).toContain("per_page=7");
+    expect(releasesApiUrl()).toContain("per_page=7");
   });
 
   test("respects limit parameter in per_page query param", async () => {
@@ -187,10 +178,7 @@ describe("github-releases", () => {
       githubReleasesCfg({ repos: ["o/r"], limit: 12 }),
     );
 
-    const releasesUrl = String(
-      mocks.fetchMock.mock.calls.find((c) => String(c[0]).includes("/releases?"))?.[0],
-    );
-    expect(releasesUrl).toContain("per_page=12");
+    expect(releasesApiUrl()).toContain("per_page=12");
   });
 
   test("caps limit at 30 in per_page query param", async () => {
@@ -200,10 +188,7 @@ describe("github-releases", () => {
       githubReleasesCfg({ repos: ["o/r"], limit: 200 }),
     );
 
-    const releasesUrl = String(
-      mocks.fetchMock.mock.calls.find((c) => String(c[0]).includes("/releases?"))?.[0],
-    );
-    expect(releasesUrl).toContain("per_page=30");
+    expect(releasesApiUrl()).toContain("per_page=30");
   });
 
   test("errorMessage on !ok", async () => {

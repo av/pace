@@ -2,7 +2,7 @@ import { describe, test, expect, spyOn } from "bun:test";
 import adapter, { resolveGitHubPeriod } from "./adapters/github";
 import { FEED_XML_ACCEPT } from "./adapters/fetch";
 import * as utilsMod from "./utils";
-import { fetchMockCallUrl, useFetchMockSuite } from "./test/adapter-mocks";
+import { fetchMockCallUrl, fetchMockCalls, useFetchMockSuite } from "./test/adapter-mocks";
 import { githubCfg } from "./test/adapter-cfg";
 import { makeErrorResponse, makeJsonResponse, makeTextResponse } from "./test/fetch-responses";
 import {
@@ -15,6 +15,8 @@ import {
 } from "./test/github-fixtures";
 
 const mocks = useFetchMockSuite();
+
+const githubFetchCalls = () => fetchMockCalls(mocks.fetchMock);
 
 
 describe("resolveGitHubPeriod", () => {
@@ -69,13 +71,9 @@ describe("github", () => {
       githubCfg({ mode: "releases", repos: ["  facebook/react  ", ""], limit: 10 }),
     );
 
-    const atomCalls = mocks.fetchMock.mock.calls.filter((c) =>
-      String(c[0]).includes("releases.atom"),
-    );
+    const atomCalls = githubFetchCalls().filter((c) => c.url.includes("releases.atom"));
     expect(atomCalls.length).toBe(1);
-    expect(String(atomCalls[0][0])).toBe(
-      "https://github.com/facebook/react/releases.atom",
-    );
+    expect(atomCalls[0].url).toBe("https://github.com/facebook/react/releases.atom");
   });
 
   test("sends FEED_XML_ACCEPT when fetching releases.atom", async () => {
@@ -91,11 +89,9 @@ describe("github", () => {
 
     await adapter.fetch(githubCfg({ mode: "releases", repos: ["facebook/react"] }));
 
-    const atomCall = mocks.fetchMock.mock.calls.find((c) =>
-      String(c[0]).includes("releases.atom"),
-    );
+    const atomCall = githubFetchCalls().find((c) => c.url.includes("releases.atom"));
     expect(atomCall).toBeDefined();
-    const headers = (atomCall![1] as RequestInit).headers as Record<string, string>;
+    const headers = (atomCall!.init?.headers ?? {}) as Record<string, string>;
     expect(headers.Accept).toBe(FEED_XML_ACCEPT);
   });
 
@@ -145,11 +141,9 @@ describe("github", () => {
       githubCfg({ mode: "releases", repos: ["facebook/react"], token: "  " }),
     );
 
-    const metaCalls = mocks.fetchMock.mock.calls.filter((c) =>
-      String(c[0]).includes("api.github.com"),
-    );
+    const metaCalls = githubFetchCalls().filter((c) => c.url.includes("api.github.com"));
     expect(metaCalls.length).toBe(1);
-    const headers = (metaCalls[0][1] as RequestInit).headers as Record<string, string>;
+    const headers = (metaCalls[0].init?.headers ?? {}) as Record<string, string>;
     expect(headers.Authorization).toBeUndefined();
   });
 
@@ -172,11 +166,9 @@ describe("github", () => {
       }),
     );
 
-    const metaCalls = mocks.fetchMock.mock.calls.filter((c) =>
-      String(c[0]).includes("api.github.com"),
-    );
+    const metaCalls = githubFetchCalls().filter((c) => c.url.includes("api.github.com"));
     expect(metaCalls.length).toBe(1);
-    const headers = (metaCalls[0][1] as RequestInit).headers as Record<string, string>;
+    const headers = (metaCalls[0].init?.headers ?? {}) as Record<string, string>;
     expect(headers.Authorization).toBe("Bearer ghp_test");
   });
 
