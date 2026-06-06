@@ -2,7 +2,7 @@ import { describe, expect, spyOn, test } from "bun:test";
 import npmAdapter, { resolveNpmSort } from "./adapters/npm";
 import * as utilsMod from "./utils";
 import { npmCfg } from "./test/adapter-cfg";
-import { useFetchMockSuite } from "./test/adapter-mocks";
+import { fetchMockCallUrl, useFetchMockSuite } from "./test/adapter-mocks";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { invalidLimitParams } from "./test/invalid-params";
 import { makePackageResult, makeSearchResponse } from "./test/npm-fixtures";
@@ -57,7 +57,7 @@ describe("npm", () => {
       npmCfg({ keywords: ["  typescript  ", ""], scope: "  types  " }),
     );
 
-    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const calledUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(calledUrl).toContain("text=scope%3Atypes+typescript");
     expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
   });
@@ -85,7 +85,7 @@ describe("npm", () => {
     expect(items[0].body).toContain("popularity: 60%");
     expect(items[0].body).toContain("maintenance: 90%");
 
-    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const calledUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(calledUrl).toContain("text=typescript+cli");
   });
 
@@ -96,7 +96,7 @@ describe("npm", () => {
 
     await npmAdapter.fetch(npmCfg({ scope: "types", keywords: ["react"] }));
 
-    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const calledUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(calledUrl).toContain("text=scope%3Atypes+react");
   });
 
@@ -118,7 +118,7 @@ describe("npm", () => {
 
     await npmAdapter.fetch(npmCfg({ keywords: ["react"], sort: "popularity" }));
 
-    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const calledUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(calledUrl).toContain("popularity=1.0");
     expect(calledUrl).toContain("quality=0.0");
     expect(calledUrl).toContain("maintenance=0.0");
@@ -131,7 +131,7 @@ describe("npm", () => {
 
     await npmAdapter.fetch(npmCfg({ keywords: ["react"], sort: "quality" }));
 
-    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const calledUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(calledUrl).toContain("quality=1.0");
     expect(calledUrl).toContain("popularity=0.0");
   });
@@ -143,7 +143,7 @@ describe("npm", () => {
 
     await npmAdapter.fetch(npmCfg({ keywords: ["react"], sort: "maintenance" }));
 
-    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const calledUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(calledUrl).toContain("maintenance=1.0");
     expect(calledUrl).toContain("popularity=0.0");
     expect(calledUrl).toContain("quality=0.0");
@@ -156,7 +156,7 @@ describe("npm", () => {
 
     await npmAdapter.fetch(npmCfg({ keywords: ["react"], sort: "invalid" }));
 
-    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const calledUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(calledUrl).not.toContain("quality=");
     expect(calledUrl).not.toContain("popularity=");
     expect(calledUrl).not.toContain("maintenance=");
@@ -171,7 +171,7 @@ describe("npm", () => {
 
       await npmAdapter.fetch(npmCfg({ keywords: ["test"], limit }));
 
-      const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+      const calledUrl = fetchMockCallUrl(mocks.fetchMock);
       expect(calledUrl).toContain("size=20");
     },
   );
@@ -183,7 +183,7 @@ describe("npm", () => {
 
     await npmAdapter.fetch(npmCfg({ keywords: ["test"], limit: 7.9 }));
 
-    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const calledUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(calledUrl).toContain("size=7");
   });
 
@@ -194,7 +194,7 @@ describe("npm", () => {
 
     await npmAdapter.fetch(npmCfg({ keywords: ["test"], limit: 5 }));
 
-    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const calledUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(calledUrl).toContain("size=5");
   });
 
@@ -205,7 +205,7 @@ describe("npm", () => {
 
     await npmAdapter.fetch(npmCfg({ keywords: ["test"], limit: 200 }));
 
-    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const calledUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(calledUrl).toContain("size=50");
   });
 

@@ -1,7 +1,7 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import podcastAdapter from "./adapters/podcast";
 import * as utilsMod from "./utils";
-import { useFetchMockSuite } from "./test/adapter-mocks";
+import { fetchMockCallUrl, useFetchMockSuite } from "./test/adapter-mocks";
 import { podcastCfg } from "./test/adapter-cfg";
 import { makeErrorResponse, makeXmlResponse } from "./test/fetch-responses";
 import { invalidLimitParams } from "./test/invalid-params";
@@ -40,7 +40,7 @@ describe("podcast", () => {
     );
 
     expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
-    const callUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const callUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(callUrl).toBe("https://example.com/feed.xml");
     // headers check optional but UA present in impl
     expect(items.length).toBe(3); // 3 items (bad one has title so included, url may be empty)

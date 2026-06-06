@@ -2,7 +2,7 @@ import { describe, test, expect, spyOn } from "bun:test";
 import adapter, { resolveGitHubPeriod } from "./adapters/github";
 import { FEED_XML_ACCEPT } from "./adapters/fetch";
 import * as utilsMod from "./utils";
-import { useFetchMockSuite } from "./test/adapter-mocks";
+import { fetchMockCallUrl, useFetchMockSuite } from "./test/adapter-mocks";
 import { githubCfg } from "./test/adapter-cfg";
 import { makeErrorResponse, makeJsonResponse, makeTextResponse } from "./test/fetch-responses";
 import {
@@ -118,7 +118,7 @@ describe("github", () => {
     const items = await adapter.fetch(githubCfg({ mode: "  trending  ", limit: 1 }));
 
     expect(items.length).toBe(1);
-    expect(String(mocks.fetchMock.mock.calls[0][0])).toContain("/trending?");
+    expect(fetchMockCallUrl(mocks.fetchMock)).toContain("/trending?");
   });
 
   test("warns and returns [] when trending page has no parseable repos", async () => {
@@ -375,7 +375,7 @@ describe("github", () => {
       githubCfg({ mode: "trending", language: "  typescript  ", limit: 1 }),
     );
 
-    const url = String(mocks.fetchMock.mock.calls[0][0]);
+    const url = fetchMockCallUrl(mocks.fetchMock);
     expect(url).toContain("/trending/typescript?");
     expect(url).toContain("since=daily");
   });
@@ -387,7 +387,7 @@ describe("github", () => {
       githubCfg({ mode: "trending", language: "   ", limit: 1 }),
     );
 
-    const url = String(mocks.fetchMock.mock.calls[0][0]);
+    const url = fetchMockCallUrl(mocks.fetchMock);
     expect(url).toContain("/trending?");
     expect(url).not.toMatch(/\/trending\/[^?]/);
     expect(items[0].source).toBe("github:trending");
@@ -400,7 +400,7 @@ describe("github", () => {
       githubCfg({ mode: "trending", since: "  weekly  ", limit: 1 }),
     );
 
-    const url = String(mocks.fetchMock.mock.calls[0][0]);
+    const url = fetchMockCallUrl(mocks.fetchMock);
     expect(url).toContain("since=weekly");
   });
 
@@ -409,7 +409,7 @@ describe("github", () => {
 
     await adapter.fetch(githubCfg({ mode: "trending", since: "   ", limit: 1 }));
 
-    const url = String(mocks.fetchMock.mock.calls[0][0]);
+    const url = fetchMockCallUrl(mocks.fetchMock);
     expect(url).toContain("since=daily");
   });
 
@@ -420,7 +420,7 @@ describe("github", () => {
       githubCfg({ mode: "trending", since: "INVALID", limit: 1 }),
     );
 
-    const url = String(mocks.fetchMock.mock.calls[0][0]);
+    const url = fetchMockCallUrl(mocks.fetchMock);
     expect(url).toContain("since=daily");
   });
 

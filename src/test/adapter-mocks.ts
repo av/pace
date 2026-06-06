@@ -8,6 +8,36 @@ export type FetchMockSuite = {
   readonly warnSpy: ReturnType<typeof spyOn>;
 };
 
+export type FetchMock = FetchMockSuite["fetchMock"];
+
+/** URL from the nth global.fetch mock invocation (default: first). */
+export function fetchMockCallUrl(fetchMock: FetchMock, index = 0): string {
+  return String(fetchMock.mock.calls[index][0]);
+}
+
+/** RequestInit from the nth global.fetch mock invocation, if present. */
+export function fetchMockCallInit(fetchMock: FetchMock, index = 0): RequestInit | undefined {
+  return fetchMock.mock.calls[index][1] as RequestInit | undefined;
+}
+
+/** Headers object from the nth global.fetch mock invocation. */
+export function fetchMockCallHeaders(
+  fetchMock: FetchMock,
+  index = 0,
+): Record<string, string> {
+  return (fetchMockCallInit(fetchMock, index)?.headers ?? {}) as Record<string, string>;
+}
+
+/** All fetch mock invocations as { url, init } pairs. */
+export function fetchMockCalls(
+  fetchMock: FetchMock,
+): Array<{ url: string; init?: RequestInit }> {
+  return fetchMock.mock.calls.map((call) => ({
+    url: String(call[0]),
+    init: call[1] as RequestInit | undefined,
+  }));
+}
+
 /** Install fetch + console.warn mocks for adapter tests. Call once per describe(). */
 export function useFetchMockSuite(): FetchMockSuite {
   let fetchMock!: ReturnType<typeof mock>;

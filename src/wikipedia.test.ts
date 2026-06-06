@@ -2,7 +2,7 @@ import { describe, expect, spyOn, test } from "bun:test";
 import wikipediaAdapter, { resolveWikipediaMode } from "./adapters/wikipedia";
 import { truncateText } from "./adapters/title";
 import * as utilsMod from "./utils";
-import { useFetchMockSuite } from "./test/adapter-mocks";
+import { fetchMockCallUrl, useFetchMockSuite } from "./test/adapter-mocks";
 import { wikiCfg } from "./test/adapter-cfg";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { invalidLimitParams } from "./test/invalid-params";
@@ -147,7 +147,7 @@ describe("wikipedia", () => {
 
     await wikipediaAdapter.fetch(wikiCfg({ language: "de" }));
 
-    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const calledUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(calledUrl).toContain("de.wikipedia.org");
   });
 
@@ -158,7 +158,7 @@ describe("wikipedia", () => {
 
     await wikipediaAdapter.fetch(wikiCfg({ language: "  de  " }));
 
-    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const calledUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(calledUrl).toContain("de.wikipedia.org");
   });
 
@@ -169,7 +169,7 @@ describe("wikipedia", () => {
 
     await wikipediaAdapter.fetch(wikiCfg({ language: "   " }));
 
-    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const calledUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(calledUrl).toContain("en.wikipedia.org");
   });
 
@@ -180,7 +180,7 @@ describe("wikipedia", () => {
 
     await wikipediaAdapter.fetch(wikiCfg({ language: "evil.com/hack#" }));
 
-    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const calledUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(calledUrl).toContain("en.wikipedia.org");
     expect(calledUrl).not.toContain("evil");
   });

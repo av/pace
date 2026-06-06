@@ -4,7 +4,7 @@ import { FEED_XML_ACCEPT } from "./adapters/fetch";
 import * as utilsMod from "./utils";
 import { makeErrorResponse, makeXmlResponse } from "./test/fetch-responses";
 import { invalidLimitParams } from "./test/invalid-params";
-import { useFetchMockSuite } from "./test/adapter-mocks";
+import { fetchMockCallHeaders, fetchMockCallUrl, useFetchMockSuite } from "./test/adapter-mocks";
 import { arxivCfg } from "./test/adapter-cfg";
 import {
   arxivDedupOverlapQueryFeedFixture,
@@ -93,10 +93,7 @@ describe("arxiv", () => {
 
     await arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"] }));
 
-    const headers = (mocks.fetchMock.mock.calls[0][1] as RequestInit).headers as Record<
-      string,
-      string
-    >;
+    const headers = fetchMockCallHeaders(mocks.fetchMock);
     expect(headers.Accept).toBe(FEED_XML_ACCEPT);
   });
 
@@ -128,7 +125,7 @@ describe("arxiv", () => {
     await arxivAdapter.fetch(arxivCfg({ categories: ["  cs.AI  ", ""] }));
 
     expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
-    const callUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const callUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(callUrl).toContain("cat%3Acs.AI");
     expect(callUrl).not.toContain("cat%3A%20");
   });
@@ -141,7 +138,7 @@ describe("arxiv", () => {
     await arxivAdapter.fetch(arxivCfg({ query: "  quantum computing  " }));
 
     expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
-    const callUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const callUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(callUrl).toContain("all%3Aquantum%20computing");
     expect(callUrl).not.toContain("%20%20");
   });
@@ -162,7 +159,7 @@ describe("arxiv", () => {
     const items = await arxivAdapter.fetch(arxivCfg({ query: "quantum computing" }));
 
     expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
-    const callUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const callUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(callUrl).toContain("all%3Aquantum%20computing");
     expect(items[0].source).toBe("arxiv:search");
     expect(items[0].id).toBe("arxiv:2301.00001");
@@ -198,7 +195,7 @@ describe("arxiv", () => {
 
       await arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"], limit }));
 
-      const url = String(mocks.fetchMock.mock.calls[0][0]);
+      const url = fetchMockCallUrl(mocks.fetchMock);
       expect(url).toContain("max_results=20");
     },
   );
@@ -210,7 +207,7 @@ describe("arxiv", () => {
 
     await arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"], limit: 500 }));
 
-    const url = String(mocks.fetchMock.mock.calls[0][0]);
+    const url = fetchMockCallUrl(mocks.fetchMock);
     expect(url).toContain("max_results=100");
   });
 
@@ -221,7 +218,7 @@ describe("arxiv", () => {
 
     await arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"], limit: 7.9 }));
 
-    const url = String(mocks.fetchMock.mock.calls[0][0]);
+    const url = fetchMockCallUrl(mocks.fetchMock);
     expect(url).toContain("max_results=7");
   });
 

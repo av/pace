@@ -1,7 +1,7 @@
 import { describe, test, expect, spyOn } from "bun:test";
 import hackernewsAdapter, { resolveHnFeedType } from "./adapters/hackernews";
 import * as utilsMod from "./utils";
-import { useFetchMockSuite } from "./test/adapter-mocks";
+import { fetchMockCallUrl, useFetchMockSuite } from "./test/adapter-mocks";
 import { hnCfg } from "./test/adapter-cfg";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { invalidLimitParams, invalidMinScoreParams } from "./test/invalid-params";
@@ -65,7 +65,7 @@ describe("hackernews", () => {
 
     const results = await hackernewsAdapter.fetch(hnCfg({ type: "   " }));
     expect(results[0].source).toBe("hackernews:top");
-    expect(mocks.fetchMock.mock.calls[0][0]).toContain("topstories.json");
+    expect(fetchMockCallUrl(mocks.fetchMock)).toContain("topstories.json");
   });
 
   test("trims whitespace from configured type", async () => {
@@ -79,7 +79,7 @@ describe("hackernews", () => {
 
     const results = await hackernewsAdapter.fetch(hnCfg({ type: "  new  " }));
     expect(results[0].source).toBe("hackernews:new");
-    expect(mocks.fetchMock.mock.calls[0][0]).toContain("newstories.json");
+    expect(fetchMockCallUrl(mocks.fetchMock)).toContain("newstories.json");
   });
 
   test("type takes precedence over feed and stories", async () => {
@@ -95,7 +95,7 @@ describe("hackernews", () => {
       hnCfg({ type: "best", feed: "new", stories: "ask" }),
     );
     expect(results[0].source).toBe("hackernews:best");
-    expect(mocks.fetchMock.mock.calls[0][0]).toContain("beststories.json");
+    expect(fetchMockCallUrl(mocks.fetchMock)).toContain("beststories.json");
   });
 
   test("supports feed aliases (newest, frontpage, ask_hn, show_hn, jobs)", async () => {

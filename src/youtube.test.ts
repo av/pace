@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import adapter from "./adapters/youtube";
 import { FEED_XML_ACCEPT } from "./adapters/fetch";
-import { useFetchMockSuite } from "./test/adapter-mocks";
+import { fetchMockCallHeaders, useFetchMockSuite } from "./test/adapter-mocks";
 import { youtubeCfg } from "./test/adapter-cfg";
 import { makeErrorResponse, makeXmlResponse } from "./test/fetch-responses";
 import { invalidLimitParams } from "./test/invalid-params";
@@ -58,10 +58,7 @@ describe("youtube", () => {
   it("sends FEED_XML_ACCEPT when fetching channel feed", async () => {
     await adapter.fetch(youtubeCfg({ channels: ["CH1"] }));
 
-    const headers = (mocks.fetchMock.mock.calls[0][1] as RequestInit).headers as Record<
-      string,
-      string
-    >;
+    const headers = fetchMockCallHeaders(mocks.fetchMock);
     expect(headers.Accept).toBe(FEED_XML_ACCEPT);
   });
 

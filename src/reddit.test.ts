@@ -1,7 +1,7 @@
 import { describe, test, expect, spyOn } from "bun:test";
 import redditAdapter, { resolveRedditPeriod, resolveRedditSort } from "./adapters/reddit";
 import * as utilsMod from "./utils";
-import { useFetchMockSuite } from "./test/adapter-mocks";
+import { fetchMockCallUrl, useFetchMockSuite } from "./test/adapter-mocks";
 import { redditCfg } from "./test/adapter-cfg";
 import { makeErrorResponse } from "./test/fetch-responses";
 import { invalidLimitParams, invalidMinScoreParams } from "./test/invalid-params";
@@ -78,7 +78,7 @@ describe("reddit", () => {
     );
 
     expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
-    const calledUrl = mocks.fetchMock.mock.calls[0][0] as string;
+    const calledUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(calledUrl).toContain("/r/programming/hot.json");
     expect(items[0].source).toBe("reddit:r/programming");
   });
@@ -99,7 +99,7 @@ describe("reddit", () => {
     const items = await redditAdapter.fetch(redditCfg({ subreddits: ["programming"] }));
 
     expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
-    const calledUrl = (mocks.fetchMock.mock.calls[0][0] as string);
+    const calledUrl = (fetchMockCallUrl(mocks.fetchMock));
     expect(calledUrl).toContain("/r/programming/hot.json?limit=25&raw_json=1");
     expect(calledUrl).not.toContain("&t=");
 
@@ -121,7 +121,7 @@ describe("reddit", () => {
 
       await redditAdapter.fetch(redditCfg({ subreddits: ["x"], limit }));
 
-      const url = mocks.fetchMock.mock.calls[0][0] as string;
+      const url = fetchMockCallUrl(mocks.fetchMock);
       expect(url).toContain("limit=25");
     },
   );
@@ -131,7 +131,7 @@ describe("reddit", () => {
 
     await redditAdapter.fetch(redditCfg({ subreddits: ["x"], limit: 500 }));
 
-    const url = mocks.fetchMock.mock.calls[0][0] as string;
+    const url = fetchMockCallUrl(mocks.fetchMock);
     expect(url).toContain("limit=100");
   });
 
@@ -140,7 +140,7 @@ describe("reddit", () => {
 
     await redditAdapter.fetch(redditCfg({ subreddits: ["x"], limit: 7.9 }));
 
-    const url = mocks.fetchMock.mock.calls[0][0] as string;
+    const url = fetchMockCallUrl(mocks.fetchMock);
     expect(url).toContain("limit=7");
   });
 
@@ -156,7 +156,7 @@ describe("reddit", () => {
       redditCfg({ subreddits: ["test"], sort: "new", limit: 10, min_score: 10 }),
     );
 
-    const calledUrl = (mocks.fetchMock.mock.calls[0][0] as string);
+    const calledUrl = (fetchMockCallUrl(mocks.fetchMock));
     expect(calledUrl).toContain("/r/test/new.json?limit=10&raw_json=1");
 
     // minScore 10 drops the 5, keeps 200+50, sorted desc
@@ -188,7 +188,7 @@ describe("reddit", () => {
 
     await redditAdapter.fetch(redditCfg({ subreddits: ["x"], sort: "   " }));
 
-    const url = mocks.fetchMock.mock.calls[0][0] as string;
+    const url = fetchMockCallUrl(mocks.fetchMock);
     expect(url).toContain("/hot.json?limit=25&raw_json=1");
     expect(url).not.toContain("&t=");
   });
@@ -199,7 +199,7 @@ describe("reddit", () => {
 
     await redditAdapter.fetch(redditCfg({ subreddits: ["x"], sort: "  new  " }));
 
-    const url = mocks.fetchMock.mock.calls[0][0] as string;
+    const url = fetchMockCallUrl(mocks.fetchMock);
     expect(url).toContain("/new.json?limit=25&raw_json=1");
   });
 
@@ -209,7 +209,7 @@ describe("reddit", () => {
 
     await redditAdapter.fetch(redditCfg({ subreddits: ["x"], sort: "INVALID", time: "nonsense" }));
 
-    const url = (mocks.fetchMock.mock.calls[0][0] as string);
+    const url = (fetchMockCallUrl(mocks.fetchMock));
     expect(url).toContain("/hot.json?limit=25&raw_json=1");
     expect(url).not.toContain("&t=");
   });
@@ -222,7 +222,7 @@ describe("reddit", () => {
       redditCfg({ subreddits: ["x"], sort: "popular", time: "24h" }),
     );
 
-    const url = mocks.fetchMock.mock.calls[0][0] as string;
+    const url = fetchMockCallUrl(mocks.fetchMock);
     expect(url).toContain("/hot.json?limit=25&raw_json=1");
     expect(url).not.toContain("&t=");
 
@@ -233,7 +233,7 @@ describe("reddit", () => {
       redditCfg({ subreddits: ["x"], sort: "best", time: "7d" }),
     );
 
-    const topUrl = mocks.fetchMock.mock.calls[0][0] as string;
+    const topUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(topUrl).toContain("/top.json?limit=25&raw_json=1&t=week");
   });
 
@@ -243,7 +243,7 @@ describe("reddit", () => {
 
     await redditAdapter.fetch(redditCfg({ subreddits: ["x"], sort: "top", time: "week" }));
 
-    const url = (mocks.fetchMock.mock.calls[0][0] as string);
+    const url = (fetchMockCallUrl(mocks.fetchMock));
     expect(url).toContain("/top.json?limit=25&raw_json=1&t=week");
   });
 
@@ -255,7 +255,7 @@ describe("reddit", () => {
       redditCfg({ subreddits: ["x"], sort: "top", time: "   " }),
     );
 
-    const url = mocks.fetchMock.mock.calls[0][0] as string;
+    const url = fetchMockCallUrl(mocks.fetchMock);
     expect(url).toContain("/top.json?limit=25&raw_json=1&t=day");
   });
 
@@ -267,7 +267,7 @@ describe("reddit", () => {
       redditCfg({ subreddits: ["x"], sort: "top", time: "  month  " }),
     );
 
-    const url = mocks.fetchMock.mock.calls[0][0] as string;
+    const url = fetchMockCallUrl(mocks.fetchMock);
     expect(url).toContain("/top.json?limit=25&raw_json=1&t=month");
   });
 

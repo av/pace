@@ -3,7 +3,7 @@ import lemmyAdapter, { resolveLemmySort } from "./adapters/lemmy";
 import * as utilsMod from "./utils";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { invalidMinScoreParams } from "./test/invalid-params";
-import { useFetchMockSuite } from "./test/adapter-mocks";
+import { fetchMockCallUrl, useFetchMockSuite } from "./test/adapter-mocks";
 import { lemmyCfg } from "./test/adapter-cfg";
 import { makePostListResponse, makePostView } from "./test/lemmy-fixtures";
 
@@ -89,7 +89,7 @@ describe("lemmy", () => {
     expect(items[0].body).toContain("15 comments");
     expect(items[0].body).toContain("c/technology");
 
-    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const calledUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(calledUrl).toContain("lemmy.ml");
     expect(calledUrl).toContain("sort=Hot");
   });
@@ -104,7 +104,7 @@ describe("lemmy", () => {
 
     expect(items).toHaveLength(1);
     expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
-    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const calledUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(calledUrl).not.toContain("community_name=");
     expect(calledUrl).toContain("lemmy.ml");
   });
@@ -117,7 +117,7 @@ describe("lemmy", () => {
 
     await lemmyAdapter.fetch(lemmyCfg({ communities: ["  linux  ", ""] }));
 
-    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const calledUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(calledUrl).toContain("community_name=linux");
   });
 
@@ -138,9 +138,9 @@ describe("lemmy", () => {
     expect(items).toHaveLength(2);
     expect(mocks.fetchMock).toHaveBeenCalledTimes(2);
 
-    const url1 = String(mocks.fetchMock.mock.calls[0][0]);
+    const url1 = fetchMockCallUrl(mocks.fetchMock);
     expect(url1).toContain("community_name=linux");
-    const url2 = String(mocks.fetchMock.mock.calls[1][0]);
+    const url2 = fetchMockCallUrl(mocks.fetchMock, 1);
     expect(url2).toContain("community_name=rust");
   });
 
@@ -151,7 +151,7 @@ describe("lemmy", () => {
 
     await lemmyAdapter.fetch(lemmyCfg({ instance: "lemmy.world", communities: ["test"] }));
 
-    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const calledUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(calledUrl).toContain("lemmy.world");
   });
 
@@ -165,7 +165,7 @@ describe("lemmy", () => {
 
     expect(items).toHaveLength(1);
     expect(items[0].id).toBe("lemmy:lemmy.ml:1001");
-    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const calledUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(calledUrl).toContain("lemmy.ml");
   });
 
@@ -178,7 +178,7 @@ describe("lemmy", () => {
       lemmyCfg({ instance: "  lemmy.world  ", communities: ["test"] }),
     );
 
-    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const calledUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(calledUrl).toContain("lemmy.world");
     expect(calledUrl).not.toContain("lemmy.world%20");
   });
@@ -190,7 +190,7 @@ describe("lemmy", () => {
 
     await lemmyAdapter.fetch(lemmyCfg({ sort: "new" }));
 
-    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const calledUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(calledUrl).toContain("sort=New");
   });
 
@@ -201,7 +201,7 @@ describe("lemmy", () => {
 
     await lemmyAdapter.fetch(lemmyCfg({ sort: "invalid" }));
 
-    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const calledUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(calledUrl).toContain("sort=Hot");
   });
 
@@ -212,7 +212,7 @@ describe("lemmy", () => {
 
     await lemmyAdapter.fetch(lemmyCfg({ sort: "most_comments" }));
 
-    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const calledUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(calledUrl).toContain("sort=MostComments");
   });
 

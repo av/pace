@@ -3,7 +3,7 @@ import producthuntAdapter from "./adapters/producthunt";
 import * as utilsMod from "./utils";
 import { makeErrorResponse, makeTextResponse, makeXmlResponse } from "./test/fetch-responses";
 import { invalidLimitParams, invalidMinScoreParams } from "./test/invalid-params";
-import { useFetchMockSuite } from "./test/adapter-mocks";
+import { fetchMockCallUrl, useFetchMockSuite } from "./test/adapter-mocks";
 import { producthuntCfg } from "./test/adapter-cfg";
 import {
   productHuntEmptyFeedFixture,
@@ -25,7 +25,7 @@ describe("producthunt", () => {
     const items = await producthuntAdapter.fetch(producthuntCfg());
 
     expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
-    const callUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const callUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(callUrl).toBe("https://www.producthunt.com/feed");
 
     expect(items.length).toBe(2);

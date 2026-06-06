@@ -1,7 +1,7 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import stackexchangeAdapter, { resolveStackExchangeSort } from "./adapters/stackexchange";
 import * as utilsMod from "./utils";
-import { useFetchMockSuite } from "./test/adapter-mocks";
+import { fetchMockCallUrl, useFetchMockSuite } from "./test/adapter-mocks";
 import { seCfg } from "./test/adapter-cfg";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { invalidLimitParams, invalidMinScoreParams } from "./test/invalid-params";
@@ -50,7 +50,7 @@ describe("stackexchange", () => {
       body: expect.stringContaining("Score: 42"),
     });
     expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
-    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const calledUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(calledUrl).toContain("site=stackoverflow");
     expect(calledUrl).toContain("sort=hot");
     expect(calledUrl).not.toContain("tagged=");
@@ -65,7 +65,7 @@ describe("stackexchange", () => {
     expect(items).toHaveLength(1);
     expect(items[0].id).toBe("se:stackoverflow:123");
     expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
-    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const calledUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(calledUrl).toContain("site=stackoverflow");
   });
 
@@ -77,7 +77,7 @@ describe("stackexchange", () => {
 
     expect(items).toHaveLength(1);
     expect(items[0].source).toBe("stackoverflow:hot");
-    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const calledUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(calledUrl).toContain("sort=hot");
   });
 
@@ -89,7 +89,7 @@ describe("stackexchange", () => {
 
     expect(items).toHaveLength(1);
     expect(items[0].source).toBe("stackoverflow:votes");
-    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const calledUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(calledUrl).toContain("sort=votes");
   });
 
@@ -103,7 +103,7 @@ describe("stackexchange", () => {
 
     expect(items).toHaveLength(1);
     expect(items[0].id).toBe("se:ru.stackoverflow.com:88");
-    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const calledUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(calledUrl).toContain("site=ru.stackoverflow.com");
   });
 
@@ -116,7 +116,7 @@ describe("stackexchange", () => {
     expect(items).toHaveLength(1);
     expect(items[0].source).toBe("stackoverflow:hot");
     expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
-    const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
+    const calledUrl = fetchMockCallUrl(mocks.fetchMock);
     expect(calledUrl).not.toContain("tagged=");
     expect(mocks.warnSpy).not.toHaveBeenCalled();
   });
@@ -133,8 +133,8 @@ describe("stackexchange", () => {
 
     expect(items).toHaveLength(1);
     expect(mocks.fetchMock).toHaveBeenCalledTimes(2);
-    const url0 = String(mocks.fetchMock.mock.calls[0][0]);
-    const url1 = String(mocks.fetchMock.mock.calls[1][0]);
+    const url0 = fetchMockCallUrl(mocks.fetchMock);
+    const url1 = fetchMockCallUrl(mocks.fetchMock, 1);
     expect(url0).toContain("tagged=typescript");
     expect(url1).toContain("tagged=bun");
     expect(items[0].source).toBe("stackoverflow:typescript+bun");
@@ -158,8 +158,8 @@ describe("stackexchange", () => {
 
     expect(items).toHaveLength(2);
     expect(mocks.fetchMock).toHaveBeenCalledTimes(2);
-    const url0 = String(mocks.fetchMock.mock.calls[0][0]);
-    const url1 = String(mocks.fetchMock.mock.calls[1][0]);
+    const url0 = fetchMockCallUrl(mocks.fetchMock);
+    const url1 = fetchMockCallUrl(mocks.fetchMock, 1);
     expect(url0).toContain("tagged=typescript");
     expect(url0).not.toContain("tagged=typescript%3Bbun");
     expect(url1).toContain("tagged=bun");
@@ -191,7 +191,7 @@ describe("stackexchange", () => {
 
       await stackexchangeAdapter.fetch(seCfg({ limit }));
 
-      const url = String(mocks.fetchMock.mock.calls[0][0]);
+      const url = fetchMockCallUrl(mocks.fetchMock);
       expect(url).toContain("pagesize=20");
     },
   );
@@ -201,7 +201,7 @@ describe("stackexchange", () => {
 
     await stackexchangeAdapter.fetch(seCfg({ limit: 500 }));
 
-    const url = String(mocks.fetchMock.mock.calls[0][0]);
+    const url = fetchMockCallUrl(mocks.fetchMock);
     expect(url).toContain("pagesize=100");
   });
 
@@ -210,7 +210,7 @@ describe("stackexchange", () => {
 
     await stackexchangeAdapter.fetch(seCfg({ limit: 7.9 }));
 
-    const url = String(mocks.fetchMock.mock.calls[0][0]);
+    const url = fetchMockCallUrl(mocks.fetchMock);
     expect(url).toContain("pagesize=7");
   });
 

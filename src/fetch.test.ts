@@ -16,7 +16,12 @@ import {
   PACE_FEED_USER_AGENT,
   PACE_USER_AGENT,
 } from "./adapters/fetch";
-import { useFetchMockSuite } from "./test/adapter-mocks";
+import {
+  fetchMockCallHeaders,
+  fetchMockCallInit,
+  fetchMockCallUrl,
+  useFetchMockSuite,
+} from "./test/adapter-mocks";
 import {
   makeErrorResponse,
   makeJsonResponse,
@@ -35,8 +40,8 @@ describe("fetchWithTimeout", () => {
     await fetchWithTimeout("https://example.com/feed");
 
     expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = mocks.fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("https://example.com/feed");
+    expect(fetchMockCallUrl(mocks.fetchMock)).toBe("https://example.com/feed");
+    const init = fetchMockCallInit(mocks.fetchMock)!;
     expect(init.headers).toMatchObject({ "User-Agent": PACE_FEED_USER_AGENT });
     expect(init.signal).toBeDefined();
   });
@@ -78,7 +83,7 @@ describe("fetchWithTimeout", () => {
       timeoutMs: 5_000,
     });
 
-    const [, init] = mocks.fetchMock.mock.calls[0] as [string, RequestInit];
+    const init = fetchMockCallInit(mocks.fetchMock)!;
     expect(init.headers).toMatchObject({
       "User-Agent": "custom-agent/2",
       "X-Custom": "1",
@@ -100,19 +105,13 @@ describe("fetchText / fetchJson default User-Agent", () => {
     mocks.fetchMock.mockResolvedValue(makeJsonResponse({ ok: true }));
 
     await fetchText("rss", "https://example.com/feed.xml");
-    const textUa = (mocks.fetchMock.mock.calls[0] as [string, RequestInit])[1].headers as Record<
-      string,
-      string
-    >;
+    const textUa = fetchMockCallHeaders(mocks.fetchMock);
 
     mocks.fetchMock.mockClear();
     mocks.fetchMock.mockResolvedValue(makeJsonResponse({ ok: true }));
 
     await fetchJson("npm", "https://example.com/search");
-    const jsonUa = (mocks.fetchMock.mock.calls[0] as [string, RequestInit])[1].headers as Record<
-      string,
-      string
-    >;
+    const jsonUa = fetchMockCallHeaders(mocks.fetchMock);
 
     expect(textUa["User-Agent"]).toBe(PACE_FEED_USER_AGENT);
     expect(jsonUa["User-Agent"]).toBe(PACE_FEED_USER_AGENT);
@@ -188,11 +187,7 @@ describe("fetchAtomFeed", () => {
     ]);
     expect(parsed.feed?.title).toBe("Test Feed");
 
-    const headers = (mocks.fetchMock.mock.calls[0][1] as RequestInit).headers as Record<
-      string,
-      string
-    >;
-    expect(headers.Accept).toBe(FEED_XML_ACCEPT);
+    expect(fetchMockCallHeaders(mocks.fetchMock).Accept).toBe(FEED_XML_ACCEPT);
   });
 
   test("normalizes a single entry to a one-element array", async () => {
@@ -219,8 +214,7 @@ describe("fetchAtomFeed", () => {
       timeoutMs: ARXIV_FETCH_TIMEOUT_MS,
     });
 
-    const [, init] = mocks.fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(init.signal).toBeDefined();
+    expect(fetchMockCallInit(mocks.fetchMock)?.signal).toBeDefined();
   });
 
   test("throws on malformed XML with adapter prefix", async () => {
@@ -270,11 +264,7 @@ describe("fetchRssAtomFeed", () => {
     ]);
     expect(parsed.rss?.channel?.title).toBe("RSS Feed");
 
-    const headers = (mocks.fetchMock.mock.calls[0][1] as RequestInit).headers as Record<
-      string,
-      string
-    >;
-    expect(headers.Accept).toBe(FEED_XML_ACCEPT);
+    expect(fetchMockCallHeaders(mocks.fetchMock).Accept).toBe(FEED_XML_ACCEPT);
   });
 
   test("falls back to Atom entries when RSS channel items are absent", async () => {

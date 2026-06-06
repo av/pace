@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, spyOn, test } from "bun:test";
 import devtoAdapter, { resolveDevToPeriod } from "./adapters/devto";
 import * as utilsMod from "./utils";
-import { useFetchMockSuite } from "./test/adapter-mocks";
+import { fetchMockCalls, useFetchMockSuite } from "./test/adapter-mocks";
 import { devtoCfg } from "./test/adapter-cfg";
 import { devtoDefaultFetchMock, makeDevToArticle } from "./test/devto-fixtures";
 import { makeJsonResponse } from "./test/fetch-responses";
@@ -9,12 +9,7 @@ import { invalidLimitParams, invalidMinScoreParams } from "./test/invalid-params
 
 const mocks = useFetchMockSuite();
 
-function devtoFetchCalls(): Array<{ url: string; init?: RequestInit }> {
-  return mocks.fetchMock.mock.calls.map((c) => ({
-    url: String(c[0]),
-    init: c[1] as RequestInit | undefined,
-  }));
-}
+const devtoFetchCalls = () => fetchMockCalls(mocks.fetchMock);
 
 describe("resolveDevToPeriod", () => {
   test.each([
