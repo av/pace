@@ -1,4 +1,4 @@
-import type { FetchMockSuite } from "./adapter-mocks";
+import { fetchMockCalls, type FetchMockSuite } from "./adapter-mocks";
 
 export interface MastodonStatusFixture {
   id: string;
@@ -47,5 +47,5 @@ export function makeStatus(id: string, content: string, created: string): Mastod
 }
 
 export function fetchUrls(mocks: FetchMockSuite): string[] {
-  return mocks.fetchMock.mock.calls.map((c) => String(c[0]));
+  return fetchMockCalls(mocks.fetchMock).map((c) => c.url);
 }

@@ -1,7 +1,7 @@
 import { describe, test, expect, spyOn } from "bun:test";
 import hackernewsAdapter, { resolveHnFeedType } from "./adapters/hackernews";
 import * as utilsMod from "./utils";
-import { fetchMockCallUrl, useFetchMockSuite } from "./test/adapter-mocks";
+import { fetchMockCallUrl, fetchMockCalls, useFetchMockSuite } from "./test/adapter-mocks";
 import { hnCfg } from "./test/adapter-cfg";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { invalidLimitParams, invalidMinScoreParams } from "./test/invalid-params";
@@ -278,8 +278,8 @@ describe("hackernews", () => {
     const results = await hackernewsAdapter.fetch(cfg);
     expect(results).toHaveLength(25);
     // at least 3 batch calls for items (10+10+5)
-    const itemCalls = mocks.fetchMock.mock.calls.filter((c: unknown[]) =>
-      String(c[0]).includes("/item/"),
+    const itemCalls = fetchMockCalls(mocks.fetchMock).filter((c) =>
+      c.url.includes("/item/"),
     ).length;
     expect(itemCalls).toBe(25);
   });
