@@ -1,0 +1,50 @@
+import type { ContentItem } from "../adapters/types";
+import type { ContentItemRow } from "../db";
+
+let contentItemSeq = 0;
+
+function nextTestId(prefix = "item"): string {
+  return `${prefix}-${++contentItemSeq}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+/** Factory for adapter/domain `ContentItem` test fixtures (db, llm). */
+export function makeContentItem(
+  overrides: Partial<ContentItem> & { id?: string } = {},
+): ContentItem {
+  const id = overrides.id ?? nextTestId();
+  const now = new Date();
+  return {
+    id,
+    title: overrides.title ?? `title-${id}`,
+    url: overrides.url ?? `https://ex.com/${id}`,
+    source: overrides.source ?? "testsrc",
+    timestamp: overrides.timestamp ?? now,
+    body: overrides.body,
+    ...overrides,
+    id,
+    timestamp: overrides.timestamp ?? now,
+  };
+}
+
+/** Factory for persisted `ContentItemRow` test fixtures (layout, transforms). */
+export function makeContentItemRow(
+  overrides: Partial<ContentItemRow> = {},
+): ContentItemRow {
+  const now = new Date().toISOString();
+  const id = overrides.id ?? nextTestId("row");
+  return {
+    id,
+    panel_id: "panel-1",
+    title: "Test Title",
+    url: "https://example.com",
+    source: "testsrc",
+    body: "Default body content here.",
+    timestamp: now,
+    fetched_at: now,
+    summary: null,
+    ...overrides,
+    id,
+    timestamp: overrides.timestamp ?? now,
+    fetched_at: overrides.fetched_at ?? now,
+  };
+}

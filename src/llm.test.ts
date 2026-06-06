@@ -9,23 +9,11 @@ import {
   lensItems,
   formatContentItemForLlm,
 } from "./llm";
-import type { ContentItem } from "./adapters/types";
 import type { Model, Api, Context } from "@mariozechner/pi-ai";
 import * as piAi from "@mariozechner/pi-ai";
+import { makeContentItem as makeItem } from "./test/content-items";
 
 const fakeThrowingModel = { id: "fake" } as Model<Api>;
-
-function makeItem(overrides: Partial<ContentItem> = {}): ContentItem {
-  return {
-    id: "item-" + Math.random().toString(36).slice(2),
-    title: "Default Title",
-    url: "https://example.com",
-    source: "test",
-    timestamp: new Date(),
-    body: "Default body content for LLM tests.",
-    ...overrides,
-  };
-}
 
 describe("llm", () => {
   describe("stripJsonCodeFences", () => {

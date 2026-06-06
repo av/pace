@@ -3,7 +3,6 @@ import * as fs from "node:fs";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import type { ContentItem } from "./adapters/types";
 import {
   getDb,
   initDb,
@@ -24,25 +23,13 @@ import {
   type ContentItemRow,
 } from "./db";
 import * as utilsMod from "./utils";
+import { makeContentItem as makeItem } from "./test/content-items";
 
 type ContentItemUpsertRow = Pick<ContentItemRow, "id" | "panel_id" | "title" | "url" | "fetched_at">;
 
 let tempDir: string;
 let dbPath: string;
 let origEnv: string | undefined;
-
-function makeItem(overrides: Partial<ContentItem> & { id: string; panel_id?: never }): ContentItem {
-  const now = new Date();
-  return {
-    id: overrides.id,
-    title: overrides.title ?? `title-${overrides.id}`,
-    url: overrides.url ?? `https://ex.com/${overrides.id}`,
-    source: overrides.source ?? "testsrc",
-    timestamp: overrides.timestamp ?? now,
-    body: overrides.body ?? null,
-    summary: overrides.summary,
-  };
-}
 
 beforeEach(() => {
   origEnv = process.env.PACE_DB_PATH;

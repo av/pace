@@ -1,40 +1,8 @@
 import { describe, it, expect, spyOn } from "bun:test";
 import { renderDashboard, type PanelData } from "./layout";
-import type { FlexContainerConfig, LayoutNodeConfig, PanelConfig, SourceValue } from "./config";
-import type { ContentItemRow } from "./db";
 import { resolvePanelId } from "./config";
-
-function panelCfg(
-  panel: string,
-  source: SourceValue,
-  extra?: Partial<Omit<PanelConfig, "panel" | "source">>,
-): PanelConfig {
-  return { panel, source, ...extra };
-}
-
-function flexCfg(
-  direction: FlexContainerConfig["direction"],
-  children: LayoutNodeConfig[],
-  extra?: Partial<Omit<FlexContainerConfig, "direction" | "children">>,
-): FlexContainerConfig {
-  return { direction, children, ...extra };
-}
-
-function makeItem(overrides: Partial<ContentItemRow> = {}): ContentItemRow {
-  const now = new Date().toISOString();
-  return {
-    id: "i1",
-    panel_id: "pid",
-    title: "Test Title",
-    url: "https://example.com",
-    source: "testsrc",
-    body: null,
-    timestamp: now,
-    fetched_at: now,
-    summary: null,
-    ...overrides,
-  };
-}
+import { makeContentItemRow as makeItem } from "./test/content-items";
+import { flexCfg, panelCfg } from "./test/layout-cfg";
 
 describe("renderDashboard", () => {
   it("renders full HTML5 doctype + basic shell with title, footer, and stylesheet link", () => {

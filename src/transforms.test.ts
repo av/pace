@@ -3,21 +3,7 @@ import { spyConsole } from "./test/console-spy";
 import { runPipeline, type TransformContext } from "./transforms";
 import { TRANSFORM_TYPES, type TransformConfig } from "./config";
 import type { ContentItemRow } from "./db";
-
-function makeRow(overrides: Partial<ContentItemRow> = {}): ContentItemRow {
-  const base: ContentItemRow = {
-    id: "id-" + Math.random().toString(36).slice(2),
-    panel_id: "panel-1",
-    title: "Default Title",
-    url: "https://example.com/item",
-    source: "test-source",
-    body: "Default body content here.",
-    timestamp: new Date().toISOString(),
-    fetched_at: new Date().toISOString(),
-    summary: null,
-  };
-  return { ...base, ...overrides };
-}
+import { makeContentItemRow as makeRow } from "./test/content-items";
 
 const ctx: TransformContext = { llmModel: null };
 
