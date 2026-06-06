@@ -1,10 +1,14 @@
 import { describe, test, expect, spyOn } from "bun:test";
 import githubReleasesAdapter from "./adapters/github-releases";
 import * as utilsMod from "./utils";
-import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
+import { makeErrorResponse } from "./test/fetch-responses";
 import { invalidLimitParams } from "./test/invalid-params";
 import { useFetchMockSuite } from "./test/adapter-mocks";
 import { githubReleasesCfg } from "./test/adapter-cfg";
+import {
+  githubReleasesApiFetchMock,
+  makeGitHubRelease,
+} from "./test/github-releases-fixtures";
 
 const mocks = useFetchMockSuite();
 
@@ -26,25 +30,12 @@ describe("github-releases", () => {
   });
 
   test("includes repo tagline in release title from api.github.com/repos", async () => {
-    mocks.fetchMock.mockImplementation(async (url: string) => {
-      const u = String(url);
-      if (u.includes("/releases?")) {
-        return makeJsonResponse([
-            {
-              id: 1,
-              tag_name: "v1.0.0",
-              name: "One",
-              html_url: "https://github.com/o/r/releases/tag/v1.0.0",
-              body: "Release notes here",
-              published_at: "2024-01-01T00:00:00Z",
-            },
-          ]);
-      }
-      if (u.includes("api.github.com/repos/o/r")) {
-        return makeJsonResponse({ description: "A cool repo" });
-      }
-      throw new Error(`unexpected url: ${u}`);
-    });
+    mocks.fetchMock.mockImplementation(async (url: string) =>
+      githubReleasesApiFetchMock(url, {
+        releases: [makeGitHubRelease({ body: "Release notes here" })],
+        description: "A cool repo",
+      }),
+    );
 
     const items = await githubReleasesAdapter.fetch(
       githubReleasesCfg({ repos: ["o/r"] }),
@@ -56,25 +47,19 @@ describe("github-releases", () => {
   });
 
   test("decodes HTML entities in release names from API", async () => {
-    mocks.fetchMock.mockImplementation(async (url: string) => {
-      const u = String(url);
-      if (u.includes("/releases?")) {
-        return makeJsonResponse([
-          {
+    mocks.fetchMock.mockImplementation(async (url: string) =>
+      githubReleasesApiFetchMock(url, {
+        releases: [
+          makeGitHubRelease({
             id: 2,
             tag_name: "v2.0.0",
             name: "A &amp; B &#8364; C",
             html_url: "https://github.com/o/r/releases/tag/v2.0.0",
-            body: null,
             published_at: "2024-02-01T00:00:00Z",
-          },
-        ]);
-      }
-      if (u.includes("api.github.com/repos/o/r")) {
-        return makeJsonResponse({ description: null });
-      }
-      throw new Error(`unexpected url: ${u}`);
-    });
+          }),
+        ],
+      }),
+    );
 
     const items = await githubReleasesAdapter.fetch(
       githubReleasesCfg({ repos: ["o/r"] }),
@@ -85,25 +70,19 @@ describe("github-releases", () => {
   });
 
   test("decodes HTML entities in tag_name when name is null", async () => {
-    mocks.fetchMock.mockImplementation(async (url: string) => {
-      const u = String(url);
-      if (u.includes("/releases?")) {
-        return makeJsonResponse([
-          {
+    mocks.fetchMock.mockImplementation(async (url: string) =>
+      githubReleasesApiFetchMock(url, {
+        releases: [
+          makeGitHubRelease({
             id: 3,
             tag_name: "v&amp;3",
             name: null,
             html_url: "https://github.com/o/r/releases/tag/v%263",
-            body: null,
             published_at: "2024-03-01T00:00:00Z",
-          },
-        ]);
-      }
-      if (u.includes("api.github.com/repos/o/r")) {
-        return makeJsonResponse({ description: null });
-      }
-      throw new Error(`unexpected url: ${u}`);
-    });
+          }),
+        ],
+      }),
+    );
 
     const items = await githubReleasesAdapter.fetch(
       githubReleasesCfg({ repos: ["o/r"] }),
@@ -114,25 +93,11 @@ describe("github-releases", () => {
   });
 
   test("omits Authorization when token is blank or whitespace-only", async () => {
-    mocks.fetchMock.mockImplementation(async (url: string) => {
-      const u = String(url);
-      if (u.includes("/releases?")) {
-        return makeJsonResponse([
-          {
-            id: 1,
-            tag_name: "v1.0.0",
-            name: "One",
-            html_url: "https://github.com/o/r/releases/tag/v1.0.0",
-            body: null,
-            published_at: "2024-01-01T00:00:00Z",
-          },
-        ]);
-      }
-      if (u.includes("api.github.com/repos/o/r")) {
-        return makeJsonResponse({ description: null });
-      }
-      throw new Error(`unexpected url: ${u}`);
-    });
+    mocks.fetchMock.mockImplementation(async (url: string) =>
+      githubReleasesApiFetchMock(url, {
+        releases: [makeGitHubRelease()],
+      }),
+    );
 
     await githubReleasesAdapter.fetch(
       githubReleasesCfg({ repos: ["o/r"], token: "   " }),
@@ -149,25 +114,11 @@ describe("github-releases", () => {
   });
 
   test("trims configured token for GitHub API Authorization header", async () => {
-    mocks.fetchMock.mockImplementation(async (url: string) => {
-      const u = String(url);
-      if (u.includes("/releases?")) {
-        return makeJsonResponse([
-          {
-            id: 1,
-            tag_name: "v1.0.0",
-            name: "One",
-            html_url: "https://github.com/o/r/releases/tag/v1.0.0",
-            body: null,
-            published_at: "2024-01-01T00:00:00Z",
-          },
-        ]);
-      }
-      if (u.includes("api.github.com/repos/o/r")) {
-        return makeJsonResponse({ description: null });
-      }
-      throw new Error(`unexpected url: ${u}`);
-    });
+    mocks.fetchMock.mockImplementation(async (url: string) =>
+      githubReleasesApiFetchMock(url, {
+        releases: [makeGitHubRelease()],
+      }),
+    );
 
     await githubReleasesAdapter.fetch(
       githubReleasesCfg({ repos: ["o/r"], token: "  ghp_test  " }),
@@ -184,16 +135,9 @@ describe("github-releases", () => {
   });
 
   function mockReleasesAndRepoMeta() {
-    mocks.fetchMock.mockImplementation(async (url: string) => {
-      const u = String(url);
-      if (u.includes("/releases?")) {
-        return makeJsonResponse([]);
-      }
-      if (u.includes("api.github.com/repos/")) {
-        return makeJsonResponse({ description: null });
-      }
-      throw new Error(`unexpected url: ${u}`);
-    });
+    mocks.fetchMock.mockImplementation(async (url: string) =>
+      githubReleasesApiFetchMock(url),
+    );
   }
 
   test("default per_page=5 in releases API URL", async () => {
