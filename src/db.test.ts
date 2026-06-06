@@ -24,7 +24,10 @@ import {
   type ContentItemRow,
 } from "./db";
 import * as utilsMod from "./utils";
-import { makeContentItem as makeItem } from "./test/content-items";
+import {
+  makeContentItem as makeItem,
+  makeContentItemRow as makeRow,
+} from "./test/content-items";
 
 type ContentItemUpsertRow = Pick<ContentItemRow, "id" | "panel_id" | "title" | "url" | "fetched_at">;
 
@@ -284,17 +287,15 @@ test("replacePanelItems per-item failure uses errorMessage in thrown message", (
   initDb();
   const database = getDb();
   const emSpy = spyOn(utilsMod, "errorMessage");
-  const row: ContentItemRow = {
+  const row = makeRow({
     id: "r1",
     panel_id: "prep",
     title: "t",
     url: "https://ex.com/r1",
     source: "s",
     body: null,
-    timestamp: new Date().toISOString(),
-    fetched_at: new Date().toISOString(),
     summary: null,
-  };
+  });
   const realPrepare = database.prepare.bind(database);
   const prepareSpy = spyOn(database, "prepare").mockImplementation((sql: unknown) => {
     const stmt = realPrepare(sql as string);
@@ -398,7 +399,7 @@ test("closeDb warns with errorMessage when db.close throws", () => {
 });
 
 test("contentRowToItem maps persisted row fields to ContentItem", () => {
-  const row: ContentItemRow = {
+  const row = makeRow({
     id: "r1",
     panel_id: "panel-a",
     title: "Title",
@@ -408,7 +409,7 @@ test("contentRowToItem maps persisted row fields to ContentItem", () => {
     timestamp: "2024-06-01T12:00:00.000Z",
     fetched_at: "2024-06-02T08:00:00.000Z",
     summary: "summary text",
-  };
+  });
   const item = contentRowToItem(row);
   expect(item).toEqual({
     id: "r1",
@@ -421,7 +422,7 @@ test("contentRowToItem maps persisted row fields to ContentItem", () => {
 });
 
 test("contentRowToItem converts null body to undefined", () => {
-  const row: ContentItemRow = {
+  const row = makeRow({
     id: "r2",
     panel_id: "panel-a",
     title: "No body",
@@ -431,12 +432,12 @@ test("contentRowToItem converts null body to undefined", () => {
     timestamp: "2024-06-01T12:00:00.000Z",
     fetched_at: "2024-06-02T08:00:00.000Z",
     summary: null,
-  };
+  });
   expect(contentRowToItem(row).body).toBeUndefined();
 });
 
 test("contentItemToRow preserves base row metadata and defaults merged panel", () => {
-  const base: ContentItemRow = {
+  const base = makeRow({
     id: "b1",
     panel_id: "panel-x",
     title: "Old",
@@ -446,7 +447,7 @@ test("contentItemToRow preserves base row metadata and defaults merged panel", (
     timestamp: "2024-01-01T00:00:00.000Z",
     fetched_at: "2024-01-02T00:00:00.000Z",
     summary: "kept summary",
-  };
+  });
   const item = makeItem({
     id: "b1",
     title: "New",
@@ -479,7 +480,7 @@ test("contentItemToRow without base uses merged defaults", () => {
 
 test("contentRowsToItems and contentRowMapById round-trip row collections", () => {
   const rows: ContentItemRow[] = [
-    {
+    makeRow({
       id: "a",
       panel_id: "p1",
       title: "A",
@@ -489,8 +490,8 @@ test("contentRowsToItems and contentRowMapById round-trip row collections", () =
       timestamp: "2024-06-01T12:00:00.000Z",
       fetched_at: "2024-06-02T08:00:00.000Z",
       summary: null,
-    },
-    {
+    }),
+    makeRow({
       id: "b",
       panel_id: "p1",
       title: "B",
@@ -500,7 +501,7 @@ test("contentRowsToItems and contentRowMapById round-trip row collections", () =
       timestamp: "2024-06-01T13:00:00.000Z",
       fetched_at: "2024-06-02T08:00:00.000Z",
       summary: "sum",
-    },
+    }),
   ];
   const items = contentRowsToItems(rows);
   expect(items.map((item) => item.id)).toEqual(["a", "b"]);
@@ -509,7 +510,7 @@ test("contentRowsToItems and contentRowMapById round-trip row collections", () =
 
 test("filterRowsByItemIds keeps rows matching item ids", () => {
   const rows: ContentItemRow[] = [
-    {
+    makeRow({
       id: "keep",
       panel_id: "p1",
       title: "Keep",
@@ -519,8 +520,8 @@ test("filterRowsByItemIds keeps rows matching item ids", () => {
       timestamp: "2024-06-01T12:00:00.000Z",
       fetched_at: "2024-06-02T08:00:00.000Z",
       summary: null,
-    },
-    {
+    }),
+    makeRow({
       id: "drop",
       panel_id: "p1",
       title: "Drop",
@@ -530,14 +531,14 @@ test("filterRowsByItemIds keeps rows matching item ids", () => {
       timestamp: "2024-06-01T12:00:00.000Z",
       fetched_at: "2024-06-02T08:00:00.000Z",
       summary: null,
-    },
+    }),
   ];
   const kept = filterRowsByItemIds(rows, [{ id: "keep" }]);
   expect(kept.map((row) => row.id)).toEqual(["keep"]);
 });
 
 test("contentItemsToRows inherits base row metadata and split id fallback", () => {
-  const base: ContentItemRow = {
+  const base = makeRow({
     id: "x",
     panel_id: "panel-z",
     title: "Base",
@@ -547,7 +548,7 @@ test("contentItemsToRows inherits base row metadata and split id fallback", () =
     timestamp: "2024-06-01T12:00:00.000Z",
     fetched_at: "2024-06-02T08:00:00.000Z",
     summary: "base summary",
-  };
+  });
   const rowById = contentRowMapById([base]);
   const merged = contentItemsToRows(
     [makeItem({ id: "x+y", title: "Merged", timestamp: new Date("2024-07-01T00:00:00.000Z") })],
