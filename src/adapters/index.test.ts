@@ -1,92 +1,20 @@
-import { join } from "node:path";
 import { describe, test, expect, spyOn, beforeEach, afterEach, mock } from "bun:test";
-import { spyMockCallsContaining } from "../test/console-spy";
+import {
+  DISCOVERY_FILTER_NOISE,
+  discoveryWarnsContaining,
+  emptyAdapterFetch,
+  expectInvalidDefaultExport,
+  expectNoImportOrBadModWarnings,
+  expectSkippedWithoutWarnings,
+  mockAdapterDefault,
+  mockAdapterModule,
+  mockReaddir,
+  mockReaddirThrows,
+  readdirOnly,
+  readdirWithRss,
+} from "../test/adapter-discovery-mocks";
 import { discoverAdapters } from "./index";
 import type { AdapterConfig, ContentItem } from "./types";
-
-const ADAPTERS_DIR = import.meta.dir;
-const FILTER_NOISE = ["foo.test.ts", "types.ts", "index.ts", "bar.js"] as const;
-
-const emptyFetch = async (_config: AdapterConfig): Promise<ContentItem[]> => [];
-
-function adapterModulePath(file: string): string {
-  return join(ADAPTERS_DIR, file);
-}
-
-function mockAdapterModule(file: string, exports: Record<string, unknown>): void {
-  mock.module(adapterModulePath(file), () => exports);
-}
-
-function mockReaddir(entries: unknown): void {
-  mock.module("node:fs/promises", () => ({
-    readdir: async () => entries,
-  }));
-}
-
-function mockReaddirThrows(err: Error): void {
-  mock.module("node:fs/promises", () => ({
-    readdir: async () => {
-      throw err;
-    },
-  }));
-}
-
-function readdirWithRss(...entries: unknown[]): unknown[] {
-  return ["rss.ts", ...entries, ...FILTER_NOISE];
-}
-
-function readdirOnly(...entries: unknown[]): unknown[] {
-  return [...entries, ...FILTER_NOISE];
-}
-
-function mockAdapterDefault(file: string, adapter: Record<string, unknown>): void {
-  mockAdapterModule(file, { default: adapter });
-}
-
-function warnsContaining(spy: ReturnType<typeof spyOn>, fragment: string): string[] {
-  return spyMockCallsContaining(spy, fragment).map((call) => String(call[0]));
-}
-
-function expectNoImportOrBadModWarnings(warnSpy: ReturnType<typeof spyOn>): void {
-  expect(warnsContaining(warnSpy, "failed to import")).toHaveLength(0);
-  expect(warnsContaining(warnSpy, "invalid default export")).toHaveLength(0);
-}
-
-function expectAdaptersRegistered(adapters: Map<string, unknown>, names: string[]): void {
-  for (const name of names) {
-    expect(adapters.has(name)).toBe(true);
-  }
-}
-
-function expectInvalidDefaultExport(
-  adapters: Map<string, unknown>,
-  warnSpy: ReturnType<typeof spyOn>,
-  file: string,
-  rejectedNames: string[],
-  acceptedNames: string[] = []
-): void {
-  expectAdaptersRegistered(adapters, acceptedNames);
-  for (const name of rejectedNames) {
-    expect(adapters.has(name)).toBe(false);
-  }
-  expect(warnsContaining(warnSpy, "failed to import").length).toBe(0);
-  const badModWarns = warnsContaining(warnSpy, "invalid default export");
-  expect(badModWarns.length).toBe(1);
-  expect(badModWarns[0] ?? "").toContain(file);
-}
-
-function expectSkippedWithoutWarnings(
-  adapters: Map<string, unknown>,
-  warnSpy: ReturnType<typeof spyOn>,
-  rejectedNames: string[],
-  acceptedNames: string[] = []
-): void {
-  expectAdaptersRegistered(adapters, acceptedNames);
-  for (const name of rejectedNames) {
-    expect(adapters.has(name)).toBe(false);
-  }
-  expectNoImportOrBadModWarnings(warnSpy);
-}
 
 describe("discoverAdapters", () => {
   let warnSpy: ReturnType<typeof spyOn>;
@@ -133,8 +61,8 @@ describe("discoverAdapters", () => {
 
   test("normal discovery has no dup or load-fail warnings", async () => {
     await discoverAdapters();
-    const dupWarnCalls = warnsContaining(warnSpy, "duplicate adapter");
-    const loadFailCalls = warnsContaining(warnSpy, "failed to import");
+    const dupWarnCalls = discoveryWarnsContaining(warnSpy, "duplicate adapter");
+    const loadFailCalls = discoveryWarnsContaining(warnSpy, "failed to import");
     expect(dupWarnCalls.length).toBe(0);
     expect(loadFailCalls.length).toBe(0);
   });
@@ -144,7 +72,7 @@ describe("discoverAdapters", () => {
     const adapters = await discoverAdapters();
     expect(adapters).toBeInstanceOf(Map);
     expect(adapters.size).toBe(0);
-    const readdirWarns = warnsContaining(warnSpy, "discoverAdapters: failed to read");
+    const readdirWarns = discoveryWarnsContaining(warnSpy, "discoverAdapters: failed to read");
     expect(readdirWarns.length).toBe(1);
   });
 
@@ -154,7 +82,7 @@ describe("discoverAdapters", () => {
     const adapters = await discoverAdapters();
     expect(adapters.has("rss")).toBe(true);
     expect(adapters.has("nonexistent-direct-import-err-test-xyz")).toBe(false);
-    const loadFailCalls = warnsContaining(warnSpy, "failed to import");
+    const loadFailCalls = discoveryWarnsContaining(warnSpy, "failed to import");
     expect(loadFailCalls.length).toBeGreaterThanOrEqual(1);
     expect(loadFailCalls[0] ?? "").toContain(nonExistent);
   });
@@ -184,7 +112,7 @@ describe("discoverAdapters", () => {
       rejected: ["123"],
       readdir: (file: string) => readdirWithRss(file),
       setup(file: string) {
-        mockAdapterDefault(file, { name: 123, fetch: emptyFetch });
+        mockAdapterDefault(file, { name: 123, fetch: emptyAdapterFetch });
       },
     },
     {
@@ -193,7 +121,7 @@ describe("discoverAdapters", () => {
       rejected: ["   ", ""],
       readdir: (file: string) => readdirWithRss(file),
       setup(file: string) {
-        mockAdapterDefault(file, { name: "   ", fetch: emptyFetch });
+        mockAdapterDefault(file, { name: "   ", fetch: emptyAdapterFetch });
       },
     },
     {
@@ -202,7 +130,7 @@ describe("discoverAdapters", () => {
       rejected: [" padded-ngb-edge-50 ", "padded-ngb-edge-50"],
       readdir: (file: string) => readdirWithRss(file),
       setup(file: string) {
-        mockAdapterDefault(file, { name: " padded-ngb-edge-50 ", fetch: emptyFetch });
+        mockAdapterDefault(file, { name: " padded-ngb-edge-50 ", fetch: emptyAdapterFetch });
       },
     },
     {
@@ -218,7 +146,7 @@ describe("discoverAdapters", () => {
           enumerable: true,
           configurable: true,
         });
-        mockAdapterModule(file, { default: Object.assign(badFnDefault, { fetch: emptyFetch }) });
+        mockAdapterModule(file, { default: Object.assign(badFnDefault, { fetch: emptyAdapterFetch }) });
       },
     },
     {
@@ -250,7 +178,7 @@ describe("discoverAdapters", () => {
         mockAdapterDefault(file, { name: "badfetch-should-not-appear", fetch: 42 });
         mockAdapterDefault("good-adapter-edge-60.ts", {
           name: "good-adapter-ngb-60",
-          fetch: emptyFetch,
+          fetch: emptyAdapterFetch,
         });
       },
     },
@@ -264,7 +192,7 @@ describe("discoverAdapters", () => {
         mockAdapterModule(file, { default: null });
         mockAdapterDefault("good-adapter-edge-61.ts", {
           name: "good-adapter-ngb-61",
-          fetch: emptyFetch,
+          fetch: emptyAdapterFetch,
         });
       },
     },
@@ -280,11 +208,11 @@ describe("discoverAdapters", () => {
           fetch: (_config: AdapterConfig) => Promise<ContentItem[]>;
         };
         badNullProto.name = "nullproto-should-not-appear";
-        badNullProto.fetch = emptyFetch;
+        badNullProto.fetch = emptyAdapterFetch;
         mockAdapterModule(file, { default: badNullProto });
         mockAdapterDefault("good-adapter-ngb-65.ts", {
           name: "good-adapter-ngb-65",
-          fetch: emptyFetch,
+          fetch: emptyAdapterFetch,
         });
       },
     },
@@ -299,7 +227,7 @@ describe("discoverAdapters", () => {
     const dupName = "dup-adapter-edge-30";
     const f1 = "dup-edge-1-30.ts";
     const f2 = "dup-edge-2-30.ts";
-    mockAdapterDefault(f1, { name: dupName, fetch: emptyFetch });
+    mockAdapterDefault(f1, { name: dupName, fetch: emptyAdapterFetch });
     mockAdapterDefault(f2, {
       name: dupName,
       fetch: async (_config: AdapterConfig): Promise<ContentItem[]> => [
@@ -315,7 +243,7 @@ describe("discoverAdapters", () => {
     mockReaddir([f1, f2, "rss.ts", "types.ts", "index.ts", "foo.test.ts"]);
     const adapters = await discoverAdapters();
     expect(adapters.has(dupName)).toBe(true);
-    const dups = warnsContaining(warnSpy, "duplicate adapter");
+    const dups = discoveryWarnsContaining(warnSpy, "duplicate adapter");
     expect(dups.length).toBe(1);
     expect(dups[0] ?? "").toContain(dupName);
     expect(dups[0] ?? "").toContain("config source types");
@@ -330,7 +258,7 @@ describe("discoverAdapters", () => {
       setup() {
         mockAdapterDefault(".dot-direct-52-edge.ts", {
           name: "dot-should-not-appear",
-          fetch: emptyFetch,
+          fetch: emptyAdapterFetch,
         });
       },
     },
@@ -342,7 +270,7 @@ describe("discoverAdapters", () => {
       setup() {
         mockAdapterDefault("leaky-test.TEST.ts", {
           name: "leaky-test-should-not-appear",
-          fetch: emptyFetch,
+          fetch: emptyAdapterFetch,
         });
       },
     },
@@ -355,11 +283,11 @@ describe("discoverAdapters", () => {
       setup() {
         mockAdapterDefault("good-adapter-edge-72.ts", {
           name: "good-adapter-ngb-72",
-          fetch: emptyFetch,
+          fetch: emptyAdapterFetch,
         });
         mockAdapterDefault("leaky-mixed-test-ts-72-edge.TEST.TS", {
           name: "leaky-mixed-test-ts-should-not-appear",
-          fetch: emptyFetch,
+          fetch: emptyAdapterFetch,
         });
       },
     },
@@ -372,11 +300,11 @@ describe("discoverAdapters", () => {
       setup() {
         mockAdapterDefault("TYPES.TS", {
           name: "leaky-excluded-should-not-appear",
-          fetch: emptyFetch,
+          fetch: emptyAdapterFetch,
         });
         mockAdapterDefault("good-adapter-edge-55.ts", {
           name: "good-adapter-ngb-55",
-          fetch: emptyFetch,
+          fetch: emptyAdapterFetch,
         });
       },
     },
@@ -389,11 +317,11 @@ describe("discoverAdapters", () => {
       setup() {
         mockAdapterDefault("foo-direct-dts-56-edge.d.ts", {
           name: "leaky-dts-should-not-appear",
-          fetch: emptyFetch,
+          fetch: emptyAdapterFetch,
         });
         mockAdapterDefault("good-adapter-edge-56.ts", {
           name: "good-adapter-ngb-56",
-          fetch: emptyFetch,
+          fetch: emptyAdapterFetch,
         });
       },
     },
@@ -406,11 +334,11 @@ describe("discoverAdapters", () => {
       setup() {
         mockAdapterDefault("good-adapter-edge-70.ts", {
           name: "good-adapter-ngb-70",
-          fetch: emptyFetch,
+          fetch: emptyAdapterFetch,
         });
         mockAdapterDefault("leaky-mixed-dts-70-edge.D.TS", {
           name: "leaky-mixed-dts-should-not-appear",
-          fetch: emptyFetch,
+          fetch: emptyAdapterFetch,
         });
       },
     },
@@ -423,7 +351,7 @@ describe("discoverAdapters", () => {
       setup() {
         mockAdapterDefault("good-adapter-edge-57.ts", {
           name: "good-adapter-ngb-57",
-          fetch: emptyFetch,
+          fetch: emptyAdapterFetch,
         });
       },
     },
@@ -442,7 +370,7 @@ describe("discoverAdapters", () => {
       setup() {
         mockAdapterDefault("good-adapter-edge-58.ts", {
           name: "good-adapter-ngb-58",
-          fetch: emptyFetch,
+          fetch: emptyAdapterFetch,
         });
         mockReaddir(
           readdirOnly(
@@ -459,7 +387,7 @@ describe("discoverAdapters", () => {
       setup() {
         mockAdapterDefault("good-adapter-edge-59.ts", {
           name: "good-adapter-ngb-59",
-          fetch: emptyFetch,
+          fetch: emptyAdapterFetch,
         });
         mockReaddir(
           readdirOnly(
@@ -486,7 +414,7 @@ describe("discoverAdapters", () => {
       setup() {
         mockAdapterDefault("good-adapter-edge-66.ts", {
           name: "good-adapter-ngb-66",
-          fetch: emptyFetch,
+          fetch: emptyAdapterFetch,
         });
         mockReaddir([
           {
@@ -502,7 +430,7 @@ describe("discoverAdapters", () => {
             isDirectory: () => false,
             isSymbolicLink: () => false,
           },
-          ...FILTER_NOISE,
+          ...DISCOVERY_FILTER_NOISE,
         ]);
       },
     },
@@ -513,13 +441,13 @@ describe("discoverAdapters", () => {
       setup() {
         mockAdapterDefault("good-adapter-edge-73.ts", {
           name: "good-adapter-ngb-73",
-          fetch: emptyFetch,
+          fetch: emptyAdapterFetch,
         });
         mockReaddir([
           { name: "rss.ts", isFile: () => true },
           { name: "good-adapter-edge-73.ts", isFile: () => true },
           { name: "leaky-mixed-dts-73-edge.D.TS", isFile: () => true },
-          ...FILTER_NOISE.map((f) => ({ name: f, isFile: () => true })),
+          ...DISCOVERY_FILTER_NOISE.map((f) => ({ name: f, isFile: () => true })),
         ]);
       },
     },
@@ -533,12 +461,12 @@ describe("discoverAdapters", () => {
     { file: "good-mixedcase-ts-69.TS", name: "good-mixedcase-ts-69" },
     { file: "good-mixedcase-ts-dirent-71.TS", name: "good-mixedcase-ts-dirent-71", dirent: true },
   ])("accepts mixed-case TS: $file", async ({ file, name, dirent }) => {
-    mockAdapterDefault(file, { name, fetch: emptyFetch });
+    mockAdapterDefault(file, { name, fetch: emptyAdapterFetch });
     if (dirent) {
       mockReaddir([
         { name: "rss.ts", isFile: () => true },
         { name: file, isFile: () => true },
-        ...FILTER_NOISE.map((f) => ({ name: f, isFile: () => true })),
+        ...DISCOVERY_FILTER_NOISE.map((f) => ({ name: f, isFile: () => true })),
       ]);
     } else {
       mockReaddir(readdirWithRss(file));
@@ -552,7 +480,7 @@ describe("discoverAdapters", () => {
     const stringGoodName = "stringonly-good-direct-62-edge.ts";
     const stringBadName = "stringonly-badshape-direct-62-edge.ts";
     mockAdapterDefault(stringBadName, { foo: "bad shape, no name/fetch fn" });
-    mockAdapterDefault(stringGoodName, { name: "good-adapter-ngb-string-62", fetch: emptyFetch });
+    mockAdapterDefault(stringGoodName, { name: "good-adapter-ngb-string-62", fetch: emptyAdapterFetch });
     mockReaddir(readdirWithRss(stringGoodName, stringBadName));
     const adapters = await discoverAdapters();
     expect(adapters.has("good-adapter-ngb-string-62")).toBe(true);
@@ -565,7 +493,7 @@ describe("discoverAdapters", () => {
     { goodFile: "space-good-direct-64-edge.ts", goodName: "good adapter with space 64", badFile: "space-badshape-direct-64-edge.ts" },
   ])("accepts valid name variant: $goodName", async ({ goodFile, goodName, badFile }) => {
     mockAdapterDefault(badFile, { foo: "bad shape, no name/fetch fn" });
-    mockAdapterDefault(goodFile, { name: goodName, fetch: emptyFetch });
+    mockAdapterDefault(goodFile, { name: goodName, fetch: emptyAdapterFetch });
     mockReaddir(readdirWithRss(goodFile, badFile));
     const adapters = await discoverAdapters();
     expect(adapters.has(goodName)).toBe(true);
@@ -578,8 +506,8 @@ describe("discoverAdapters", () => {
     const mixedStringGoodName = "good-mixed-s67-edge.ts";
     const badMixedName = "bad-mixed-shape-67-edge.ts";
     mockAdapterDefault(badMixedName, { name: "bad-mixed-67", fetch: "not-a-fn" });
-    mockAdapterDefault(mixedDirentGoodName, { name: "good-mixed-d67", fetch: emptyFetch });
-    mockAdapterDefault(mixedStringGoodName, { name: "good-mixed-s67", fetch: emptyFetch });
+    mockAdapterDefault(mixedDirentGoodName, { name: "good-mixed-d67", fetch: emptyAdapterFetch });
+    mockAdapterDefault(mixedStringGoodName, { name: "good-mixed-s67", fetch: emptyAdapterFetch });
     const direntMixedGood = {
       name: mixedDirentGoodName,
       isFile: () => true,
@@ -592,7 +520,7 @@ describe("discoverAdapters", () => {
       badMixedName,
       "rss.ts",
       ".dot-hidden-67.ts",
-      ...FILTER_NOISE,
+      ...DISCOVERY_FILTER_NOISE,
     ]);
     const adapters = await discoverAdapters();
     expect(adapters.has("good-mixed-d67")).toBe(true);
@@ -606,14 +534,14 @@ describe("discoverAdapters", () => {
     const adapters = await discoverAdapters();
     expect(adapters).toBeInstanceOf(Map);
     expect(adapters.size).toBe(0);
-    const readdirWarns = warnsContaining(warnSpy, "non-iterable");
+    const readdirWarns = discoveryWarnsContaining(warnSpy, "non-iterable");
     expect(readdirWarns.length).toBe(1);
     expect(readdirWarns[0]).toContain("discoverAdapters:");
   });
 
   test("corrupt readdir entries skipped with warn", async () => {
     const goodName = "good-adapter-edge-74.ts";
-    mockAdapterDefault(goodName, { name: "good-adapter-ngb-74", fetch: emptyFetch });
+    mockAdapterDefault(goodName, { name: "good-adapter-ngb-74", fetch: emptyAdapterFetch });
     mockReaddir(
       readdirWithRss(
         goodName,
@@ -627,13 +555,13 @@ describe("discoverAdapters", () => {
     expect(adapters.has("good-adapter-ngb-74")).toBe(true);
     expect(adapters.has("bad-dirent-missing-isfile")).toBe(false);
     expectNoImportOrBadModWarnings(warnSpy);
-    const badEntryWarns = warnsContaining(warnSpy, "invalid readdir entry");
+    const badEntryWarns = discoveryWarnsContaining(warnSpy, "invalid readdir entry");
     expect(badEntryWarns.length).toBeGreaterThanOrEqual(1);
   });
 
   test("non-ts filenames filtered without extra warns", async () => {
     const goodName = "good-adapter-edge-75.ts";
-    mockAdapterDefault(goodName, { name: "good-adapter-ngb-75", fetch: emptyFetch });
+    mockAdapterDefault(goodName, { name: "good-adapter-ngb-75", fetch: emptyAdapterFetch });
     mockReaddir([
       "rss.ts",
       goodName,
@@ -648,7 +576,7 @@ describe("discoverAdapters", () => {
     expect(adapters.has("good-adapter-ngb-75")).toBe(true);
     expect(adapters.has("good-adapter-edge-75")).toBe(false);
     expectNoImportOrBadModWarnings(warnSpy);
-    expect(warnsContaining(warnSpy, "invalid readdir entry").length).toBe(0);
-    expect(warnsContaining(warnSpy, "duplicate adapter").length).toBe(0);
+    expect(discoveryWarnsContaining(warnSpy, "invalid readdir entry").length).toBe(0);
+    expect(discoveryWarnsContaining(warnSpy, "duplicate adapter").length).toBe(0);
   });
 });
