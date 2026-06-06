@@ -4,6 +4,7 @@ import rssAdapter from "./adapters/rss";
 import producthuntAdapter from "./adapters/producthunt";
 import { producthuntCfg, rssCfg } from "./test/adapter-cfg";
 import { useFetchMockSuite } from "./test/adapter-mocks";
+import { spyMockCallsStartingWith } from "./test/console-spy";
 import { makeErrorResponse, makeXmlResponse } from "./test/fetch-responses";
 import {
   productHuntEmptyFeedFixture,
@@ -77,8 +78,9 @@ describe("types", () => {
         expect(items[0]?.url).toBe(
           "https://www.producthunt.com/posts/test-product-123456",
         );
-        const enrichWarns = mocks.warnSpy.mock.calls.filter((c) =>
-          String(c[0]).startsWith("producthunt: failed to fetch"),
+        const enrichWarns = spyMockCallsStartingWith(
+          mocks.warnSpy,
+          "producthunt: failed to fetch",
         );
         expect(enrichWarns).toHaveLength(1);
         expect(enrichWarns[0][0]).toBe(

@@ -47,7 +47,9 @@ describe("twitter", () => {
     const items = await adapter.fetch(twitterCfg({ lists: ["l"], searches: ["s"] }));
     expect(items).toEqual([]);
     expect(mocks.warnSpy).toHaveBeenCalledTimes(1);
-    expect(mocks.warnSpy.mock.calls[0][0]).toContain("configured with 1 source(s)");
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "twitter: adapter configured with 1 source(s); Twitter API requires params.bearer_token. Returning empty results.",
+    );
   });
 
   it("blank-only lists fall through to searches", async () => {
@@ -65,6 +67,8 @@ describe("twitter", () => {
     const items = await adapter.fetch(twitterCfg({ lists: ["  u1  ", "u2"] }));
     expect(items).toEqual([]);
     expect(mocks.warnSpy).toHaveBeenCalledTimes(1);
-    expect(mocks.warnSpy.mock.calls[0][0]).toContain("configured with 2 source(s)");
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "twitter: adapter configured with 2 source(s); Twitter API requires params.bearer_token. Returning empty results.",
+    );
   });
 });

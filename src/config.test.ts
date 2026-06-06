@@ -1091,11 +1091,9 @@ layout:
       await spyConsole(["warn"], async ({ warn }) => {
         const cfg = loadConfig();
         expect(cfg.adapters[0]?.params?.urls).toEqual(["https://example.com//feed"]);
-        expect(
-          warn.mock.calls.some((c) =>
-            String(c[0]).includes(`config: env var ${unsetKey} is unset (expanding to empty)`),
-          ),
-        ).toBe(true);
+        expect(warn).toHaveBeenCalledWith(
+          `config: env var ${unsetKey} is unset (expanding to empty)`,
+        );
       });
     } finally {
       if (orig === undefined) { delete process.env[unsetKey]; } else { process.env[unsetKey] = orig; }

@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach } from "bun:test";
-import { spyConsole } from "./test/console-spy";
+import { spyConsole, spyMockCallsContaining } from "./test/console-spy";
 import { runPipeline, type TransformContext } from "./transforms";
 import { TRANSFORM_TYPES, type TransformConfig } from "./config";
 import type { ContentItemRow } from "./db";
@@ -146,8 +146,7 @@ describe("transforms - dedupe strategies", () => {
       const items = [makeRow({ url: "x" }), makeRow({ url: "x" })];
       const steps = [{ type: "dedupe", strategy: "url", log: false }];
       await runPipeline(items, steps, ctx);
-      const dedupeCalls = logSpy.mock.calls.filter((c) => String(c[0]).includes("transforms: dedupe:"));
-      expect(dedupeCalls).toHaveLength(0);
+      expect(spyMockCallsContaining(logSpy, "transforms: dedupe:")).toHaveLength(0);
     });
   });
 

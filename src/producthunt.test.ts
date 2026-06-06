@@ -4,6 +4,7 @@ import * as utilsMod from "./utils";
 import { makeErrorResponse, makeTextResponse, makeXmlResponse } from "./test/fetch-responses";
 import { invalidLimitParams, invalidMinScoreParams } from "./test/invalid-params";
 import { fetchMockCallUrl, useFetchMockSuite } from "./test/adapter-mocks";
+import { spyMockCallsContaining, spyMockCallsStartingWith } from "./test/console-spy";
 import { producthuntCfg } from "./test/adapter-cfg";
 import {
   productHuntEmptyFeedFixture,
@@ -292,11 +293,7 @@ describe("producthunt", () => {
     );
 
     expect(items.length).toBe(2);
-    expect(
-      mocks.warnSpy.mock.calls.some((c) =>
-        String(c[0]).includes("min_upvotes"),
-      ),
-    ).toBe(false);
+    expect(spyMockCallsContaining(mocks.warnSpy, "min_upvotes")).toHaveLength(0);
   });
 
   test("warns and returns [] when feed has no entries", async () => {
@@ -360,9 +357,7 @@ describe("producthunt", () => {
 
     expect(items.length).toBe(2);
     expect(items[0].body).not.toContain("upvotes");
-    const enrichWarns = mocks.warnSpy.mock.calls.filter((call) =>
-      String(call[0]).startsWith("producthunt: failed to fetch"),
-    );
+    const enrichWarns = spyMockCallsStartingWith(mocks.warnSpy, "producthunt: failed to fetch");
     expect(enrichWarns).toHaveLength(2);
     expect(enrichWarns[0][0]).toBe(
       "producthunt: failed to fetch https://www.producthunt.com/posts/test-product-123456: HTTP error 404",
@@ -381,9 +376,7 @@ describe("producthunt", () => {
     const items = await producthuntAdapter.fetch(producthuntCfg({ enrich: true }));
 
     expect(items.length).toBe(2);
-    const enrichWarns = mocks.warnSpy.mock.calls.filter((call) =>
-      String(call[0]).startsWith("producthunt: error fetching"),
-    );
+    const enrichWarns = spyMockCallsStartingWith(mocks.warnSpy, "producthunt: error fetching");
     expect(enrichWarns).toHaveLength(2);
     expect(enrichWarns[0][0]).toBe(
       "producthunt: error fetching https://www.producthunt.com/posts/test-product-123456: enrich connection refused",

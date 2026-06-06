@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import { describe, test, expect, spyOn, beforeEach, afterEach, mock } from "bun:test";
+import { spyMockCallsContaining } from "../test/console-spy";
 import { discoverAdapters } from "./index";
 import type { AdapterConfig, ContentItem } from "./types";
 
@@ -43,12 +44,12 @@ function mockAdapterDefault(file: string, adapter: Record<string, unknown>): voi
 }
 
 function warnsContaining(spy: ReturnType<typeof spyOn>, fragment: string): string[] {
-  return spy.mock.calls.map((c) => String(c[0])).filter((m) => m.includes(fragment));
+  return spyMockCallsContaining(spy, fragment).map((call) => String(call[0]));
 }
 
 function expectNoImportOrBadModWarnings(warnSpy: ReturnType<typeof spyOn>): void {
-  expect(warnsContaining(warnSpy, "failed to import").length).toBe(0);
-  expect(warnsContaining(warnSpy, "invalid default export").length).toBe(0);
+  expect(warnsContaining(warnSpy, "failed to import")).toHaveLength(0);
+  expect(warnsContaining(warnSpy, "invalid default export")).toHaveLength(0);
 }
 
 function expectAdaptersRegistered(adapters: Map<string, unknown>, names: string[]): void {

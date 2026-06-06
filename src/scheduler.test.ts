@@ -1,5 +1,5 @@
 import { describe, test, expect, spyOn } from "bun:test";
-import { spyConsole } from "./test/console-spy";
+import { spyConsole, spyMockCallsContaining } from "./test/console-spy";
 import { emptyPanelMap, sourcePanelMapFromConfig } from "./test/panel-map";
 import { installTempDbHooks } from "./test/temp-db";
 import type { Adapter } from "./adapters/types";
@@ -46,8 +46,7 @@ describe("scheduler", () => {
     await spyConsole(["log"], ({ log: logSpy }) => {
       startScheduler(baseConfig, adapters, basePanelMap, null);
       startScheduler(baseConfig, adapters, basePanelMap, null); // guard
-      const everyLogs = logSpy.mock.calls.filter((c) => String(c[0]).includes("every 60m"));
-      expect(everyLogs.length).toBe(1);
+      expect(spyMockCallsContaining(logSpy, "every 60m")).toHaveLength(1);
     });
   });
 
@@ -83,10 +82,7 @@ describe("scheduler", () => {
       const saved = dbMod.getAllItemsByPanel("panel1");
       expect(saved.length).toBe(1);
       expect(saved[0].title).toBe("GitHub Release");
-      const fetchedLog = logSpy.mock.calls.some((c) =>
-        String(c[0]).includes("fetched 1 items")
-      );
-      expect(fetchedLog).toBe(true);
+      expect(logSpy).toHaveBeenCalledWith("scheduler: testsrc — fetched 1 items");
     });
   });
 
@@ -104,10 +100,9 @@ describe("scheduler", () => {
       expect(results.length).toBe(1);
       expect(results[0].status).toBe("failed");
       expect(results[0].error).toContain("simulated fail");
-      const warned = warnSpy.mock.calls.some((c) =>
-        String(c[0]).includes("scheduler: failed to refresh errsrc:")
+      expect(warnSpy).toHaveBeenCalledWith(
+        "scheduler: failed to refresh errsrc: simulated fail",
       );
-      expect(warned).toBe(true);
     });
   });
 
@@ -136,8 +131,7 @@ describe("scheduler", () => {
       startScheduler(baseConfig, adapters, basePanelMap, null);
       stopScheduler();
       startScheduler(baseConfig, adapters, basePanelMap, null);
-      const everyLogs = logSpy.mock.calls.filter((c) => String(c[0]).includes("every 60m"));
-      expect(everyLogs.length).toBe(2);
+      expect(spyMockCallsContaining(logSpy, "every 60m")).toHaveLength(2);
     });
   });
 
@@ -208,10 +202,7 @@ describe("scheduler", () => {
       startScheduler(config, adapters, pm, null);
       await waitForAsync();
       expect(dbMod.getAllItemsByPanel("panelA").length).toBe(3);
-      const transformLog = logSpy.mock.calls.some((c) =>
-        String(c[0]).includes("src — transforms: 10 → 3 items"),
-      );
-      expect(transformLog).toBe(true);
+      expect(logSpy).toHaveBeenCalledWith("scheduler: src — transforms: 10 → 3 items");
     });
   });
 
@@ -267,17 +258,13 @@ describe("scheduler", () => {
       await spyConsole(["log"], ({ log: logSpy }) => {
         startScheduler(config, adapters, pm, null);
         expect(PIPELINE_INITIAL_DELAY_MS).toBe(5000);
-        expect(setTimeoutSpy.mock.calls.length).toBe(1);
-        expect(setTimeoutSpy.mock.calls[0][1]).toBe(5000);
-        expect(setIntervalSpy.mock.calls.length).toBe(2);
-        const hasDefaultRefreshLog = logSpy.mock.calls.some((c) =>
-          String(c[0]).includes(`every ${DEFAULT_REFRESH_INTERVAL_MIN}m`)
+        expect(setTimeoutSpy).toHaveBeenCalledTimes(1);
+        expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 5000);
+        expect(setIntervalSpy).toHaveBeenCalledTimes(2);
+        expect(logSpy).toHaveBeenCalledWith(
+          `scheduler: testsrc — every ${DEFAULT_REFRESH_INTERVAL_MIN}m`,
         );
-        expect(hasDefaultRefreshLog).toBe(true);
-        const hasPipelineEveryLog = logSpy.mock.calls.some((c) =>
-          String(c[0]).includes('pipeline "p1" — every 1m')
-        );
-        expect(hasPipelineEveryLog).toBe(true);
+        expect(logSpy).toHaveBeenCalledWith('scheduler: pipeline "p1" — every 1m');
       });
     } finally {
       setTimeoutSpy.mockRestore();
