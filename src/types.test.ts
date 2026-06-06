@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import type { Adapter, AdapterConfig } from "./adapters/types";
 import rssAdapter from "./adapters/rss";
 import producthuntAdapter from "./adapters/producthunt";
+import { producthuntCfg, rssCfg } from "./test/adapter-cfg";
 import { useFetchMockSuite } from "./test/adapter-mocks";
 import { makeErrorResponse, makeXmlResponse } from "./test/fetch-responses";
 import {
@@ -35,17 +36,14 @@ describe("types", () => {
       });
 
       test("empty urls: [] without fetch or throw", async () => {
-        const items = await rssAdapter.fetch({ type: "rss", params: { urls: [] } });
+        const items = await rssAdapter.fetch(rssCfg({ urls: [] }));
         expect(items).toEqual([]);
         expect(mocks.fetchMock).not.toHaveBeenCalled();
       });
 
       test("primary HTTP !ok: throws, not warn+[]", async () => {
         await expect(
-          rssAdapter.fetch({
-            type: "rss",
-            params: { urls: ["https://ex.com/badstatus"] },
-          }),
+          rssAdapter.fetch(rssCfg({ urls: ["https://ex.com/badstatus"] })),
         ).rejects.toThrow(/rss: failed to fetch/);
         expect(mocks.warnSpy).not.toHaveBeenCalled();
       });
@@ -54,14 +52,14 @@ describe("types", () => {
     describe("producthunt", () => {
       test("empty feed: [] with misconfiguration warn, no throw", async () => {
         mocks.fetchMock.mockResolvedValue(makeXmlResponse(productHuntEmptyFeedFixture()));
-        const items = await producthuntAdapter.fetch({ type: "producthunt" });
+        const items = await producthuntAdapter.fetch(producthuntCfg());
         expect(items).toEqual([]);
         expect(mocks.warnSpy).toHaveBeenCalledWith("producthunt: no entries found in feed");
       });
 
       test("primary feed HTTP !ok: throws, not warn+[]", async () => {
         mocks.fetchMock.mockResolvedValue(makeErrorResponse(429));
-        await expect(producthuntAdapter.fetch({ type: "producthunt" })).rejects.toThrow(
+        await expect(producthuntAdapter.fetch(producthuntCfg())).rejects.toThrow(
           /producthunt: failed to fetch feed: HTTP error 429/,
         );
         expect(mocks.warnSpy).not.toHaveBeenCalled();
@@ -74,10 +72,7 @@ describe("types", () => {
           }
           return makeErrorResponse(404);
         });
-        const items = await producthuntAdapter.fetch({
-          type: "producthunt",
-          params: { enrich: true },
-        });
+        const items = await producthuntAdapter.fetch(producthuntCfg({ enrich: true }));
         expect(items).toHaveLength(1);
         expect(items[0]?.url).toBe(
           "https://www.producthunt.com/posts/test-product-123456",
