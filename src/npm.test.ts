@@ -1,6 +1,7 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import npmAdapter, { resolveNpmSort } from "./adapters/npm";
 import * as utilsMod from "./utils";
+import { npmCfg } from "./test/adapter-cfg";
 import { useFetchMockSuite } from "./test/adapter-mocks";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { invalidLimitParams } from "./test/invalid-params";
@@ -30,7 +31,7 @@ describe("resolveNpmSort", () => {
 
 describe("npm", () => {
   test("returns empty list and warns when no keywords or scope", async () => {
-    const items = await npmAdapter.fetch({ type: "npm", params: {} });
+    const items = await npmAdapter.fetch(npmCfg());
 
     expect(items).toEqual([]);
     expect(mocks.warnSpy).toHaveBeenCalledWith("npm: no keywords or scope configured");
@@ -38,10 +39,9 @@ describe("npm", () => {
   });
 
   test("returns empty list and warns when keywords and scope are only blank strings", async () => {
-    const items = await npmAdapter.fetch({
-      type: "npm",
-      params: { keywords: ["", "  "], scope: "  " },
-    });
+    const items = await npmAdapter.fetch(
+      npmCfg({ keywords: ["", "  "], scope: "  " }),
+    );
 
     expect(items).toEqual([]);
     expect(mocks.warnSpy).toHaveBeenCalledWith("npm: no keywords or scope configured");
@@ -53,10 +53,9 @@ describe("npm", () => {
       makeJsonResponse(makeSearchResponse([makePackageResult()])),
     );
 
-    await npmAdapter.fetch({
-      type: "npm",
-      params: { keywords: ["  typescript  ", ""], scope: "  types  " },
-    });
+    await npmAdapter.fetch(
+      npmCfg({ keywords: ["  typescript  ", ""], scope: "  types  " }),
+    );
 
     const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
     expect(calledUrl).toContain("text=scope%3Atypes+typescript");
@@ -69,10 +68,9 @@ describe("npm", () => {
       makeJsonResponse(makeSearchResponse([pkg])),
     );
 
-    const items = await npmAdapter.fetch({
-      type: "npm",
-      params: { keywords: ["typescript", "cli"] },
-    });
+    const items = await npmAdapter.fetch(
+      npmCfg({ keywords: ["typescript", "cli"] }),
+    );
 
     expect(items).toHaveLength(1);
     expect(items[0]).toMatchObject({
@@ -96,10 +94,7 @@ describe("npm", () => {
       makeJsonResponse(makeSearchResponse([makePackageResult()])),
     );
 
-    await npmAdapter.fetch({
-      type: "npm",
-      params: { scope: "types", keywords: ["react"] },
-    });
+    await npmAdapter.fetch(npmCfg({ scope: "types", keywords: ["react"] }));
 
     const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
     expect(calledUrl).toContain("text=scope%3Atypes+react");
@@ -110,10 +105,7 @@ describe("npm", () => {
       makeJsonResponse(makeSearchResponse([makePackageResult()])),
     );
 
-    const items = await npmAdapter.fetch({
-      type: "npm",
-      params: { scope: "anthropic" },
-    });
+    const items = await npmAdapter.fetch(npmCfg({ scope: "anthropic" }));
 
     expect(items).toHaveLength(1);
     expect(items[0].source).toBe("npm:@anthropic");
@@ -124,10 +116,7 @@ describe("npm", () => {
       makeJsonResponse(makeSearchResponse([])),
     );
 
-    await npmAdapter.fetch({
-      type: "npm",
-      params: { keywords: ["react"], sort: "popularity" },
-    });
+    await npmAdapter.fetch(npmCfg({ keywords: ["react"], sort: "popularity" }));
 
     const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
     expect(calledUrl).toContain("popularity=1.0");
@@ -140,10 +129,7 @@ describe("npm", () => {
       makeJsonResponse(makeSearchResponse([])),
     );
 
-    await npmAdapter.fetch({
-      type: "npm",
-      params: { keywords: ["react"], sort: "quality" },
-    });
+    await npmAdapter.fetch(npmCfg({ keywords: ["react"], sort: "quality" }));
 
     const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
     expect(calledUrl).toContain("quality=1.0");
@@ -155,10 +141,7 @@ describe("npm", () => {
       makeJsonResponse(makeSearchResponse([])),
     );
 
-    await npmAdapter.fetch({
-      type: "npm",
-      params: { keywords: ["react"], sort: "maintenance" },
-    });
+    await npmAdapter.fetch(npmCfg({ keywords: ["react"], sort: "maintenance" }));
 
     const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
     expect(calledUrl).toContain("maintenance=1.0");
@@ -171,10 +154,7 @@ describe("npm", () => {
       makeJsonResponse(makeSearchResponse([])),
     );
 
-    await npmAdapter.fetch({
-      type: "npm",
-      params: { keywords: ["react"], sort: "invalid" },
-    });
+    await npmAdapter.fetch(npmCfg({ keywords: ["react"], sort: "invalid" }));
 
     const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
     expect(calledUrl).not.toContain("quality=");
@@ -189,10 +169,7 @@ describe("npm", () => {
         makeJsonResponse(makeSearchResponse([])),
       );
 
-      await npmAdapter.fetch({
-        type: "npm",
-        params: { keywords: ["test"], limit },
-      });
+      await npmAdapter.fetch(npmCfg({ keywords: ["test"], limit }));
 
       const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
       expect(calledUrl).toContain("size=20");
@@ -204,10 +181,7 @@ describe("npm", () => {
       makeJsonResponse(makeSearchResponse([])),
     );
 
-    await npmAdapter.fetch({
-      type: "npm",
-      params: { keywords: ["test"], limit: 7.9 },
-    });
+    await npmAdapter.fetch(npmCfg({ keywords: ["test"], limit: 7.9 }));
 
     const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
     expect(calledUrl).toContain("size=7");
@@ -218,10 +192,7 @@ describe("npm", () => {
       makeJsonResponse(makeSearchResponse([])),
     );
 
-    await npmAdapter.fetch({
-      type: "npm",
-      params: { keywords: ["test"], limit: 5 },
-    });
+    await npmAdapter.fetch(npmCfg({ keywords: ["test"], limit: 5 }));
 
     const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
     expect(calledUrl).toContain("size=5");
@@ -232,10 +203,7 @@ describe("npm", () => {
       makeJsonResponse(makeSearchResponse([])),
     );
 
-    await npmAdapter.fetch({
-      type: "npm",
-      params: { keywords: ["test"], limit: 200 },
-    });
+    await npmAdapter.fetch(npmCfg({ keywords: ["test"], limit: 200 }));
 
     const calledUrl = String(mocks.fetchMock.mock.calls[0][0]);
     expect(calledUrl).toContain("size=50");
@@ -255,10 +223,7 @@ describe("npm", () => {
       makeJsonResponse(makeSearchResponse([pkg])),
     );
 
-    const items = await npmAdapter.fetch({
-      type: "npm",
-      params: { keywords: ["react"] },
-    });
+    const items = await npmAdapter.fetch(npmCfg({ keywords: ["react"] }));
 
     expect(items[0].body).toContain("tags: react, hooks, state, typescript, ui");
     expect(items[0].body).not.toContain("extra");
@@ -276,10 +241,7 @@ describe("npm", () => {
       makeJsonResponse(makeSearchResponse([pkg])),
     );
 
-    const items = await npmAdapter.fetch({
-      type: "npm",
-      params: { keywords: ["test"] },
-    });
+    const items = await npmAdapter.fetch(npmCfg({ keywords: ["test"] }));
 
     expect(items[0].title).toBe("pkg&name | A & B € toolkit");
     expect(items[0].title).not.toContain("&amp;");
@@ -299,10 +261,7 @@ describe("npm", () => {
       makeJsonResponse(makeSearchResponse([pkg])),
     );
 
-    const items = await npmAdapter.fetch({
-      type: "npm",
-      params: { keywords: ["bare"] },
-    });
+    const items = await npmAdapter.fetch(npmCfg({ keywords: ["bare"] }));
 
     expect(items).toHaveLength(1);
     expect(items[0].title).toBe("test-package");
@@ -315,7 +274,7 @@ describe("npm", () => {
     mocks.fetchMock.mockResolvedValue(makeErrorResponse(429));
 
     await expect(
-      npmAdapter.fetch({ type: "npm", params: { keywords: ["test"] } }),
+      npmAdapter.fetch(npmCfg({ keywords: ["test"] })),
     ).rejects.toThrow("npm:");
   });
 
@@ -323,7 +282,7 @@ describe("npm", () => {
     mocks.fetchMock.mockRejectedValue(new Error("ECONNREFUSED"));
 
     await expect(
-      npmAdapter.fetch({ type: "npm", params: { keywords: ["test"] } }),
+      npmAdapter.fetch(npmCfg({ keywords: ["test"] })),
     ).rejects.toThrow("npm:");
   });
 
@@ -332,7 +291,7 @@ describe("npm", () => {
     try {
       mocks.fetchMock.mockResolvedValue(makeErrorResponse(429));
       await expect(
-        npmAdapter.fetch({ type: "npm", params: { keywords: ["test"] } }),
+        npmAdapter.fetch(npmCfg({ keywords: ["test"] })),
       ).rejects.toThrow("npm:");
       expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 429" });
 
@@ -340,7 +299,7 @@ describe("npm", () => {
 
       mocks.fetchMock.mockRejectedValue(new Error("ECONNREFUSED"));
       await expect(
-        npmAdapter.fetch({ type: "npm", params: { keywords: ["test"] } }),
+        npmAdapter.fetch(npmCfg({ keywords: ["test"] })),
       ).rejects.toThrow("npm:");
       expect(emSpy).toHaveBeenCalled();
     } finally {
