@@ -5,6 +5,7 @@ import { startScheduler, refreshSources } from "./scheduler";
 import { isPanel } from "./config";
 import type { PanelConfig } from "./config";
 import { DOMAIN_TEST_LAYOUT, testAppConfig } from "./test/app-config";
+import { makeContentItem } from "./test/content-items";
 import { sourcePanelMapFromConfig } from "./test/panel-map";
 
 describe("domain", () => {
@@ -30,29 +31,29 @@ describe("domain", () => {
     const tsOld = "2024-01-01T00:00:00.000Z";
     const tsNew = "2024-06-01T00:00:00.000Z";
     saveItems("feedA", [
-      {
+      makeContentItem({
         id: "a1",
         title: "Dup story (old)",
         url: "https://news.example/dup",
         source: "feedA",
         timestamp: new Date(tsOld),
-      },
+      }),
     ]);
     saveItems("feedB", [
-      {
+      makeContentItem({
         id: "b1",
         title: "Dup story (new)",
         url: "https://news.example/dup",
         source: "feedB",
         timestamp: new Date(tsNew),
-      },
-      {
+      }),
+      makeContentItem({
         id: "b2",
         title: "Unique",
         url: "https://news.example/unique",
         source: "feedB",
         timestamp: new Date(tsNew),
-      },
+      }),
     ]);
     const config = testAppConfig(
       {
