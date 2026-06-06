@@ -14,6 +14,7 @@ import {
   readdirWithRss,
 } from "../test/adapter-discovery-mocks";
 import { discoverAdapters } from "./index";
+import { ADAPTER_TYPES } from "./params";
 import type { AdapterConfig, ContentItem } from "./types";
 
 describe("discoverAdapters", () => {
@@ -32,24 +33,8 @@ describe("discoverAdapters", () => {
   test("discovers adapters as Map with name and fetch", async () => {
     const adapters = await discoverAdapters();
     expect(adapters).toBeInstanceOf(Map);
-    expect(adapters.size).toBeGreaterThanOrEqual(10);
-    const expectedNames = [
-      "devto",
-      "hackernews",
-      "youtube",
-      "podcast",
-      "rss",
-      "stackexchange",
-      "github-releases",
-      "producthunt",
-      "lobsters",
-      "mastodon",
-      "reddit",
-      "arxiv",
-      "github",
-      "twitter",
-    ];
-    for (const name of expectedNames) {
+    expect(adapters.size).toBe(ADAPTER_TYPES.length);
+    for (const name of ADAPTER_TYPES) {
       expect(adapters.has(name)).toBe(true);
       const adapter = adapters.get(name)!;
       expect(adapter.name).toBe(name);
@@ -59,12 +44,14 @@ describe("discoverAdapters", () => {
     expect(adapters.has("index")).toBe(false);
   });
 
-  test("normal discovery has no dup or load-fail warnings", async () => {
+  test("normal discovery has no dup, load-fail, or support-module warnings", async () => {
     await discoverAdapters();
     const dupWarnCalls = discoveryWarnsContaining(warnSpy, "duplicate adapter");
     const loadFailCalls = discoveryWarnsContaining(warnSpy, "failed to import");
+    const invalidExportCalls = discoveryWarnsContaining(warnSpy, "invalid default export");
     expect(dupWarnCalls.length).toBe(0);
     expect(loadFailCalls.length).toBe(0);
+    expect(invalidExportCalls.length).toBe(0);
   });
 
   test("readdir failure returns empty Map and warns", async () => {

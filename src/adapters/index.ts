@@ -5,6 +5,19 @@ import { errorMessage } from "../utils";
 import type { Adapter } from "./types";
 
 const EXCLUDED = new Set(["types.ts", "index.ts"]);
+/** Shared modules co-located with adapters; not default-export adapters. */
+const ADAPTER_SUPPORT_MODULES = new Set([
+  "atom.ts",
+  "dates.ts",
+  "engagement.ts",
+  "fetch.ts",
+  "github-repo-meta.ts",
+  "github-shared.ts",
+  "html.ts",
+  "merge.ts",
+  "params.ts",
+  "title.ts",
+]);
 const ADAPTERS_DIR = import.meta.dir;
 
 function warnDiscover(detail: string): void {
@@ -16,6 +29,7 @@ function isAdapterSourceFile(name: string): boolean {
   if (name.startsWith(".") || EXCLUDED.has(lower)) return false;
   if (!lower.endsWith(".ts")) return false;
   if (lower.endsWith(".test.ts") || lower.endsWith(".d.ts")) return false;
+  if (ADAPTER_SUPPORT_MODULES.has(lower)) return false;
   return true;
 }
 
