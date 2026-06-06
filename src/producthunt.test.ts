@@ -316,17 +316,8 @@ describe("producthunt", () => {
       producthuntAdapter.fetch(producthuntCfg()),
     ).rejects.toThrow(/producthunt: failed to fetch feed: HTTP error 429/);
 
-    const hasStatusObjCall = emSpy.mock.calls.some((call: unknown[]) => {
-      const arg = call[0];
-      return (
-        arg &&
-        typeof arg === "object" &&
-        arg !== null &&
-        "message" in arg &&
-        String((arg as { message: string }).message) === "HTTP error 429"
-      );
-    });
-    expect(hasStatusObjCall).toBe(true);
+    expect(emSpy).toHaveBeenCalledTimes(1);
+    expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 429" });
     emSpy.mockRestore();
   });
 

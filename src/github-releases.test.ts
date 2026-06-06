@@ -193,14 +193,13 @@ describe("github-releases", () => {
 
   test("errorMessage on !ok", async () => {
     const emSpy = spyOn(utilsMod, "errorMessage");
-    const callsBefore = emSpy.mock.calls.length;
     mocks.fetchMock.mockResolvedValue(makeErrorResponse(404));
 
     await expect(
       githubReleasesAdapter.fetch(githubReleasesCfg({ repos: ["missing/repo"] })),
     ).rejects.toThrow(/^github-releases: failed to fetch missing\/repo: HTTP error 404$/);
 
-    expect(emSpy.mock.calls.length - callsBefore).toBe(1);
+    expect(emSpy).toHaveBeenCalledTimes(1);
     emSpy.mockRestore();
   });
 });

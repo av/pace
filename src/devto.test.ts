@@ -4,7 +4,7 @@ import * as utilsMod from "./utils";
 import { fetchMockCalls, useFetchMockSuite } from "./test/adapter-mocks";
 import { devtoCfg } from "./test/adapter-cfg";
 import { devtoDefaultFetchMock, makeDevToArticle } from "./test/devto-fixtures";
-import { makeJsonResponse } from "./test/fetch-responses";
+import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { invalidLimitParams, invalidMinScoreParams } from "./test/invalid-params";
 
 const mocks = useFetchMockSuite();
@@ -270,18 +270,14 @@ describe("devto", () => {
 
   test("errorMessage on !ok", async () => {
     const emSpy = spyOn(utilsMod, "errorMessage");
-    const callsBefore = emSpy.mock.calls.length;
 
-    mocks.fetchMock.mockImplementation(async () => ({
-      ok: false,
-      status: 403,
-    }));
+    mocks.fetchMock.mockResolvedValue(makeErrorResponse(403));
 
     await expect(devtoAdapter.fetch(devtoCfg({ tags: ["javascript"] }))).rejects.toThrow(
       'devto: failed to fetch tag "javascript": HTTP error 403',
     );
 
-    expect(emSpy.mock.calls.length - callsBefore).toBe(1);
+    expect(emSpy).toHaveBeenCalledTimes(1);
     expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 403" });
     emSpy.mockRestore();
   });

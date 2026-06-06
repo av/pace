@@ -1,3 +1,5 @@
+import { makeXmlResponse } from "./fetch-responses";
+
 export type RssItemFixture = {
   title: string;
   link?: string;
@@ -208,4 +210,22 @@ export function rssNoChannelTitleFeedFixture(): string {
 export function rssEmptyChannelFixture(): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0"><channel><title>Empty</title></channel></rss>`;
+}
+
+/** Default rss.test.ts fetch routing by URL substring. */
+export function rssDefaultFetchImpl(input: RequestInfo | URL): Promise<Response> {
+  const url = String(input);
+  if (url.includes("atom")) {
+    return Promise.resolve(makeXmlResponse(atomFeedFixture()));
+  }
+  if (url.includes("mixed")) {
+    return Promise.resolve(makeXmlResponse(rssMixedLinkFeedFixture()));
+  }
+  if (url.includes("badstatus")) {
+    return Promise.resolve(makeXmlResponse("", 404));
+  }
+  if (url.includes("badparse")) {
+    return Promise.resolve(makeXmlResponse("<?xml><invalid>not closed"));
+  }
+  return Promise.resolve(makeXmlResponse(rssTwoItemFeedFixture()));
 }

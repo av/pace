@@ -338,7 +338,7 @@ describe("lemmy", () => {
       mocks.fetchMock.mockRejectedValue(new Error("connection refused"));
       await expect(lemmyAdapter.fetch(lemmyCfg())).rejects.toThrow("lemmy:");
 
-      expect(emSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
+      expect(emSpy).toHaveBeenCalledTimes(2);
       expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 500" });
     } finally {
       emSpy.mockRestore();

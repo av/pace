@@ -6,10 +6,9 @@ import { rssCfg } from "./test/adapter-cfg";
 import { makeXmlResponse } from "./test/fetch-responses";
 import {
   atomEntityTitlesFeedFixture,
-  atomFeedFixture,
+  rssDefaultFetchImpl,
   rssEntityTitlesFeedFixture,
   rssHtmlBodyFeedFixture,
-  rssMixedLinkFeedFixture,
   rssNoChannelTitleFeedFixture,
   rssOverlapFeedFixture,
   rssTwoItemFeedFixture,
@@ -17,27 +16,9 @@ import {
 
 const mocks = useFetchMockSuite();
 
-
-function defaultFetchImpl(input: RequestInfo | URL): Promise<Response> {
-  const url = String(input);
-  if (url.includes("atom")) {
-    return Promise.resolve(makeXmlResponse(atomFeedFixture()));
-  }
-  if (url.includes("mixed")) {
-    return Promise.resolve(makeXmlResponse(rssMixedLinkFeedFixture()));
-  }
-  if (url.includes("badstatus")) {
-    return Promise.resolve(makeXmlResponse("", 404));
-  }
-  if (url.includes("badparse")) {
-    return Promise.resolve(makeXmlResponse("<?xml><invalid>not closed"));
-  }
-  return Promise.resolve(makeXmlResponse(rssTwoItemFeedFixture()));
-}
-
 describe("rss", () => {
   beforeEach(() => {
-    mocks.fetchMock.mockImplementation(defaultFetchImpl);
+    mocks.fetchMock.mockImplementation(rssDefaultFetchImpl);
   });
 
   test("returns [] and no fetch when no urls configured", async () => {
@@ -109,7 +90,7 @@ describe("rss", () => {
       if (url.includes("entity")) {
         return makeXmlResponse(rssEntityTitlesFeedFixture());
       }
-      return defaultFetchImpl(input);
+      return rssDefaultFetchImpl(input);
     });
 
     const rssItems = await rssAdapter.fetch(rssCfg({ urls: ["https://ex.com/entity"] }));

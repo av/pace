@@ -451,7 +451,7 @@ describe("github", () => {
       await expect(adapter.fetch(githubCfg({ mode: "trending" }))).rejects.toThrow(
         /github: error fetching trending/,
       );
-      expect(emSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
+      expect(emSpy).toHaveBeenCalledTimes(2);
     } finally {
       emSpy.mockRestore();
     }

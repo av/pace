@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { spawnSync, spawn, type SpawnSyncReturns, type ChildProcess } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
+import { runCli } from "./test/cli-runner";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import os from "node:os";
@@ -13,15 +14,6 @@ import {
 } from "./cli-help";
 
 const cliHelpStdout = () => formatCliHelp(readPackageVersion()) + "\n";
-
-function runCli(args: string[]): SpawnSyncReturns<string> {
-  return spawnSync(process.execPath, ["src/cli.ts", ...args], {
-    encoding: "utf8",
-    stdio: "pipe",
-    cwd: process.cwd(),
-    env: { ...process.env, PACE_DB_PATH: "/tmp/pace-cli-test.db" },
-  });
-}
 
 describe("cli-help", () => {
   test("isCliFatalStartupError matches config/scheduler/index prefixes", () => {

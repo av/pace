@@ -10,11 +10,10 @@ import {
   lensItems,
   formatContentItemForLlm,
 } from "./llm";
-import type { Model, Api, Context } from "@mariozechner/pi-ai";
 import * as piAi from "@mariozechner/pi-ai";
 import { makeContentItem as makeItem } from "./test/content-items";
 
-const fakeThrowingModel = { id: "fake" } as Model<Api>;
+const fakeThrowingModel = { id: "fake" } as piAi.Model<piAi.Api>;
 
 describe("llm", () => {
   describe("stripJsonCodeFences", () => {
@@ -120,7 +119,7 @@ describe("llm", () => {
 
   describe("safeComplete", () => {
     test("complete error returns null", async () => {
-      const ctx: Context = {
+      const ctx: piAi.Context = {
         systemPrompt: "test",
         messages: [{ role: "user", content: "hi", timestamp: Date.now() }],
       };
@@ -130,7 +129,7 @@ describe("llm", () => {
 
     test("warns on complete failure", async () => {
       await spyConsole(["warn"], async ({ warn: warnSpy }) => {
-        const ctx: Context = {
+        const ctx: piAi.Context = {
           systemPrompt: "test",
           messages: [{ role: "user", content: "hi", timestamp: Date.now() }],
         };
@@ -144,7 +143,7 @@ describe("llm", () => {
     });
 
     test("empty context returns null", async () => {
-      const ctx: Context = {
+      const ctx: piAi.Context = {
         systemPrompt: "",
         messages: [{ role: "user", content: "", timestamp: Date.now() }],
       };
@@ -229,7 +228,7 @@ describe("llm", () => {
       const item = makeItem({ title: "Null Model Test" });
       const res = await summarizeItem(null, item);
       expect(res).toBe(null);
-      expect(completeSpy.mock.calls.length).toBe(0);
+      expect(completeSpy).not.toHaveBeenCalled();
       completeSpy.mockRestore();
     });
 
@@ -238,7 +237,7 @@ describe("llm", () => {
       const items = [makeItem({ id: "n1" }), makeItem({ id: "n2" })];
       const res = await mergeItems(null, items);
       expect(res).toEqual(items);
-      expect(completeSpy.mock.calls.length).toBe(0);
+      expect(completeSpy).not.toHaveBeenCalled();
       completeSpy.mockRestore();
     });
 
@@ -247,7 +246,7 @@ describe("llm", () => {
       const items = [makeItem({ id: "f1" })];
       const res = await filterItemsByLlm(null, items, "keep all");
       expect(res).toEqual(items);
-      expect(completeSpy.mock.calls.length).toBe(0);
+      expect(completeSpy).not.toHaveBeenCalled();
       completeSpy.mockRestore();
     });
 
@@ -256,7 +255,7 @@ describe("llm", () => {
       const items = [makeItem({ id: "l1" })];
       const res = await lensItems(null, items, ["interest"]);
       expect(res).toEqual(items);
-      expect(completeSpy.mock.calls.length).toBe(0);
+      expect(completeSpy).not.toHaveBeenCalled();
       completeSpy.mockRestore();
     });
   });

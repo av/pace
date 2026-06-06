@@ -321,7 +321,7 @@ describe("stackexchange", () => {
         stackexchangeAdapter.fetch(seCfg({ site: "bad.site" })),
       ).rejects.toThrow(/connection refused/);
 
-      expect(emSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
+      expect(emSpy).toHaveBeenCalledTimes(2);
       expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 429" });
     } finally {
       emSpy.mockRestore();

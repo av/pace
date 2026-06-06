@@ -529,7 +529,7 @@ describe("wikipedia", () => {
 
       mocks.fetchMock.mockRejectedValue(new Error("DNS resolution failed"));
       await expect(wikipediaAdapter.fetch(wikiCfg())).rejects.toThrow("wikipedia:");
-      expect(emSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
+      expect(emSpy).toHaveBeenCalledTimes(2);
     } finally {
       emSpy.mockRestore();
     }
