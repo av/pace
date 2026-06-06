@@ -3,7 +3,6 @@ import {
   capText,
   joinTitle,
   joinTitleWithTagline,
-  truncateForTitle,
   truncateText,
 } from "./adapters/title";
 
@@ -28,6 +27,16 @@ describe("capText", () => {
 });
 
 describe("truncateText", () => {
+  test("leaves short text unchanged", () => {
+    expect(truncateText("hello", 100)).toBe("hello");
+  });
+
+  test("truncates with default ellipsis", () => {
+    const long = "x".repeat(120);
+    expect(truncateText(long, 100).length).toBe(100);
+    expect(truncateText(long, 100).endsWith("…")).toBe(true);
+  });
+
   test("exclusive mode appends ASCII ellipsis after content max", () => {
     const long = "word ".repeat(120).trim();
     const truncated = truncateText(long, 300, {
@@ -38,18 +47,6 @@ describe("truncateText", () => {
     expect(truncated.endsWith("...")).toBe(true);
     expect(truncated.length).toBeLessThanOrEqual(303);
     expect(truncated).not.toBe(long);
-  });
-});
-
-describe("truncateForTitle", () => {
-  test("leaves short text unchanged", () => {
-    expect(truncateForTitle("hello")).toBe("hello");
-  });
-
-  test("truncates with ellipsis", () => {
-    const long = "x".repeat(120);
-    expect(truncateForTitle(long, 100).length).toBe(100);
-    expect(truncateForTitle(long, 100).endsWith("…")).toBe(true);
   });
 });
 

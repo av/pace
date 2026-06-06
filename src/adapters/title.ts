@@ -36,10 +36,6 @@ export function truncateText(
   return `${slice}${ellipsis}`;
 }
 
-export function truncateForTitle(text: string, max = 100): string {
-  return truncateText(text, max);
-}
-
 /** Join primary with optional truncated tagline and more title segments. */
 export function joinTitleWithTagline(
   primary: string,
@@ -49,7 +45,7 @@ export function joinTitleWithTagline(
 ): string {
   const parts: (string | undefined | null)[] = [primary];
   const t = (tagline ?? "").trim();
-  if (t) parts.push(maxTagline > 0 ? truncateForTitle(t, maxTagline) : t);
+  if (t) parts.push(maxTagline > 0 ? truncateText(t, maxTagline) : t);
   parts.push(...extra);
   return joinTitle(...parts);
 }
