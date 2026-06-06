@@ -10,7 +10,7 @@
 
 ## validation
 - label: layout panel source objects accept only adapter and params; refresh_interval on layout.source is rejected with config: error directing users to adapters[]
-  command: grep -q 'refresh_interval belongs on adapters' src/config.ts && grep -q 'is not a valid source field' src/config.ts && ! grep -q 'not panel source' src/config.ts && ! grep -A5 'export interface SourceConfig' src/config.ts | grep -q 'refresh_interval?:' && grep -q 'rejects refresh_interval on panel source object' src/config.test.ts
+  command: grep -q 'refresh_interval belongs on adapters' src/config.ts && grep -q 'is not a valid source field' src/config-validate.ts && ! grep -q 'not panel source' src/config.ts && ! grep -A5 'export interface SourceConfig' src/config.ts | grep -q 'refresh_interval?:' && grep -q 'rejects refresh_interval on panel source object' src/config.test.ts
   tags: [spec, implemented]
 
 # adapters

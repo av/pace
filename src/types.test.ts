@@ -25,6 +25,11 @@ describe("types", () => {
       expect(await adapter.fetch({ type: "stub" })).toEqual([]);
     });
 
+    test("refresh_interval is ingest-only (IngestAdapterConfig), not on fetch contract", () => {
+      const cfg: AdapterConfig = { type: "rss", params: { urls: ["https://ex.com/feed"] } };
+      expect("refresh_interval" in cfg).toBe(false);
+    });
+
     describe("rss", () => {
       beforeEach(() => {
         mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
