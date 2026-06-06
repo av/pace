@@ -3,6 +3,7 @@ import devtoAdapter, { resolveDevToPeriod } from "./adapters/devto";
 import * as utilsMod from "./utils";
 import { useFetchMockSuite } from "./test/adapter-mocks";
 import { devtoCfg } from "./test/adapter-cfg";
+import { devtoDefaultFetchMock, makeDevToArticle } from "./test/devto-fixtures";
 import { makeJsonResponse } from "./test/fetch-responses";
 import { invalidLimitParams, invalidMinScoreParams } from "./test/invalid-params";
 
@@ -13,65 +14,6 @@ function devtoFetchCalls(): Array<{ url: string; init?: RequestInit }> {
     url: String(c[0]),
     init: c[1] as RequestInit | undefined,
   }));
-}
-
-async function devtoDefaultFetchMock(
-  input: RequestInfo | URL,
-  init?: RequestInit,
-): Promise<Response> {
-  const url = String(input);
-  if (url.includes("username=testuser")) {
-    return makeJsonResponse([
-      {
-        id: 101,
-        title: "User Article",
-        url: "https://dev.to/testuser/article1",
-        description: "A user post",
-        published_at: "2024-01-15T10:00:00Z",
-        reading_time_minutes: 5,
-        positive_reactions_count: 42,
-        comments_count: 3,
-        user: { username: "testuser", name: "Test User" },
-        tag_list: ["typescript"],
-        cover_image: "https://example.com/cover.jpg",
-      },
-    ]);
-  }
-  if (url.includes("tag=typescript")) {
-    return makeJsonResponse([
-      {
-        id: 201,
-        title: "Tag Article One",
-        url: "https://dev.to/tag1",
-        description: "Tag post 1",
-        published_at: "2024-01-16T12:00:00Z",
-        reading_time_minutes: 8,
-        positive_reactions_count: 100,
-        comments_count: 10,
-        user: { username: "other", name: "Other" },
-        tag_list: ["typescript", "bun"],
-        cover_image: null,
-      },
-    ]);
-  }
-  if (url.includes("tag=react")) {
-    return makeJsonResponse([
-      {
-        id: 301,
-        title: "React Post",
-        url: "https://dev.to/react",
-        description: "",
-        published_at: "2024-01-17T00:00:00Z",
-        reading_time_minutes: 12,
-        positive_reactions_count: 7,
-        comments_count: 1,
-        user: { username: "dev", name: "Dev" },
-        tag_list: ["react"],
-        cover_image: null,
-      },
-    ]);
-  }
-  return makeJsonResponse([]);
 }
 
 describe("resolveDevToPeriod", () => {
@@ -163,19 +105,15 @@ describe("devto", () => {
       const url = String(input);
       if (url.includes("tag=javascript")) {
         return makeJsonResponse([
-          {
-            id: 401,
+          makeDevToArticle(401, {
             title: "A &amp; B &#8364; C",
             url: "https://dev.to/j/article",
-            description: "",
-            published_at: "2024-01-18T00:00:00Z",
             reading_time_minutes: 3,
             positive_reactions_count: 1,
             comments_count: 0,
             user: { username: "j", name: "J" },
             tag_list: ["javascript"],
-            cover_image: null,
-          },
+          }),
         ]);
       }
       return devtoDefaultFetchMock(input);
@@ -229,32 +167,24 @@ describe("devto", () => {
         const url = String(input);
         if (url.includes("tag=typescript")) {
           return makeJsonResponse([
-            {
-              id: 601,
+            makeDevToArticle(601, {
               title: "Low Reactions",
               url: "https://dev.to/low",
-              description: "",
               published_at: "2024-01-20T00:00:00Z",
               reading_time_minutes: 1,
               positive_reactions_count: 5,
               comments_count: 0,
               user: { username: "low", name: "Low" },
-              tag_list: ["typescript"],
-              cover_image: null,
-            },
-            {
-              id: 602,
+            }),
+            makeDevToArticle(602, {
               title: "High Reactions",
               url: "https://dev.to/high",
-              description: "",
               published_at: "2024-01-21T00:00:00Z",
               reading_time_minutes: 1,
               positive_reactions_count: 100,
               comments_count: 0,
               user: { username: "high", name: "High" },
-              tag_list: ["typescript"],
-              cover_image: null,
-            },
+            }),
           ]);
         }
         return makeJsonResponse([]);
@@ -310,19 +240,16 @@ describe("devto", () => {
       const url = String(input);
       if (url.includes("tag=javascript")) {
         return makeJsonResponse([
-          {
-            id: 501,
+          makeDevToArticle(501, {
             title: "Trimmed Tag",
             url: "https://dev.to/trim",
-            description: "",
             published_at: "2024-01-19T00:00:00Z",
             reading_time_minutes: 1,
             positive_reactions_count: 1,
             comments_count: 0,
             user: { username: "t", name: "T" },
             tag_list: ["javascript"],
-            cover_image: null,
-          },
+          }),
         ]);
       }
       return devtoDefaultFetchMock(input);
