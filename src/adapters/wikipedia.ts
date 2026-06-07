@@ -12,9 +12,8 @@ import {
   normalizeParamStringList,
   normalizeStringList,
   createAliasedResolver,
-  sliceToLimit,
 } from "../utils";
-import { dedupeByKey } from "./merge";
+import { finalizeFetchedItems } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 type Mode = "most_read" | "featured" | "on_this_day" | "news";
@@ -114,7 +113,7 @@ async function fetchFeaturedFeed(
 function extractMostRead(data: WikiFeaturedResponse, limit: number): ContentItem[] {
   const articles = data.mostread?.articles ?? [];
   return mapToContentItems(
-    sliceToLimit(articles, limit),
+    finalizeFetchedItems(articles, { limit }),
     wikipediaSourceLabel("most_read"),
     (article) => ({
       id: `wikipedia:mostread:${article.title}`,
@@ -141,7 +140,7 @@ function extractFeatured(data: WikiFeaturedResponse): ContentItem[] {
 function extractOnThisDay(data: WikiFeaturedResponse, limit: number): ContentItem[] {
   const events = data.onthisday ?? [];
   return mapToContentItems(
-    sliceToLimit(events, limit),
+    finalizeFetchedItems(events, { limit }),
     wikipediaSourceLabel("on_this_day"),
     (event) => {
       const page = event.pages?.[0];
@@ -163,7 +162,7 @@ function extractOnThisDay(data: WikiFeaturedResponse, limit: number): ContentIte
 function extractNews(data: WikiFeaturedResponse, limit: number): ContentItem[] {
   const items = data.news ?? [];
   return mapToContentItems(
-    sliceToLimit(items, limit).map((item, index) => ({ item, index })),
+    finalizeFetchedItems(items, { limit }).map((item, index) => ({ item, index })),
     wikipediaSourceLabel("news"),
     ({ item, index }) => {
       const link = item.links?.[0];
@@ -250,10 +249,10 @@ const adapter: Adapter = {
       merged.push(...extractForMode(data, mode, limit));
     }
 
-    return sliceToLimit(
-      dedupeByKey(merged, (item) => item.url),
+    return finalizeFetchedItems(merged, {
       limit,
-    );
+      dedupeKey: (item) => item.url,
+    });
   },
 };
 
