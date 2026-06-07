@@ -2,7 +2,7 @@
 export const ADAPTER_PARAM_KEYS = {
   hackernews: ["type", "feed", "stories", "limit", "min_score"],
   lobsters: ["feed", "limit", "min_score", "tags"],
-  rss: ["urls"],
+  rss: ["urls", "limit"],
   reddit: ["subreddits", "sort", "limit", "min_score", "time"],
   github: ["mode", "language", "since", "limit", "repos", "token"],
   "github-releases": ["repos", "token", "limit"],

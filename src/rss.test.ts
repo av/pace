@@ -28,6 +28,14 @@ describe("rss", () => {
     expect(mocks.warnSpy).toHaveBeenCalledWith("rss: no urls configured");
   });
 
+  test("optional limit caps per-feed mapping before global finalize", async () => {
+    const items = await rssAdapter.fetch(
+      rssCfg({ urls: ["https://ex.com/rss"], limit: 1 }),
+    );
+    expect(items.length).toBe(1);
+    expect(items[0].title).toBe("Item One");
+  });
+
   test("fetches single RSS 2.0 feed and maps fields correctly (string titles/links)", async () => {
     const items = await rssAdapter.fetch(rssCfg({ urls: ["https://ex.com/rss"] }));
     expect(mocks.fetchMock).toHaveBeenCalledTimes(1);

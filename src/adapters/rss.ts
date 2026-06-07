@@ -12,9 +12,14 @@ import {
   resolveDecodedFeedRootTitle,
 } from "./feed-entry";
 import { fetchRssAtomFeed } from "./fetch";
-import { compareItemTimestampDesc, fetchAllParallel, finalizeFetchedItems } from "./merge";
+import {
+  compareItemTimestampDesc,
+  fetchAllParallel,
+  finalizeFetchedItems,
+  sliceAndMap,
+} from "./merge";
 import { extractHostname } from "../dedupe";
-import { normalizeParamStringList, simpleHash } from "../utils";
+import { clampAdapterLimit, normalizeParamStringList, simpleHash } from "../utils";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 interface RssFeedItem extends FeedItemBodyFields {
@@ -51,7 +56,7 @@ function parseItem(raw: RssFeedItem, source: string): ContentItem {
   });
 }
 
-async function fetchFeed(url: string): Promise<ContentItem[]> {
+async function fetchFeed(url: string, limit: number): Promise<ContentItem[]> {
   const { parsed, items } = await fetchRssAtomFeed<RssFeedItem, RssFeedParsed>(
     "rss",
     url,
@@ -62,7 +67,7 @@ async function fetchFeed(url: string): Promise<ContentItem[]> {
     parsed?.feed?.title,
   );
   const source = feedTitle ?? (extractHostname(url, "rss") || url);
-  return items.map((item) => parseItem(item, source));
+  return sliceAndMap(items, limit, (item) => parseItem(item, source));
 }
 
 const adapter: Adapter = {
@@ -73,9 +78,21 @@ const adapter: Adapter = {
       return warnEmptyConfig("rss", "no urls configured");
     }
 
-    const allItems = await fetchAllParallel(urls, fetchFeed);
+    const limitRaw = config.params?.limit;
+    const perFeedLimit =
+      limitRaw !== undefined
+        ? clampAdapterLimit(limitRaw, 50, 200)
+        : Number.MAX_SAFE_INTEGER;
+    const totalLimit =
+      perFeedLimit === Number.MAX_SAFE_INTEGER
+        ? Number.MAX_SAFE_INTEGER
+        : perFeedLimit * urls.length;
+
+    const allItems = await fetchAllParallel(urls, (url) =>
+      fetchFeed(url, perFeedLimit),
+    );
     return finalizeFetchedItems(allItems, {
-      limit: Number.MAX_SAFE_INTEGER,
+      limit: totalLimit,
       dedupeKey: (item) => item.url || item.id,
       sort: compareItemTimestampDesc,
     });
