@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   buildFeedContentItem,
+  decodeFeedEntryStrippedTitle,
   coalesceFeedEntryDateStr,
   decodeFeedEntryTitle,
   extractFeedEntryStrippedBody,
@@ -70,6 +71,14 @@ describe("decodeFeedEntryTitle", () => {
   test("decodes numeric entities after extracting xml text", () => {
     expect(decodeFeedEntryTitle({ "#text": "A &#38; B" })).toBe("A & B");
     expect(decodeFeedEntryTitle(undefined, "missing")).toBe("missing");
+  });
+});
+
+describe("decodeFeedEntryStrippedTitle", () => {
+  test("strips html then decodes entities", () => {
+    expect(
+      decodeFeedEntryStrippedTitle({ "#text": "<b>Rock</b> &amp; Roll" }),
+    ).toBe("Rock & Roll");
   });
 });
 
@@ -164,5 +173,21 @@ describe("projectFeedEntryToContentItem", () => {
 
     expect(item.id).toBe("youtube:vid-1");
     expect(item.timestamp.toISOString()).toBe("2024-01-01T00:00:00.000Z");
+  });
+
+  test("allows projection to override decoded title", () => {
+    const item = projectFeedEntryToContentItem(
+      "github",
+      { title: "v1.0.0", published: "2024-01-01T00:00:00Z" },
+      () => ({
+        idSuffix: "o/r:v1.0.0",
+        url: "https://github.com/o/r/releases/tag/v1.0.0",
+        source: "github:o/r",
+        title: "o/r: v1.0.0 | Display Title",
+      }),
+      FEED_ENTRY_DATE_ATOM_ORDER,
+    );
+
+    expect(item.title).toBe("o/r: v1.0.0 | Display Title");
   });
 });

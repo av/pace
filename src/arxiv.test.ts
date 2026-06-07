@@ -1,5 +1,8 @@
 import { describe, expect, spyOn, test } from "bun:test";
-import arxivAdapter from "./adapters/arxiv";
+import arxivAdapter, {
+  arxivCategorySourceLabel,
+  arxivSearchSourceLabel,
+} from "./adapters/arxiv";
 import { FEED_XML_ACCEPT } from "./adapters/fetch";
 import * as utilsMod from "./utils";
 import { makeErrorResponse, makeXmlResponse } from "./test/fetch-responses";
@@ -18,6 +21,16 @@ import {
 
 const mocks = useFetchMockSuite();
 
+
+describe("arxiv source labels", () => {
+  test("arxivCategorySourceLabel prefixes category", () => {
+    expect(arxivCategorySourceLabel("cs.AI")).toBe("arxiv:cs.AI");
+  });
+
+  test("arxivSearchSourceLabel is fixed search token", () => {
+    expect(arxivSearchSourceLabel()).toBe("arxiv:search");
+  });
+});
 
 describe("arxiv", () => {
   test("warns and returns empty when no categories and no query configured", async () => {

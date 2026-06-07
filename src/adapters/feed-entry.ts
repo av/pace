@@ -69,6 +69,16 @@ export function decodeFeedEntryTitle(
   return decodeNumericFeedTitle(extractFeedEntryTitle(title, fallback));
 }
 
+/** Decode feed entry title after stripping HTML (arxiv and similar Atom summaries). */
+export function decodeFeedEntryStrippedTitle(
+  title: XmlTextField | undefined,
+  fallback = "(untitled)",
+): string {
+  return decodeNumericFeedTitle(
+    stripHtml(extractFeedEntryTitle(title, fallback), FEED_BODY_STRIP_OPTIONS),
+  );
+}
+
 export function resolveDecodedFeedRootTitle(
   rssTitle: XmlTextField | undefined,
   atomTitle: XmlTextField | undefined,
@@ -96,6 +106,8 @@ export type FeedEntryProjectedFields = Pick<
 > & {
   idSuffix: string;
   body?: string;
+  /** Override decoded entry title (e.g. github release display titles). */
+  title?: string;
 };
 
 /** Assemble a feed-sourced ContentItem from resolved id/url/source/timestamp/body fields. */
@@ -108,18 +120,23 @@ export function buildFeedContentItem(
   return { id, ...fields };
 }
 
+export type FeedEntryTitleDecoder = (
+  title: XmlTextField | undefined,
+) => string;
+
 /** Project a feed XML entry to ContentItem via shared title/timestamp extraction. */
 export function projectFeedEntryToContentItem(
   idPrefix: string,
   entry: FeedEntryProjectionInput,
   project: (ctx: { title: string; timestamp: Date }) => FeedEntryProjectedFields,
   dateOrder?: FeedEntryDateField[],
+  decodeTitle: FeedEntryTitleDecoder = decodeFeedEntryTitle,
 ): ContentItem {
-  const title = decodeFeedEntryTitle(entry.title);
+  const title = decodeTitle(entry.title);
   const timestamp = parseFeedEntryTimestamp(entry, dateOrder);
-  const { idSuffix, url, source, body } = project({ title, timestamp });
+  const { idSuffix, url, source, body, title: titleOverride } = project({ title, timestamp });
   return buildFeedContentItem(`${idPrefix}:${idSuffix}`, {
-    title,
+    title: titleOverride ?? title,
     url,
     source,
     timestamp,

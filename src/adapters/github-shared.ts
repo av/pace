@@ -9,11 +9,12 @@ import {
   type FeedItemBodyFields,
   type XmlTextField,
 } from "./atom";
+import { mapToContentItems } from "./content-item";
 import {
   decodeFeedEntryTitle,
   extractFeedEntryStrippedBody,
   FEED_ENTRY_DATE_ATOM_ORDER,
-  parseFeedEntryTimestamp,
+  projectFeedEntryToContentItem,
   resolveDecodedFeedRootTitle,
 } from "./feed-entry";
 import { fetchAtomFeed, fetchJson, buildGitHubApiHeaders } from "./fetch";
@@ -39,6 +40,24 @@ export interface GitHubReposConfig {
 }
 
 export type GitHubReleasesSource = "atom" | "api";
+
+/** Source label for a repo's GitHub API or atom feed (repo slug). */
+export function githubRepoSourceLabel(repo: string): string {
+  return `github:${repo}`;
+}
+
+/** Atom feed source: decoded feed title when present, else repo slug. */
+export function githubAtomFeedSourceLabel(
+  repo: string,
+  feedTitle: string | undefined,
+): string {
+  return feedTitle ? `github:${feedTitle}` : githubRepoSourceLabel(repo);
+}
+
+/** Source label for GitHub trending pages (optional language filter). */
+export function githubTrendingSourceLabel(language?: string): string {
+  return language ? `github:trending:${language}` : "github:trending";
+}
 
 interface GHAtomEntry extends FeedItemBodyFields {
   id?: string;
@@ -98,39 +117,31 @@ export async function fetchGitHubAtomReleases(
     `releases for ${repo}`,
   );
   const feedTitle = resolveDecodedFeedRootTitle(undefined, parsed.feed?.title);
-  const source = feedTitle ? `github:${feedTitle}` : `github:${repo}`;
+  const source = githubAtomFeedSourceLabel(repo, feedTitle);
   const tagline = await fetchRepoTagline(repo, adapterName, token);
 
-  const items: ContentItem[] = [];
-
-  for (const entry of sliceToLimit(entries, limit)) {
-    const link = extractAtomLink(entry.link);
-    const timestamp = parseFeedEntryTimestamp(entry, FEED_ENTRY_DATE_ATOM_ORDER);
-
-    const tagMatch = link.match(/\/releases\/tag\/(.+)$/);
-    const tag = tagMatch ? tagMatch[1] : "";
-
-    const strippedBody = extractFeedEntryStrippedBody(entry);
-    const body = strippedBody ? capText(strippedBody, 500) : undefined;
-
-    const title = decodeFeedEntryTitle(entry.title, "(untitled release)");
-    const displayTitle = formatGitHubReleaseDisplayTitle(
-      repo,
-      { tag, title },
-      tagline,
-    );
-
-    items.push({
-      id: `github:${repo}:${tag || title}`,
-      title: displayTitle,
-      url: link || `https://github.com/${repo}/releases`,
-      source,
-      timestamp,
-      body,
-    });
-  }
-
-  return items;
+  return sliceToLimit(entries, limit).map((entry) =>
+    projectFeedEntryToContentItem(
+      "github",
+      entry,
+      ({ title }) => {
+        const link = extractAtomLink(entry.link);
+        const tagMatch = link.match(/\/releases\/tag\/(.+)$/);
+        const tag = tagMatch ? tagMatch[1] : "";
+        const strippedBody = extractFeedEntryStrippedBody(entry);
+        const body = strippedBody ? capText(strippedBody, 500) : undefined;
+        return {
+          idSuffix: `${repo}:${tag || title}`,
+          url: link || `https://github.com/${repo}/releases`,
+          source,
+          body,
+          title: formatGitHubReleaseDisplayTitle(repo, { tag, title }, tagline),
+        };
+      },
+      FEED_ENTRY_DATE_ATOM_ORDER,
+      (title) => decodeFeedEntryTitle(title, "(untitled release)"),
+    ),
+  );
 }
 
 export async function fetchGitHubApiReleases(
@@ -144,13 +155,16 @@ export async function fetchGitHubApiReleases(
     headers: buildGitHubApiHeaders(token),
   });
   const tagline = await fetchRepoTagline(repo, adapterName, token);
-  return releases.map((r) => ({
-    id: `github:${repo}:${r.id}`,
-    title: formatGitHubReleaseDisplayTitle(repo, { title: r.name ?? r.tag_name }, tagline),
-    url: r.html_url,
-    source: `github:${repo}`,
-    timestamp: new Date(r.published_at),
-    body: r.body ?? undefined,
+  return mapToContentItems(releases, githubRepoSourceLabel(repo), (release) => ({
+    id: `github:${repo}:${release.id}`,
+    title: formatGitHubReleaseDisplayTitle(
+      repo,
+      { title: release.name ?? release.tag_name },
+      tagline,
+    ),
+    url: release.html_url,
+    timestamp: new Date(release.published_at),
+    body: release.body ?? undefined,
   }));
 }
 

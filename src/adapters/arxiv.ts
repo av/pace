@@ -1,5 +1,4 @@
 import {
-  extractFeedEntryTitle,
   extractFeedItemBody,
   type FeedItemBodyFields,
   type XmlTextField,
@@ -7,10 +6,12 @@ import {
 import {
   formatCategories,
 } from "./engagement";
+import { mapToContentItems } from "./content-item";
 import { joinTitle, truncateText } from "./title";
 
 import { warnEmptyConfig } from "./empty-config";
 import {
+  decodeFeedEntryStrippedTitle,
   FEED_ENTRY_DATE_ATOM_ORDER,
   parseFeedEntryTimestamp,
 } from "./feed-entry";
@@ -29,6 +30,16 @@ import { compareItemTimestampDesc, fetchAllBatched, finalizeFetchedItems } from 
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 const ARXIV_API = "http://export.arxiv.org/api/query";
 const RATE_LIMIT_DELAY_MS = 3000;
+
+/** Build arxiv source label for a category query. */
+export function arxivCategorySourceLabel(category: string): string {
+  return `arxiv:${category}`;
+}
+
+/** Source label for keyword search queries. */
+export function arxivSearchSourceLabel(): string {
+  return "arxiv:search";
+}
 
 interface ArxivSource {
   queryStr: string;
@@ -143,20 +154,13 @@ function buildBody(entry: ArxivEntry): string {
   );
 }
 
-function entryToItem(entry: ArxivEntry, sourceLabel: string): ContentItem {
+function projectArxivEntry(entry: ArxivEntry) {
   const arxivId = extractArxivId(entry.id);
-  const title = decodeNumericFeedTitle(
-    stripHtml(extractFeedEntryTitle(entry.title), FEED_BODY_STRIP_OPTIONS),
-  );
-  const url = entry.id ?? `https://arxiv.org/abs/${arxivId}`;
-  const timestamp = parseFeedEntryTimestamp(entry, FEED_ENTRY_DATE_ATOM_ORDER);
-
   return {
     id: `arxiv:${arxivId}`,
-    title,
-    url,
-    source: sourceLabel,
-    timestamp,
+    title: decodeFeedEntryStrippedTitle(entry.title),
+    url: entry.id ?? `https://arxiv.org/abs/${arxivId}`,
+    timestamp: parseFeedEntryTimestamp(entry, FEED_ENTRY_DATE_ATOM_ORDER),
     body: buildBody(entry),
   };
 }
@@ -175,10 +179,10 @@ const adapter: Adapter = {
     const sources: ArxivSource[] = [
       ...categories.map((cat) => ({
         queryStr: `cat:${cat}`,
-        sourceLabel: `arxiv:${cat}`,
+        sourceLabel: arxivCategorySourceLabel(cat),
       })),
       ...(query
-        ? [{ queryStr: `all:${query}`, sourceLabel: "arxiv:search" }]
+        ? [{ queryStr: `all:${query}`, sourceLabel: arxivSearchSourceLabel() }]
         : []),
     ];
 
@@ -188,7 +192,7 @@ const adapter: Adapter = {
         1,
         async ({ queryStr, sourceLabel }) => {
           const entries = await fetchArxivQuery(queryStr, limit);
-          return entries.map((entry) => entryToItem(entry, sourceLabel));
+          return mapToContentItems(entries, sourceLabel, projectArxivEntry);
         },
         RATE_LIMIT_DELAY_MS,
       )

@@ -12,8 +12,10 @@ import {
   sliceToLimit,
 } from "../utils";
 import { decodeNumericFeedTitle, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
+import { mapToContentItems } from "./content-item";
 import {
   fetchGitHubReposReleases,
+  githubTrendingSourceLabel,
   resolveGitHubRepos,
 } from "./github-shared";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -120,28 +122,31 @@ async function fetchTrending(
     monthly: "this month",
   };
 
-  return sliceToLimit(repos, limit).map((repo) => {
-    const body = joinTitle(
-      repo.language ? formatLanguage(repo.language) : undefined,
-      formatStars(repo.stars),
-    );
+  return mapToContentItems(
+    sliceToLimit(repos, limit),
+    githubTrendingSourceLabel(language),
+    (repo) => {
+      const body = joinTitle(
+        repo.language ? formatLanguage(repo.language) : undefined,
+        formatStars(repo.stars),
+      );
 
-    return {
-      id: `github:trending:${repo.name}:${since}`,
-      title: joinTitleWithTagline(
-        repo.name,
-        repo.description || null,
-        100,
-        repo.starsGained > 0
-          ? `+${repo.starsGained.toLocaleString()} ${periodLabel[since]}`
-          : null,
-      ),
-      url: repo.url,
-      source: language ? `github:trending:${language}` : "github:trending",
-      timestamp: new Date(),
-      body: body || undefined,
-    };
-  });
+      return {
+        id: `github:trending:${repo.name}:${since}`,
+        title: joinTitleWithTagline(
+          repo.name,
+          repo.description || null,
+          100,
+          repo.starsGained > 0
+            ? `+${repo.starsGained.toLocaleString()} ${periodLabel[since]}`
+            : null,
+        ),
+        url: repo.url,
+        timestamp: new Date(),
+        body: body || undefined,
+      };
+    },
+  );
 }
 
 const adapter: Adapter = {

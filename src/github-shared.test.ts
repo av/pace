@@ -1,8 +1,30 @@
 import { describe, test, expect, spyOn, afterEach } from "bun:test";
 import {
   formatGitHubReleaseDisplayTitle,
+  githubAtomFeedSourceLabel,
+  githubRepoSourceLabel,
+  githubTrendingSourceLabel,
   resolveGitHubRepos,
 } from "./adapters/github-shared";
+
+describe("github source labels", () => {
+  test("githubRepoSourceLabel prefixes repo slug", () => {
+    expect(githubRepoSourceLabel("facebook/react")).toBe("github:facebook/react");
+  });
+
+  test("githubAtomFeedSourceLabel prefers decoded feed title", () => {
+    expect(githubAtomFeedSourceLabel("o/r", "Release Notes")).toBe(
+      "github:Release Notes",
+    );
+    expect(githubAtomFeedSourceLabel("o/r", undefined)).toBe("github:o/r");
+  });
+
+  test("githubTrendingSourceLabel includes language when set", () => {
+    expect(githubTrendingSourceLabel("typescript")).toBe("github:trending:typescript");
+    expect(githubTrendingSourceLabel()).toBe("github:trending");
+    expect(githubTrendingSourceLabel("")).toBe("github:trending");
+  });
+});
 
 describe("github-shared", () => {
   let warnSpy: ReturnType<typeof spyOn>;
