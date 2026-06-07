@@ -64,6 +64,22 @@ export function sliceAndMap<T, R>(
   return sliceToLimit(items, limit).map(map);
 }
 
+/** Like sliceAndMap, but drops null/undefined mapper results (e.g. unparseable feed rows). */
+export function sliceAndMapDefined<T, R>(
+  items: readonly T[],
+  limit: number,
+  map: (item: T) => R | null | undefined,
+): R[] {
+  const result: R[] = [];
+  for (const item of sliceToLimit(items, limit)) {
+    const mapped = map(item);
+    if (mapped != null) {
+      result.push(mapped);
+    }
+  }
+  return result;
+}
+
 export type FinalizeFetchedItemsOptions<T> = {
   limit: number;
   dedupeKey?: (item: T) => unknown;

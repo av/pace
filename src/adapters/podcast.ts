@@ -25,9 +25,13 @@ import {
 import {
   clampAdapterLimit,
   normalizeParamStringList,
-  sliceToLimit,
 } from "../utils";
-import { compareItemTimestampDesc, fetchAllParallel, finalizeFetchedItems } from "./merge";
+import {
+  compareItemTimestampDesc,
+  fetchAllParallel,
+  finalizeFetchedItems,
+  sliceAndMapDefined,
+} from "./merge";
 
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
@@ -255,15 +259,10 @@ async function fetchPodcastFeed(
 
   if (items.length === 0) return [];
 
-  const episodes: ContentItem[] = [];
-  for (const item of sliceToLimit(items, limit)) {
+  return sliceAndMapDefined(items, limit, (item) => {
     const ep = parseEpisode(item, showName, channelLink);
-    if (ep) {
-      episodes.push(episodeToContentItem(ep));
-    }
-  }
-
-  return episodes;
+    return ep ? episodeToContentItem(ep) : null;
+  });
 }
 
 const adapter: Adapter = {

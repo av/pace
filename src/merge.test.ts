@@ -7,6 +7,7 @@ import {
   fetchAndConcat,
   finalizeFetchedItems,
   sliceAndMap,
+  sliceAndMapDefined,
 } from "./adapters/merge";
 
 describe("dedupeByKey", () => {
@@ -108,6 +109,18 @@ describe("sliceAndMap", () => {
     });
     expect(out).toEqual([20, 40]);
     expect(mapped).toEqual([10, 20]);
+  });
+});
+
+describe("sliceAndMapDefined", () => {
+  test("slices before mapping and drops null/undefined results", () => {
+    const mapped: number[] = [];
+    const out = sliceAndMapDefined([1, 2, 3, 4, 5], 4, (n) => {
+      mapped.push(n);
+      return n % 2 === 0 ? n * 10 : null;
+    });
+    expect(out).toEqual([20, 40]);
+    expect(mapped).toEqual([1, 2, 3, 4]);
   });
 });
 
