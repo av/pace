@@ -15,9 +15,8 @@ import {
   clampAdapterLimit,
   normalizeNonNegativeNumber,
   normalizeParamBoolean,
-  sliceToLimit,
 } from "../utils";
-import { fetchAllBatched } from "./merge";
+import { fetchAllBatched, finalizeFetchedItems } from "./merge";
 import {
   fetchAtomFeed,
   fetchText,
@@ -266,10 +265,11 @@ const adapter: Adapter = {
       );
     }
 
-    const { feedTitle, items: feedItems } = await fetchProductHuntFeed();
+    const { items: feedItems } = await fetchProductHuntFeed();
 
-    let items =
-      limit !== undefined ? sliceToLimit(feedItems, limit) : feedItems;
+    const items = finalizeFetchedItems(feedItems, {
+      limit: limit ?? Number.MAX_SAFE_INTEGER,
+    });
 
     let enrichedMap = new Map<string, EnrichedData | null>();
     if (enrich) {
