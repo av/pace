@@ -1,18 +1,47 @@
-export const RE_POINTS = /(\d+)\s*points?/i;
+function countMetricRe(term: string): RegExp {
+  return new RegExp(`(\\d+)\\s*${term}`, "i");
+}
+
+/** Shared metric vocabulary for scoring, stripping, and cluster keyword extraction. */
+const COUNT_METRIC_SPECS = [
+  { term: "points?", weight: 1 },
+  { term: "upvotes?", weight: 1 },
+  { term: "boosts?", weight: 1 },
+  { term: "favou?rites?", weight: 1 },
+  { term: "stars?", weight: 1 },
+  { term: "likes?", weight: 1 },
+  { term: "comments?", weight: 0.5 },
+] as const;
+
+/** Stripped from bodies for keyword extraction but not scored. */
+const STRIP_ONLY_METRIC_TERMS = ["reactions?", "replies?", "views?"] as const;
+
+export const ENGAGEMENT_STRIP_TERMS = [
+  ...COUNT_METRIC_SPECS.map((s) => s.term),
+  ...STRIP_ONLY_METRIC_TERMS,
+];
+
+export const RE_POINTS = countMetricRe("points?");
 export const RE_SCORE_LABEL = /score:\s*(\d+)/i;
-export const RE_UPVOTES = /(\d+)\s*upvotes?/i;
+export const RE_UPVOTES = countMetricRe("upvotes?");
 export const RE_POINTS_OR_UPVOTES = /(\d+)\s*(?:points|upvotes?)/i;
 
 export const ENGAGEMENT_PATTERNS: Array<{ re: RegExp; weight: number }> = [
   { re: RE_POINTS, weight: 1 },
   { re: RE_SCORE_LABEL, weight: 1 },
   { re: RE_UPVOTES, weight: 1 },
-  { re: /(\d+)\s*boosts?/i, weight: 1 },
-  { re: /(\d+)\s*favou?rites?/i, weight: 1 },
-  { re: /(\d+)\s*stars?/i, weight: 1 },
-  { re: /(\d+)\s*likes?/i, weight: 1 },
-  { re: /(\d+)\s*comments?/i, weight: 0.5 },
+  ...COUNT_METRIC_SPECS.slice(2).map((s) => ({ re: countMetricRe(s.term), weight: s.weight })),
 ];
+
+const RE_STRIP_ENGAGEMENT_METRICS = new RegExp(
+  `\\d+\\s*(?:${ENGAGEMENT_STRIP_TERMS.join("|")})`,
+  "gi",
+);
+
+/** Remove numeric engagement suffixes before keyword extraction (cluster, etc.). */
+export function stripEngagementMetricCounts(text: string): string {
+  return text.replace(RE_STRIP_ENGAGEMENT_METRICS, "");
+}
 
 const PRIMARY_SCORE_PATTERNS: RegExp[] = ENGAGEMENT_PATTERNS.slice(0, 3).map(({ re }) => re);
 

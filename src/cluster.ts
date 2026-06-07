@@ -1,6 +1,6 @@
 import type { TransformConfig } from "./config";
 import type { ContentItemRow } from "./db";
-import { extractEngagementScore } from "./adapters/engagement";
+import { extractEngagementScore, stripEngagementMetricCounts } from "./adapters/engagement";
 import { extractHostname, jaccardSimilarity, unionFind } from "./dedupe";
 import { compareIsoTimestamp } from "./utils";
 
@@ -133,9 +133,8 @@ function buildClusterSignals(items: ContentItemRow[]): ClusterItemSignals[] {
   return items.map((item) => {
     const titleKeywords = extractClusterKeywords(item.title ?? "");
     const body = item.body ?? "";
-    const bodyClean = body
+    const bodyClean = stripEngagementMetricCounts(body)
       .replace(/https?:\/\/[^\s|]+/g, "")
-      .replace(/\d+\s*(points?|comments?|reactions?|replies?|views?|stars?|boosts?|favorites?|likes?|upvotes?)/gi, "")
       .replace(/\bby\s+\S+/g, "")
       .replace(/\btags?:\s*[^\n|]+/gi, "")
       .replace(/\bdiscuss:/gi, "")

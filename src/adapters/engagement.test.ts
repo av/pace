@@ -24,6 +24,7 @@ import {
   formatViews,
   parseFirstIntMatch,
   RE_POINTS_OR_UPVOTES,
+  stripEngagementMetricCounts,
 } from "./engagement";
 
 import { joinTitle } from "./title";
@@ -210,5 +211,20 @@ describe("extractEngagementScore", () => {
     const body = "42 points | 10 comments";
     expect(extractScore(body)).toBe(42);
     expect(extractEngagementScore(body)).toBe(42 + 5);
+  });
+});
+
+describe("stripEngagementMetricCounts", () => {
+  test("strips scored and strip-only metric suffixes", () => {
+    expect(stripEngagementMetricCounts("42 points and 3 reactions")).toBe(" and ");
+    expect(stripEngagementMetricCounts("10 comments | 5 replies | 1500 views")).toBe(" |  | ");
+    expect(stripEngagementMetricCounts("7 upvotes, 2 boosts, 4 favourites")).toBe(", , ");
+  });
+
+  test("leaves non-metric text unchanged", () => {
+    expect(stripEngagementMetricCounts("React Server Components deep dive")).toBe(
+      "React Server Components deep dive",
+    );
+    expect(stripEngagementMetricCounts("score: 42")).toBe("score: 42");
   });
 });
