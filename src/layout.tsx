@@ -1,7 +1,7 @@
 /** @jsx jsx */
 import { jsx } from "hono/jsx";
 import type { FC } from "hono/jsx";
-import type { LayoutNodeConfig, FlexContainerConfig } from "./config";
+import type { LayoutNodeConfig, FlexContainerConfig, PanelConfig } from "./config";
 import { isPanel, resolvePanelId } from "./config";
 import type { ContentItemRow } from "./db";
 import { safeLinkUrl } from "./utils";
@@ -47,25 +47,34 @@ const ContentItemCard: FC<{ item: ContentItemRow }> = ({ item }) => {
   );
 };
 
-const Panel: FC<{ title: string; items: ContentItemRow[]; panelId: string; lastRefreshedAt?: string | null }> = ({ title, items, panelId, lastRefreshedAt }) => (
-  <div class="panel">
-    <div class="panel-header">
-      <h2>{title}</h2>
-      <div class="panel-actions">
-        {lastRefreshedAt && <span class="panel-refreshed">{relativeTime(lastRefreshedAt)}</span>}
-        <form method="POST" action={`/refresh/${encodeURIComponent(panelId)}`}>
-          <button type="submit" class="refresh-btn" title="Refresh">↻</button>
-        </form>
+const Panel: FC<{ node: PanelConfig; panelData: Map<string, PanelData> }> = ({ node, panelData }) => {
+  const data = panelData.get(node.panel);
+  const panelId = resolvePanelId(node);
+  const items = data?.items ?? [];
+  const lastRefreshedAt = data?.lastRefreshedAt;
+
+  return (
+    <div class="flex-panel" style={flexStyle(node.flex)}>
+      <div class="panel">
+        <div class="panel-header">
+          <h2>{node.panel}</h2>
+          <div class="panel-actions">
+            {lastRefreshedAt && <span class="panel-refreshed">{relativeTime(lastRefreshedAt)}</span>}
+            <form method="POST" action={`/refresh/${encodeURIComponent(panelId)}`}>
+              <button type="submit" class="refresh-btn" title="Refresh">↻</button>
+            </form>
+          </div>
+        </div>
+        <div class="panel-body">
+          {items.length > 0
+            ? items.map((item) => <ContentItemCard item={item} />)
+            : <div class="empty-state">No content yet</div>
+          }
+        </div>
       </div>
     </div>
-    <div class="panel-body">
-      {items.length > 0
-        ? items.map((item) => <ContentItemCard item={item} />)
-        : <div class="empty-state">No content yet</div>
-      }
-    </div>
-  </div>
-);
+  );
+};
 
 export interface PanelData {
   items: ContentItemRow[];
@@ -74,13 +83,7 @@ export interface PanelData {
 
 const LayoutNode: FC<{ node: LayoutNodeConfig; panelData: Map<string, PanelData> }> = ({ node, panelData }) => {
   if (isPanel(node)) {
-    const data = panelData.get(node.panel);
-    const pid = resolvePanelId(node);
-    return (
-      <div class="flex-panel" style={flexStyle(node.flex)}>
-        <Panel title={node.panel} panelId={pid} items={data?.items ?? []} lastRefreshedAt={data?.lastRefreshedAt} />
-      </div>
-    );
+    return <Panel node={node} panelData={panelData} />;
   }
 
   const container = node as FlexContainerConfig;
