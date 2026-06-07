@@ -127,6 +127,18 @@ function collectLosers(
     .map((item) => format(item, winner));
 }
 
+type DedupeRunResult = { result: ContentItemRow[]; removed: string[] };
+
+function finalizeDedupeRun(
+  { result, removed }: DedupeRunResult,
+  label: string,
+  shouldLog: boolean,
+  extra = "",
+): ContentItemRow[] {
+  maybeLogDedupeRemoved(shouldLog, label, removed, extra);
+  return result;
+}
+
 function dedupeGroupedByKey(
   items: ContentItemRow[],
   keyOf: (item: ContentItemRow) => string,
@@ -177,14 +189,16 @@ function resolveDedupeOptions(cfg: DedupeTransformConfig): DedupeRunOptions {
 
 function applyDedupeUrl(items: ContentItemRow[], shouldLog: boolean): ContentItemRow[] {
   const urlItems = items.filter((item) => item.url);
-  const { result, removed } = dedupeGroupedByKey(
-    urlItems,
-    (item) => item.url!,
-    "first",
-    (item) => formatDedupeRemovedLine(item),
+  return finalizeDedupeRun(
+    dedupeGroupedByKey(
+      urlItems,
+      (item) => item.url!,
+      "first",
+      (item) => formatDedupeRemovedLine(item),
+    ),
+    "url",
+    shouldLog,
   );
-  maybeLogDedupeRemoved(shouldLog, "url", removed);
-  return result;
 }
 
 function applyDedupeDomainNormalized(
@@ -192,22 +206,23 @@ function applyDedupeDomainNormalized(
   keep: DedupeKeep,
   shouldLog: boolean,
 ): ContentItemRow[] {
-  const { result, removed } = dedupeGroupedByKey(
-    items,
-    (item) => normalizeUrl(item.url),
-    keep,
-    (item, winner) => formatDedupeRemovedLine(item, winner),
+  return finalizeDedupeRun(
+    dedupeGroupedByKey(
+      items,
+      (item) => normalizeUrl(item.url),
+      keep,
+      (item, winner) => formatDedupeRemovedLine(item, winner),
+    ),
+    "domain-normalized",
+    shouldLog,
   );
-  maybeLogDedupeRemoved(shouldLog, "domain-normalized", removed);
-  return result;
 }
 
-function applyDedupeTitleSimilarity(
+function dedupeByTitleSimilarity(
   items: ContentItemRow[],
   threshold: number,
   keep: DedupeKeep,
-  shouldLog: boolean,
-): ContentItemRow[] {
+): DedupeRunResult {
   const kept: ContentItemRow[] = [];
   const removed: string[] = [];
   for (const item of items) {
@@ -228,8 +243,21 @@ function applyDedupeTitleSimilarity(
     }
     if (!isDuplicate) kept.push(item);
   }
-  maybeLogDedupeRemoved(shouldLog, "title-similarity", removed, ` (threshold=${threshold})`);
-  return kept;
+  return { result: kept, removed };
+}
+
+function applyDedupeTitleSimilarity(
+  items: ContentItemRow[],
+  threshold: number,
+  keep: DedupeKeep,
+  shouldLog: boolean,
+): ContentItemRow[] {
+  return finalizeDedupeRun(
+    dedupeByTitleSimilarity(items, threshold, keep),
+    "title-similarity",
+    shouldLog,
+    ` (threshold=${threshold})`,
+  );
 }
 
 export function applyDedupe(items: ContentItemRow[], config: DedupeTransformConfig): ContentItemRow[] {
