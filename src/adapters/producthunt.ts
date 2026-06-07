@@ -1,13 +1,16 @@
 import {
   extractAtomLink,
-  extractFeedEntryTitle,
   extractFeedItemBody,
   extractFeedRootTitle,
   type AtomLinkField,
   type FeedItemBodyFields,
   type XmlTextField,
 } from "./atom";
-import { parseFeedDate } from "./dates";
+import {
+  decodeFeedEntryTitle,
+  FEED_ENTRY_DATE_ATOM_ORDER,
+  parseFeedEntryTimestamp,
+} from "./feed-entry";
 import {
   clampAdapterLimit,
   normalizeNonNegativeNumber,
@@ -215,11 +218,11 @@ async function fetchProductHuntFeed(): Promise<{
   }
 
   const items = entries.map((entry) => {
-    const title = decodeNumericFeedTitle(extractFeedEntryTitle(entry.title));
+    const title = decodeFeedEntryTitle(entry.title);
     const url = extractAtomLink(entry.link);
     const { tagline, productLink } = extractContent(entry);
     const author = entry.author?.name ?? "";
-    const timestamp = parseFeedDate(entry.published ?? entry.updated ?? "");
+    const timestamp = parseFeedEntryTimestamp(entry, FEED_ENTRY_DATE_ATOM_ORDER);
 
     return {
       id: extractId(entry),

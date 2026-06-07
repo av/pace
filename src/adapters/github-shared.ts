@@ -5,17 +5,20 @@ import {
 } from "../utils";
 import {
   extractAtomLink,
-  extractFeedEntryTitle,
-  extractFeedItemBody,
   extractFeedRootTitle,
   type AtomLinkField,
   type FeedItemBodyFields,
   type XmlTextField,
 } from "./atom";
-import { parseFeedDate } from "./dates";
+import {
+  decodeFeedEntryTitle,
+  extractFeedEntryStrippedBody,
+  FEED_ENTRY_DATE_ATOM_ORDER,
+  parseFeedEntryTimestamp,
+} from "./feed-entry";
 import { fetchAtomFeed, fetchJson, buildGitHubApiHeaders } from "./fetch";
 import { fetchRepoTagline } from "./github-repo-meta";
-import { decodeNumericFeedTitle, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
+import { decodeNumericFeedTitle } from "./html";
 import { warnEmptyConfig } from "./empty-config";
 import { fetchAllParallel, fetchAllParallelDedupe } from "./merge";
 import { capText, joinTitleWithTagline } from "./title";
@@ -104,23 +107,20 @@ export async function fetchGitHubAtomReleases(
 
   for (const entry of sliceToLimit(entries, limit)) {
     const link = extractAtomLink(entry.link);
-    const timestamp = parseFeedDate(entry.updated ?? entry.published ?? "");
+    const timestamp = parseFeedEntryTimestamp(entry, FEED_ENTRY_DATE_ATOM_ORDER);
 
     const tagMatch = link.match(/\/releases\/tag\/(.+)$/);
     const tag = tagMatch ? tagMatch[1] : "";
 
-    const rawBody = extractFeedItemBody(entry);
-    const body = rawBody
-      ? capText(stripHtml(rawBody, FEED_BODY_STRIP_OPTIONS), 500)
-      : undefined;
+    const strippedBody = extractFeedEntryStrippedBody(entry);
+    const body = strippedBody ? capText(strippedBody, 500) : undefined;
 
-    const rawTitle = extractFeedEntryTitle(entry.title, "(untitled release)");
+    const title = decodeFeedEntryTitle(entry.title, "(untitled release)");
     const displayTitle = formatGitHubReleaseDisplayTitle(
       repo,
-      { tag, title: rawTitle },
+      { tag, title },
       tagline,
     );
-    const title = decodeNumericFeedTitle(rawTitle);
 
     items.push({
       id: `github:${repo}:${tag || title}`,
