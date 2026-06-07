@@ -4,13 +4,16 @@ import {
   type FeedItemBodyFields,
   type XmlTextField,
 } from "./atom";
-import { parseFeedDate } from "./dates";
 import {
   formatCategories,
 } from "./engagement";
 import { joinTitle, truncateText } from "./title";
 
 import { warnEmptyConfig } from "./empty-config";
+import {
+  FEED_ENTRY_DATE_ATOM_ORDER,
+  parseFeedEntryTimestamp,
+} from "./feed-entry";
 import { ARXIV_FETCH_TIMEOUT_MS, fetchAtomFeed } from "./fetch";
 import {
   decodeNumericFeedTitle,
@@ -147,7 +150,7 @@ function entryToItem(entry: ArxivEntry, sourceLabel: string): ContentItem {
     stripHtml(extractFeedEntryTitle(entry.title), FEED_BODY_STRIP_OPTIONS),
   );
   const url = entry.id ?? `https://arxiv.org/abs/${arxivId}`;
-  const timestamp = parseFeedDate(entry.published ?? entry.updated ?? "");
+  const timestamp = parseFeedEntryTimestamp(entry, FEED_ENTRY_DATE_ATOM_ORDER);
 
   return {
     id: `arxiv:${arxivId}`,

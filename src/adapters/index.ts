@@ -10,6 +10,7 @@ const ADAPTER_SUPPORT_MODULES = new Set([
   "atom.ts",
   "dates.ts",
   "empty-config.ts",
+  "feed-entry.ts",
   "engagement.ts",
   "fetch.ts",
   "github-repo-meta.ts",

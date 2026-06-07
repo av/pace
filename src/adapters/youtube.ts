@@ -1,17 +1,20 @@
 import {
   extractAtomLink,
-  extractFeedEntryTitle,
   extractFeedRootTitle,
   type AtomLinkField,
   type XmlTextField,
 } from "./atom";
-import { parseFeedDate } from "./dates";
 import {
   formatBy,
 } from "./engagement";
 import { joinTitle } from "./title";
 
 import { warnEmptyConfig } from "./empty-config";
+import {
+  decodeFeedEntryTitle,
+  FEED_ENTRY_DATE_ATOM_ORDER,
+  parseFeedEntryTimestamp,
+} from "./feed-entry";
 import { fetchAtomFeed } from "./fetch";
 import {
   decodeNumericFeedTitle,
@@ -61,13 +64,13 @@ function buildBody(entry: YTEntry): string | undefined {
 
 function parseEntry(entry: YTEntry, channelTitle: string): ContentItem {
   const videoId = entry["yt:videoId"] ?? "";
-  const title = decodeNumericFeedTitle(extractFeedEntryTitle(entry.title));
+  const title = decodeFeedEntryTitle(entry.title);
 
   const link = videoId
     ? `https://www.youtube.com/watch?v=${videoId}`
     : extractAtomLink(entry.link);
 
-  const timestamp = parseFeedDate(entry.published ?? "");
+  const timestamp = parseFeedEntryTimestamp(entry, FEED_ENTRY_DATE_ATOM_ORDER);
 
   return {
     id: `youtube:${videoId || title}`,

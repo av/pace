@@ -1,7 +1,5 @@
 import {
   extractAtomLink,
-  extractFeedEntryTitle,
-  extractFeedItemBody,
   extractFeedRootTitle,
   extractXmlText,
   podcastFeedXmlParser,
@@ -9,8 +7,14 @@ import {
   type FeedItemBodyFields,
   type XmlTextField,
 } from "./atom";
-import { formatSeconds, parseFeedDate } from "./dates";
+import { formatSeconds } from "./dates";
 import { warnEmptyConfig } from "./empty-config";
+import {
+  decodeFeedEntryTitle,
+  extractFeedEntryStrippedBody,
+  FEED_ENTRY_DATE_PODCAST_ORDER,
+  parseFeedEntryTimestamp,
+} from "./feed-entry";
 import { joinTitle, truncateText } from "./title";
 import {
   FEED_FETCH_TIMEOUT_MS,
@@ -23,11 +27,7 @@ import {
   sliceToLimit,
 } from "../utils";
 import { fetchAllParallelDedupe } from "./merge";
-import {
-  decodeNumericFeedTitle,
-  FEED_BODY_STRIP_OPTIONS,
-  stripHtml,
-} from "./html";
+import { decodeNumericFeedTitle } from "./html";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 interface PodcastEnclosure {
@@ -123,7 +123,7 @@ function parseEpisode(
   showName: string,
   channelLink: string = "",
 ): PodcastEpisode | null {
-  const title = decodeNumericFeedTitle(extractFeedEntryTitle(item.title, ""));
+  const title = decodeFeedEntryTitle(item.title, "");
   if (!title) return null;
 
   let url = extractAtomLink(item.link);
@@ -157,12 +157,8 @@ function parseEpisode(
     url = audioUrl;
   }
 
-  const dateStr =
-    item.pubDate ?? item.published ?? item.updated ?? item["dc:date"] ?? "";
-  const publishDate = parseFeedDate(dateStr ? String(dateStr) : "");
-
-  const rawDesc = extractFeedItemBody(item) ?? "";
-  const description = stripHtml(rawDesc, FEED_BODY_STRIP_OPTIONS);
+  const publishDate = parseFeedEntryTimestamp(item, FEED_ENTRY_DATE_PODCAST_ORDER);
+  const description = extractFeedEntryStrippedBody(item) ?? "";
 
   const duration = parseDuration(item["itunes:duration"]);
 

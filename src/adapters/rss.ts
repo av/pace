@@ -1,16 +1,18 @@
 import {
   extractAtomLink,
-  extractFeedEntryTitle,
-  extractFeedItemBody,
   extractFeedRootTitle,
   type AtomLinkField,
   type FeedItemBodyFields,
   type XmlTextField,
 } from "./atom";
-import { parseFeedDate } from "./dates";
 import { warnEmptyConfig } from "./empty-config";
+import {
+  decodeFeedEntryTitle,
+  extractFeedEntryStrippedBody,
+  parseFeedEntryTimestamp,
+} from "./feed-entry";
 import { fetchRssAtomFeed } from "./fetch";
-import { decodeNumericFeedTitle, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
+import { decodeNumericFeedTitle } from "./html";
 import { fetchAllParallelDedupe } from "./merge";
 import { extractHostname } from "../dedupe";
 import { normalizeParamStringList, simpleHash } from "../utils";
@@ -38,15 +40,10 @@ interface RssFeedParsed {
 }
 
 function parseItem(raw: RssFeedItem, source: string): ContentItem {
-  const title = decodeNumericFeedTitle(extractFeedEntryTitle(raw.title));
-
+  const title = decodeFeedEntryTitle(raw.title);
   const link = extractAtomLink(raw.link);
-
-  const dateStr = raw.pubDate ?? raw.updated ?? raw.published ?? "";
-  const timestamp = parseFeedDate(dateStr);
-
-  const rawBody = extractFeedItemBody(raw);
-  const body = rawBody ? stripHtml(rawBody, FEED_BODY_STRIP_OPTIONS) : undefined;
+  const timestamp = parseFeedEntryTimestamp(raw);
+  const body = extractFeedEntryStrippedBody(raw);
 
   const resolvedUrl = link || undefined;
 
