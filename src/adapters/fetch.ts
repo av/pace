@@ -138,6 +138,27 @@ export type RssAtomFeedShape<TEntry> = {
   };
 };
 
+export type FetchFeedXmlOptions = FetchWithTimeoutOptions & {
+  parser?: XMLParser;
+};
+
+/** Fetch feed XML with FEED_XML_ACCEPT and parse with the shared or custom parser. */
+async function fetchAndParseFeedXml<TParsed>(
+  prefix: string,
+  url: string,
+  context: string,
+  options: FetchFeedXmlOptions = {},
+): Promise<TParsed> {
+  const { parser, ...fetchOptions } = options;
+  const xml = await fetchText(prefix, url, context, {
+    accept: FEED_XML_ACCEPT,
+    ...fetchOptions,
+  });
+  return parser
+    ? parseXml<TParsed>(xml, parser, prefix, url)
+    : parseFeedXml<TParsed>(xml, prefix, url);
+}
+
 /** Fetch Atom/XML feed, parse, and normalize `feed.entry` list. */
 export async function fetchAtomFeed<TEntry, TParsed extends AtomFeedShape<TEntry>>(
   prefix: string,
@@ -145,17 +166,11 @@ export async function fetchAtomFeed<TEntry, TParsed extends AtomFeedShape<TEntry
   context: string = url,
   options: FetchWithTimeoutOptions = {},
 ): Promise<{ parsed: TParsed; entries: TEntry[] }> {
-  const xml = await fetchText(prefix, url, context, {
-    accept: FEED_XML_ACCEPT,
-    ...options,
-  });
-  const parsed = parseFeedXml<TParsed>(xml, prefix, url);
+  const parsed = await fetchAndParseFeedXml<TParsed>(prefix, url, context, options);
   return { parsed, entries: normalizeXmlList(parsed.feed?.entry) };
 }
 
-export type FetchRssAtomFeedOptions = FetchWithTimeoutOptions & {
-  parser?: XMLParser;
-};
+export type FetchRssAtomFeedOptions = FetchFeedXmlOptions;
 
 /** Fetch RSS/Atom feed XML, parse, and normalize items (`rss.channel.item` or `feed.entry`). */
 export async function fetchRssAtomFeed<
@@ -167,14 +182,7 @@ export async function fetchRssAtomFeed<
   context: string = url,
   options: FetchRssAtomFeedOptions = {},
 ): Promise<{ parsed: TParsed; items: TEntry[] }> {
-  const { parser, ...fetchOptions } = options;
-  const xml = await fetchText(prefix, url, context, {
-    accept: FEED_XML_ACCEPT,
-    ...fetchOptions,
-  });
-  const parsed = parser
-    ? parseXml<TParsed>(xml, parser, prefix, url)
-    : parseFeedXml<TParsed>(xml, prefix, url);
+  const parsed = await fetchAndParseFeedXml<TParsed>(prefix, url, context, options);
   return { parsed, items: extractRssAtomItems(parsed) };
 }
 
