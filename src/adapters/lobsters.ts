@@ -15,9 +15,10 @@ import {
   normalizeParamString,
   normalizeParamStringList,
   createAliasedResolver,
+  compareIsoTimestamp,
 } from "../utils";
 import { mapToContentItems } from "./content-item";
-import { dedupeByKey, finalizeFetchedItems, fetchAndConcat, sortByCreatedAtDesc } from "./merge";
+import { finalizeFetchedItems, fetchAndConcat } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 const LOBSTERS_BASE = "https://lobste.rs";
@@ -43,6 +44,18 @@ interface LobstersItem {
   created_at: string;
   tags: string[];
   description?: string;
+}
+
+function lobstersSortComparator(
+  feedType: FeedType,
+): (a: LobstersItem, b: LobstersItem) => number {
+  if (feedType === "hottest") {
+    return (a, b) => b.score - a.score;
+  }
+  if (feedType === "newest") {
+    return (a, b) => compareIsoTimestamp(a.created_at, b.created_at, "desc");
+  }
+  return (a, b) => b.comment_count - a.comment_count;
 }
 
 function buildBody(item: LobstersItem): string {
@@ -74,15 +87,6 @@ const adapter: Adapter = {
         const tagUrl = `${LOBSTERS_BASE}/t/${encodeURIComponent(tag)}.json`;
         return fetchJson<LobstersItem[]>("lobsters", tagUrl, `tag ${tag}`);
       });
-      items = dedupeByKey(items, (item) => item.short_id);
-
-      if (feedType === "hottest") {
-        items.sort((a, b) => b.score - a.score);
-      } else if (feedType === "newest") {
-        sortByCreatedAtDesc(items);
-      } else {
-        items.sort((a, b) => b.comment_count - a.comment_count);
-      }
     } else {
       const feedUrl = `${LOBSTERS_BASE}/${feedType}.json`;
       items = await fetchJson<LobstersItem[]>("lobsters", feedUrl, feedType);
@@ -92,6 +96,12 @@ const adapter: Adapter = {
       limit,
       minScore,
       scoreOf: (item) => item.score,
+      ...(tags.length > 0
+        ? {
+            dedupeKey: (item) => item.short_id,
+            sort: lobstersSortComparator(feedType),
+          }
+        : {}),
     });
 
     const sourceLabel =
