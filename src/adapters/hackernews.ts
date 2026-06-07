@@ -15,8 +15,8 @@ import {
   normalizeParamStringFirst,
   clampAdapterLimit,
   resolveAliasedOption,
-  sliceToLimit,
 } from "../utils";
+import { finalizeFetchedItems } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 const HN_API = "https://hacker-news.firebaseio.com/v0";
@@ -123,11 +123,11 @@ const adapter: Adapter = {
       await fetchAllBatched(sliced, BATCH_SIZE, fetchItem)
     ).filter((item): item is HNItem => item !== null);
 
-    const filtered = minScore > 0
-      ? items.filter((item) => (item.score ?? 0) >= minScore)
-      : items;
-
-    const limited = sliceToLimit(filtered, limit);
+    const limited = finalizeFetchedItems(items, {
+      limit,
+      minScore,
+      scoreOf: (item) => item.score ?? 0,
+    });
 
     return limited.map((item) => ({
       id: `hn:${item.id}`,

@@ -5,6 +5,7 @@ import {
   fetchAllParallel,
   fetchAllParallelDedupe,
   fetchAndConcat,
+  finalizeFetchedItems,
   sortByCreatedAtDesc,
 } from "./adapters/merge";
 
@@ -115,5 +116,36 @@ describe("sortByCreatedAtDesc", () => {
     ];
     sortByCreatedAtDesc(items);
     expect(items.map((x) => x.id)).toEqual(["new", "mid", "old"]);
+  });
+});
+
+describe("finalizeFetchedItems", () => {
+  test("dedupes, filters by min score, sorts, and slices", () => {
+    const items = [
+      { id: "a", score: 10 },
+      { id: "b", score: 3 },
+      { id: "a", score: 10 },
+      { id: "c", score: 8 },
+      { id: "d", score: 1 },
+    ];
+    const out = finalizeFetchedItems(items, {
+      limit: 2,
+      dedupeKey: (item) => item.id,
+      minScore: 5,
+      scoreOf: (item) => item.score,
+      sort: (a, b) => b.score - a.score,
+    });
+    expect(out).toEqual([
+      { id: "a", score: 10 },
+      { id: "c", score: 8 },
+    ]);
+  });
+
+  test("skips dedupe, filter, and sort when options omitted", () => {
+    const items = [{ id: "a" }, { id: "b" }, { id: "c" }];
+    expect(finalizeFetchedItems(items, { limit: 2 })).toEqual([
+      { id: "a" },
+      { id: "b" },
+    ]);
   });
 });

@@ -1,4 +1,4 @@
-import { compareIsoTimestamp, sleep } from "../utils";
+import { compareIsoTimestamp, sliceToLimit, sleep } from "../utils";
 
 /** Fetch each key sequentially and concatenate results (multi-tag / multi-endpoint merge). */
 export async function fetchAndConcat<T, K = string>(
@@ -62,4 +62,31 @@ export function dedupeByKey<T, K>(items: readonly T[], key: (item: T) => K): T[]
 /** Sort items newest-first by ISO `created_at` timestamp. */
 export function sortByCreatedAtDesc<T extends { created_at: string }>(items: T[]): void {
   items.sort((a, b) => compareIsoTimestamp(a.created_at, b.created_at, "desc"));
+}
+
+export type FinalizeFetchedItemsOptions<T> = {
+  limit: number;
+  dedupeKey?: (item: T) => unknown;
+  minScore?: number;
+  scoreOf?: (item: T) => number;
+  sort?: (a: T, b: T) => number;
+};
+
+/** Shared post-fetch pipeline: optional dedupe, min-score filter, sort, then slice. */
+export function finalizeFetchedItems<T>(
+  items: readonly T[],
+  options: FinalizeFetchedItemsOptions<T>,
+): T[] {
+  let result = [...items];
+  if (options.dedupeKey) {
+    result = dedupeByKey(result, options.dedupeKey);
+  }
+  const minScore = options.minScore ?? 0;
+  if (minScore > 0 && options.scoreOf) {
+    result = result.filter((item) => options.scoreOf!(item) >= minScore);
+  }
+  if (options.sort) {
+    result.sort(options.sort);
+  }
+  return sliceToLimit(result, options.limit);
 }

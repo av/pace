@@ -11,13 +11,13 @@ import { fetchJson, HN_ITEM_FETCH_TIMEOUT_MS, warnOptionalFetchFailure } from ".
 import { decodeNumericFeedTitle, stripHtml } from "./html";
 import {
   clampAdapterLimit,
+  compareIsoTimestamp,
   normalizeNonNegativeNumber,
   normalizeParamBoolean,
   normalizeParamString,
   normalizeParamStringList,
-  sliceToLimit,
 } from "../utils";
-import { dedupeByKey, fetchAndConcat, sortByCreatedAtDesc } from "./merge";
+import { finalizeFetchedItems, fetchAndConcat } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 interface MastodonStatus {
@@ -253,17 +253,13 @@ const adapter: Adapter = {
       onlyMedia,
     );
 
-    allStatuses = dedupeByKey(allStatuses, (status) => status.id);
-
-    if (minFavourites > 0) {
-      allStatuses = allStatuses.filter(
-        (status) => status.favourites_count >= minFavourites,
-      );
-    }
-
-    sortByCreatedAtDesc(allStatuses);
-
-    const limited = sliceToLimit(allStatuses, limit);
+    const limited = finalizeFetchedItems(allStatuses, {
+      limit,
+      dedupeKey: (status) => status.id,
+      minScore: minFavourites,
+      scoreOf: (status) => status.favourites_count,
+      sort: (a, b) => compareIsoTimestamp(a.created_at, b.created_at, "desc"),
+    });
 
     const sourceLabel = mastodonSourceLabel(mode, instance, hashtags);
 

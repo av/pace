@@ -15,9 +15,8 @@ import {
   normalizeParamString,
   normalizeParamStringList,
   resolveAliasedOption,
-  sliceToLimit,
 } from "../utils";
-import { dedupeByKey, fetchAndConcat, sortByCreatedAtDesc } from "./merge";
+import { dedupeByKey, finalizeFetchedItems, fetchAndConcat, sortByCreatedAtDesc } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 const LOBSTERS_BASE = "https://lobste.rs";
@@ -85,7 +84,6 @@ const adapter: Adapter = {
         const tagUrl = `${LOBSTERS_BASE}/t/${encodeURIComponent(tag)}.json`;
         return fetchJson<LobstersItem[]>("lobsters", tagUrl, `tag ${tag}`);
       });
-
       items = dedupeByKey(items, (item) => item.short_id);
 
       if (feedType === "hottest") {
@@ -100,11 +98,11 @@ const adapter: Adapter = {
       items = await fetchJson<LobstersItem[]>("lobsters", feedUrl, feedType);
     }
 
-    if (minScore > 0) {
-      items = items.filter((item) => item.score >= minScore);
-    }
-
-    const limited = sliceToLimit(items, limit);
+    const limited = finalizeFetchedItems(items, {
+      limit,
+      minScore,
+      scoreOf: (item) => item.score,
+    });
 
     return limited.map((item) => ({
       id: `lobsters:${item.short_id}`,

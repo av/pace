@@ -16,9 +16,8 @@ import {
   normalizeParamString,
   normalizeParamStringList,
   resolveAliasedOption,
-  sliceToLimit,
 } from "../utils";
-import { dedupeByKey, fetchAndConcat } from "./merge";
+import { finalizeFetchedItems, fetchAndConcat } from "./merge";
 import { type Adapter, type AdapterConfig, type ContentItem } from "./types";
 
 const SE_API = "https://api.stackexchange.com/2.3";
@@ -132,17 +131,16 @@ const adapter: Adapter = {
       questions = await fetchAndConcat(tags, (tag) =>
         fetchQuestions(site, effectiveSort, [tag], limit),
       );
-      questions = dedupeByKey(questions, (q) => q.question_id);
     } else {
       questions = await fetchQuestions(site, effectiveSort, tags, limit);
     }
 
-    const filtered =
-      minScore > 0
-        ? questions.filter((q) => q.score >= minScore)
-        : questions;
-
-    const limited = sliceToLimit(filtered, limit);
+    const limited = finalizeFetchedItems(questions, {
+      limit,
+      dedupeKey: tags.length > 1 ? (q) => q.question_id : undefined,
+      minScore,
+      scoreOf: (q) => q.score,
+    });
 
     let sourceLabel: string;
     if (tags.length > 0) {

@@ -16,9 +16,8 @@ import {
   normalizeParamString,
   normalizeParamStringList,
   resolveAliasedOption,
-  sliceToLimit,
 } from "../utils";
-import { dedupeByKey } from "./merge";
+import { finalizeFetchedItems } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 const REDDIT_BASE = "https://www.reddit.com";
@@ -160,16 +159,13 @@ const adapter: Adapter = {
       allPosts.push(...posts);
     }
 
-    const deduped = dedupeByKey(allPosts, (post) => post.data.id);
-
-    const filtered =
-      minScore > 0
-        ? deduped.filter((post) => post.data.score >= minScore)
-        : deduped;
-
-    filtered.sort((a, b) => b.data.score - a.data.score);
-
-    const limited = sliceToLimit(filtered, limit);
+    const limited = finalizeFetchedItems(allPosts, {
+      limit,
+      dedupeKey: (post) => post.data.id,
+      minScore,
+      scoreOf: (post) => post.data.score,
+      sort: (a, b) => b.data.score - a.data.score,
+    });
 
     const sourceLabel =
       subreddits.length === 1

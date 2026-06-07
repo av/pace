@@ -17,9 +17,8 @@ import {
   normalizeParamString,
   normalizeParamStringList,
   resolveAliasedOption,
-  sliceToLimit,
 } from "../utils";
-import { dedupeByKey, fetchAndConcat } from "./merge";
+import { finalizeFetchedItems, fetchAndConcat } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 const DEVTO_API = "https://dev.to/api/articles";
@@ -145,20 +144,13 @@ const adapter: Adapter = {
       );
     }
 
-    const deduped = dedupeByKey(allArticles, (article) => article.id);
-
-    const filtered =
-      minReactions > 0
-        ? deduped.filter(
-            (a) => a.positive_reactions_count >= minReactions,
-          )
-        : deduped;
-
-    filtered.sort(
-      (a, b) => b.positive_reactions_count - a.positive_reactions_count,
-    );
-
-    const limited = sliceToLimit(filtered, perPage);
+    const limited = finalizeFetchedItems(allArticles, {
+      limit: perPage,
+      dedupeKey: (article) => article.id,
+      minScore: minReactions,
+      scoreOf: (article) => article.positive_reactions_count,
+      sort: (a, b) => b.positive_reactions_count - a.positive_reactions_count,
+    });
 
     let sourceLabel: string;
     if (username) {

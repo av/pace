@@ -15,9 +15,8 @@ import {
   normalizeParamString,
   normalizeParamStringList,
   resolveAliasedOption,
-  sliceToLimit,
 } from "../utils";
-import { dedupeByKey } from "./merge";
+import { finalizeFetchedItems } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 type SortType = "Hot" | "New" | "Top" | "Active" | "MostComments";
@@ -125,15 +124,13 @@ const adapter: Adapter = {
       }
     }
 
-    let deduped = dedupeByKey(allPosts, (view) => view.post.id);
-
-    if (minScore > 0) {
-      deduped = deduped.filter((view) => view.counts.score >= minScore);
-    }
-
-    deduped.sort((a, b) => b.counts.score - a.counts.score);
-
-    const limited = sliceToLimit(deduped, limit);
+    const limited = finalizeFetchedItems(allPosts, {
+      limit,
+      dedupeKey: (view) => view.post.id,
+      minScore,
+      scoreOf: (view) => view.counts.score,
+      sort: (a, b) => b.counts.score - a.counts.score,
+    });
 
     const sourceLabel =
       communities.length === 1
