@@ -55,6 +55,15 @@ export function compareItemTimestampDesc<T extends { timestamp: Date }>(a: T, b:
   return b.timestamp.getTime() - a.timestamp.getTime();
 }
 
+/** Limit raw feed rows before mapping (avoids parsing entries dropped by per-feed cap). */
+export function sliceAndMap<T, R>(
+  items: readonly T[],
+  limit: number,
+  map: (item: T) => R,
+): R[] {
+  return sliceToLimit(items, limit).map(map);
+}
+
 export type FinalizeFetchedItemsOptions<T> = {
   limit: number;
   dedupeKey?: (item: T) => unknown;

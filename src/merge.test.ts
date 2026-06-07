@@ -6,6 +6,7 @@ import {
   fetchAllParallel,
   fetchAndConcat,
   finalizeFetchedItems,
+  sliceAndMap,
 } from "./adapters/merge";
 
 describe("dedupeByKey", () => {
@@ -95,6 +96,18 @@ describe("compareItemTimestampDesc", () => {
     expect(compareItemTimestampDesc(older, newer)).toBeGreaterThan(0);
     expect(compareItemTimestampDesc(newer, older)).toBeLessThan(0);
     expect(compareItemTimestampDesc(newer, newer)).toBe(0);
+  });
+});
+
+describe("sliceAndMap", () => {
+  test("slices before mapping so mapper runs only on kept items", () => {
+    const mapped: number[] = [];
+    const out = sliceAndMap([10, 20, 30, 40], 2, (n) => {
+      mapped.push(n);
+      return n * 2;
+    });
+    expect(out).toEqual([20, 40]);
+    expect(mapped).toEqual([10, 20]);
   });
 });
 

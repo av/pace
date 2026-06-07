@@ -1,7 +1,6 @@
 import {
   normalizeParamString,
   normalizeParamStringList,
-  sliceToLimit,
 } from "../utils";
 import {
   extractAtomLink,
@@ -21,7 +20,12 @@ import { fetchAtomFeed, fetchJson, buildGitHubApiHeaders } from "./fetch";
 import { fetchRepoTagline } from "./github-repo-meta";
 import { decodeNumericFeedTitle } from "./html";
 import { warnEmptyConfig } from "./empty-config";
-import { compareItemTimestampDesc, fetchAllParallel, finalizeFetchedItems } from "./merge";
+import {
+  compareItemTimestampDesc,
+  fetchAllParallel,
+  finalizeFetchedItems,
+  sliceAndMap,
+} from "./merge";
 import { capText, joinTitleWithTagline } from "./title";
 import type { ContentItem } from "./types";
 
@@ -120,7 +124,7 @@ export async function fetchGitHubAtomReleases(
   const source = githubAtomFeedSourceLabel(repo, feedTitle);
   const tagline = await fetchRepoTagline(repo, adapterName, token);
 
-  return sliceToLimit(entries, limit).map((entry) =>
+  return sliceAndMap(entries, limit, (entry) =>
     projectFeedEntryToContentItem(
       "github",
       entry,

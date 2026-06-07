@@ -19,9 +19,13 @@ import { FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
 import {
   clampAdapterLimit,
   normalizeParamStringList,
-  sliceToLimit,
 } from "../utils";
-import { compareItemTimestampDesc, fetchAllParallel, finalizeFetchedItems } from "./merge";
+import {
+  compareItemTimestampDesc,
+  fetchAllParallel,
+  finalizeFetchedItems,
+  sliceAndMap,
+} from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 interface YTEntry {
@@ -95,7 +99,7 @@ async function fetchYoutubeFeed(
     parsed.feed?.title,
     "YouTube",
   )!;
-  return sliceToLimit(entries, limit).map((entry) => parseEntry(entry, channelTitle));
+  return sliceAndMap(entries, limit, (entry) => parseEntry(entry, channelTitle));
 }
 
 const adapter: Adapter = {
