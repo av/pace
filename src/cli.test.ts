@@ -11,6 +11,8 @@ import {
   isCliFatalStartupError,
   normalizeCliParsedValues,
   readPackageVersion,
+  resolveCliInfoOutput,
+  resolveCliServeErrors,
 } from "./cli-help";
 
 const cliHelpStdout = () => formatCliHelp(readPackageVersion()) + "\n";
@@ -65,6 +67,33 @@ describe("cli-help", () => {
       if (orig === undefined) delete process.env.PACE_CONFIG;
       else process.env.PACE_CONFIG = orig;
     }
+  });
+
+  test("resolveCliInfoOutput dispatches help, version, and list-presets", () => {
+    const ctx = {
+      version: "9.9.9",
+      help: "HELP TEXT",
+      listPresets: () => ["alpha", "beta"],
+    };
+    expect(resolveCliInfoOutput({ help: true }, ctx)).toBe("HELP TEXT");
+    expect(resolveCliInfoOutput({ version: true }, ctx)).toBe("9.9.9");
+    expect(resolveCliInfoOutput({ listPresets: true }, ctx)).toBe("alpha\nbeta");
+    expect(resolveCliInfoOutput({}, ctx)).toBeNull();
+  });
+
+  test("resolveCliServeErrors rejects unknown commands and options", () => {
+    expect(resolveCliServeErrors({}, undefined)).toBeNull();
+    expect(resolveCliServeErrors({}, "serve")).toBeNull();
+
+    expect(resolveCliServeErrors({}, "foo")).toEqual({
+      stderr: "Unknown command: foo\n",
+      showHelp: true,
+    });
+    expect(resolveCliServeErrors({ badflag: true, prt: true }, "serve")).toEqual({
+      stderr: "Unknown option(s): --badflag, --prt\n",
+      showHelp: true,
+    });
+    expect(resolveCliServeErrors({ help: true }, "serve")).toBeNull();
   });
 
   test("applyCliPortEnv sets PORT for valid values and no-ops when unset", () => {
