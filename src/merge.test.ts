@@ -4,7 +4,6 @@ import {
   dedupeByKey,
   fetchAllBatched,
   fetchAllParallel,
-  fetchAllParallelDedupe,
   fetchAndConcat,
   finalizeFetchedItems,
   sortByCreatedAtDesc,
@@ -90,24 +89,6 @@ describe("fetchAllBatched", () => {
   });
 });
 
-describe("fetchAllParallelDedupe", () => {
-  test("dedupes flattened parallel results by key", async () => {
-    const out = await fetchAllParallelDedupe(
-      ["a", "b"],
-      async (key) => [
-        { id: `${key}-1`, n: 1 },
-        { id: "shared", n: key === "a" ? 1 : 2 },
-      ],
-      (item) => item.id,
-    );
-    expect(out).toEqual([
-      { id: "a-1", n: 1 },
-      { id: "shared", n: 1 },
-      { id: "b-1", n: 1 },
-    ]);
-  });
-});
-
 describe("compareItemTimestampDesc", () => {
   test("orders newer timestamp first", () => {
     const older = { timestamp: new Date("2024-01-01T00:00:00.000Z"), id: "old" };
@@ -157,6 +138,25 @@ describe("finalizeFetchedItems", () => {
     expect(finalizeFetchedItems(items, { limit: 2 })).toEqual([
       { id: "a" },
       { id: "b" },
+    ]);
+  });
+
+  test("dedupes flattened parallel fetch results by key", async () => {
+    const fetched = await fetchAllParallel(
+      ["a", "b"],
+      async (key) => [
+        { id: `${key}-1`, n: 1 },
+        { id: "shared", n: key === "a" ? 1 : 2 },
+      ],
+    );
+    const out = finalizeFetchedItems(fetched, {
+      limit: 100,
+      dedupeKey: (item) => item.id,
+    });
+    expect(out).toEqual([
+      { id: "a-1", n: 1 },
+      { id: "shared", n: 1 },
+      { id: "b-1", n: 1 },
     ]);
   });
 });

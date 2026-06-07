@@ -39,15 +39,6 @@ export async function fetchAllBatched<T, K>(
   return results;
 }
 
-/** Parallel fetch + dedupe by key (overlap when merging multiple sources). */
-export async function fetchAllParallelDedupe<T, K, DedupeKey>(
-  keys: readonly K[],
-  fetchOne: (key: K) => Promise<T[]>,
-  keyOf: (item: T) => DedupeKey,
-): Promise<T[]> {
-  return dedupeByKey(await fetchAllParallel(keys, fetchOne), keyOf);
-}
-
 /** Keep first occurrence per key (overlap when merging multiple tags/endpoints). */
 export function dedupeByKey<T, K>(items: readonly T[], key: (item: T) => K): T[] {
   const seen = new Set<K>();
