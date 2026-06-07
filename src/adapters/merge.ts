@@ -1,4 +1,4 @@
-import { compareIsoTimestamp, sliceToLimit, sleep } from "../utils";
+import { sliceToLimit, sleep } from "../utils";
 
 /** Fetch each key sequentially and concatenate results (multi-tag / multi-endpoint merge). */
 export async function fetchAndConcat<T, K = string>(
@@ -48,11 +48,6 @@ export function dedupeByKey<T, K>(items: readonly T[], key: (item: T) => K): T[]
     seen.add(k);
     return true;
   });
-}
-
-/** Sort items newest-first by ISO `created_at` timestamp. */
-export function sortByCreatedAtDesc<T extends { created_at: string }>(items: T[]): void {
-  items.sort((a, b) => compareIsoTimestamp(a.created_at, b.created_at, "desc"));
 }
 
 /** Compare items newest-first by `timestamp` Date field (for finalizeFetchedItems sort). */

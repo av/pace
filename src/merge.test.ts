@@ -6,7 +6,6 @@ import {
   fetchAllParallel,
   fetchAndConcat,
   finalizeFetchedItems,
-  sortByCreatedAtDesc,
 } from "./adapters/merge";
 
 describe("dedupeByKey", () => {
@@ -96,18 +95,6 @@ describe("compareItemTimestampDesc", () => {
     expect(compareItemTimestampDesc(older, newer)).toBeGreaterThan(0);
     expect(compareItemTimestampDesc(newer, older)).toBeLessThan(0);
     expect(compareItemTimestampDesc(newer, newer)).toBe(0);
-  });
-});
-
-describe("sortByCreatedAtDesc", () => {
-  test("sorts items newest-first by created_at", () => {
-    const items = [
-      { created_at: "2024-01-01T00:00:00.000Z", id: "old" },
-      { created_at: "2024-06-01T00:00:00.000Z", id: "new" },
-      { created_at: "2024-03-01T00:00:00.000Z", id: "mid" },
-    ];
-    sortByCreatedAtDesc(items);
-    expect(items.map((x) => x.id)).toEqual(["new", "mid", "old"]);
   });
 });
 
