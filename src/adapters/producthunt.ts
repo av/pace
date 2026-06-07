@@ -16,7 +16,7 @@ import {
   normalizeNonNegativeNumber,
   normalizeParamBoolean,
 } from "../utils";
-import { fetchAllBatched, finalizeFetchedItems } from "./merge";
+import { fetchAllBatched, finalizeFetchedItems, sliceAndMap } from "./merge";
 import {
   fetchAtomFeed,
   fetchText,
@@ -224,7 +224,7 @@ function buildBody(
   );
 }
 
-async function fetchProductHuntFeed(): Promise<{
+async function fetchProductHuntFeed(limit: number): Promise<{
   feedTitle: string;
   items: ParsedPHEntry[];
 }> {
@@ -244,7 +244,9 @@ async function fetchProductHuntFeed(): Promise<{
     return { feedTitle, items: [] };
   }
 
-  const items = entries.map((entry) => parseEntry(entry, feedTitle));
+  const items = sliceAndMap(entries, limit, (entry) =>
+    parseEntry(entry, feedTitle),
+  );
   return { feedTitle, items };
 }
 
@@ -265,10 +267,11 @@ const adapter: Adapter = {
       );
     }
 
-    const { items: feedItems } = await fetchProductHuntFeed();
+    const effectiveLimit = limit ?? Number.MAX_SAFE_INTEGER;
+    const { items: feedItems } = await fetchProductHuntFeed(effectiveLimit);
 
     const items = finalizeFetchedItems(feedItems, {
-      limit: limit ?? Number.MAX_SAFE_INTEGER,
+      limit: effectiveLimit,
     });
 
     let enrichedMap = new Map<string, EnrichedData | null>();
