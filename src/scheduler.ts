@@ -90,6 +90,28 @@ function logScheduledRefresh(label: string, intervalMin: number): void {
   console.log(`scheduler: ${label} — every ${intervalMin}m`);
 }
 
+function scheduleTimedEntryRefresh<T extends TimedEntryBase>(
+  entry: T,
+  run: (entry: T) => Promise<RefreshResult>,
+  options: { initialDelayMs?: number } = {},
+): void {
+  const startInterval = (): void => {
+    entry.timer = setInterval(() => run(entry), entry.intervalMs);
+  };
+
+  const runOnceAndSchedule = (): void => {
+    void run(entry);
+    startInterval();
+  };
+
+  const initialDelayMs = options.initialDelayMs ?? 0;
+  if (initialDelayMs > 0) {
+    entry.initialTimer = setTimeout(runOnceAndSchedule, initialDelayMs);
+  } else {
+    runOnceAndSchedule();
+  }
+}
+
 function missingAdapterTypesMessage(types: readonly string[]): string {
   const quoted = types.map((type) => `"${type}"`).join(", ");
   if (types.length === 1) {
@@ -198,8 +220,7 @@ export function startScheduler(
       running: false,
     };
 
-    runAdapter(entry);
-    entry.timer = setInterval(() => runAdapter(entry), intervalMs);
+    scheduleTimedEntryRefresh(entry, runAdapter);
     adapterEntries.push(entry);
 
     logScheduledRefresh(name, intervalMin);
@@ -225,10 +246,9 @@ export function startScheduler(
         running: false,
       };
 
-      entry.initialTimer = setTimeout(() => {
-        runPipelineJob(entry);
-        entry.timer = setInterval(() => runPipelineJob(entry), intervalMs);
-      }, PIPELINE_INITIAL_DELAY_MS);
+      scheduleTimedEntryRefresh(entry, runPipelineJob, {
+        initialDelayMs: PIPELINE_INITIAL_DELAY_MS,
+      });
 
       pipelineEntries.push(entry);
       logScheduledRefresh(`pipeline "${pipelineCfg.name}"`, intervalMin);
