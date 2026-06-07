@@ -1,5 +1,8 @@
 import { describe, test, expect, spyOn } from "bun:test";
-import hackernewsAdapter, { resolveHnFeedType } from "./adapters/hackernews";
+import hackernewsAdapter, {
+  hackernewsSourceLabel,
+  resolveHnFeedType,
+} from "./adapters/hackernews";
 import * as utilsMod from "./utils";
 import { fetchMockCallUrl, fetchMockCalls, useFetchMockSuite } from "./test/adapter-mocks";
 import { hnCfg } from "./test/adapter-cfg";
@@ -9,6 +12,19 @@ import { makeHNItem } from "./test/hackernews-fixtures";
 
 const mocks = useFetchMockSuite();
 
+
+describe("hackernewsSourceLabel", () => {
+  test.each([
+    ["top", "hackernews:top"],
+    ["new", "hackernews:new"],
+    ["best", "hackernews:best"],
+    ["ask", "hackernews:ask"],
+    ["show", "hackernews:show"],
+    ["job", "hackernews:job"],
+  ] as const)("maps %s → %s", (feedType, expected) => {
+    expect(hackernewsSourceLabel(feedType)).toBe(expected);
+  });
+});
 
 describe("resolveHnFeedType", () => {
   test.each([

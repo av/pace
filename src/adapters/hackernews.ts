@@ -36,6 +36,11 @@ interface HNItem {
 
 type FeedType = "top" | "new" | "best" | "ask" | "show" | "job";
 
+/** Build hackernews source label from feed type. */
+export function hackernewsSourceLabel(feedType: FeedType): string {
+  return `hackernews:${feedType}`;
+}
+
 const FEED_ENDPOINTS: Record<FeedType, string> = {
   top: "topstories",
   new: "newstories",
@@ -118,7 +123,7 @@ const adapter: Adapter = {
       scoreOf: (item) => item.score ?? 0,
     });
 
-    return mapToContentItems(limited, `hackernews:${feedType}`, (item) => ({
+    return mapToContentItems(limited, hackernewsSourceLabel(feedType), (item) => ({
       id: `hn:${item.id}`,
       title: decodeNumericFeedTitleOptional(item.title),
       url: item.url ?? `https://news.ycombinator.com/item?id=${item.id}`,
