@@ -17,6 +17,34 @@ function rethrowDbTxError(e: unknown, wrapped: string): never {
   throw new Error(`${wrapped}: ${errorMessage(e)}`);
 }
 
+function runItemOp(
+  panelId: string,
+  item: { id: string },
+  verb: "save" | "replace",
+  op: () => void,
+): void {
+  try {
+    op();
+  } catch (e: unknown) {
+    throw new Error(`db: failed to ${verb} item id=${item.id} for panel=${panelId}: ${errorMessage(e)}`);
+  }
+}
+
+function runPanelItemsTx(
+  panelId: string,
+  itemCount: number,
+  verb: "save" | "replace",
+  body: () => void,
+): void {
+  const db = getDb();
+  const tx = db.transaction(body);
+  try {
+    tx();
+  } catch (e: unknown) {
+    rethrowDbTxError(e, `db: failed to ${verb} ${itemCount} items for panel ${panelId}`);
+  }
+}
+
 export function getDb(): Database {
   const desiredPath = process.env.PACE_DB_PATH || join(process.cwd(), "data", "pace.db");
   if (!db || currentDbPath !== desiredPath) {
@@ -97,9 +125,9 @@ export function saveItems(panelId: string, items: ContentItem[]): void {
       fetched_at = datetime('now')
   `);
 
-  const tx = db.transaction(() => {
+  runPanelItemsTx(panelId, items.length, "save", () => {
     for (const item of items) {
-      try {
+      runItemOp(panelId, item, "save", () => {
         stmt.run(
           item.id,
           panelId,
@@ -109,20 +137,9 @@ export function saveItems(panelId: string, items: ContentItem[]): void {
           item.body ?? null,
           item.timestamp.toISOString()
         );
-      } catch (e: unknown) {
-        throw new Error(`db: failed to save item id=${item.id} for panel=${panelId}: ${errorMessage(e)}`);
-      }
+      });
     }
   });
-
-  try {
-    tx();
-  } catch (e: unknown) {
-    rethrowDbTxError(
-      e,
-      `db: failed to save ${items.length} items for panel ${panelId}`,
-    );
-  }
 }
 
 const DEDUP_GROUP_EXPR = `CASE WHEN url = '' THEN id ELSE lower(rtrim(url, '/')) END`;
@@ -183,14 +200,14 @@ export function replacePanelItems(panelId: string, items: ContentItemRow[]): voi
   ).all(panelId) as { id: string; summary: string }[];
   const summaryMap = new Map(existing.map((r) => [r.id, r.summary]));
 
-  const tx = db.transaction(() => {
+  runPanelItemsTx(panelId, items.length, "replace", () => {
     db.prepare("DELETE FROM content_items WHERE panel_id = ?").run(panelId);
     const stmt = db.prepare(`
       INSERT INTO content_items (id, panel_id, title, url, source, body, timestamp, fetched_at, summary)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const item of items) {
-      try {
+      runItemOp(panelId, item, "replace", () => {
         stmt.run(
           item.id,
           panelId,
@@ -202,20 +219,9 @@ export function replacePanelItems(panelId: string, items: ContentItemRow[]): voi
           item.fetched_at,
           item.summary ?? summaryMap.get(item.id) ?? null,
         );
-      } catch (e: unknown) {
-        throw new Error(`db: failed to replace item id=${item.id} for panel=${panelId}: ${errorMessage(e)}`);
-      }
+      });
     }
   });
-
-  try {
-    tx();
-  } catch (e: unknown) {
-    rethrowDbTxError(
-      e,
-      `db: failed to replace ${items.length} items for panel ${panelId}`,
-    );
-  }
 }
 
 export function closeDb(): void {
