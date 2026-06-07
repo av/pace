@@ -20,7 +20,7 @@ import { fetchAtomFeed, fetchJson, buildGitHubApiHeaders } from "./fetch";
 import { fetchRepoTagline } from "./github-repo-meta";
 import { decodeNumericFeedTitle } from "./html";
 import { warnEmptyConfig } from "./empty-config";
-import { fetchAllParallel, finalizeFetchedItems } from "./merge";
+import { compareItemTimestampDesc, fetchAllParallel, finalizeFetchedItems } from "./merge";
 import { capText, joinTitleWithTagline } from "./title";
 import type { ContentItem } from "./types";
 
@@ -174,6 +174,6 @@ export async function fetchGitHubReposReleases(
   return finalizeFetchedItems(items, {
     limit: limit * resolved.repos.length,
     dedupeKey: (item) => item.url || item.id,
-    sort: (a, b) => b.timestamp.getTime() - a.timestamp.getTime(),
+    sort: compareItemTimestampDesc,
   });
 }

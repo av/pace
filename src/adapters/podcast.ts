@@ -26,7 +26,7 @@ import {
   normalizeParamStringList,
   sliceToLimit,
 } from "../utils";
-import { fetchAllParallel, finalizeFetchedItems } from "./merge";
+import { compareItemTimestampDesc, fetchAllParallel, finalizeFetchedItems } from "./merge";
 
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
@@ -280,7 +280,7 @@ const adapter: Adapter = {
     return finalizeFetchedItems(allItems, {
       limit: limit * feeds.length,
       dedupeKey: (item) => item.url || item.id,
-      sort: (a, b) => b.timestamp.getTime() - a.timestamp.getTime(),
+      sort: compareItemTimestampDesc,
     });
   },
 };

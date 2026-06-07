@@ -1,5 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import {
+  compareItemTimestampDesc,
   dedupeByKey,
   fetchAllBatched,
   fetchAllParallel,
@@ -104,6 +105,16 @@ describe("fetchAllParallelDedupe", () => {
       { id: "shared", n: 1 },
       { id: "b-1", n: 1 },
     ]);
+  });
+});
+
+describe("compareItemTimestampDesc", () => {
+  test("orders newer timestamp first", () => {
+    const older = { timestamp: new Date("2024-01-01T00:00:00.000Z"), id: "old" };
+    const newer = { timestamp: new Date("2024-06-01T00:00:00.000Z"), id: "new" };
+    expect(compareItemTimestampDesc(older, newer)).toBeGreaterThan(0);
+    expect(compareItemTimestampDesc(newer, older)).toBeLessThan(0);
+    expect(compareItemTimestampDesc(newer, newer)).toBe(0);
   });
 });
 

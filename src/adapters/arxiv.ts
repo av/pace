@@ -25,7 +25,7 @@ import {
   normalizeParamString,
   normalizeParamStringList,
 } from "../utils";
-import { fetchAllBatched, finalizeFetchedItems } from "./merge";
+import { compareItemTimestampDesc, fetchAllBatched, finalizeFetchedItems } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 const ARXIV_API = "http://export.arxiv.org/api/query";
 const RATE_LIMIT_DELAY_MS = 3000;
@@ -201,7 +201,7 @@ const adapter: Adapter = {
     return finalizeFetchedItems(allItems, {
       limit: totalLimit,
       dedupeKey: (item) => item.id,
-      sort: (a, b) => b.timestamp.getTime() - a.timestamp.getTime(),
+      sort: compareItemTimestampDesc,
     });
   },
 };

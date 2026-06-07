@@ -12,7 +12,7 @@ import {
   resolveDecodedFeedRootTitle,
 } from "./feed-entry";
 import { fetchRssAtomFeed } from "./fetch";
-import { fetchAllParallel, finalizeFetchedItems } from "./merge";
+import { compareItemTimestampDesc, fetchAllParallel, finalizeFetchedItems } from "./merge";
 import { extractHostname } from "../dedupe";
 import { normalizeParamStringList, simpleHash } from "../utils";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -84,7 +84,7 @@ const adapter: Adapter = {
     return finalizeFetchedItems(allItems, {
       limit: Number.MAX_SAFE_INTEGER,
       dedupeKey: (item) => item.url || item.id,
-      sort: (a, b) => b.timestamp.getTime() - a.timestamp.getTime(),
+      sort: compareItemTimestampDesc,
     });
   },
 };

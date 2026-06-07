@@ -64,6 +64,11 @@ export function sortByCreatedAtDesc<T extends { created_at: string }>(items: T[]
   items.sort((a, b) => compareIsoTimestamp(a.created_at, b.created_at, "desc"));
 }
 
+/** Compare items newest-first by `timestamp` Date field (for finalizeFetchedItems sort). */
+export function compareItemTimestampDesc<T extends { timestamp: Date }>(a: T, b: T): number {
+  return b.timestamp.getTime() - a.timestamp.getTime();
+}
+
 export type FinalizeFetchedItemsOptions<T> = {
   limit: number;
   dedupeKey?: (item: T) => unknown;

@@ -22,7 +22,7 @@ import {
   normalizeParamStringList,
   sliceToLimit,
 } from "../utils";
-import { fetchAllParallel, finalizeFetchedItems } from "./merge";
+import { compareItemTimestampDesc, fetchAllParallel, finalizeFetchedItems } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 interface YTEntry {
@@ -120,7 +120,7 @@ const adapter: Adapter = {
     return finalizeFetchedItems(allItems, {
       limit: limit * sources.length,
       dedupeKey: (item) => item.id,
-      sort: (a, b) => b.timestamp.getTime() - a.timestamp.getTime(),
+      sort: compareItemTimestampDesc,
     });
   },
 };
