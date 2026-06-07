@@ -77,6 +77,40 @@ function sortByScoreDesc<T>(arr: T[], getScore: (x: T) => number): void {
   arr.sort((a, b) => getScore(b) - getScore(a));
 }
 
+function finalizeScoredItems<T extends { row: ContentItemRow }>(
+  scored: T[],
+  {
+    minScore,
+    getScore,
+    filterLabel,
+    annotate,
+    shouldAnnotate,
+    buildAnnotation,
+    logMessage,
+  }: {
+    minScore: number | undefined;
+    getScore: (s: T) => number;
+    filterLabel: string;
+    annotate: boolean;
+    shouldAnnotate?: (s: T) => boolean;
+    buildAnnotation: (s: T) => string;
+    logMessage: (filtered: T[], result: ContentItemRow[]) => string;
+  }
+): ContentItemRow[] {
+  const filtered = filterByMinScore(scored, minScore, getScore, filterLabel);
+  sortByScoreDesc(filtered, getScore);
+
+  const result = filtered.map((s) => {
+    if (annotate && (shouldAnnotate?.(s) ?? true)) {
+      return annotateRow(s.row, buildAnnotation(s));
+    }
+    return s.row;
+  });
+
+  console.log(logMessage(filtered, result));
+  return result;
+}
+
 export type KeywordScoreTransformConfig = Extract<TransformConfig, { type: "keyword-score" }>;
 
 export function applyKeywordScore(
@@ -144,25 +178,19 @@ export function applyKeywordScore(
     return { row: item, score, matchedTerms };
   });
 
-  const filtered = filterByMinScore(scored, minScore, (s) => s.score, "keyword-score");
-  sortByScoreDesc(filtered, (s) => s.score);
-
-  const result = filtered.map((s) => {
-    if (annotate && s.matchedTerms.length > 0) {
-      const annotation = `\n---\n[keyword-score: ${s.score}] ${s.matchedTerms.join(", ")}`;
-      return annotateRow(s.row, annotation);
-    }
-    return s.row;
-  });
-
-  console.log(
-    `transforms: keyword-score scored ${items.length} items, ${result.length} passed` +
+  return finalizeScoredItems(scored, {
+    minScore,
+    getScore: (s) => s.score,
+    filterLabel: "keyword-score",
+    annotate,
+    shouldAnnotate: (s) => s.matchedTerms.length > 0,
+    buildAnnotation: (s) => `\n---\n[keyword-score: ${s.score}] ${s.matchedTerms.join(", ")}`,
+    logMessage: (filtered, result) =>
+      `transforms: keyword-score scored ${items.length} items, ${result.length} passed` +
       (result.length > 0
         ? ` (top score: ${filtered[0]?.score}, bottom: ${filtered[filtered.length - 1]?.score})`
-        : "")
-  );
-
-  return result;
+        : ""),
+  });
 }
 
 export type TimeDecayTransformConfig = Extract<TransformConfig, { type: "time-decay" }>;
@@ -211,23 +239,17 @@ export function applyTimeDecay(
     return { row: item, engagementNorm, recencyNorm, finalScore };
   });
 
-  const filtered = filterByMinScore(scored, minScore, (s) => s.finalScore, "time-decay");
-  sortByScoreDesc(filtered, (s) => s.finalScore);
-
-  const result = filtered.map((s) => {
-    if (annotate) {
-      const annotation = `\n---\n[hot-score: ${s.finalScore.toFixed(3)}] engagement=${s.engagementNorm.toFixed(3)} recency=${s.recencyNorm.toFixed(3)} (${decayType}, half_life=${halfLifeStr})`;
-      return annotateRow(s.row, annotation);
-    }
-    return s.row;
-  });
-
-  console.log(
-    `transforms: time-decay ranked ${items.length} items (decay=${decayType}, half_life=${halfLifeStr}, weights=${engagementWeight}/${recencyWeight})` +
+  return finalizeScoredItems(scored, {
+    minScore,
+    getScore: (s) => s.finalScore,
+    filterLabel: "time-decay",
+    annotate,
+    buildAnnotation: (s) =>
+      `\n---\n[hot-score: ${s.finalScore.toFixed(3)}] engagement=${s.engagementNorm.toFixed(3)} recency=${s.recencyNorm.toFixed(3)} (${decayType}, half_life=${halfLifeStr})`,
+    logMessage: (filtered, result) =>
+      `transforms: time-decay ranked ${items.length} items (decay=${decayType}, half_life=${halfLifeStr}, weights=${engagementWeight}/${recencyWeight})` +
       (result.length > 0
         ? ` top=${filtered[0]?.finalScore.toFixed(3)}, bottom=${filtered[filtered.length - 1]?.finalScore.toFixed(3)}`
-        : "")
-  );
-
-  return result;
+        : ""),
+  });
 }
