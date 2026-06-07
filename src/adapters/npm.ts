@@ -5,6 +5,7 @@ import {
 } from "./engagement";
 import { joinTitle, joinTitleWithTagline } from "./title";
 
+import { mapToContentItems } from "./content-item";
 import { warnEmptyConfig } from "./empty-config";
 import { fetchJson } from "./fetch";
 import { decodeNumericFeedTitle } from "./html";
@@ -79,6 +80,11 @@ async function searchNpm(
 
 type SortBy = "optimal" | "quality" | "popularity" | "maintenance";
 
+/** Build npm source label: scoped searches use @scope, keyword searches use sort mode. */
+export function npmSourceLabel(scope: string | undefined, sortBy: SortBy): string {
+  return scope ? `npm:@${scope}` : `npm:${sortBy}`;
+}
+
 /** Map configured sort string (canonical name or alias) to npm search sort. Unknown → optimal. */
 export const resolveNpmSort = createAliasedResolver<SortBy>({
   types: ["optimal", "quality", "popularity", "maintenance"],
@@ -143,7 +149,7 @@ const adapter: Adapter = {
     const query = buildSearchQuery(keywords, scope, limit, sortBy);
     const results = await searchNpm(query, context);
 
-    return results.map((result) => ({
+    return mapToContentItems(results, npmSourceLabel(scope, sortBy), (result) => ({
       id: `npm:${result.package.name}@${result.package.version}`,
       title: joinTitleWithTagline(
         decodeNumericFeedTitle(result.package.name),
@@ -152,7 +158,6 @@ const adapter: Adapter = {
           : undefined,
       ),
       url: result.package.links.npm,
-      source: scope ? `npm:@${scope}` : `npm:${sortBy}`,
       timestamp: new Date(result.package.date),
       body: buildBody(result),
     }));

@@ -1,5 +1,5 @@
 import { describe, expect, spyOn, test } from "bun:test";
-import npmAdapter, { resolveNpmSort } from "./adapters/npm";
+import npmAdapter, { npmSourceLabel, resolveNpmSort } from "./adapters/npm";
 import * as utilsMod from "./utils";
 import { npmCfg } from "./test/adapter-cfg";
 import { fetchMockCallUrl, useFetchMockSuite } from "./test/adapter-mocks";
@@ -8,6 +8,16 @@ import { invalidLimitParams } from "./test/invalid-params";
 import { makePackageResult, makeSearchResponse } from "./test/npm-fixtures";
 
 const mocks = useFetchMockSuite();
+
+describe("npmSourceLabel", () => {
+  test("uses @scope label when scope is set", () => {
+    expect(npmSourceLabel("types", "optimal")).toBe("npm:@types");
+  });
+
+  test("uses sort label when no scope", () => {
+    expect(npmSourceLabel(undefined, "popularity")).toBe("npm:popularity");
+  });
+});
 
 describe("resolveNpmSort", () => {
   test.each([

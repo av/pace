@@ -1,5 +1,5 @@
 import { describe, expect, spyOn, test } from "bun:test";
-import wikipediaAdapter, { resolveWikipediaMode } from "./adapters/wikipedia";
+import wikipediaAdapter, { resolveWikipediaMode, wikipediaSourceLabel } from "./adapters/wikipedia";
 import { truncateText } from "./adapters/title";
 import * as utilsMod from "./utils";
 import { fetchMockCallUrl, useFetchMockSuite } from "./test/adapter-mocks";
@@ -10,6 +10,17 @@ import { makeFeaturedResponse, makeMostReadArticle } from "./test/wikipedia-fixt
 
 const mocks = useFetchMockSuite();
 
+
+describe("wikipediaSourceLabel", () => {
+  test.each([
+    ["most_read", "wikipedia:most_read"],
+    ["featured", "wikipedia:featured"],
+    ["on_this_day", "wikipedia:on_this_day"],
+    ["news", "wikipedia:news"],
+  ] as const)("maps %s → %s", (mode, expected) => {
+    expect(wikipediaSourceLabel(mode)).toBe(expected);
+  });
+});
 
 describe("resolveWikipediaMode", () => {
   test.each([

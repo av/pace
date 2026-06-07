@@ -3,6 +3,7 @@ import {
 } from "./engagement";
 import { joinTitle, truncateText } from "./title";
 
+import { mapToContentItems } from "./content-item";
 import { fetchJson } from "./fetch";
 import { decodeNumericFeedTitle, stripHtml } from "./html";
 import {
@@ -31,6 +32,11 @@ const resolveWikipediaModeToken = createAliasedResolver<Mode>({
   },
   fallback: null,
 });
+
+/** Build wikipedia source label from feed mode. */
+export function wikipediaSourceLabel(mode: Mode): string {
+  return `wikipedia:${mode}`;
+}
 
 /** Map configured mode string (canonical name or alias) to Wikipedia feed section. Unknown → null. */
 export function resolveWikipediaMode(token: string): Mode | null {
@@ -107,66 +113,72 @@ async function fetchFeaturedFeed(
 
 function extractMostRead(data: WikiFeaturedResponse, limit: number): ContentItem[] {
   const articles = data.mostread?.articles ?? [];
-  return sliceToLimit(articles, limit).map((article) => ({
-    id: `wikipedia:mostread:${article.title}`,
-    title: decodeNumericFeedTitle(article.title.replace(/_/g, " ")),
-    url: article.content_urls.desktop.page,
-    source: "wikipedia:most_read",
-    timestamp: new Date(),
-    body: buildBody(article),
-  }));
+  return mapToContentItems(
+    sliceToLimit(articles, limit),
+    wikipediaSourceLabel("most_read"),
+    (article) => ({
+      id: `wikipedia:mostread:${article.title}`,
+      title: decodeNumericFeedTitle(article.title.replace(/_/g, " ")),
+      url: article.content_urls.desktop.page,
+      timestamp: new Date(),
+      body: buildBody(article),
+    }),
+  );
 }
 
 function extractFeatured(data: WikiFeaturedResponse): ContentItem[] {
   const tfa = data.tfa;
   if (!tfa) return [];
-  return [
-    {
-      id: `wikipedia:tfa:${tfa.title}`,
-      title: `Featured: ${decodeNumericFeedTitle(tfa.title.replace(/_/g, " "))}`,
-      url: tfa.content_urls.desktop.page,
-      source: "wikipedia:featured",
-      timestamp: new Date(),
-      body: tfa.description ?? truncateWikiExtract(tfa.extract, 200),
-    },
-  ];
+  return mapToContentItems([tfa], wikipediaSourceLabel("featured"), (tfa) => ({
+    id: `wikipedia:tfa:${tfa.title}`,
+    title: `Featured: ${decodeNumericFeedTitle(tfa.title.replace(/_/g, " "))}`,
+    url: tfa.content_urls.desktop.page,
+    timestamp: new Date(),
+    body: tfa.description ?? truncateWikiExtract(tfa.extract, 200),
+  }));
 }
 
 function extractOnThisDay(data: WikiFeaturedResponse, limit: number): ContentItem[] {
   const events = data.onthisday ?? [];
-  return sliceToLimit(events, limit).map((event) => {
-    const page = event.pages?.[0];
-    const text = decodeNumericFeedTitle(
-      stripHtml(event.text, { whitespace: "preserve" }),
-    );
-    const url = page?.content_urls?.desktop?.page ?? `https://en.wikipedia.org/wiki/Portal:Current_events`;
-    return {
-      id: `wikipedia:otd:${event.year}:${text.slice(0, 40)}`,
-      title: `${event.year}: ${text}`,
-      url,
-      source: "wikipedia:on_this_day",
-      timestamp: new Date(),
-      body: page?.description ?? "",
-    };
-  });
+  return mapToContentItems(
+    sliceToLimit(events, limit),
+    wikipediaSourceLabel("on_this_day"),
+    (event) => {
+      const page = event.pages?.[0];
+      const text = decodeNumericFeedTitle(
+        stripHtml(event.text, { whitespace: "preserve" }),
+      );
+      const url = page?.content_urls?.desktop?.page ?? `https://en.wikipedia.org/wiki/Portal:Current_events`;
+      return {
+        id: `wikipedia:otd:${event.year}:${text.slice(0, 40)}`,
+        title: `${event.year}: ${text}`,
+        url,
+        timestamp: new Date(),
+        body: page?.description ?? "",
+      };
+    },
+  );
 }
 
 function extractNews(data: WikiFeaturedResponse, limit: number): ContentItem[] {
   const items = data.news ?? [];
-  return sliceToLimit(items, limit).map((item, i) => {
-    const link = item.links?.[0];
-    const url = link?.content_urls?.desktop?.page ?? "https://en.wikipedia.org/wiki/Portal:Current_events";
-    return {
-      id: `wikipedia:news:${link?.title ?? `untitled-${i}`}`,
-      title: decodeNumericFeedTitle(
-        stripHtml(item.story, { whitespace: "preserve" }),
-      ),
-      url,
-      source: "wikipedia:news",
-      timestamp: new Date(),
-      body: link?.description ?? "",
-    };
-  });
+  return mapToContentItems(
+    sliceToLimit(items, limit).map((item, index) => ({ item, index })),
+    wikipediaSourceLabel("news"),
+    ({ item, index }) => {
+      const link = item.links?.[0];
+      const url = link?.content_urls?.desktop?.page ?? "https://en.wikipedia.org/wiki/Portal:Current_events";
+      return {
+        id: `wikipedia:news:${link?.title ?? `untitled-${index}`}`,
+        title: decodeNumericFeedTitle(
+          stripHtml(item.story, { whitespace: "preserve" }),
+        ),
+        url,
+        timestamp: new Date(),
+        body: link?.description ?? "",
+      };
+    },
+  );
 }
 
 function resolveModes(config: AdapterConfig): Mode[] {
