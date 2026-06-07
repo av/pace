@@ -8,6 +8,7 @@ const EXCLUDED = new Set(["types.ts", "index.ts"]);
 /** Shared modules co-located with adapters; not default-export adapters. */
 const ADAPTER_SUPPORT_MODULES = new Set([
   "atom.ts",
+  "content-item.ts",
   "dates.ts",
   "empty-config.ts",
   "feed-entry.ts",

@@ -18,6 +18,7 @@ import {
   normalizeParamStringList,
   createAliasedResolver,
 } from "../utils";
+import { mapToContentItems } from "./content-item";
 import { finalizeFetchedItems } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
@@ -152,11 +153,10 @@ const adapter: Adapter = {
         ? `reddit:r/${subreddits[0]}`
         : `reddit:${effectiveSort}`;
 
-    return limited.map((post) => ({
+    return mapToContentItems(limited, sourceLabel, (post) => ({
       id: `reddit:${post.data.id}`,
       title: decodeNumericFeedTitle(post.data.title),
       url: getItemUrl(post.data),
-      source: sourceLabel,
       timestamp: parseUnixEpochSeconds(post.data.created_utc),
       body: buildBody(post.data),
     }));

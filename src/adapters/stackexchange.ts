@@ -17,6 +17,7 @@ import {
   normalizeParamStringList,
   createAliasedResolver,
 } from "../utils";
+import { mapToContentItems } from "./content-item";
 import { finalizeFetchedItems, fetchAndConcat } from "./merge";
 import { type Adapter, type AdapterConfig, type ContentItem } from "./types";
 
@@ -140,11 +141,10 @@ const adapter: Adapter = {
       sourceLabel = `${site}:${effectiveSort}`;
     }
 
-    return limited.map((question) => ({
+    return mapToContentItems(limited, sourceLabel, (question) => ({
       id: `se:${site}:${question.question_id}`,
       title: decodeNumericFeedTitle(question.title),
       url: question.link,
-      source: sourceLabel,
       timestamp: parseUnixEpochSeconds(question.creation_date),
       body: buildBody(question),
     }));

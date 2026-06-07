@@ -19,6 +19,7 @@ import {
   normalizeParamStringList,
   createAliasedResolver,
 } from "../utils";
+import { mapToContentItems } from "./content-item";
 import { finalizeFetchedItems, fetchAndConcat } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
@@ -151,11 +152,10 @@ const adapter: Adapter = {
       sourceLabel = `devto:${tags.join("+")}`;
     }
 
-    return limited.map((article) => ({
+    return mapToContentItems(limited, sourceLabel, (article) => ({
       id: `devto:${article.id}`,
       title: decodeNumericFeedTitle(article.title),
       url: article.url,
-      source: sourceLabel,
       timestamp: new Date(article.published_at),
       body: buildBody(article),
     }));

@@ -17,6 +17,7 @@ import {
   normalizeParamString,
   normalizeParamStringList,
 } from "../utils";
+import { mapToContentItems } from "./content-item";
 import { finalizeFetchedItems, fetchAndConcat } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
@@ -257,11 +258,10 @@ const adapter: Adapter = {
 
     const sourceLabel = mastodonSourceLabel(mode, instance, hashtags);
 
-    return limited.map((status) => ({
+    return mapToContentItems(limited, sourceLabel, (status) => ({
       id: `mastodon:${instance}:${status.id}`,
       title: buildTitle(status),
       url: status.url ?? status.uri,
-      source: sourceLabel,
       timestamp: new Date(status.created_at),
       body: buildBody(status, instance),
     }));

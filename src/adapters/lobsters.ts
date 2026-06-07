@@ -16,6 +16,7 @@ import {
   normalizeParamStringList,
   createAliasedResolver,
 } from "../utils";
+import { mapToContentItems } from "./content-item";
 import { dedupeByKey, finalizeFetchedItems, fetchAndConcat, sortByCreatedAtDesc } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
@@ -93,11 +94,13 @@ const adapter: Adapter = {
       scoreOf: (item) => item.score,
     });
 
-    return limited.map((item) => ({
+    const sourceLabel =
+      tags.length > 0 ? `lobsters:${tags.join("+")}` : `lobsters:${feedType}`;
+
+    return mapToContentItems(limited, sourceLabel, (item) => ({
       id: `lobsters:${item.short_id}`,
       title: decodeNumericFeedTitleOptional(item.title),
       url: item.url || item.comments_url,
-      source: tags.length > 0 ? `lobsters:${tags.join("+")}` : `lobsters:${feedType}`,
       timestamp: new Date(item.created_at),
       body: buildBody(item),
     }));

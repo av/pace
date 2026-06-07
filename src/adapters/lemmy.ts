@@ -16,6 +16,7 @@ import {
   normalizeParamStringList,
   createAliasedResolver,
 } from "../utils";
+import { mapToContentItems } from "./content-item";
 import { finalizeFetchedItems } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
@@ -132,11 +133,10 @@ const adapter: Adapter = {
         ? `lemmy:${instance}:c/${communities[0]}`
         : `lemmy:${instance}`;
 
-    return limited.map((view) => ({
+    return mapToContentItems(limited, sourceLabel, (view) => ({
       id: `lemmy:${instance}:${view.post.id}`,
       title: decodeNumericFeedTitleOptional(view.post.name),
       url: view.post.url ?? view.post.ap_id,
-      source: sourceLabel,
       timestamp: new Date(view.post.published),
       body: buildBody(view),
     }));

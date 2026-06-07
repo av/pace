@@ -16,6 +16,7 @@ import {
   clampAdapterLimit,
   createAliasedResolver,
 } from "../utils";
+import { mapToContentItems } from "./content-item";
 import { finalizeFetchedItems } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
@@ -117,11 +118,10 @@ const adapter: Adapter = {
       scoreOf: (item) => item.score ?? 0,
     });
 
-    return limited.map((item) => ({
+    return mapToContentItems(limited, `hackernews:${feedType}`, (item) => ({
       id: `hn:${item.id}`,
       title: decodeNumericFeedTitleOptional(item.title),
       url: item.url ?? `https://news.ycombinator.com/item?id=${item.id}`,
-      source: `hackernews:${feedType}`,
       timestamp: parseUnixEpochSeconds(item.time),
       body: buildBody(item),
     }));
