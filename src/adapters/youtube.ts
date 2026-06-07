@@ -22,7 +22,7 @@ import {
   normalizeParamStringList,
   sliceToLimit,
 } from "../utils";
-import { fetchAllParallelDedupe } from "./merge";
+import { fetchAllParallel, finalizeFetchedItems } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 interface YTEntry {
@@ -114,11 +114,14 @@ const adapter: Adapter = {
       ...channels.map((ch) => ["channel", ch] as const),
       ...playlists.map((pl) => ["playlist", pl] as const),
     ];
-    return fetchAllParallelDedupe(
-      sources,
-      ([kind, id]) => fetchYoutubeFeed(kind, id, limit),
-      (item) => item.id,
+    const allItems = await fetchAllParallel(sources, ([kind, id]) =>
+      fetchYoutubeFeed(kind, id, limit),
     );
+    return finalizeFetchedItems(allItems, {
+      limit: limit * sources.length,
+      dedupeKey: (item) => item.id,
+      sort: (a, b) => b.timestamp.getTime() - a.timestamp.getTime(),
+    });
   },
 };
 

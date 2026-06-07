@@ -44,17 +44,17 @@ describe("podcast", () => {
     expect(callUrl).toBe("https://example.com/feed.xml");
     // headers check optional but UA present in impl
     expect(items.length).toBe(3); // 3 items (bad one has title so included, url may be empty)
-    expect(items[0].id).toContain("podcast:test-podcast-show:");
-    expect(items[0].title).toBe("Episode One Title");
-    expect(items[0].url).toBe("https://example.com/ep1");
-    expect(items[0].source).toBe("podcast:test-podcast-show");
-    expect(items[0].timestamp).toBeInstanceOf(Date);
-    expect(items[0].body).toContain("Duration: 12:34");
-    expect(items[0].body).toContain("Show: Test Podcast Show");
-    expect(items[0].body).toContain("S01E01");
-    expect(items[0].body).toContain("Description: Some desc here with & stuff");
-    expect(items[0].body).toContain("Audio: https://audio.com/ep1.mp3");
-    expect(items[1].title).toBe("Episode Two");
+    const episodeOne = items.find((i) => i.title === "Episode One Title");
+    expect(episodeOne?.id).toContain("podcast:test-podcast-show:");
+    expect(episodeOne?.url).toBe("https://example.com/ep1");
+    expect(episodeOne?.source).toBe("podcast:test-podcast-show");
+    expect(episodeOne?.timestamp).toBeInstanceOf(Date);
+    expect(episodeOne?.body).toContain("Duration: 12:34");
+    expect(episodeOne?.body).toContain("Show: Test Podcast Show");
+    expect(episodeOne?.body).toContain("S01E01");
+    expect(episodeOne?.body).toContain("Description: Some desc here with & stuff");
+    expect(episodeOne?.body).toContain("Audio: https://audio.com/ep1.mp3");
+    expect(items.find((i) => i.title === "Episode Two")).toBeDefined();
   });
 
   test("truncates long episode descriptions in body", async () => {
@@ -127,9 +127,9 @@ describe("podcast", () => {
     expect(mocks.fetchMock).toHaveBeenCalledTimes(2);
     expect(items.length).toBe(3);
     expect(items.map((i) => i.url)).toEqual([
-      "https://example.com/ep1",
-      "https://audio.com/ep2.mp3",
       "",
+      "https://audio.com/ep2.mp3",
+      "https://example.com/ep1",
     ]);
   });
 

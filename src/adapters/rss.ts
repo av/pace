@@ -12,7 +12,7 @@ import {
   resolveDecodedFeedRootTitle,
 } from "./feed-entry";
 import { fetchRssAtomFeed } from "./fetch";
-import { fetchAllParallelDedupe } from "./merge";
+import { fetchAllParallel, finalizeFetchedItems } from "./merge";
 import { extractHostname } from "../dedupe";
 import { normalizeParamStringList, simpleHash } from "../utils";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -80,7 +80,12 @@ const adapter: Adapter = {
       return warnEmptyConfig("rss", "no urls configured");
     }
 
-    return fetchAllParallelDedupe(urls, fetchFeed, (item) => item.url || item.id);
+    const allItems = await fetchAllParallel(urls, fetchFeed);
+    return finalizeFetchedItems(allItems, {
+      limit: Number.MAX_SAFE_INTEGER,
+      dedupeKey: (item) => item.url || item.id,
+      sort: (a, b) => b.timestamp.getTime() - a.timestamp.getTime(),
+    });
   },
 };
 

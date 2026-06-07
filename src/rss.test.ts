@@ -33,12 +33,12 @@ describe("rss", () => {
     expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
     expect(items.length).toBe(2);
     expect(items[0]).toMatchObject({
-      title: "Item One",
-      url: "https://example.com/one",
+      title: "Item Two",
+      url: "https://example.com/two",
       source: "Example RSS Feed",
-      body: "First item body text",
+      body: "Second item body",
     });
-    expect(items[0].id).toContain("rss:https://example.com/one");
+    expect(items[0].id).toContain("rss:https://example.com/two");
     expect(items[0].timestamp).toBeInstanceOf(Date);
     expect(items[0].timestamp.getFullYear()).toBe(2024);
   });
@@ -77,8 +77,9 @@ describe("rss", () => {
     expect(mocks.fetchMock).toHaveBeenCalledTimes(2);
     expect(items.length).toBe(2);
     expect(items.filter((i) => i.url === "https://example.com/one")).toHaveLength(1);
-    expect(items[0].title).toBe("Item One");
-    expect(items[0].body).toBe("First item body text");
+    expect(items[0].title).toBe("Item Two");
+    expect(items[1].title).toBe("Item One");
+    expect(items[1].body).toBe("First item body text");
   });
 
   test("decodes HTML entities in RSS/Atom feed and entry titles", async () => {
@@ -107,8 +108,8 @@ describe("rss", () => {
 
     const items = await rssAdapter.fetch(rssCfg({ urls: ["https://ex.com/htmlbody"] }));
     expect(items.length).toBe(2);
-    expect(items[0].body).toBe("Hello & world");
-    expect(items[1].body).toBe("Line A one");
+    expect(items[0].body).toBe("Line A one");
+    expect(items[1].body).toBe("Hello & world");
   });
 
   test("handles link array form in parse (prefers alternate href)", async () => {

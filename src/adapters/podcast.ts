@@ -26,7 +26,7 @@ import {
   normalizeParamStringList,
   sliceToLimit,
 } from "../utils";
-import { fetchAllParallelDedupe } from "./merge";
+import { fetchAllParallel, finalizeFetchedItems } from "./merge";
 
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
@@ -276,11 +276,12 @@ const adapter: Adapter = {
       return warnEmptyConfig("podcast", "no feeds configured");
     }
 
-    return fetchAllParallelDedupe(
-      feeds,
-      (url) => fetchPodcastFeed(url, limit),
-      (item) => item.url || item.id,
-    );
+    const allItems = await fetchAllParallel(feeds, (url) => fetchPodcastFeed(url, limit));
+    return finalizeFetchedItems(allItems, {
+      limit: limit * feeds.length,
+      dedupeKey: (item) => item.url || item.id,
+      sort: (a, b) => b.timestamp.getTime() - a.timestamp.getTime(),
+    });
   },
 };
 

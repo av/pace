@@ -65,12 +65,13 @@ describe("youtube", () => {
   it("fetches from channel and maps items with correct title/source/url/body", async () => {
     const items = await adapter.fetch(youtubeCfg({ channels: ["CH1"], limit: 10 }));
     expect(items.length).toBe(2);
-    expect(items[0].id).toBe("youtube:vid1");
-    expect(items[0].title).toBe("Video 1 Title");
+    expect(items[0].id).toBe("youtube:vid2");
+    expect(items[0].title).toBe("Video 2 Title");
     expect(items[0].source).toBe("youtube:Channel One");
-    expect(items[0].url).toContain("vid1");
-    expect(items[0].body).toBe("by Chan1 | Desc 1");
-    expect(items[1].title).toBe("Video 2 Title");
+    expect(items[1].id).toBe("youtube:vid1");
+    expect(items[1].title).toBe("Video 1 Title");
+    expect(items[1].url).toContain("vid1");
+    expect(items[1].body).toBe("by Chan1 | Desc 1");
   });
 
   it("fetches from playlist and maps items", async () => {
@@ -105,7 +106,7 @@ describe("youtube", () => {
     );
     expect(items.length).toBe(2);
     expect(items.filter((i) => i.id === "youtube:vid1")).toHaveLength(1);
-    expect(items[0].title).toBe("Video 1 Title");
+    expect(items[0].title).toBe("Video 2 Title");
   });
 
   it("throws when any configured feed fails (!ok), even if others would succeed", async () => {
