@@ -93,6 +93,7 @@ describe("config", () => {
 
     expect(maps.panelNameToId.get("tech")).toBe("hn-panel");
     expect(maps.panelIdToSources.get("hn-panel")).toEqual([{ adapter: "hackernews" }]);
+    expect(maps.panelIdToRefreshSourceNames.get("hn-panel")).toEqual(["hackernews"]);
     expect(maps.dashboardPanels.map((d) => d.panel.panel)).toEqual(["global", "tech", "mixed"]);
     expect(maps.dashboardPanels.find((d) => d.panel.panel === "global")?.isAll).toBe(true);
 
@@ -104,6 +105,28 @@ describe("config", () => {
     expect(maps.sourceToReadKey.get("hackernews")).toBe("hn-panel");
     expect(maps.sourceToPanels.get("orphan-adapter")).toEqual(["orphan-adapter"]);
     expect(maps.sourceToReadKey.get("orphan-adapter")).toBe("orphan-adapter");
+  });
+
+  test("buildLayoutRuntimeMaps precomputes refresh source names for all and mixed panels", () => {
+    const layout = {
+      direction: "column" as const,
+      children: [
+        { panel: "global", source: "all" },
+        { panel: "mixed", source: ["rss", "podcast"] },
+      ],
+    };
+    const pipelines = [{ name: "curated" }, { name: "firehose" }];
+    const maps = buildLayoutRuntimeMaps(layout, ["hn", "rss"], pipelines);
+    const globalId = resolvePanelId(layout.children[0] as PanelConfig);
+    const mixedId = resolvePanelId(layout.children[1] as PanelConfig);
+
+    expect(maps.panelIdToRefreshSourceNames.get(globalId)).toEqual([
+      "hn",
+      "rss",
+      "curated",
+      "firehose",
+    ]);
+    expect(maps.panelIdToRefreshSourceNames.get(mixedId)).toEqual(["rss", "podcast"]);
   });
 
   test("sourcePanelMapFromConfig matches buildLayoutRuntimeMaps source/read maps", () => {

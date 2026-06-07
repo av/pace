@@ -12,6 +12,7 @@ import {
   getItemsByPanel,
   getAllItemsByPanel,
   getLastFetchedAt,
+  loadDashboardPanelData,
   pruneOldItems,
   replacePanelItems,
   contentRowToItem,
@@ -121,6 +122,20 @@ test("getRecentItems and panel getters respect limit", () => {
 
   expect(getRecentItems(2).length).toBe(2);
   expect(getItemsByPanel("plim", 3).length).toBe(3);
+});
+
+test("loadDashboardPanelData routes all vs panel-scoped queries", () => {
+  initDb();
+  saveItems("scoped", [makeItem({ id: "s1", url: "https://scoped", timestamp: new Date() })]);
+  saveItems("other", [makeItem({ id: "o1", url: "https://other", timestamp: new Date() })]);
+
+  const scoped = loadDashboardPanelData("scoped", false, 10);
+  expect(scoped.items.map((item) => item.id)).toEqual(["s1"]);
+  expect(scoped.lastRefreshedAt).not.toBeNull();
+
+  const all = loadDashboardPanelData("scoped", true, 10);
+  expect(all.items.map((item) => item.id).sort()).toEqual(["o1", "s1"]);
+  expect(all.lastRefreshedAt).not.toBeNull();
 });
 
 test("getLastFetchedAt returns recent fetched_at per panel or globally", () => {

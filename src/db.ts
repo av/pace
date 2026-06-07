@@ -178,6 +178,22 @@ export function getItemsByPanel(panelId: string, limit: number = 50): ContentIte
   return getDedupedItems(panelId, limit);
 }
 
+export interface DashboardPanelSnapshot {
+  items: ContentItemRow[];
+  lastRefreshedAt: string | null;
+}
+
+export function loadDashboardPanelData(
+  panelId: string,
+  isAll: boolean,
+  limit: number,
+): DashboardPanelSnapshot {
+  return {
+    items: isAll ? getRecentItems(limit) : getItemsByPanel(panelId, limit),
+    lastRefreshedAt: getLastFetchedAt(isAll ? undefined : panelId),
+  };
+}
+
 export function getLastFetchedAt(panelId?: string): string | null {
   const db = getDb();
   const sql = panelId !== undefined

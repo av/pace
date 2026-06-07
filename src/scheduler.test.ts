@@ -12,6 +12,7 @@ import {
   stopScheduler,
   refreshSources,
   allPanelRefreshSourceNames,
+  resolvePanelRefreshSourceNames,
   PIPELINE_INITIAL_DELAY_MS,
   DEFAULT_REFRESH_INTERVAL_MIN,
 } from "./scheduler";
@@ -140,6 +141,27 @@ describe("scheduler", () => {
       allPanelRefreshSourceNames(["hn", "rss"], [{ name: "firehose" }, { name: "curated" }]),
     ).toEqual(["hn", "rss", "firehose", "curated"]);
     expect(allPanelRefreshSourceNames(["only"], undefined)).toEqual(["only"]);
+  });
+
+  test("resolvePanelRefreshSourceNames expands all and dedupes mixed panel sources", () => {
+    const pipelines = [{ name: "curated" }];
+    expect(
+      resolvePanelRefreshSourceNames([{ adapter: "all" }], ["hn", "rss"], pipelines),
+    ).toEqual(["hn", "rss", "curated"]);
+    expect(
+      resolvePanelRefreshSourceNames(
+        [{ adapter: "rss" }, { adapter: "podcast" }],
+        ["hn"],
+        pipelines,
+      ),
+    ).toEqual(["rss", "podcast"]);
+    expect(
+      resolvePanelRefreshSourceNames(
+        [{ adapter: "rss" }, { adapter: "rss" }],
+        ["hn"],
+        pipelines,
+      ),
+    ).toEqual(["rss"]);
   });
 
   test("refreshSources with adapter + pipeline names refreshes both (all-panel contract)", async () => {

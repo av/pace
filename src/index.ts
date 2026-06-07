@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { readFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig, buildLayoutRuntimeMaps } from "./config";
-import { initDb, closeDb, getRecentItems, getItemsByPanel, getLastFetchedAt, type ContentItemRow } from "./db";
+import { initDb, closeDb, loadDashboardPanelData } from "./db";
 import { discoverAdapters } from "./adapters/index";
 import { renderDashboard, type PanelData } from "./layout";
 import { createModel } from "./llm";
@@ -10,7 +10,6 @@ import {
   startScheduler,
   stopScheduler,
   refreshSources,
-  allPanelRefreshSourceNames,
   type SourcePanelMap,
 } from "./scheduler";
 import { parsePort, getAdapterName, errorMessage } from "./utils";
@@ -71,10 +70,10 @@ async function start() {
   const {
     sourceToPanels,
     sourceToReadKey,
-    panelIdToSources,
+    panelIdToRefreshSourceNames,
     panelNameToId,
     dashboardPanels,
-  } = buildLayoutRuntimeMaps(config.layout, configuredAdapterNames);
+  } = buildLayoutRuntimeMaps(config.layout, configuredAdapterNames, config.pipelines);
 
   const panelMap: SourcePanelMap = { sourceToPanels, sourceToReadKey };
   startScheduler(config, adapters, panelMap, llmModel);
@@ -89,17 +88,7 @@ async function start() {
 
     for (const { panel, pid, isAll } of dashboardPanels) {
       const limit = panel.limit ?? 50;
-      let items: ContentItemRow[];
-
-      if (isAll) {
-        items = getRecentItems(limit);
-      } else {
-        items = getItemsByPanel(pid, limit);
-      }
-
-      const lastRefreshedAt = getLastFetchedAt(isAll ? undefined : pid);
-
-      panelData.set(panel.panel, { items, lastRefreshedAt });
+      panelData.set(panel.panel, loadDashboardPanelData(pid, isAll, limit));
     }
 
     const content = renderDashboard({ layout: config.layout, panelData, updatedAt: now });
@@ -109,14 +98,8 @@ async function start() {
   app.post("/refresh/:panel", async (c) => {
     const param = c.req.param("panel");
     const panelId = panelNameToId.get(param) ?? param;
-    const sources = panelIdToSources.get(panelId);
-    if (!sources) return c.text(`Unknown panel: ${param}`, 404);
-
-    const sourceNames = Array.from(new Set(sources.flatMap((s) =>
-      s.adapter === "all"
-        ? allPanelRefreshSourceNames(configuredAdapterNames, config.pipelines)
-        : [s.adapter]
-    )));
+    const sourceNames = panelIdToRefreshSourceNames.get(panelId);
+    if (!sourceNames) return c.text(`Unknown panel: ${param}`, 404);
 
     if (sourceNames.length > 0) {
       const results = await refreshSources(sourceNames);

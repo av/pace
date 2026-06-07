@@ -13,6 +13,7 @@ import {
   validateUniqueUnnamedAdapterTypes,
   TRANSFORM_TYPES,
 } from "./config-validate";
+import { resolvePanelRefreshSourceNames } from "./scheduler";
 import { errorMessage, getAdapterName } from "./utils";
 
 export { TRANSFORM_TYPES };
@@ -248,6 +249,7 @@ export interface LayoutRuntimeMaps {
   sourceToPanels: Map<string, string[]>;
   sourceToReadKey: Map<string, string>;
   panelIdToSources: Map<string, SourceConfig[]>;
+  panelIdToRefreshSourceNames: Map<string, string[]>;
   panelNameToId: Map<string, string>;
   dashboardPanels: DashboardPanel[];
 }
@@ -255,10 +257,12 @@ export interface LayoutRuntimeMaps {
 export function buildLayoutRuntimeMaps(
   layout: LayoutNodeConfig,
   adapterNames: readonly string[],
+  pipelines?: readonly { name: string }[],
 ): LayoutRuntimeMaps {
   const sourceToPanels = new Map<string, string[]>();
   const sourceToReadKey = new Map<string, string>();
   const panelIdToSources = new Map<string, SourceConfig[]>();
+  const panelIdToRefreshSourceNames = new Map<string, string[]>();
   const panelNameToId = new Map<string, string>();
   const dashboardPanels: DashboardPanel[] = [];
 
@@ -267,6 +271,10 @@ export function buildLayoutRuntimeMaps(
     const pid = resolvePanelId(panel);
     const isAll = sources.some((s) => s.adapter === "all");
     panelIdToSources.set(pid, sources);
+    panelIdToRefreshSourceNames.set(
+      pid,
+      resolvePanelRefreshSourceNames(sources, adapterNames, pipelines),
+    );
     panelNameToId.set(panel.panel, pid);
     dashboardPanels.push({ panel, pid, isAll });
     if (isAll) continue;
@@ -291,6 +299,7 @@ export function buildLayoutRuntimeMaps(
     sourceToPanels,
     sourceToReadKey,
     panelIdToSources,
+    panelIdToRefreshSourceNames,
     panelNameToId,
     dashboardPanels,
   };
