@@ -22,6 +22,16 @@ import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 type SortType = "Hot" | "New" | "Top" | "Active" | "MostComments";
 
+/** Build lemmy source label: single community uses c/name, multiple uses instance only. */
+export function lemmySourceLabel(
+  instance: string,
+  communities: readonly string[],
+): string {
+  return communities.length === 1
+    ? `lemmy:${instance}:c/${communities[0]}`
+    : `lemmy:${instance}`;
+}
+
 /** Map configured sort string (canonical name or alias) to Lemmy API sort. Unknown → Hot. */
 export const resolveLemmySort = createAliasedResolver<SortType>({
   types: {
@@ -128,18 +138,17 @@ const adapter: Adapter = {
       sort: (a, b) => b.counts.score - a.counts.score,
     });
 
-    const sourceLabel =
-      communities.length === 1
-        ? `lemmy:${instance}:c/${communities[0]}`
-        : `lemmy:${instance}`;
-
-    return mapToContentItems(limited, sourceLabel, (view) => ({
+    return mapToContentItems(
+      limited,
+      lemmySourceLabel(instance, communities),
+      (view) => ({
       id: `lemmy:${instance}:${view.post.id}`,
       title: decodeNumericFeedTitleOptional(view.post.name),
       url: view.post.url ?? view.post.ap_id,
       timestamp: new Date(view.post.published),
       body: buildBody(view),
-    }));
+    }),
+    );
   },
 };
 

@@ -27,6 +27,16 @@ const REDDIT_BASE = "https://www.reddit.com";
 type SortType = "hot" | "new" | "top" | "rising";
 type TimePeriod = "hour" | "day" | "week" | "month" | "year" | "all";
 
+/** Build reddit source label: single subreddit uses r/name, multiple uses sort. */
+export function redditSourceLabel(
+  subreddits: readonly string[],
+  effectiveSort: string,
+): string {
+  return subreddits.length === 1
+    ? `reddit:r/${subreddits[0]}`
+    : `reddit:${effectiveSort}`;
+}
+
 /** Map configured sort string (canonical name or alias) to Reddit listing sort. Unknown → hot. */
 export const resolveRedditSort = createAliasedResolver<SortType>({
   types: ["hot", "new", "top", "rising"],
@@ -148,18 +158,17 @@ const adapter: Adapter = {
       sort: (a, b) => b.data.score - a.data.score,
     });
 
-    const sourceLabel =
-      subreddits.length === 1
-        ? `reddit:r/${subreddits[0]}`
-        : `reddit:${effectiveSort}`;
-
-    return mapToContentItems(limited, sourceLabel, (post) => ({
+    return mapToContentItems(
+      limited,
+      redditSourceLabel(subreddits, effectiveSort),
+      (post) => ({
       id: `reddit:${post.data.id}`,
       title: decodeNumericFeedTitle(post.data.title),
       url: getItemUrl(post.data),
       timestamp: parseUnixEpochSeconds(post.data.created_utc),
       body: buildBody(post.data),
-    }));
+    }),
+    );
   },
 };
 

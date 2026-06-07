@@ -25,6 +25,14 @@ const LOBSTERS_BASE = "https://lobste.rs";
 
 type FeedType = "hottest" | "newest" | "active";
 
+/** Build lobsters source label from tags or feed type. */
+export function lobstersSourceLabel(
+  tags: readonly string[],
+  feedType: string,
+): string {
+  return tags.length > 0 ? `lobsters:${tags.join("+")}` : `lobsters:${feedType}`;
+}
+
 /** Map configured feed string (canonical name or alias) to Lobsters feed type. Unknown → hottest. */
 export const resolveLobstersFeedType = createAliasedResolver<FeedType>({
   types: ["hottest", "newest", "active"],
@@ -104,16 +112,17 @@ const adapter: Adapter = {
         : {}),
     });
 
-    const sourceLabel =
-      tags.length > 0 ? `lobsters:${tags.join("+")}` : `lobsters:${feedType}`;
-
-    return mapToContentItems(limited, sourceLabel, (item) => ({
+    return mapToContentItems(
+      limited,
+      lobstersSourceLabel(tags, feedType),
+      (item) => ({
       id: `lobsters:${item.short_id}`,
       title: decodeNumericFeedTitleOptional(item.title),
       url: item.url || item.comments_url,
       timestamp: new Date(item.created_at),
       body: buildBody(item),
-    }));
+    }),
+    );
   },
 };
 

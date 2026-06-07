@@ -71,6 +71,16 @@ async function fetchDevToArticles(
 
 type DevToPeriod = 1 | 7 | 30 | 365;
 
+/** Build devto source label from username and/or tag list. */
+export function devtoSourceLabel(
+  username: string | undefined,
+  tags: readonly string[],
+): string {
+  if (username) return `devto:${username}`;
+  if (tags.length === 1) return `devto:${tags[0]}`;
+  return `devto:${tags.join("+")}`;
+}
+
 const DEFAULT_PERIOD: DevToPeriod = 7;
 
 const resolveDevToPeriodToken = createAliasedResolver<DevToPeriod>({
@@ -143,16 +153,7 @@ const adapter: Adapter = {
       sort: (a, b) => b.positive_reactions_count - a.positive_reactions_count,
     });
 
-    let sourceLabel: string;
-    if (username) {
-      sourceLabel = `devto:${username}`;
-    } else if (tags.length === 1) {
-      sourceLabel = `devto:${tags[0]}`;
-    } else {
-      sourceLabel = `devto:${tags.join("+")}`;
-    }
-
-    return mapToContentItems(limited, sourceLabel, (article) => ({
+    return mapToContentItems(limited, devtoSourceLabel(username, tags), (article) => ({
       id: `devto:${article.id}`,
       title: decodeNumericFeedTitle(article.title),
       url: article.url,

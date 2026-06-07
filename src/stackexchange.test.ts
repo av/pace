@@ -1,5 +1,8 @@
 import { describe, expect, spyOn, test } from "bun:test";
-import stackexchangeAdapter, { resolveStackExchangeSort } from "./adapters/stackexchange";
+import stackexchangeAdapter, {
+  resolveStackExchangeSort,
+  stackExchangeSourceLabel,
+} from "./adapters/stackexchange";
 import * as utilsMod from "./utils";
 import { fetchMockCallUrl, useFetchMockSuite } from "./test/adapter-mocks";
 import { seCfg } from "./test/adapter-cfg";
@@ -9,6 +12,18 @@ import { makeApiResponse, makeQuestion } from "./test/stackexchange-fixtures";
 
 const mocks = useFetchMockSuite();
 
+
+describe("stackExchangeSourceLabel", () => {
+  test("joins tags when configured", () => {
+    expect(stackExchangeSourceLabel("stackoverflow", ["typescript", "bun"], "hot")).toBe(
+      "stackoverflow:typescript+bun",
+    );
+  });
+
+  test("uses sort when no tags", () => {
+    expect(stackExchangeSourceLabel("stackoverflow", [], "votes")).toBe("stackoverflow:votes");
+  });
+});
 
 describe("resolveStackExchangeSort", () => {
   test.each([

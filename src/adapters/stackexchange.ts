@@ -25,6 +25,16 @@ const SE_API = "https://api.stackexchange.com/2.3";
 
 type SortType = "activity" | "votes" | "creation" | "hot" | "week" | "month";
 
+/** Build Stack Exchange source label from site, tags, and effective sort. */
+export function stackExchangeSourceLabel(
+  site: string,
+  tags: readonly string[],
+  effectiveSort: string,
+): string {
+  if (tags.length > 0) return `${site}:${tags.join("+")}`;
+  return `${site}:${effectiveSort}`;
+}
+
 /** Map configured sort string (canonical name or alias) to Stack Exchange API sort. Unknown → hot. */
 export const resolveStackExchangeSort = createAliasedResolver<SortType>({
   types: ["activity", "votes", "creation", "hot", "week", "month"],
@@ -134,20 +144,17 @@ const adapter: Adapter = {
       scoreOf: (q) => q.score,
     });
 
-    let sourceLabel: string;
-    if (tags.length > 0) {
-      sourceLabel = `${site}:${tags.join("+")}`;
-    } else {
-      sourceLabel = `${site}:${effectiveSort}`;
-    }
-
-    return mapToContentItems(limited, sourceLabel, (question) => ({
+    return mapToContentItems(
+      limited,
+      stackExchangeSourceLabel(site, tags, effectiveSort),
+      (question) => ({
       id: `se:${site}:${question.question_id}`,
       title: decodeNumericFeedTitle(question.title),
       url: question.link,
       timestamp: parseUnixEpochSeconds(question.creation_date),
       body: buildBody(question),
-    }));
+    }),
+    );
   },
 };
 

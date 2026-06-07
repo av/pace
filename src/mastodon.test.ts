@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 
-import adapter, { resolveMastodonMode } from "./adapters/mastodon";
+import adapter, { mastodonSourceLabel, resolveMastodonMode } from "./adapters/mastodon";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { invalidLimitParams } from "./test/invalid-params";
 import { useFetchMockSuite } from "./test/adapter-mocks";
@@ -8,6 +8,22 @@ import { mastodonCfg } from "./test/adapter-cfg";
 import { fetchUrls, makeStatus } from "./test/mastodon-fixtures";
 
 const mocks = useFetchMockSuite();
+
+describe("mastodonSourceLabel", () => {
+  test("formats hashtag mode with stripped # and joined tags", () => {
+    expect(mastodonSourceLabel("hashtag", "ex.com", ["#rust", "dev"])).toBe(
+      "mastodon:ex.com:#rust+dev",
+    );
+  });
+
+  test("uses accounts suffix for account mode", () => {
+    expect(mastodonSourceLabel("account", "ex.com", [])).toBe("mastodon:ex.com:accounts");
+  });
+
+  test("uses instance only for public mode", () => {
+    expect(mastodonSourceLabel("public", "ex.com", [])).toBe("mastodon:ex.com");
+  });
+});
 
 describe("resolveMastodonMode", () => {
   test.each([

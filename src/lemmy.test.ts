@@ -1,5 +1,5 @@
 import { describe, expect, spyOn, test } from "bun:test";
-import lemmyAdapter, { resolveLemmySort } from "./adapters/lemmy";
+import lemmyAdapter, { lemmySourceLabel, resolveLemmySort } from "./adapters/lemmy";
 import * as utilsMod from "./utils";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { invalidMinScoreParams } from "./test/invalid-params";
@@ -9,6 +9,16 @@ import { makePostListResponse, makePostView } from "./test/lemmy-fixtures";
 
 const mocks = useFetchMockSuite();
 
+
+describe("lemmySourceLabel", () => {
+  test("uses community path for single community", () => {
+    expect(lemmySourceLabel("lemmy.world", ["rust"])).toBe("lemmy:lemmy.world:c/rust");
+  });
+
+  test("uses instance only for multiple communities", () => {
+    expect(lemmySourceLabel("lemmy.world", ["rust", "linux"])).toBe("lemmy:lemmy.world");
+  });
+});
 
 describe("resolveLemmySort", () => {
   test.each([

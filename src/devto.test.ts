@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, spyOn, test } from "bun:test";
-import devtoAdapter, { resolveDevToPeriod } from "./adapters/devto";
+import devtoAdapter, { devtoSourceLabel, resolveDevToPeriod } from "./adapters/devto";
 import * as utilsMod from "./utils";
 import { fetchMockCalls, useFetchMockSuite } from "./test/adapter-mocks";
 import { devtoCfg } from "./test/adapter-cfg";
@@ -10,6 +10,20 @@ import { invalidLimitParams, invalidMinScoreParams } from "./test/invalid-params
 const mocks = useFetchMockSuite();
 
 const devtoFetchCalls = () => fetchMockCalls(mocks.fetchMock);
+
+describe("devtoSourceLabel", () => {
+  test("uses username when set", () => {
+    expect(devtoSourceLabel("alice", ["typescript"])).toBe("devto:alice");
+  });
+
+  test("uses single tag when no username", () => {
+    expect(devtoSourceLabel(undefined, ["typescript"])).toBe("devto:typescript");
+  });
+
+  test("joins multiple tags with + when no username", () => {
+    expect(devtoSourceLabel(undefined, ["typescript", "react"])).toBe("devto:typescript+react");
+  });
+});
 
 describe("resolveDevToPeriod", () => {
   test.each([

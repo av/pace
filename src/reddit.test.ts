@@ -1,5 +1,9 @@
 import { describe, test, expect, spyOn } from "bun:test";
-import redditAdapter, { resolveRedditPeriod, resolveRedditSort } from "./adapters/reddit";
+import redditAdapter, {
+  redditSourceLabel,
+  resolveRedditPeriod,
+  resolveRedditSort,
+} from "./adapters/reddit";
 import * as utilsMod from "./utils";
 import { fetchMockCallUrl, useFetchMockSuite } from "./test/adapter-mocks";
 import { redditCfg } from "./test/adapter-cfg";
@@ -9,6 +13,16 @@ import { makeListingResponse, makePost } from "./test/reddit-fixtures";
 
 const mocks = useFetchMockSuite();
 
+
+describe("redditSourceLabel", () => {
+  test("uses r/name for single subreddit", () => {
+    expect(redditSourceLabel(["programming"], "hot")).toBe("reddit:r/programming");
+  });
+
+  test("uses sort for multiple subreddits", () => {
+    expect(redditSourceLabel(["one", "two"], "hot")).toBe("reddit:hot");
+  });
+});
 
 describe("resolveRedditSort", () => {
   test.each([

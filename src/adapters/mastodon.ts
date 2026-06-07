@@ -76,7 +76,8 @@ export function resolveMastodonMode(
   return "public";
 }
 
-function mastodonSourceLabel(
+/** Build mastodon source label from timeline mode, instance, and hashtags. */
+export function mastodonSourceLabel(
   mode: MastodonMode,
   instance: string,
   hashtags: readonly string[],
@@ -256,9 +257,7 @@ const adapter: Adapter = {
       sort: (a, b) => compareIsoTimestamp(a.created_at, b.created_at, "desc"),
     });
 
-    const sourceLabel = mastodonSourceLabel(mode, instance, hashtags);
-
-    return mapToContentItems(limited, sourceLabel, (status) => ({
+    return mapToContentItems(limited, mastodonSourceLabel(mode, instance, hashtags), (status) => ({
       id: `mastodon:${instance}:${status.id}`,
       title: buildTitle(status),
       url: status.url ?? status.uri,

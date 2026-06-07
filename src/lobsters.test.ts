@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import lobstersAdapter, { resolveLobstersFeedType } from "./adapters/lobsters";
+import lobstersAdapter, {
+  lobstersSourceLabel,
+  resolveLobstersFeedType,
+} from "./adapters/lobsters";
 import { useFetchMockSuite } from "./test/adapter-mocks";
 import { lobstersCfg } from "./test/adapter-cfg";
 import { makeJsonResponse } from "./test/fetch-responses";
@@ -7,6 +10,16 @@ import { invalidLimitParams, invalidMinScoreParams } from "./test/invalid-params
 import { makeLobstersItem } from "./test/lobsters-fixtures";
 
 const mocks = useFetchMockSuite();
+
+describe("lobstersSourceLabel", () => {
+  test("joins tags when configured", () => {
+    expect(lobstersSourceLabel(["rust", "linux"], "hottest")).toBe("lobsters:rust+linux");
+  });
+
+  test("uses feed type when no tags", () => {
+    expect(lobstersSourceLabel([], "newest")).toBe("lobsters:newest");
+  });
+});
 
 describe("resolveLobstersFeedType", () => {
   test.each([
