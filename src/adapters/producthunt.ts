@@ -6,9 +6,9 @@ import {
   type XmlTextField,
 } from "./atom";
 import {
-  decodeFeedEntryTitle,
+  buildFeedContentItem,
   FEED_ENTRY_DATE_ATOM_ORDER,
-  parseFeedEntryTimestamp,
+  projectFeedEntryToContentItem,
   resolveDecodedFeedRootTitle,
 } from "./feed-entry";
 import {
@@ -153,6 +153,43 @@ function extractId(entry: PHEntry): string {
   return extractAtomLink(entry.link);
 }
 
+interface ParsedPHEntry {
+  content: ContentItem;
+  tagline: string;
+  productLink: string;
+  author: string;
+}
+
+function parseEntry(entry: PHEntry, feedTitle: string): ParsedPHEntry {
+  const { tagline, productLink } = extractContent(entry);
+  const author = entry.author?.name ?? "";
+  const content = projectFeedEntryToContentItem(
+    "ph",
+    entry,
+    () => ({
+      idSuffix: extractId(entry),
+      url: extractAtomLink(entry.link),
+      source: feedTitle,
+    }),
+    FEED_ENTRY_DATE_ATOM_ORDER,
+  );
+  return { content, tagline, productLink, author };
+}
+
+function toContentItem(
+  parsed: ParsedPHEntry,
+  enriched: EnrichedData | null,
+): ContentItem {
+  const { content, tagline, productLink, author } = parsed;
+  return buildFeedContentItem(content.id, {
+    title: joinTitleWithTagline(content.title, tagline, 0),
+    url: content.url,
+    source: content.source,
+    timestamp: content.timestamp,
+    body: buildBody(tagline, author, productLink, enriched),
+  });
+}
+
 async function enrichProduct(url: string): Promise<EnrichedData | null> {
   const html = await tryOptionalFetch("producthunt", `enrich failed for ${url}`, () =>
     fetchText("producthunt", url, url, {
@@ -190,15 +227,7 @@ function buildBody(
 
 async function fetchProductHuntFeed(): Promise<{
   feedTitle: string;
-  items: Array<{
-    id: string;
-    title: string;
-    tagline: string;
-    url: string;
-    productLink: string;
-    author: string;
-    timestamp: Date;
-  }>;
+  items: ParsedPHEntry[];
 }> {
   const { parsed, entries } = await fetchAtomFeed<PHEntry, PHAtomFeedParsed>(
     "producthunt",
@@ -216,23 +245,7 @@ async function fetchProductHuntFeed(): Promise<{
     return { feedTitle, items: [] };
   }
 
-  const items = entries.map((entry) => {
-    const title = decodeFeedEntryTitle(entry.title);
-    const url = extractAtomLink(entry.link);
-    const { tagline, productLink } = extractContent(entry);
-    const author = entry.author?.name ?? "";
-    const timestamp = parseFeedEntryTimestamp(entry, FEED_ENTRY_DATE_ATOM_ORDER);
-
-    return {
-      id: extractId(entry),
-      title,
-      tagline,
-      url,
-      productLink,
-      author,
-      timestamp,
-    };
-  });
+  const items = entries.map((entry) => parseEntry(entry, feedTitle));
   return { feedTitle, items };
 }
 
@@ -266,18 +279,18 @@ const adapter: Adapter = {
       const enrichResults = await fetchAllBatched(
         items,
         ENRICH_BATCH_SIZE,
-        (item) => enrichProduct(item.url),
+        (item) => enrichProduct(item.content.url),
         ENRICH_DELAY_MS,
       );
       for (let i = 0; i < items.length; i++) {
-        enrichedMap.set(items[i].id, enrichResults[i]);
+        enrichedMap.set(items[i].content.id, enrichResults[i]);
       }
     }
 
     let filtered = items;
     if (enrich && minUpvotes > 0) {
       filtered = items.filter((item) => {
-        const data = enrichedMap.get(item.id);
+        const data = enrichedMap.get(item.content.id);
         return data?.upvotes !== undefined && data.upvotes >= minUpvotes;
       });
       if (items.length > 0 && filtered.length === 0) {
@@ -287,18 +300,9 @@ const adapter: Adapter = {
       }
     }
 
-    return filtered.map((item) => {
-      const enriched = enrichedMap.get(item.id) ?? null;
-
-      return {
-        id: `ph:${item.id}`,
-        title: joinTitleWithTagline(item.title, item.tagline, 0),
-        url: item.url,
-        source: feedTitle,
-        timestamp: item.timestamp,
-        body: buildBody(item.tagline, item.author, item.productLink, enriched),
-      };
-    });
+    return filtered.map((parsed) =>
+      toContentItem(parsed, enrichedMap.get(parsed.content.id) ?? null),
+    );
   },
 };
 
