@@ -24,9 +24,8 @@ import {
   clampAdapterLimit,
   normalizeParamString,
   normalizeParamStringList,
-  sliceToLimit,
 } from "../utils";
-import { dedupeByKey, fetchAllBatched } from "./merge";
+import { fetchAllBatched, finalizeFetchedItems } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 const ARXIV_API = "http://export.arxiv.org/api/query";
 const RATE_LIMIT_DELAY_MS = 3000;
@@ -195,15 +194,15 @@ const adapter: Adapter = {
       )
     ).flat();
 
-    const deduped = dedupeByKey(allItems, (item) => item.id);
-
-    deduped.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-
     const totalLimit = categories.length > 1 || (categories.length > 0 && query)
       ? limit * (categories.length + (query ? 1 : 0))
       : limit;
 
-    return sliceToLimit(deduped, totalLimit);
+    return finalizeFetchedItems(allItems, {
+      limit: totalLimit,
+      dedupeKey: (item) => item.id,
+      sort: (a, b) => b.timestamp.getTime() - a.timestamp.getTime(),
+    });
   },
 };
 
