@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mapToContentItems } from "./adapters/content-item";
+import { mapToContentItems, sliceMapToContentItems } from "./adapters/content-item";
 
 describe("mapToContentItems", () => {
   test("attaches shared source to each projected item", () => {
@@ -43,5 +43,39 @@ describe("mapToContentItems", () => {
       url: "https://example.com",
       timestamp: new Date(),
     }))).toEqual([]);
+  });
+});
+
+describe("sliceMapToContentItems", () => {
+  test("slices before mapping and attaches shared source", () => {
+    const ts = new Date("2024-01-15T12:00:00Z");
+    const items = sliceMapToContentItems(
+      [{ id: 1 }, { id: 2 }, { id: 3 }],
+      2,
+      "github:trending:typescript",
+      (row) => ({
+        id: `github:trending:repo-${row.id}:daily`,
+        title: `repo-${row.id}`,
+        url: `https://github.com/repo-${row.id}`,
+        timestamp: ts,
+      }),
+    );
+
+    expect(items).toEqual([
+      {
+        id: "github:trending:repo-1:daily",
+        title: "repo-1",
+        url: "https://github.com/repo-1",
+        source: "github:trending:typescript",
+        timestamp: ts,
+      },
+      {
+        id: "github:trending:repo-2:daily",
+        title: "repo-2",
+        url: "https://github.com/repo-2",
+        source: "github:trending:typescript",
+        timestamp: ts,
+      },
+    ]);
   });
 });
