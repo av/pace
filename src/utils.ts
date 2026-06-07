@@ -80,6 +80,20 @@ export function compareIsoTimestamp(
   return direction === "asc" ? -descCmp : descCmp;
 }
 
+/** Human-readable relative age for dashboard timestamps (minutes/hours/days ago). */
+export function relativeTime(timestamp: string, now = Date.now()): string {
+  const then = new Date(timestamp).getTime();
+  if (isNaN(then)) return "";
+  const diff = now - then;
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
 /** Return at most `limit` items from the start of the array. */
 export function sliceToLimit<T>(items: readonly T[], limit: number): T[] {
   return items.slice(0, limit);

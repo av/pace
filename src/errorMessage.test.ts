@@ -7,6 +7,7 @@ import {
   getAdapterName,
   sliceToLimit,
   compareIsoTimestamp,
+  relativeTime,
   normalizeStringList,
   normalizeParamStringList,
   normalizeParamString,
@@ -144,6 +145,27 @@ describe("compareIsoTimestamp", () => {
     expect(compareIsoTimestamp(newer, newer)).toBe(0);
     expect(compareIsoTimestamp(newer, newer, "desc")).toBe(0);
     expect(compareIsoTimestamp(newer, newer, "asc")).toBe(0);
+  });
+});
+
+describe("relativeTime", () => {
+  const now = Date.parse("2026-06-07T12:00:00.000Z");
+
+  test("returns empty string for invalid timestamps", () => {
+    expect(relativeTime("not-a-date", now)).toBe("");
+  });
+
+  test("buckets sub-minute, minutes, hours, and days", () => {
+    expect(relativeTime("2026-06-07T11:59:30.000Z", now)).toBe("just now");
+    expect(relativeTime("2026-06-07T11:57:00.000Z", now)).toBe("3m ago");
+    expect(relativeTime("2026-06-07T07:00:00.000Z", now)).toBe("5h ago");
+    expect(relativeTime("2026-06-05T12:00:00.000Z", now)).toBe("2d ago");
+  });
+
+  test("uses minute/hour/day boundary values", () => {
+    expect(relativeTime("2026-06-07T11:01:00.000Z", now)).toBe("59m ago");
+    expect(relativeTime("2026-06-07T06:00:00.000Z", now)).toBe("6h ago");
+    expect(relativeTime("2026-06-06T12:00:00.000Z", now)).toBe("1d ago");
   });
 });
 

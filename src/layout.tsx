@@ -4,21 +4,7 @@ import type { FC } from "hono/jsx";
 import type { LayoutNodeConfig, FlexContainerConfig, PanelConfig } from "./config";
 import { isPanel, resolvePanelId } from "./config";
 import type { ContentItemRow } from "./db";
-import { safeLinkUrl } from "./utils";
-
-function relativeTime(timestamp: string): string {
-  const now = Date.now();
-  const then = new Date(timestamp).getTime();
-  if (isNaN(then)) return "";
-  const diff = now - then;
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
+import { relativeTime, safeLinkUrl } from "./utils";
 
 function flexStyle(f?: number): string {
   return `flex:${f ?? 1};`;
