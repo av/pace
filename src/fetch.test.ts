@@ -15,7 +15,9 @@ import {
   HN_ITEM_FETCH_TIMEOUT_MS,
   PACE_FEED_USER_AGENT,
   PACE_USER_AGENT,
+  tryOptionalFetch,
 } from "./adapters/fetch";
+import { spyConsole } from "./test/console-spy";
 import {
   fetchMockCallHeaders,
   fetchMockCallInit,
@@ -321,6 +323,36 @@ describe("fetchRssAtomFeed", () => {
     expect(parsed.rss?.channel?.title?.__cdata).toBe("  Podcast Show  ");
     expect(items[0]?.title?.__cdata).toBe("  Episode One  ");
     expect(items[0]?.description?.__cdata).toBe("  CDATA body  ");
+  });
+});
+
+describe("tryOptionalFetch", () => {
+  test("returns work result on success", async () => {
+    const result = await tryOptionalFetch("hackernews", "item 42", async () => ({ id: 42 }));
+    expect(result).toEqual({ id: 42 });
+  });
+
+  test("warns and returns null on failure", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      const result = await tryOptionalFetch("mastodon", "account lookup", async () => {
+        throw new Error("network down");
+      });
+
+      expect(result).toBeNull();
+      expect(warn).toHaveBeenCalledWith("mastodon: account lookup: network down");
+    });
+  });
+
+  test("passes through errors already prefixed with adapter name", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      await tryOptionalFetch("producthunt", "enrich failed", async () => {
+        throw new Error("producthunt: failed to fetch https://example.com: HTTP error 404");
+      });
+
+      expect(warn).toHaveBeenCalledWith(
+        "producthunt: failed to fetch https://example.com: HTTP error 404",
+      );
+    });
   });
 });
 

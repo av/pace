@@ -7,7 +7,7 @@ import {
 } from "./engagement";
 import { joinTitle, truncateText } from "./title";
 
-import { fetchJson, HN_ITEM_FETCH_TIMEOUT_MS, warnOptionalFetchFailure } from "./fetch";
+import { fetchJson, HN_ITEM_FETCH_TIMEOUT_MS, tryOptionalFetch } from "./fetch";
 import { decodeNumericFeedTitle, stripHtml } from "./html";
 import {
   clampAdapterLimit,
@@ -113,21 +113,15 @@ async function lookupAccount(
   instance: string,
   username: string,
 ): Promise<MastodonAccount | null> {
-  try {
-    return await fetchJson<MastodonAccount>(
+  const context = `account lookup ${username}@${instance}`;
+  return tryOptionalFetch("mastodon", context, () =>
+    fetchJson<MastodonAccount>(
       "mastodon",
       `https://${instance}/api/v1/accounts/lookup?acct=${encodeURIComponent(username)}`,
-      `account lookup ${username}@${instance}`,
+      context,
       { timeoutMs: HN_ITEM_FETCH_TIMEOUT_MS },
-    );
-  } catch (err) {
-    warnOptionalFetchFailure(
-      "mastodon",
-      err,
-      `account lookup ${username}@${instance}`,
-    );
-    return null;
-  }
+    ),
+  );
 }
 
 function withOnlyMedia(url: string, onlyMedia: boolean): string {

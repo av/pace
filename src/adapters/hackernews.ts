@@ -7,7 +7,7 @@ import {
 import { joinTitle } from "./title";
 
 import { parseUnixEpochSeconds } from "./dates";
-import { fetchJson, HN_ITEM_FETCH_TIMEOUT_MS, warnOptionalFetchFailure } from "./fetch";
+import { fetchJson, HN_ITEM_FETCH_TIMEOUT_MS, tryOptionalFetch } from "./fetch";
 import { fetchAllBatched } from "./merge";
 import { decodeNumericFeedTitleOptional } from "./html";
 import {
@@ -72,14 +72,11 @@ export function resolveHnFeedType(feed: string): FeedType {
 
 async function fetchItem(id: number): Promise<HNItem | null> {
   const subpath = `item/${id}.json`;
-  try {
-    return await fetchJson<HNItem>("hackernews", `${HN_API}/${subpath}`, subpath, {
+  return tryOptionalFetch("hackernews", `failed to fetch item ${id}`, () =>
+    fetchJson<HNItem>("hackernews", `${HN_API}/${subpath}`, subpath, {
       timeoutMs: HN_ITEM_FETCH_TIMEOUT_MS,
-    });
-  } catch (err) {
-    warnOptionalFetchFailure("hackernews", err, `failed to fetch item ${id}`);
-    return null;
-  }
+    }),
+  );
 }
 
 function buildBody(item: HNItem): string {

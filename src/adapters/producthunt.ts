@@ -22,7 +22,7 @@ import {
   fetchAtomFeed,
   fetchText,
   HN_ITEM_FETCH_TIMEOUT_MS,
-  warnOptionalFetchFailure,
+  tryOptionalFetch,
 } from "./fetch";
 import {
   decodeNumericFeedTitle,
@@ -154,17 +154,14 @@ function extractId(entry: PHEntry): string {
 }
 
 async function enrichProduct(url: string): Promise<EnrichedData | null> {
-  try {
-    const html = await fetchText("producthunt", url, url, {
+  const html = await tryOptionalFetch("producthunt", `enrich failed for ${url}`, () =>
+    fetchText("producthunt", url, url, {
       timeoutMs: HN_ITEM_FETCH_TIMEOUT_MS,
       userAgent: PH_ENRICH_USER_AGENT,
       accept: "text/html",
-    });
-    return parseEnrichedData(html);
-  } catch (err) {
-    warnOptionalFetchFailure("producthunt", err, `enrich failed for ${url}`);
-    return null;
-  }
+    }),
+  );
+  return html ? parseEnrichedData(html) : null;
 }
 
 function buildBody(

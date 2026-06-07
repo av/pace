@@ -193,3 +193,17 @@ export function warnOptionalFetchFailure(
     msg.startsWith(`${prefix}:`) ? msg : `${prefix}: ${context}: ${msg}`,
   );
 }
+
+/** Run an optional secondary fetch; warn and return null on failure. */
+export async function tryOptionalFetch<T>(
+  prefix: string,
+  context: string,
+  work: () => Promise<T>,
+): Promise<T | null> {
+  try {
+    return await work();
+  } catch (err) {
+    warnOptionalFetchFailure(prefix, err, context);
+    return null;
+  }
+}
