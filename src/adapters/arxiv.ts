@@ -6,7 +6,7 @@ import {
 import {
   formatCategories,
 } from "./engagement";
-import { mapToContentItems } from "./content-item";
+import { sliceMapToContentItems } from "./content-item";
 import { joinTitle, truncateText } from "./title";
 
 import { warnEmptyConfig } from "./empty-config";
@@ -192,7 +192,7 @@ const adapter: Adapter = {
         1,
         async ({ queryStr, sourceLabel }) => {
           const entries = await fetchArxivQuery(queryStr, limit);
-          return mapToContentItems(entries, sourceLabel, projectArxivEntry);
+          return sliceMapToContentItems(entries, limit, sourceLabel, projectArxivEntry);
         },
         RATE_LIMIT_DELAY_MS,
       )
