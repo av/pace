@@ -16,7 +16,7 @@ import {
   clampAdapterLimit,
   normalizeParamString,
   normalizeParamStringList,
-  resolveAliasedOption,
+  createAliasedResolver,
 } from "../utils";
 import { finalizeFetchedItems } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -26,51 +26,31 @@ const REDDIT_BASE = "https://www.reddit.com";
 type SortType = "hot" | "new" | "top" | "rising";
 type TimePeriod = "hour" | "day" | "week" | "month" | "year" | "all";
 
-const SORT_TYPES: Record<string, SortType> = {
-  hot: "hot",
-  new: "new",
-  top: "top",
-  rising: "rising",
-};
-
-const SORT_ALIASES: Record<string, SortType> = {
-  popular: "hot",
-  trending: "rising",
-  best: "top",
-};
-
 /** Map configured sort string (canonical name or alias) to Reddit listing sort. Unknown → hot. */
-export function resolveRedditSort(sort: string): SortType {
-  return resolveAliasedOption(sort, SORT_TYPES, SORT_ALIASES, "hot");
-}
-
-const PERIOD_TYPES: Record<string, TimePeriod> = {
-  hour: "hour",
-  day: "day",
-  week: "week",
-  month: "month",
-  year: "year",
-  all: "all",
-};
-
-const PERIOD_ALIASES: Record<string, TimePeriod> = {
-  "24h": "day",
-  "1d": "day",
-  daily: "day",
-  "7d": "week",
-  weekly: "week",
-  "30d": "month",
-  monthly: "month",
-  "1y": "year",
-  yearly: "year",
-  alltime: "all",
-  forever: "all",
-};
+export const resolveRedditSort = createAliasedResolver<SortType>({
+  types: ["hot", "new", "top", "rising"],
+  aliases: { popular: "hot", trending: "rising", best: "top" },
+  fallback: "hot",
+});
 
 /** Map configured time period string (canonical name or alias) to Reddit top-sort window. Unknown → day. */
-export function resolveRedditPeriod(period: string): TimePeriod {
-  return resolveAliasedOption(period, PERIOD_TYPES, PERIOD_ALIASES, "day");
-}
+export const resolveRedditPeriod = createAliasedResolver<TimePeriod>({
+  types: ["hour", "day", "week", "month", "year", "all"],
+  aliases: {
+    "24h": "day",
+    "1d": "day",
+    daily: "day",
+    "7d": "week",
+    weekly: "week",
+    "30d": "month",
+    monthly: "month",
+    "1y": "year",
+    yearly: "year",
+    alltime: "all",
+    forever: "all",
+  },
+  fallback: "day",
+});
 
 interface RedditPostData {
   id: string;

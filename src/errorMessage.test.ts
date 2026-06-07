@@ -13,6 +13,8 @@ import {
   normalizeParamStringFirst,
   normalizeParamBoolean,
   normalizeOptionalString,
+  canonicalOptionTypes,
+  createAliasedResolver,
   resolveAliasedOption,
   simpleHash,
 } from "./utils";
@@ -257,6 +259,41 @@ describe("normalizeOptionalString", () => {
   test("returns trimmed non-blank string", () => {
     expect(normalizeOptionalString("  quantum  ")).toBe("quantum");
     expect(normalizeOptionalString("types")).toBe("types");
+  });
+});
+
+describe("canonicalOptionTypes", () => {
+  test("builds lowercase-keyed identity map from canonical tokens", () => {
+    expect(canonicalOptionTypes("hot", "new", "top")).toEqual({
+      hot: "hot",
+      new: "new",
+      top: "top",
+    });
+  });
+});
+
+describe("createAliasedResolver", () => {
+  const resolveSort = createAliasedResolver({
+    types: ["hot", "new"],
+    aliases: { popular: "hot" },
+    fallback: "new",
+  });
+
+  test("resolves canonical names and aliases via factory", () => {
+    expect(resolveSort("Hot")).toBe("hot");
+    expect(resolveSort("popular")).toBe("hot");
+    expect(resolveSort("missing")).toBe("new");
+  });
+
+  test("supports labeled type maps and null fallback", () => {
+    const resolveMode = createAliasedResolver({
+      types: { hot: "Hot", new: "New" },
+      aliases: { recent: "New" },
+      fallback: null,
+    });
+    expect(resolveMode("hot")).toBe("Hot");
+    expect(resolveMode("recent")).toBe("New");
+    expect(resolveMode("missing")).toBeNull();
   });
 });
 

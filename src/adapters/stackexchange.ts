@@ -15,7 +15,7 @@ import {
   normalizeNonNegativeNumber,
   normalizeParamString,
   normalizeParamStringList,
-  resolveAliasedOption,
+  createAliasedResolver,
 } from "../utils";
 import { finalizeFetchedItems, fetchAndConcat } from "./merge";
 import { type Adapter, type AdapterConfig, type ContentItem } from "./types";
@@ -24,31 +24,22 @@ const SE_API = "https://api.stackexchange.com/2.3";
 
 type SortType = "activity" | "votes" | "creation" | "hot" | "week" | "month";
 
-const SORT_TYPES: Record<string, SortType> = {
-  activity: "activity",
-  votes: "votes",
-  creation: "creation",
-  hot: "hot",
-  week: "week",
-  month: "month",
-};
-
-const SORT_ALIASES: Record<string, SortType> = {
-  active: "activity",
-  new: "creation",
-  newest: "creation",
-  recent: "creation",
-  score: "votes",
-  popular: "votes",
-  trending: "hot",
-  weekly: "week",
-  monthly: "month",
-};
-
 /** Map configured sort string (canonical name or alias) to Stack Exchange API sort. Unknown → hot. */
-export function resolveStackExchangeSort(sort: string): SortType {
-  return resolveAliasedOption(sort, SORT_TYPES, SORT_ALIASES, "hot");
-}
+export const resolveStackExchangeSort = createAliasedResolver<SortType>({
+  types: ["activity", "votes", "creation", "hot", "week", "month"],
+  aliases: {
+    active: "activity",
+    new: "creation",
+    newest: "creation",
+    recent: "creation",
+    score: "votes",
+    popular: "votes",
+    trending: "hot",
+    weekly: "week",
+    monthly: "month",
+  },
+  fallback: "hot",
+});
 
 interface SEQuestion {
   question_id: number;

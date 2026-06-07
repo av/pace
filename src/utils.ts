@@ -184,6 +184,54 @@ export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** Canonical option tokens keyed by lowercase form (identity map for string enums). */
+export function canonicalOptionTypes<T extends string>(
+  ...values: readonly T[]
+): Record<string, T> {
+  const types: Record<string, T> = {};
+  for (const value of values) {
+    types[value.toLowerCase()] = value;
+  }
+  return types;
+}
+
+export type AliasedOptionTypes<T> = readonly T[] | Record<string, T>;
+
+function buildOptionTypesMap<T>(types: AliasedOptionTypes<T>): Record<string, T> {
+  if (Array.isArray(types)) {
+    return canonicalOptionTypes(...types);
+  }
+  return types;
+}
+
+type AliasedResolverConfig<T> = {
+  types: AliasedOptionTypes<T>;
+  aliases?: Record<string, T>;
+  fallback: T;
+};
+
+type NullableAliasedResolverConfig<T> = {
+  types: AliasedOptionTypes<T>;
+  aliases?: Record<string, T>;
+  fallback: null;
+};
+
+/** Factory for adapter sort/feed/period resolvers backed by resolveAliasedOption. */
+export function createAliasedResolver<T>(
+  config: AliasedResolverConfig<T>,
+): (input: string) => T;
+export function createAliasedResolver<T>(
+  config: NullableAliasedResolverConfig<T>,
+): (input: string) => T | null;
+export function createAliasedResolver<T>(
+  config: AliasedResolverConfig<T> | NullableAliasedResolverConfig<T>,
+): (input: string) => T | null {
+  const types = buildOptionTypesMap(config.types);
+  const aliases = config.aliases ?? {};
+  const { fallback } = config;
+  return (input: string) => resolveAliasedOption(input, types, aliases, fallback);
+}
+
 /** Map a configured token to a canonical value via lowercase lookup in types then aliases. */
 export function resolveAliasedOption<T>(
   input: string,

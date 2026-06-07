@@ -14,30 +14,25 @@ import {
   clampAdapterLimit,
   normalizeParamString,
   normalizeParamStringList,
-  resolveAliasedOption,
+  createAliasedResolver,
 } from "../utils";
 import { finalizeFetchedItems } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 type SortType = "Hot" | "New" | "Top" | "Active" | "MostComments";
 
-const SORT_TYPES: Record<string, SortType> = {
-  hot: "Hot",
-  new: "New",
-  top: "Top",
-  active: "Active",
-  mostcomments: "MostComments",
-};
-
-const SORT_ALIASES: Record<string, SortType> = {
-  most_comments: "MostComments",
-  comments: "MostComments",
-};
-
 /** Map configured sort string (canonical name or alias) to Lemmy API sort. Unknown → Hot. */
-export function resolveLemmySort(sort: string): SortType {
-  return resolveAliasedOption(sort, SORT_TYPES, SORT_ALIASES, "Hot");
-}
+export const resolveLemmySort = createAliasedResolver<SortType>({
+  types: {
+    hot: "Hot",
+    new: "New",
+    top: "Top",
+    active: "Active",
+    mostcomments: "MostComments",
+  },
+  aliases: { most_comments: "MostComments", comments: "MostComments" },
+  fallback: "Hot",
+});
 
 interface LemmyPostView {
   post: {

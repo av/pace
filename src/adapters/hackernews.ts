@@ -14,7 +14,7 @@ import {
   normalizeNonNegativeNumber,
   normalizeParamStringFirst,
   clampAdapterLimit,
-  resolveAliasedOption,
+  createAliasedResolver,
 } from "../utils";
 import { finalizeFetchedItems } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -35,15 +35,6 @@ interface HNItem {
 
 type FeedType = "top" | "new" | "best" | "ask" | "show" | "job";
 
-const FEED_TYPES: Record<string, FeedType> = {
-  top: "top",
-  new: "new",
-  best: "best",
-  ask: "ask",
-  show: "show",
-  job: "job",
-};
-
 const FEED_ENDPOINTS: Record<FeedType, string> = {
   top: "topstories",
   new: "newstories",
@@ -53,22 +44,22 @@ const FEED_ENDPOINTS: Record<FeedType, string> = {
   job: "jobstories",
 };
 
-const FEED_ALIASES: Record<string, FeedType> = {
-  newest: "new",
-  recent: "new",
-  front: "top",
-  frontpage: "top",
-  askhn: "ask",
-  ask_hn: "ask",
-  showhn: "show",
-  show_hn: "show",
-  jobs: "job",
-};
-
 /** Map configured feed string (canonical name or alias) to HN feed type. Unknown → top. */
-export function resolveHnFeedType(feed: string): FeedType {
-  return resolveAliasedOption(feed, FEED_TYPES, FEED_ALIASES, "top");
-}
+export const resolveHnFeedType = createAliasedResolver<FeedType>({
+  types: ["top", "new", "best", "ask", "show", "job"],
+  aliases: {
+    newest: "new",
+    recent: "new",
+    front: "top",
+    frontpage: "top",
+    askhn: "ask",
+    ask_hn: "ask",
+    showhn: "show",
+    show_hn: "show",
+    jobs: "job",
+  },
+  fallback: "top",
+});
 
 async function fetchItem(id: number): Promise<HNItem | null> {
   const subpath = `item/${id}.json`;

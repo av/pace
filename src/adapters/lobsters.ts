@@ -14,7 +14,7 @@ import {
   clampAdapterLimit,
   normalizeParamString,
   normalizeParamStringList,
-  resolveAliasedOption,
+  createAliasedResolver,
 } from "../utils";
 import { dedupeByKey, finalizeFetchedItems, fetchAndConcat, sortByCreatedAtDesc } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -23,23 +23,12 @@ const LOBSTERS_BASE = "https://lobste.rs";
 
 type FeedType = "hottest" | "newest" | "active";
 
-const FEED_TYPES: Record<string, FeedType> = {
-  hottest: "hottest",
-  newest: "newest",
-  active: "active",
-};
-
-const FEED_ALIASES: Record<string, FeedType> = {
-  hot: "hottest",
-  front: "hottest",
-  new: "newest",
-  recent: "newest",
-};
-
 /** Map configured feed string (canonical name or alias) to Lobsters feed type. Unknown → hottest. */
-export function resolveLobstersFeedType(feed: string): FeedType {
-  return resolveAliasedOption(feed, FEED_TYPES, FEED_ALIASES, "hottest");
-}
+export const resolveLobstersFeedType = createAliasedResolver<FeedType>({
+  types: ["hottest", "newest", "active"],
+  aliases: { hot: "hottest", front: "hottest", new: "newest", recent: "newest" },
+  fallback: "hottest",
+});
 
 interface LobstersItem {
   short_id: string;

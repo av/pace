@@ -8,7 +8,7 @@ import { FEED_FETCH_TIMEOUT_MS, fetchText } from "./fetch";
 import {
   clampAdapterLimit,
   normalizeParamString,
-  resolveAliasedOption,
+  createAliasedResolver,
   sliceToLimit,
 } from "../utils";
 import { decodeNumericFeedTitle, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
@@ -22,27 +22,21 @@ type TrendingPeriod = "daily" | "weekly" | "monthly";
 
 const DEFAULT_PERIOD: TrendingPeriod = "daily";
 
-const PERIOD_TYPES: Record<string, TrendingPeriod> = {
-  daily: "daily",
-  weekly: "weekly",
-  monthly: "monthly",
-};
-
-const PERIOD_ALIASES: Record<string, TrendingPeriod> = {
-  day: "daily",
-  today: "daily",
-  "1d": "daily",
-  "24h": "daily",
-  week: "weekly",
-  "7d": "weekly",
-  month: "monthly",
-  "30d": "monthly",
-};
-
 /** Map configured since param (canonical name or alias) to GitHub trending period. Unknown → daily. */
-export function resolveGitHubPeriod(period: string): TrendingPeriod {
-  return resolveAliasedOption(period, PERIOD_TYPES, PERIOD_ALIASES, DEFAULT_PERIOD);
-}
+export const resolveGitHubPeriod = createAliasedResolver<TrendingPeriod>({
+  types: ["daily", "weekly", "monthly"],
+  aliases: {
+    day: "daily",
+    today: "daily",
+    "1d": "daily",
+    "24h": "daily",
+    week: "weekly",
+    "7d": "weekly",
+    month: "monthly",
+    "30d": "monthly",
+  },
+  fallback: DEFAULT_PERIOD,
+});
 
 interface TrendingRepo {
   name: string;

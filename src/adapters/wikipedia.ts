@@ -10,7 +10,7 @@ import {
   normalizeParamString,
   normalizeParamStringList,
   normalizeStringList,
-  resolveAliasedOption,
+  createAliasedResolver,
   sliceToLimit,
 } from "../utils";
 import { dedupeByKey } from "./merge";
@@ -18,28 +18,25 @@ import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 type Mode = "most_read" | "featured" | "on_this_day" | "news";
 
-const MODE_TYPES: Record<string, Mode> = {
-  most_read: "most_read",
-  featured: "featured",
-  on_this_day: "on_this_day",
-  news: "news",
-};
-
-const MODE_ALIASES: Record<string, Mode> = {
-  mostread: "most_read",
-  popular: "most_read",
-  tfa: "featured",
-  onthisday: "on_this_day",
-  otd: "on_this_day",
-  current_events: "news",
-  currentevents: "news",
-};
+const resolveWikipediaModeToken = createAliasedResolver<Mode>({
+  types: ["most_read", "featured", "on_this_day", "news"],
+  aliases: {
+    mostread: "most_read",
+    popular: "most_read",
+    tfa: "featured",
+    onthisday: "on_this_day",
+    otd: "on_this_day",
+    current_events: "news",
+    currentevents: "news",
+  },
+  fallback: null,
+});
 
 /** Map configured mode string (canonical name or alias) to Wikipedia feed section. Unknown → null. */
 export function resolveWikipediaMode(token: string): Mode | null {
   const normalized = token.trim().toLowerCase().replace(/-/g, "_");
   if (!normalized) return null;
-  return resolveAliasedOption(normalized, MODE_TYPES, MODE_ALIASES, null);
+  return resolveWikipediaModeToken(normalized);
 }
 
 interface WikiFeaturedResponse {
