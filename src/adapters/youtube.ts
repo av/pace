@@ -1,6 +1,5 @@
 import {
   extractAtomLink,
-  extractFeedRootTitle,
   type AtomLinkField,
   type XmlTextField,
 } from "./atom";
@@ -14,13 +13,10 @@ import {
   decodeFeedEntryTitle,
   FEED_ENTRY_DATE_ATOM_ORDER,
   parseFeedEntryTimestamp,
+  resolveDecodedFeedRootTitle,
 } from "./feed-entry";
 import { fetchAtomFeed } from "./fetch";
-import {
-  decodeNumericFeedTitle,
-  FEED_BODY_STRIP_OPTIONS,
-  stripHtml,
-} from "./html";
+import { FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
 import {
   clampAdapterLimit,
   normalizeParamStringList,
@@ -95,9 +91,11 @@ async function fetchYoutubeFeed(
     url,
     `${label} ${id}`,
   );
-  const channelTitle = decodeNumericFeedTitle(
-    extractFeedRootTitle(undefined, parsed.feed?.title) ?? "YouTube",
-  );
+  const channelTitle = resolveDecodedFeedRootTitle(
+    undefined,
+    parsed.feed?.title,
+    "YouTube",
+  )!;
   return sliceToLimit(entries, limit).map((entry) => parseEntry(entry, channelTitle));
 }
 

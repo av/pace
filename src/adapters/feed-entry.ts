@@ -1,6 +1,7 @@
 import {
   extractFeedEntryTitle,
   extractFeedItemBody,
+  extractFeedRootTitle,
   type FeedItemBodyFields,
   type XmlTextField,
 } from "./atom";
@@ -65,6 +66,16 @@ export function decodeFeedEntryTitle(
   fallback = "(untitled)",
 ): string {
   return decodeNumericFeedTitle(extractFeedEntryTitle(title, fallback));
+}
+
+export function resolveDecodedFeedRootTitle(
+  rssTitle: XmlTextField | undefined,
+  atomTitle: XmlTextField | undefined,
+  fallback?: string,
+): string | undefined {
+  const raw = extractFeedRootTitle(rssTitle, atomTitle) ?? fallback;
+  if (!raw) return undefined;
+  return decodeNumericFeedTitle(raw);
 }
 
 export function extractFeedEntryStrippedBody(

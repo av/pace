@@ -5,7 +5,6 @@ import {
 } from "../utils";
 import {
   extractAtomLink,
-  extractFeedRootTitle,
   type AtomLinkField,
   type FeedItemBodyFields,
   type XmlTextField,
@@ -15,6 +14,7 @@ import {
   extractFeedEntryStrippedBody,
   FEED_ENTRY_DATE_ATOM_ORDER,
   parseFeedEntryTimestamp,
+  resolveDecodedFeedRootTitle,
 } from "./feed-entry";
 import { fetchAtomFeed, fetchJson, buildGitHubApiHeaders } from "./fetch";
 import { fetchRepoTagline } from "./github-repo-meta";
@@ -97,10 +97,8 @@ export async function fetchGitHubAtomReleases(
     url,
     `releases for ${repo}`,
   );
-  const feedTitle = extractFeedRootTitle(undefined, parsed.feed?.title);
-  const source = feedTitle
-    ? `github:${decodeNumericFeedTitle(feedTitle)}`
-    : `github:${repo}`;
+  const feedTitle = resolveDecodedFeedRootTitle(undefined, parsed.feed?.title);
+  const source = feedTitle ? `github:${feedTitle}` : `github:${repo}`;
   const tagline = await fetchRepoTagline(repo, adapterName, token);
 
   const items: ContentItem[] = [];

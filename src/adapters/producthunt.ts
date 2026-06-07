@@ -1,7 +1,6 @@
 import {
   extractAtomLink,
   extractFeedItemBody,
-  extractFeedRootTitle,
   type AtomLinkField,
   type FeedItemBodyFields,
   type XmlTextField,
@@ -10,6 +9,7 @@ import {
   decodeFeedEntryTitle,
   FEED_ENTRY_DATE_ATOM_ORDER,
   parseFeedEntryTimestamp,
+  resolveDecodedFeedRootTitle,
 } from "./feed-entry";
 import {
   clampAdapterLimit,
@@ -205,9 +205,11 @@ async function fetchProductHuntFeed(): Promise<{
     PH_FEED_URL,
     "feed",
   );
-  const feedTitle = decodeNumericFeedTitle(
-    extractFeedRootTitle(undefined, parsed.feed?.title) ?? "producthunt",
-  );
+  const feedTitle = resolveDecodedFeedRootTitle(
+    undefined,
+    parsed.feed?.title,
+    "producthunt",
+  )!;
 
   if (entries.length === 0) {
     console.warn("producthunt: no entries found in feed");

@@ -1,6 +1,5 @@
 import {
   extractAtomLink,
-  extractFeedRootTitle,
   extractXmlText,
   podcastFeedXmlParser,
   type AtomLinkField,
@@ -14,6 +13,7 @@ import {
   extractFeedEntryStrippedBody,
   FEED_ENTRY_DATE_PODCAST_ORDER,
   parseFeedEntryTimestamp,
+  resolveDecodedFeedRootTitle,
 } from "./feed-entry";
 import { joinTitle, truncateText } from "./title";
 import {
@@ -27,7 +27,7 @@ import {
   sliceToLimit,
 } from "../utils";
 import { fetchAllParallelDedupe } from "./merge";
-import { decodeNumericFeedTitle } from "./html";
+
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 interface PodcastEnclosure {
@@ -246,9 +246,11 @@ async function fetchPodcastFeed(
     return [];
   }
 
-  const showName = decodeNumericFeedTitle(
-    extractFeedRootTitle(channel.title, parsed.feed?.title) ?? "Unknown Podcast",
-  );
+  const showName = resolveDecodedFeedRootTitle(
+    channel.title,
+    parsed.feed?.title,
+    "Unknown Podcast",
+  )!;
   const channelLink = typeof channel.link === "string" ? channel.link : "";
 
   if (items.length === 0) return [];

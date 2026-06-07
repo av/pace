@@ -7,6 +7,7 @@ import {
   FEED_ENTRY_DATE_PODCAST_ORDER,
   FEED_ENTRY_DATE_RSS_ORDER,
   parseFeedEntryTimestamp,
+  resolveDecodedFeedRootTitle,
 } from "./adapters/feed-entry";
 
 describe("coalesceFeedEntryDateStr", () => {
@@ -67,6 +68,21 @@ describe("decodeFeedEntryTitle", () => {
   test("decodes numeric entities after extracting xml text", () => {
     expect(decodeFeedEntryTitle({ "#text": "A &#38; B" })).toBe("A & B");
     expect(decodeFeedEntryTitle(undefined, "missing")).toBe("missing");
+  });
+});
+
+describe("resolveDecodedFeedRootTitle", () => {
+  test("prefers RSS title, decodes entities, and applies fallback", () => {
+    expect(
+      resolveDecodedFeedRootTitle("RSS &#38; Co", { "#text": "Atom" }),
+    ).toBe("RSS & Co");
+    expect(
+      resolveDecodedFeedRootTitle(undefined, { "#text": "Atom &#38; Feed" }),
+    ).toBe("Atom & Feed");
+    expect(resolveDecodedFeedRootTitle(undefined, undefined, "Default")).toBe(
+      "Default",
+    );
+    expect(resolveDecodedFeedRootTitle(undefined, undefined)).toBeUndefined();
   });
 });
 

@@ -1,6 +1,5 @@
 import {
   extractAtomLink,
-  extractFeedRootTitle,
   type AtomLinkField,
   type FeedItemBodyFields,
   type XmlTextField,
@@ -10,9 +9,9 @@ import {
   decodeFeedEntryTitle,
   extractFeedEntryStrippedBody,
   parseFeedEntryTimestamp,
+  resolveDecodedFeedRootTitle,
 } from "./feed-entry";
 import { fetchRssAtomFeed } from "./fetch";
-import { decodeNumericFeedTitle } from "./html";
 import { fetchAllParallelDedupe } from "./merge";
 import { extractHostname } from "../dedupe";
 import { normalizeParamStringList, simpleHash } from "../utils";
@@ -65,13 +64,11 @@ async function fetchFeed(url: string): Promise<ContentItem[]> {
     url,
     url,
   );
-  const feedTitle = extractFeedRootTitle(
+  const feedTitle = resolveDecodedFeedRootTitle(
     parsed?.rss?.channel?.title,
     parsed?.feed?.title,
   );
-  const source = feedTitle
-    ? decodeNumericFeedTitle(feedTitle)
-    : extractHostname(url, "rss") || url;
+  const source = feedTitle ?? (extractHostname(url, "rss") || url);
   return items.map((item) => parseItem(item, source));
 }
 
