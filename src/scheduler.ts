@@ -341,33 +341,6 @@ function planRefresh(sourceNames: readonly string[]): {
   };
 }
 
-export function allPanelRefreshSourceNames(
-  adapterNames: readonly string[],
-  pipelines: readonly { name: string }[] | undefined,
-): string[] {
-  const names = [...adapterNames];
-  if (pipelines) {
-    for (const pipeline of pipelines) names.push(pipeline.name);
-  }
-  return names;
-}
-
-export function resolvePanelRefreshSourceNames(
-  sources: readonly { adapter: string }[],
-  adapterNames: readonly string[],
-  pipelines: readonly { name: string }[] | undefined,
-): string[] {
-  return [
-    ...new Set(
-      sources.flatMap((source) =>
-        source.adapter === "all"
-          ? allPanelRefreshSourceNames(adapterNames, pipelines)
-          : [source.adapter],
-      ),
-    ),
-  ];
-}
-
 export async function refreshSources(sourceNames: string[]): Promise<RefreshResult[]> {
   const { adapters, pipelines } = planRefresh(sourceNames);
 

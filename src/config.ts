@@ -13,7 +13,6 @@ import {
   validateUniqueUnnamedAdapterTypes,
   TRANSFORM_TYPES,
 } from "./config-validate";
-import { resolvePanelRefreshSourceNames } from "./scheduler";
 import { errorMessage, getAdapterName } from "./utils";
 
 export { TRANSFORM_TYPES };
@@ -252,6 +251,33 @@ export interface LayoutRuntimeMaps {
   panelIdToRefreshSourceNames: Map<string, string[]>;
   panelNameToId: Map<string, string>;
   dashboardPanels: DashboardPanel[];
+}
+
+export function allPanelRefreshSourceNames(
+  adapterNames: readonly string[],
+  pipelines: readonly { name: string }[] | undefined,
+): string[] {
+  const names = [...adapterNames];
+  if (pipelines) {
+    for (const pipeline of pipelines) names.push(pipeline.name);
+  }
+  return names;
+}
+
+export function resolvePanelRefreshSourceNames(
+  sources: readonly { adapter: string }[],
+  adapterNames: readonly string[],
+  pipelines: readonly { name: string }[] | undefined,
+): string[] {
+  return [
+    ...new Set(
+      sources.flatMap((source) =>
+        source.adapter === "all"
+          ? allPanelRefreshSourceNames(adapterNames, pipelines)
+          : [source.adapter],
+      ),
+    ),
+  ];
 }
 
 export function buildLayoutRuntimeMaps(

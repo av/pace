@@ -11,11 +11,10 @@ import {
   startScheduler,
   stopScheduler,
   refreshSources,
-  allPanelRefreshSourceNames,
-  resolvePanelRefreshSourceNames,
   PIPELINE_INITIAL_DELAY_MS,
   DEFAULT_REFRESH_INTERVAL_MIN,
 } from "./scheduler";
+import { allPanelRefreshSourceNames, resolvePanelRefreshSourceNames } from "./config";
 import {
   adapterAndPipelinePanelsLayout,
   adapterPipelineLayout,
