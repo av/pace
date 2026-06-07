@@ -11,6 +11,7 @@ import {
 } from "./engagement";
 import { joinTitle } from "./title";
 
+import { warnEmptyConfig } from "./empty-config";
 import { fetchAtomFeed } from "./fetch";
 import {
   decodeNumericFeedTitle,
@@ -105,8 +106,7 @@ const adapter: Adapter = {
     const limit = clampAdapterLimit(config.params?.limit, 15, 50);
 
     if (channels.length === 0 && playlists.length === 0) {
-      console.warn("youtube: no channels or playlists configured");
-      return [];
+      return warnEmptyConfig("youtube", "no channels or playlists configured");
     }
 
     const sources = [

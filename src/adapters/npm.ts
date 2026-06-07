@@ -5,6 +5,7 @@ import {
 } from "./engagement";
 import { joinTitle, joinTitleWithTagline } from "./title";
 
+import { warnEmptyConfig } from "./empty-config";
 import { fetchJson } from "./fetch";
 import { decodeNumericFeedTitle } from "./html";
 import {
@@ -143,8 +144,7 @@ const adapter: Adapter = {
     );
 
     if (keywords.length === 0 && !scope) {
-      console.warn("npm: no keywords or scope configured");
-      return [];
+      return warnEmptyConfig("npm", "no keywords or scope configured");
     }
 
     const context = scope

@@ -10,6 +10,7 @@ import {
   type XmlTextField,
 } from "./atom";
 import { formatSeconds, parseFeedDate } from "./dates";
+import { warnEmptyConfig } from "./empty-config";
 import { joinTitle, truncateText } from "./title";
 import {
   FEED_FETCH_TIMEOUT_MS,
@@ -274,8 +275,7 @@ const adapter: Adapter = {
     const limit = clampAdapterLimit(config.params?.limit, 10, 50);
 
     if (feeds.length === 0) {
-      console.warn("podcast: no feeds configured");
-      return [];
+      return warnEmptyConfig("podcast", "no feeds configured");
     }
 
     return fetchAllParallelDedupe(

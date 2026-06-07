@@ -16,6 +16,7 @@ import { parseFeedDate } from "./dates";
 import { fetchAtomFeed, fetchJson, buildGitHubApiHeaders } from "./fetch";
 import { fetchRepoTagline } from "./github-repo-meta";
 import { decodeNumericFeedTitle, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
+import { warnEmptyConfig } from "./empty-config";
 import { fetchAllParallel, fetchAllParallelDedupe } from "./merge";
 import { capText, joinTitleWithTagline } from "./title";
 import type { ContentItem } from "./types";
@@ -58,7 +59,7 @@ export function resolveGitHubRepos(
 ): GitHubReposConfig | null {
   const repos = normalizeParamStringList(params, "repos");
   if (repos.length === 0) {
-    console.warn(`${adapterName}: no repos configured`);
+    warnEmptyConfig(adapterName, "no repos configured");
     return null;
   }
   return { repos, token: normalizeParamString(params, "token") };

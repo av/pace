@@ -9,6 +9,7 @@ import {
 } from "./engagement";
 import { joinTitle } from "./title";
 
+import { warnEmptyConfig } from "./empty-config";
 import { fetchJson } from "./fetch";
 import { decodeNumericFeedTitle } from "./html";
 import {
@@ -119,8 +120,7 @@ const adapter: Adapter = {
     const top = resolveDevToPeriod(config.params?.top);
 
     if (tags.length === 0 && !username) {
-      console.warn("devto: no tags or username configured");
-      return [];
+      return warnEmptyConfig("devto", "no tags or username configured");
     }
 
     const allArticles: DevToArticle[] = [];

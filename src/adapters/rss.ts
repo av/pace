@@ -8,6 +8,7 @@ import {
   type XmlTextField,
 } from "./atom";
 import { parseFeedDate } from "./dates";
+import { warnEmptyConfig } from "./empty-config";
 import { fetchRssAtomFeed } from "./fetch";
 import { decodeNumericFeedTitle, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
 import { fetchAllParallelDedupe } from "./merge";
@@ -82,8 +83,7 @@ const adapter: Adapter = {
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
     const urls = normalizeParamStringList(config.params, "urls");
     if (urls.length === 0) {
-      console.warn("rss: no urls configured");
-      return [];
+      return warnEmptyConfig("rss", "no urls configured");
     }
 
     return fetchAllParallelDedupe(urls, fetchFeed, (item) => item.url || item.id);

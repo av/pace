@@ -10,6 +10,7 @@ import {
 } from "./engagement";
 import { joinTitle, truncateText } from "./title";
 
+import { warnEmptyConfig } from "./empty-config";
 import { ARXIV_FETCH_TIMEOUT_MS, fetchAtomFeed } from "./fetch";
 import {
   decodeNumericFeedTitle,
@@ -166,8 +167,7 @@ const adapter: Adapter = {
     const limit = clampAdapterLimit(config.params?.limit, 20, 100);
 
     if (categories.length === 0 && !query) {
-      console.warn("arxiv: no categories or query configured");
-      return [];
+      return warnEmptyConfig("arxiv", "no categories or query configured");
     }
 
     const sources: ArxivSource[] = [

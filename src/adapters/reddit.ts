@@ -8,6 +8,7 @@ import {
 import { joinTitle } from "./title";
 
 import { parseUnixEpochSeconds } from "./dates";
+import { warnEmptyConfig } from "./empty-config";
 import { fetchJson } from "./fetch";
 import { decodeNumericFeedTitle } from "./html";
 import {
@@ -142,8 +143,7 @@ const adapter: Adapter = {
     const effectivePeriod = resolveRedditPeriod(timePeriod);
 
     if (subreddits.length === 0) {
-      console.warn("reddit: no subreddits configured");
-      return [];
+      return warnEmptyConfig("reddit", "no subreddits configured");
     }
 
     const allPosts: RedditPost[] = [];

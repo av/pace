@@ -1,10 +1,6 @@
 import { normalizeParamStringList } from "../utils";
+import { warnEmptyConfig } from "./empty-config";
 import { type Adapter, type AdapterConfig, type ContentItem } from "./types";
-
-function warnAndReturnEmpty(msg: string): ContentItem[] {
-  console.warn(msg.startsWith("twitter:") ? msg : `twitter: ${msg}`);
-  return [];
-}
 
 const adapter: Adapter = {
   name: "twitter",
@@ -14,11 +10,13 @@ const adapter: Adapter = {
 
     const terms = lists.length > 0 ? lists : searches;
     if (terms.length > 0) {
-      return warnAndReturnEmpty(
+      return warnEmptyConfig(
+        "twitter",
         `adapter configured with ${terms.length} source(s); Twitter API requires params.bearer_token. Returning empty results.`,
       );
     }
-    return warnAndReturnEmpty(
+    return warnEmptyConfig(
+      "twitter",
       "no lists or searches configured; Twitter API requires params.bearer_token. Returning empty results.",
     );
   },
