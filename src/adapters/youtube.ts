@@ -10,9 +10,8 @@ import { joinTitle } from "./title";
 
 import { warnEmptyConfig } from "./empty-config";
 import {
-  decodeFeedEntryTitle,
   FEED_ENTRY_DATE_ATOM_ORDER,
-  parseFeedEntryTimestamp,
+  projectFeedEntryToContentItem,
   resolveDecodedFeedRootTitle,
 } from "./feed-entry";
 import { fetchAtomFeed } from "./fetch";
@@ -59,23 +58,23 @@ function buildBody(entry: YTEntry): string | undefined {
 }
 
 function parseEntry(entry: YTEntry, channelTitle: string): ContentItem {
-  const videoId = entry["yt:videoId"] ?? "";
-  const title = decodeFeedEntryTitle(entry.title);
-
-  const link = videoId
-    ? `https://www.youtube.com/watch?v=${videoId}`
-    : extractAtomLink(entry.link);
-
-  const timestamp = parseFeedEntryTimestamp(entry, FEED_ENTRY_DATE_ATOM_ORDER);
-
-  return {
-    id: `youtube:${videoId || title}`,
-    title: String(title),
-    url: link,
-    source: `youtube:${channelTitle}`,
-    timestamp,
-    body: buildBody(entry),
-  };
+  return projectFeedEntryToContentItem(
+    "youtube",
+    entry,
+    ({ title }) => {
+      const videoId = entry["yt:videoId"] ?? "";
+      const link = videoId
+        ? `https://www.youtube.com/watch?v=${videoId}`
+        : extractAtomLink(entry.link);
+      return {
+        idSuffix: videoId || title,
+        url: link,
+        source: `youtube:${channelTitle}`,
+        body: buildBody(entry),
+      };
+    },
+    FEED_ENTRY_DATE_ATOM_ORDER,
+  );
 }
 
 async function fetchYoutubeFeed(

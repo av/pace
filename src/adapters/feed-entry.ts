@@ -11,6 +11,7 @@ import {
   FEED_BODY_STRIP_OPTIONS,
   stripHtml,
 } from "./html";
+import type { ContentItem } from "./types";
 
 export type FeedEntryDateField =
   | "pubDate"
@@ -83,4 +84,45 @@ export function extractFeedEntryStrippedBody(
 ): string | undefined {
   const rawBody = extractFeedItemBody(item);
   return rawBody ? stripHtml(rawBody, FEED_BODY_STRIP_OPTIONS) : undefined;
+}
+
+export type FeedEntryProjectionInput = FeedEntryDateFields & {
+  title?: XmlTextField;
+};
+
+export type FeedEntryProjectedFields = Pick<
+  ContentItem,
+  "url" | "source"
+> & {
+  idSuffix: string;
+  body?: string;
+};
+
+/** Assemble a feed-sourced ContentItem from resolved id/url/source/timestamp/body fields. */
+export function buildFeedContentItem(
+  id: string,
+  fields: Pick<ContentItem, "title" | "url" | "source" | "timestamp"> & {
+    body?: string;
+  },
+): ContentItem {
+  return { id, ...fields };
+}
+
+/** Project a feed XML entry to ContentItem via shared title/timestamp extraction. */
+export function projectFeedEntryToContentItem(
+  idPrefix: string,
+  entry: FeedEntryProjectionInput,
+  project: (ctx: { title: string; timestamp: Date }) => FeedEntryProjectedFields,
+  dateOrder?: FeedEntryDateField[],
+): ContentItem {
+  const title = decodeFeedEntryTitle(entry.title);
+  const timestamp = parseFeedEntryTimestamp(entry, dateOrder);
+  const { idSuffix, url, source, body } = project({ title, timestamp });
+  return buildFeedContentItem(`${idPrefix}:${idSuffix}`, {
+    title,
+    url,
+    source,
+    timestamp,
+    body,
+  });
 }

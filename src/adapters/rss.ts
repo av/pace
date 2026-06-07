@@ -6,9 +6,9 @@ import {
 } from "./atom";
 import { warnEmptyConfig } from "./empty-config";
 import {
-  decodeFeedEntryTitle,
+  buildFeedContentItem,
   extractFeedEntryStrippedBody,
-  parseFeedEntryTimestamp,
+  projectFeedEntryToContentItem,
   resolveDecodedFeedRootTitle,
 } from "./feed-entry";
 import { fetchRssAtomFeed } from "./fetch";
@@ -39,23 +39,16 @@ interface RssFeedParsed {
 }
 
 function parseItem(raw: RssFeedItem, source: string): ContentItem {
-  const title = decodeFeedEntryTitle(raw.title);
-  const link = extractAtomLink(raw.link);
-  const timestamp = parseFeedEntryTimestamp(raw);
-  const body = extractFeedEntryStrippedBody(raw);
-
-  const resolvedUrl = link || undefined;
-
-  const idSuffix = link || `${title}:${simpleHash(body ?? "")}`;
-
-  return {
-    id: `rss:${idSuffix}`,
-    title,
-    url: resolvedUrl ?? "",
-    source,
-    timestamp,
-    body,
-  };
+  return projectFeedEntryToContentItem("rss", raw, ({ title }) => {
+    const link = extractAtomLink(raw.link);
+    const body = extractFeedEntryStrippedBody(raw);
+    return {
+      idSuffix: link || `${title}:${simpleHash(body ?? "")}`,
+      url: link || "",
+      source,
+      body,
+    };
+  });
 }
 
 async function fetchFeed(url: string): Promise<ContentItem[]> {

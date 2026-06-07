@@ -9,6 +9,7 @@ import {
 import { formatSeconds } from "./dates";
 import { warnEmptyConfig } from "./empty-config";
 import {
+  buildFeedContentItem,
   decodeFeedEntryTitle,
   extractFeedEntryStrippedBody,
   FEED_ENTRY_DATE_PODCAST_ORDER,
@@ -215,14 +216,13 @@ function buildBody(ep: PodcastEpisode): string {
 function episodeToContentItem(ep: PodcastEpisode): ContentItem {
   const slug = slugify(ep.showName);
   const uniqueId = ep.guid || ep.audioUrl || ep.url || ep.title;
-  return {
-    id: `podcast:${slug}:${uniqueId}`,
+  return buildFeedContentItem(`podcast:${slug}:${uniqueId}`, {
     title: ep.title,
     url: ep.url,
     source: `podcast:${slug}`,
     timestamp: ep.publishDate,
     body: buildBody(ep),
-  };
+  });
 }
 
 async function fetchPodcastFeed(

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  buildFeedContentItem,
   coalesceFeedEntryDateStr,
   decodeFeedEntryTitle,
   extractFeedEntryStrippedBody,
@@ -7,6 +8,7 @@ import {
   FEED_ENTRY_DATE_PODCAST_ORDER,
   FEED_ENTRY_DATE_RSS_ORDER,
   parseFeedEntryTimestamp,
+  projectFeedEntryToContentItem,
   resolveDecodedFeedRootTitle,
 } from "./adapters/feed-entry";
 
@@ -94,5 +96,73 @@ describe("extractFeedEntryStrippedBody", () => {
       }),
     ).toBe("Hello world");
     expect(extractFeedEntryStrippedBody({})).toBeUndefined();
+  });
+});
+
+describe("buildFeedContentItem", () => {
+  test("assembles ContentItem from resolved projection fields", () => {
+    const timestamp = new Date("2024-06-15T12:00:00Z");
+    expect(
+      buildFeedContentItem("podcast:my-show:ep-1", {
+        title: "Episode 1",
+        url: "https://example.com/ep1",
+        source: "podcast:my-show",
+        timestamp,
+        body: "Show notes",
+      }),
+    ).toEqual({
+      id: "podcast:my-show:ep-1",
+      title: "Episode 1",
+      url: "https://example.com/ep1",
+      source: "podcast:my-show",
+      timestamp,
+      body: "Show notes",
+    });
+  });
+});
+
+describe("projectFeedEntryToContentItem", () => {
+  test("extracts shared title/timestamp then applies adapter-specific projection", () => {
+    const item = projectFeedEntryToContentItem(
+      "rss",
+      {
+        title: { "#text": "Hello &#38; World" },
+        pubDate: "Mon, 15 Jun 2024 12:00:00 GMT",
+      },
+      ({ title }) => ({
+        idSuffix: "item-1",
+        url: "https://example.com/item-1",
+        source: "Example Feed",
+        body: `Body for ${title}`,
+      }),
+    );
+
+    expect(item.id).toBe("rss:item-1");
+    expect(item.title).toBe("Hello & World");
+    expect(item.url).toBe("https://example.com/item-1");
+    expect(item.source).toBe("Example Feed");
+    expect(item.body).toBe("Body for Hello & World");
+    expect(item.timestamp).toBeInstanceOf(Date);
+    expect(item.timestamp.getUTCFullYear()).toBe(2024);
+  });
+
+  test("honors custom date field order", () => {
+    const item = projectFeedEntryToContentItem(
+      "youtube",
+      {
+        title: "Video",
+        published: "2024-01-01T00:00:00Z",
+        updated: "2024-02-01T00:00:00Z",
+      },
+      () => ({
+        idSuffix: "vid-1",
+        url: "https://youtube.com/watch?v=vid-1",
+        source: "youtube:Channel",
+      }),
+      FEED_ENTRY_DATE_ATOM_ORDER,
+    );
+
+    expect(item.id).toBe("youtube:vid-1");
+    expect(item.timestamp.toISOString()).toBe("2024-01-01T00:00:00.000Z");
   });
 });
