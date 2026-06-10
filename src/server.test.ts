@@ -2,7 +2,7 @@ import { describe, test, expect } from "bun:test";
 import { Hono } from "hono";
 import { securityHeadersMiddleware } from "./server/security-headers";
 import { handleRefreshPanel, type ServerRouteDeps } from "./server/routes";
-import type { RefreshResult } from "./scheduler";
+import type { RefreshResult } from "./refresh-result";
 import { singlePanelLayout } from "./test/app-config";
 
 function makeRefreshDeps(

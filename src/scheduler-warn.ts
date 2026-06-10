@@ -1,3 +1,4 @@
+import { formatRefreshSourceFailureFromError } from "./refresh-result";
 import { errorMessage } from "./utils";
 
 const SCHEDULER_PREFIX = "scheduler";
@@ -14,7 +15,7 @@ export function warnScheduler(message: string): void {
 
 /** Warn when adapter or pipeline refresh fails; caller records error on entry. */
 export function warnRefreshFailure(name: string, err: unknown): void {
-  warnScheduler(`failed to refresh ${name}: ${errorMessage(err)}`);
+  warnScheduler(`failed to refresh ${formatRefreshSourceFailureFromError(name, err)}`);
 }
 
 /** Warn when periodic prune fails; caller continues without rethrow. */

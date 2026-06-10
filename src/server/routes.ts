@@ -2,6 +2,7 @@ import type { Context, Hono } from "hono";
 import type { DashboardPanel, LayoutNodeConfig } from "../config";
 import { loadDashboardPanelDataMap } from "../db";
 import { renderDashboard } from "../layout";
+import type { RefreshResult } from "../refresh-result";
 import {
   collectRefreshFailures,
   formatRefreshPanelFailureBody,

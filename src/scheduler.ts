@@ -1,6 +1,9 @@
 import type { Adapter, ContentItem } from "./adapters/types";
+import type { RefreshResult } from "./refresh-result";
 import { logScheduler, warnPruneFailure, warnRefreshFailure } from "./scheduler-warn";
 import { compareIsoTimestamp, errorMessage, getAdapterName } from "./utils";
+
+export type { RefreshResult } from "./refresh-result";
 import type { Model, Api } from "@mariozechner/pi-ai";
 import {
   type ContentItemRow,
@@ -44,13 +47,6 @@ let pruneTimer: ReturnType<typeof setInterval> | null = null;
 export const PIPELINE_INITIAL_DELAY_MS = 5000;
 export const DEFAULT_REFRESH_INTERVAL_MIN = 15;
 export const MIN_REFRESH_INTERVAL_MIN = 1;
-
-export interface RefreshResult {
-  kind: "adapter" | "pipeline";
-  name: string;
-  status: "ok" | "skipped" | "failed";
-  error?: string;
-}
 
 export interface SourcePanelMap {
   sourceToPanels: Map<string, string[]>;
