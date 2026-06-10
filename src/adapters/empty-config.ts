@@ -1,4 +1,5 @@
 import type { ContentItem } from "./types";
+import { errorMessage } from "../utils";
 
 /** Prefix a message with adapter name and log as warning. */
 export function warnAdapter(adapterName: string, message: string): void {
@@ -95,4 +96,22 @@ export function warnEmptyFeedEntries(adapterName: string, context: string): void
 /** Warn when date parsing falls back to current time. */
 export function warnDateParseFallback(kind: string, detail: string): void {
   warnAdapter("dates", `${kind} ${detail}, using current time`);
+}
+
+/**
+ * Warn on optional secondary fetch failure (enrichment, account lookup, per-item
+ * JSON). Passes through errors already prefixed with `${adapterName}:`; otherwise
+ * logs `${adapterName}: ${context}: ${detail}`.
+ */
+export function warnOptionalFetchFailure(
+  adapterName: string,
+  detail: unknown,
+  context: string,
+): void {
+  const msg = errorMessage(detail);
+  if (msg.startsWith(`${adapterName}:`)) {
+    console.warn(msg);
+    return;
+  }
+  warnAdapter(adapterName, `${context}: ${msg}`);
 }

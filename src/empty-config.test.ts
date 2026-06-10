@@ -11,6 +11,7 @@ import {
   warnInvalidInput,
   warnMalformedArrayField,
   warnMalformedFeedField,
+  warnOptionalFetchFailure,
 } from "./adapters/empty-config";
 
 describe("adapter warn utilities", () => {
@@ -108,6 +109,26 @@ describe("adapter warn utilities", () => {
     warnDateParseFallback("invalid feed date", '"not-a-date"');
     expect(warnSpy).toHaveBeenCalledWith(
       'dates: invalid feed date "not-a-date", using current time',
+    );
+  });
+
+  test("warnOptionalFetchFailure prefixes context and detail on failure", () => {
+    warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+
+    warnOptionalFetchFailure("mastodon", new Error("network down"), "account lookup");
+    expect(warnSpy).toHaveBeenCalledWith("mastodon: account lookup: network down");
+  });
+
+  test("warnOptionalFetchFailure passes through errors already prefixed with adapter name", () => {
+    warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+
+    warnOptionalFetchFailure(
+      "producthunt",
+      new Error("producthunt: failed to fetch https://example.com: HTTP error 404"),
+      "enrich failed",
+    );
+    expect(warnSpy).toHaveBeenCalledWith(
+      "producthunt: failed to fetch https://example.com: HTTP error 404",
     );
   });
 });
