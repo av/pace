@@ -3,6 +3,7 @@ import { runCli } from "./test/cli-runner";
 import {
   killCliServeServer,
   requestCliServe,
+  requestCliServeRefresh,
   spawnCliServeServer,
   waitForCliServeReady,
 } from "./test/cli-serve-harness";
@@ -276,15 +277,9 @@ describe("cli serve", () => {
       const styles = await requestCliServe(`${harness.base}/styles.css`);
       expect(styles.status).toBe(200);
       expect(styles.hd["cache-control"] || "").toContain("max-age=3600");
-      const r502 = await fetch(`${harness.base}/refresh/reddit`, {
-        method: "POST",
-        redirect: "manual",
-      });
+      const r502 = await requestCliServeRefresh(harness, "reddit");
       await expectRefreshPanelFailureOrRedirect(r502, "reddit");
-      const r404 = await fetch(`${harness.base}/refresh/unknownpanel-iter6`, {
-        method: "POST",
-        redirect: "manual",
-      });
+      const r404 = await requestCliServeRefresh(harness, "unknownpanel-iter6");
       await expectRefreshPanelNotFound(r404, "unknownpanel-iter6");
       expectSecurityHeaders(health.hd);
       expectSecurityHeaders(styles.hd);

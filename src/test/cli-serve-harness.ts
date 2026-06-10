@@ -88,6 +88,19 @@ export type CliServeResponse = {
   body: unknown;
 };
 
+/** POST /refresh/:panelParam against a live CLI server (redirect: manual). */
+export async function requestCliServeRefresh(
+  harness: CliServeHarness,
+  panelParam: string,
+  options?: { signal?: AbortSignal },
+): Promise<Response> {
+  return fetch(`${harness.base}/refresh/${panelParam}`, {
+    method: "POST",
+    redirect: "manual",
+    signal: options?.signal ?? cliServeRequestSignal(),
+  });
+}
+
 /** Issue an HTTP request against a live CLI server with parsed headers/body. */
 export async function requestCliServe(
   url: string,
