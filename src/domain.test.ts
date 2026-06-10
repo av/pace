@@ -2,7 +2,7 @@ import { describe, it, expect } from "bun:test";
 import { getAllItemsByPanel, saveItems } from "./db";
 import { installTempDbHooks } from "./test/temp-db";
 import { startScheduler, refreshSources } from "./scheduler";
-import { isPanel, type PanelConfig } from "./config";
+import { isPanel, type PanelConfig } from "./config/types";
 import { DOMAIN_TEST_LAYOUT, testAppConfig } from "./test/app-config";
 import { makeContentItem } from "./test/content-items";
 import { sourcePanelMapFromConfig } from "./test/panel-map";

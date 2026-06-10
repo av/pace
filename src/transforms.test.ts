@@ -8,7 +8,7 @@ import {
   TRANSFORM_TYPES,
   transformAllowedFieldKeys,
   type TransformConfig,
-} from "./config";
+} from "./config/types";
 import type { ContentItemRow } from "./db";
 import { makeContentItemRow as makeRow } from "./test/content-items";
 

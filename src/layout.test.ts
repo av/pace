@@ -1,7 +1,7 @@
 import { describe, it, expect } from "bun:test";
 import { spyConsole } from "./test/console-spy";
 import { formatDashboardUpdatedAt, renderDashboard, type PanelData } from "./layout";
-import { resolvePanelId } from "./config";
+import { resolvePanelId } from "./layout/types";
 import { makeContentItemRow as makeItem } from "./test/content-items";
 import { flexCfg, panelCfg } from "./test/layout-cfg";
 import { expectDashboardRefreshAction } from "./test/server-harness";

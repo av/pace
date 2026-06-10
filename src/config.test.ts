@@ -11,12 +11,14 @@ import {
   buildLayoutRuntimeMaps,
   isPanel,
   isContainer,
+  type PanelConfig,
+  type LayoutNodeConfig,
+} from "./config/types";
+import {
   loadConfig,
   resolveConfigPath,
   readConfigSource,
   configFileNotFoundError,
-  type PanelConfig,
-  type LayoutNodeConfig,
 } from "./config";
 
 describe("config", () => {
