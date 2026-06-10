@@ -1,26 +1,25 @@
 import { describe, test, expect } from "bun:test";
 import { Hono } from "hono";
+import { initDb, saveItems } from "./db";
 import { securityHeadersMiddleware } from "./server/security-headers";
-import { handleRefreshPanel, type ServerRouteDeps } from "./server/routes";
+import type { ServerRouteDeps } from "./server/routes";
 import type { RefreshResult } from "./refresh-result";
-import { singlePanelLayout } from "./test/app-config";
-
-function makeRefreshDeps(
-  overrides: Partial<ServerRouteDeps> & Pick<ServerRouteDeps, "panelNameToId" | "panelIdToRefreshSourceNames">,
-): ServerRouteDeps {
-  return {
-    layout: singlePanelLayout("tech", "hackernews"),
-    dashboardPanels: [],
-    refreshSources: async () => [],
-    ...overrides,
-  };
-}
-
-async function invokeRefresh(panelParam: string, deps: ServerRouteDeps): Promise<Response> {
-  const app = new Hono();
-  app.post("/refresh/:panel", (c) => handleRefreshPanel(c, deps));
-  return app.request(`/refresh/${panelParam}`, { method: "POST" });
-}
+import { singlePanelLayout, testAppLayout } from "./test/app-config";
+import { flexCfg, panelCfg } from "./test/layout-cfg";
+import { makeContentItemRow as makeItem } from "./test/content-items";
+import { installTempDbHooks } from "./test/temp-db";
+import {
+  createTestServerApp,
+  expectDashboardFooterUtc,
+  expectDashboardHtmlShell,
+  expectDashboardItemTitle,
+  expectDashboardPanelHeading,
+  expectHtmlOk,
+  makeServerRouteDeps,
+  requestDashboard,
+  requestRefreshPanel,
+  requestServerRoute,
+} from "./test/server-harness";
 
 describe("securityHeadersMiddleware", () => {
   test("applies standard security headers to responses", async () => {
@@ -43,14 +42,108 @@ describe("securityHeadersMiddleware", () => {
   });
 });
 
+describe("GET / dashboard", () => {
+  installTempDbHooks({ prefix: "pace-server-dash-" });
+
+  test("returns HTML shell with security headers and UTC footer", async () => {
+    const layout = testAppLayout(singlePanelLayout("Tech", "hackernews", { id: "tech-panel" }));
+    const app = createTestServerApp(makeServerRouteDeps({ layout }));
+    const res = await requestDashboard(app);
+
+    expectHtmlOk(res);
+    const html = await res.text();
+    expectDashboardHtmlShell(html);
+    expectDashboardFooterUtc(html);
+    expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+  });
+
+  test("renders panel items loaded from database", async () => {
+    initDb();
+    saveItems("tech-panel", [
+      makeItem({
+        id: "t1",
+        title: "HN Story",
+        url: "https://news.ycombinator.com/item",
+        source: "hackernews",
+      }),
+    ]);
+
+    const layout = testAppLayout(singlePanelLayout("Tech", "hackernews", { id: "tech-panel" }));
+    const app = createTestServerApp(makeServerRouteDeps({ layout }));
+    const res = await requestDashboard(app);
+    const html = await res.text();
+
+    expectDashboardPanelHeading(html, "Tech");
+    expectDashboardItemTitle(html, "HN Story");
+    expect(html).toContain('href="https://news.ycombinator.com/item"');
+    expect(html).toContain('<span class="item-source">hackernews</span>');
+    expect(html).toContain('action="/refresh/tech-panel"');
+  });
+
+  test("renders multiple panels via loadDashboardPanelDataMap", async () => {
+    initDb();
+    saveItems("tech-panel", [makeItem({ id: "t1", title: "Tech Item" })]);
+    saveItems("other-panel", [makeItem({ id: "o1", title: "Other Item" })]);
+
+    const layout = flexCfg("row", [
+      panelCfg("Tech", "hackernews", { id: "tech-panel" }),
+      panelCfg("Other", "reddit", { id: "other-panel" }),
+    ]);
+    const app = createTestServerApp(makeServerRouteDeps({ layout }));
+    const res = await requestDashboard(app);
+    const html = await res.text();
+
+    expectDashboardPanelHeading(html, "Tech");
+    expectDashboardPanelHeading(html, "Other");
+    expectDashboardItemTitle(html, "Tech Item");
+    expectDashboardItemTitle(html, "Other Item");
+  });
+
+  test("all panel includes items from every saved panel", async () => {
+    initDb();
+    saveItems("a-panel", [makeItem({ id: "a1", title: "Alpha", url: "https://alpha.test/a1" })]);
+    saveItems("b-panel", [makeItem({ id: "b1", title: "Beta", url: "https://beta.test/b1" })]);
+
+    const layout = testAppLayout(singlePanelLayout("Everything", "all"));
+    const app = createTestServerApp(makeServerRouteDeps({ layout }));
+    const res = await requestDashboard(app);
+    const html = await res.text();
+
+    expectDashboardPanelHeading(html, "Everything");
+    expectDashboardItemTitle(html, "Alpha");
+    expectDashboardItemTitle(html, "Beta");
+  });
+});
+
+describe("GET /health", () => {
+  test("returns ok JSON payload", async () => {
+    const layout = testAppLayout(singlePanelLayout("Tech", "hackernews"));
+    const app = createTestServerApp(makeServerRouteDeps({ layout }));
+    const res = await requestServerRoute(app, "/health");
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toMatch(/application\/json/);
+    expect(await res.json()).toEqual({ status: "ok" });
+  });
+});
+
 describe("handleRefreshPanel", () => {
+  function makeRefreshDeps(
+    overrides: Partial<ServerRouteDeps> & Pick<ServerRouteDeps, "panelNameToId" | "panelIdToRefreshSourceNames">,
+  ): ServerRouteDeps {
+    return makeServerRouteDeps({
+      layout: testAppLayout(singlePanelLayout("tech", "hackernews")),
+      ...overrides,
+    });
+  }
+
   test("returns 404 for unknown panel", async () => {
     const deps = makeRefreshDeps({
       panelNameToId: new Map([["tech", "panel-1"]]),
       panelIdToRefreshSourceNames: new Map([["panel-1", ["hackernews"]]]),
     });
 
-    const res = await invokeRefresh("missing-panel", deps);
+    const res = await requestRefreshPanel(createTestServerApp(deps), "missing-panel");
     expect(res.status).toBe(404);
     expect(await res.text()).toContain("Unknown panel: missing-panel");
   });
@@ -63,7 +156,7 @@ describe("handleRefreshPanel", () => {
         [{ kind: "adapter", name: "reddit", status: "failed", error: "boom" }] satisfies RefreshResult[],
     });
 
-    const res = await invokeRefresh("reddit", deps);
+    const res = await requestRefreshPanel(createTestServerApp(deps), "reddit");
     expect(res.status).toBe(502);
     expect(await res.text()).toContain("Refresh failed for reddit: boom");
   });
@@ -76,7 +169,7 @@ describe("handleRefreshPanel", () => {
         [{ kind: "adapter", name: "hackernews", status: "ok" }] satisfies RefreshResult[],
     });
 
-    const res = await invokeRefresh("tech", deps);
+    const res = await requestRefreshPanel(createTestServerApp(deps), "tech");
     expect(res.status).toBe(303);
     expect(res.headers.get("location")).toBe("/");
   });
@@ -90,7 +183,7 @@ describe("handleRefreshPanel", () => {
       },
     });
 
-    const res = await invokeRefresh("empty", deps);
+    const res = await requestRefreshPanel(createTestServerApp(deps), "empty");
     expect(res.status).toBe(303);
     expect(res.headers.get("location")).toBe("/");
   });

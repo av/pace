@@ -1,4 +1,3 @@
-import { Hono } from "hono";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig, buildLayoutRuntimeMaps } from "./config";
@@ -13,13 +12,7 @@ import {
 } from "./scheduler";
 import { parsePort, getAdapterName } from "./utils";
 import { logServerListening } from "./server-log";
-import { securityHeadersMiddleware } from "./server/security-headers";
-import { BUNDLED_STATIC, registerBundledStatic } from "./server/static";
-import { registerServerRoutes } from "./server/routes";
-
-const app = new Hono();
-
-app.use("*", securityHeadersMiddleware());
+import { createServerApp } from "./server/app";
 
 async function start() {
   const config = loadConfig();
@@ -42,8 +35,7 @@ async function start() {
   const panelMap: SourcePanelMap = { sourceToPanels, sourceToReadKey };
   startScheduler(config, adapters, panelMap, llmModel);
 
-  registerBundledStatic(app, BUNDLED_STATIC);
-  registerServerRoutes(app, {
+  const app = createServerApp({
     layout: config.layout,
     dashboardPanels,
     panelNameToId,
