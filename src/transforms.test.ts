@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeEach } from "bun:test";
 import { spyConsole, spyMockCallsContaining } from "./test/console-spy";
-import { runPipeline, type TransformContext } from "./transforms";
+import { runPipeline, TRANSFORM_RUNNERS, type TransformContext } from "./transforms";
+import { TRANSFORM_SCHEMAS } from "./transform-validate";
 import {
   KEYWORD_SCORE_ENTRY_FIELDS,
   TRANSFORM_FIELD_KEYS,
@@ -73,9 +74,11 @@ describe("transforms - filter and exclude", () => {
 });
 
 describe("transforms - runPipeline basics", () => {
-  test("TRANSFORM_TYPES matches every registry entry (no config/runtime drift)", () => {
+  test("TRANSFORM_TYPES matches runtime registry and validation schemas (no config/runtime drift)", () => {
     expect(TRANSFORM_TYPES).toHaveLength(12);
     expect(new Set(TRANSFORM_TYPES).size).toBe(TRANSFORM_TYPES.length);
+    expect(Object.keys(TRANSFORM_RUNNERS).sort()).toEqual([...TRANSFORM_TYPES].sort());
+    expect(Object.keys(TRANSFORM_SCHEMAS).sort()).toEqual([...TRANSFORM_TYPES].sort());
   });
 
   test("KEYWORD_SCORE_ENTRY_FIELDS aligns with KeywordScoreEntry type", () => {

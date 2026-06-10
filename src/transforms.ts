@@ -30,7 +30,7 @@ type TransformFn = (
   ctx: TransformContext
 ) => ContentItemRow[] | Promise<ContentItemRow[]>;
 
-const transforms = {
+export const TRANSFORM_RUNNERS = {
   latest: (items, config) => applyLatest(items, config as LatestTransformConfig),
 
   filter: (items, config) => applyFilter(items, config as FilterTransformConfig),
@@ -59,7 +59,7 @@ export async function runPipeline(
 ): Promise<ContentItemRow[]> {
   let result = items;
   for (const step of pipeline) {
-    const fn = transforms[step.type];
+    const fn = TRANSFORM_RUNNERS[step.type];
     if (!fn) {
       warnUnknownTransformType(step.type);
       continue;
