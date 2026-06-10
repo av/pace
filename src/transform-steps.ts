@@ -9,7 +9,7 @@ import {
   isDedupeStrategy,
 } from "./config";
 import type { ContentItemRow } from "./db";
-import { warnUnknownDedupeStrategy } from "./transform-warn";
+import { logTransformDedupeRemoved, warnUnknownDedupeStrategy } from "./transform-warn";
 import { extractScore } from "./adapters/engagement";
 import { normalizeUrl, levenshteinSimilarity } from "./dedupe";
 import { compareIsoTimestamp, sliceToLimit } from "./utils";
@@ -160,14 +160,8 @@ function dedupeGroupedByKey(
   return { result: sortRowsByInputOrder(result, items), removed };
 }
 
-function logDedupeRemoved(label: string, removed: string[], extra = ""): void {
-  console.log(`transforms: dedupe:${label} removed ${removed.length} duplicate(s)${extra}:`);
-  for (const r of removed.slice(0, 10)) console.log(`  - ${r}`);
-  if (removed.length > 10) console.log(`  ... and ${removed.length - 10} more`);
-}
-
 function maybeLogDedupeRemoved(shouldLog: boolean, label: string, removed: string[], extra = ""): void {
-  if (shouldLog && removed.length > 0) logDedupeRemoved(label, removed, extra);
+  if (shouldLog && removed.length > 0) logTransformDedupeRemoved(label, removed, extra);
 }
 
 interface DedupeRunOptions {

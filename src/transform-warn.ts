@@ -2,6 +2,36 @@ import { errorMessage } from "./utils";
 
 const TRANSFORM_PREFIX = "transforms";
 
+/** Prefix a message with transforms module name and log as info. */
+export function logTransform(message: string): void {
+  console.log(`${TRANSFORM_PREFIX}: ${message}`);
+}
+
+/** Log indented detail lines for transform operational output (dedupe removed items, etc.). */
+export function logTransformDetail(message: string): void {
+  console.log(`  ${message}`);
+}
+
+/** Log dedupe removal summary with capped detail lines. */
+export function logTransformDedupeRemoved(
+  label: string,
+  removed: string[],
+  extra = "",
+): void {
+  logTransform(`dedupe:${label} removed ${removed.length} duplicate(s)${extra}:`);
+  for (const r of removed.slice(0, 10)) logTransformDetail(`- ${r}`);
+  if (removed.length > 10) logTransformDetail(`... and ${removed.length - 10} more`);
+}
+
+/** Log when min_score filter removes items from a scored transform. */
+export function logTransformMinScoreFiltered(
+  label: string,
+  removedCount: number,
+  minScore: number,
+): void {
+  logTransform(`${label} filtered out ${removedCount} item(s) below min_score=${minScore}`);
+}
+
 /** Prefix a message with transforms module name and log as warning. */
 export function warnTransform(message: string): void {
   console.warn(`${TRANSFORM_PREFIX}: ${message}`);

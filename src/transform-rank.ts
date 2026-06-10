@@ -2,7 +2,12 @@ import type { TransformConfig } from "./config";
 import type { ContentItemRow } from "./db";
 import { extractEngagementScore } from "./adapters/engagement";
 import { compareIsoTimestamp } from "./utils";
-import { warnInvalidHalfLife, warnInvalidKeywordScoreRegex } from "./transform-warn";
+import {
+  logTransform,
+  logTransformMinScoreFiltered,
+  warnInvalidHalfLife,
+  warnInvalidKeywordScoreRegex,
+} from "./transform-warn";
 
 export type SortTransformConfig = Extract<TransformConfig, { type: "sort" }>;
 
@@ -62,9 +67,7 @@ function filterByMinScore<T extends { score?: number; finalScore?: number }>(
   const before = scored.length;
   const filtered = scored.filter((s) => getScore(s) >= minScore);
   if (filtered.length < before) {
-    console.log(
-      `transforms: ${label} filtered out ${before - filtered.length} item(s) below min_score=${minScore}`
-    );
+    logTransformMinScoreFiltered(label, before - filtered.length, minScore);
   }
   return filtered;
 }
@@ -108,7 +111,7 @@ function finalizeScoredItems<T extends { row: ContentItemRow }>(
     return s.row;
   });
 
-  console.log(logMessage(filtered, result));
+  logTransform(logMessage(filtered, result));
   return result;
 }
 
@@ -185,7 +188,7 @@ export function applyKeywordScore(
     shouldAnnotate: (s) => s.matchedTerms.length > 0,
     buildAnnotation: (s) => `\n---\n[keyword-score: ${s.score}] ${s.matchedTerms.join(", ")}`,
     logMessage: (filtered, result) =>
-      `transforms: keyword-score scored ${items.length} items, ${result.length} passed` +
+      `keyword-score scored ${items.length} items, ${result.length} passed` +
       (result.length > 0
         ? ` (top score: ${filtered[0]?.score}, bottom: ${filtered[filtered.length - 1]?.score})`
         : ""),
@@ -246,7 +249,7 @@ export function applyTimeDecay(
     buildAnnotation: (s) =>
       `\n---\n[hot-score: ${s.finalScore.toFixed(3)}] engagement=${s.engagementNorm.toFixed(3)} recency=${s.recencyNorm.toFixed(3)} (${decayType}, half_life=${halfLifeStr})`,
     logMessage: (filtered, result) =>
-      `transforms: time-decay ranked ${items.length} items (decay=${decayType}, half_life=${halfLifeStr}, weights=${engagementWeight}/${recencyWeight})` +
+      `time-decay ranked ${items.length} items (decay=${decayType}, half_life=${halfLifeStr}, weights=${engagementWeight}/${recencyWeight})` +
       (result.length > 0
         ? ` top=${filtered[0]?.finalScore.toFixed(3)}, bottom=${filtered[filtered.length - 1]?.finalScore.toFixed(3)}`
         : ""),
