@@ -10,9 +10,13 @@ import {
 } from "./config";
 import type { ContentItemRow } from "./db";
 import { logTransformDedupeRemoved, warnUnknownDedupeStrategy } from "./transform-warn";
-import { extractScore } from "./adapters/engagement";
-import { normalizeUrl, levenshteinSimilarity } from "./dedupe";
-import { compareIsoTimestamp, sliceToLimit } from "./utils";
+import {
+  dedupeByTitleSimilarity,
+  dedupeGroupedByKey,
+  normalizeUrl,
+  sortByInputOrder,
+} from "./dedupe";
+import { sliceToLimit } from "./utils";
 
 export type LatestTransformConfig = Extract<TransformConfig, { type: "latest" }>;
 
@@ -77,87 +81,19 @@ export function applyExclude(items: ContentItemRow[], config: ExcludeTransformCo
   return filterByKeywordMatch(items, config, false);
 }
 
-function pickByTimestamp(group: ContentItemRow[], direction: "asc" | "desc"): ContentItemRow {
-  return group.reduce((a, b) =>
-    compareIsoTimestamp(a.timestamp, b.timestamp, direction) <= 0 ? a : b
-  );
-}
-
-type DedupePick = DedupeKeep | "first";
-
 function formatDedupeRemovedLine(loser: ContentItemRow, winner?: ContentItemRow): string {
   const line = `"${loser.title}" (${loser.url})`;
   return winner ? `${line} -> kept "${winner.title}"` : line;
 }
 
-function pickWinner(group: ContentItemRow[], keep: DedupePick): ContentItemRow {
-  if (group.length === 1) return group[0];
-  if (keep === "first") return group[0];
-  if (keep === "earliest" || keep === "latest") {
-    return pickByTimestamp(group, keep === "earliest" ? "asc" : "desc");
-  }
-  const best = group.reduce((a, b) =>
-    extractScore(b.body) > extractScore(a.body) ? b : a
-  );
-  return extractScore(best.body) === 0 ? pickByTimestamp(group, "asc") : best;
-}
-
-function titleSimilarity(
-  a: string | null | undefined,
-  b: string | null | undefined
-): number | null {
-  const ta = a?.trim();
-  const tb = b?.trim();
-  if (!ta || !tb) return null;
-  return levenshteinSimilarity(ta.toLowerCase(), tb.toLowerCase());
-}
-
-function pushToGroup<K>(groups: Map<K, ContentItemRow[]>, key: K, item: ContentItemRow): void {
-  const group = groups.get(key);
-  if (group) group.push(item);
-  else groups.set(key, [item]);
-}
-
-function collectLosers(
-  group: ContentItemRow[],
-  winner: ContentItemRow,
-  format: (loser: ContentItemRow, winner: ContentItemRow) => string
-): string[] {
-  return group
-    .filter((item) => item !== winner)
-    .map((item) => format(item, winner));
-}
-
-type DedupeRunResult = { result: ContentItemRow[]; removed: string[] };
-
 function finalizeDedupeRun(
-  { result, removed }: DedupeRunResult,
+  { result, removed }: { result: ContentItemRow[]; removed: string[] },
   label: string,
   shouldLog: boolean,
   extra = "",
 ): ContentItemRow[] {
   maybeLogDedupeRemoved(shouldLog, label, removed, extra);
   return result;
-}
-
-function dedupeGroupedByKey(
-  items: ContentItemRow[],
-  keyOf: (item: ContentItemRow) => string,
-  keep: DedupePick,
-  formatRemoved: (loser: ContentItemRow, winner: ContentItemRow) => string,
-): { result: ContentItemRow[]; removed: string[] } {
-  const groups = new Map<string, ContentItemRow[]>();
-  for (const item of items) {
-    pushToGroup(groups, keyOf(item), item);
-  }
-  const result: ContentItemRow[] = [];
-  const removed: string[] = [];
-  for (const [, group] of groups) {
-    const winner = pickWinner(group, keep);
-    result.push(winner);
-    removed.push(...collectLosers(group, winner, formatRemoved));
-  }
-  return { result: sortRowsByInputOrder(result, items), removed };
 }
 
 function maybeLogDedupeRemoved(shouldLog: boolean, label: string, removed: string[], extra = ""): void {
@@ -213,34 +149,6 @@ function applyDedupeDomainNormalized(
   );
 }
 
-function dedupeByTitleSimilarity(
-  items: ContentItemRow[],
-  threshold: number,
-  keep: DedupeKeep,
-): DedupeRunResult {
-  const kept: ContentItemRow[] = [];
-  const removed: string[] = [];
-  for (const item of items) {
-    let isDuplicate = false;
-    for (const existing of kept) {
-      const similarity = titleSimilarity(item.title, existing.title);
-      if (similarity !== null && similarity >= threshold) {
-        const winner = pickWinner([existing, item], keep);
-        const loser = winner === item ? existing : item;
-        if (winner === item) {
-          const idx = kept.indexOf(existing);
-          kept[idx] = item;
-        }
-        removed.push(formatDedupeRemovedLine(loser, winner));
-        isDuplicate = true;
-        break;
-      }
-    }
-    if (!isDuplicate) kept.push(item);
-  }
-  return { result: kept, removed };
-}
-
 function applyDedupeTitleSimilarity(
   items: ContentItemRow[],
   threshold: number,
@@ -248,7 +156,9 @@ function applyDedupeTitleSimilarity(
   shouldLog: boolean,
 ): ContentItemRow[] {
   return finalizeDedupeRun(
-    dedupeByTitleSimilarity(items, threshold, keep),
+    dedupeByTitleSimilarity(items, threshold, keep, (loser, winner) =>
+      formatDedupeRemovedLine(loser, winner),
+    ),
     "title-similarity",
     shouldLog,
     ` (threshold=${threshold})`,
@@ -272,9 +182,5 @@ export function applyDedupe(items: ContentItemRow[], config: DedupeTransformConf
 }
 
 export function sortRowsByInputOrder(rows: ContentItemRow[], order: ContentItemRow[]): ContentItemRow[] {
-  const orderMap = new Map<string, number>();
-  order.forEach((item, i) => {
-    if (!orderMap.has(item.id)) orderMap.set(item.id, i);
-  });
-  return [...rows].sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
+  return sortByInputOrder(rows, order);
 }

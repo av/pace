@@ -1,4 +1,11 @@
-import { normalizeHostname, tryParseUrl } from "./utils";
+import type { DedupeKeep } from "./config";
+import type { ContentItemRow } from "./db";
+import { extractScore } from "./adapters/engagement";
+import { compareIsoTimestamp, normalizeHostname, tryParseUrl } from "./utils";
+
+export type DedupePick = DedupeKeep | "first";
+
+export type DedupeRunResult = { result: ContentItemRow[]; removed: string[] };
 
 const TRACKING_PARAMS = new Set([
   "utm_source",
@@ -104,6 +111,107 @@ export function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
   }
   const union = a.size + b.size - intersection;
   return union === 0 ? 0 : intersection / union;
+}
+
+function pickByTimestamp(group: ContentItemRow[], direction: "asc" | "desc"): ContentItemRow {
+  return group.reduce((a, b) =>
+    compareIsoTimestamp(a.timestamp, b.timestamp, direction) <= 0 ? a : b
+  );
+}
+
+export function pickWinner(group: ContentItemRow[], keep: DedupePick): ContentItemRow {
+  if (group.length === 1) return group[0];
+  if (keep === "first") return group[0];
+  if (keep === "earliest" || keep === "latest") {
+    return pickByTimestamp(group, keep === "earliest" ? "asc" : "desc");
+  }
+  const best = group.reduce((a, b) =>
+    extractScore(b.body) > extractScore(a.body) ? b : a
+  );
+  return extractScore(best.body) === 0 ? pickByTimestamp(group, "asc") : best;
+}
+
+export function titleSimilarity(
+  a: string | null | undefined,
+  b: string | null | undefined
+): number | null {
+  const ta = a?.trim();
+  const tb = b?.trim();
+  if (!ta || !tb) return null;
+  return levenshteinSimilarity(ta.toLowerCase(), tb.toLowerCase());
+}
+
+function pushToGroup<K>(groups: Map<K, ContentItemRow[]>, key: K, item: ContentItemRow): void {
+  const group = groups.get(key);
+  if (group) group.push(item);
+  else groups.set(key, [item]);
+}
+
+function collectLosers(
+  group: ContentItemRow[],
+  winner: ContentItemRow,
+  format: (loser: ContentItemRow, winner: ContentItemRow) => string
+): string[] {
+  return group
+    .filter((item) => item !== winner)
+    .map((item) => format(item, winner));
+}
+
+export function sortByInputOrder<T extends { id: string }>(rows: T[], order: T[]): T[] {
+  const orderMap = new Map<string, number>();
+  order.forEach((item, i) => {
+    if (!orderMap.has(item.id)) orderMap.set(item.id, i);
+  });
+  return [...rows].sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
+}
+
+export function dedupeGroupedByKey(
+  items: ContentItemRow[],
+  keyOf: (item: ContentItemRow) => string,
+  keep: DedupePick,
+  formatRemoved: (loser: ContentItemRow, winner: ContentItemRow) => string,
+): DedupeRunResult {
+  const groups = new Map<string, ContentItemRow[]>();
+  for (const item of items) {
+    pushToGroup(groups, keyOf(item), item);
+  }
+  const result: ContentItemRow[] = [];
+  const removed: string[] = [];
+  for (const [, group] of groups) {
+    const winner = pickWinner(group, keep);
+    result.push(winner);
+    removed.push(...collectLosers(group, winner, formatRemoved));
+  }
+  return { result: sortByInputOrder(result, items), removed };
+}
+
+export function dedupeByTitleSimilarity(
+  items: ContentItemRow[],
+  threshold: number,
+  keep: DedupeKeep,
+  formatRemoved: (loser: ContentItemRow, winner: ContentItemRow) => string,
+): DedupeRunResult {
+  const kept: ContentItemRow[] = [];
+  const removed: string[] = [];
+  for (const item of items) {
+    let isDuplicate = false;
+    for (const existing of kept) {
+      const similarity = titleSimilarity(item.title, existing.title);
+      if (similarity !== null && similarity >= threshold) {
+        const winner = pickWinner([existing, item], keep);
+        const loser = winner === item ? existing : item;
+        if (winner === item) {
+          const idx = kept.indexOf(existing);
+          kept[idx] = item;
+        }
+        removed.push(formatRemoved(loser, winner));
+        isDuplicate = true;
+        break;
+      }
+    }
+    if (!isDuplicate) kept.push(item);
+  }
+  return { result: kept, removed };
 }
 
 /** Keep first occurrence per key (overlap when merging multiple tags/endpoints). */

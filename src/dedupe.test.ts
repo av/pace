@@ -2,13 +2,18 @@ import { describe, test, expect } from "bun:test";
 import { spyConsole } from "./test/console-spy";
 import {
   dedupeByKey,
+  dedupeByTitleSimilarity,
+  dedupeGroupedByKey,
   normalizeUrl,
   extractHostname,
   jaccardSimilarity,
   levenshteinDistance,
   levenshteinSimilarity,
+  pickWinner,
+  titleSimilarity,
   unionFind,
 } from "./dedupe";
+import { makeContentItemRow as makeRow } from "./test/content-items";
 
 describe("dedupe utils", () => {
   describe("dedupeByKey", () => {
@@ -142,6 +147,77 @@ describe("dedupe utils", () => {
 
     test("returns intersection over union for partial overlap", () => {
       expect(jaccardSimilarity(new Set(["a", "b"]), new Set(["b", "c"]))).toBeCloseTo(1 / 3, 10);
+    });
+  });
+
+  describe("titleSimilarity", () => {
+    test("returns null when either title is blank after trim", () => {
+      expect(titleSimilarity("", "hello")).toBeNull();
+      expect(titleSimilarity("hello", "")).toBeNull();
+      expect(titleSimilarity("  ", "hello")).toBeNull();
+      expect(titleSimilarity(null, "hello")).toBeNull();
+    });
+
+    test("computes levenshtein similarity on lowercased trimmed titles", () => {
+      expect(titleSimilarity("Hello World", "hello world")).toBe(1);
+      const sim = titleSimilarity("Hello World Update", "Hello World Upd8");
+      expect(sim).not.toBeNull();
+      expect(sim!).toBeGreaterThan(0.5);
+    });
+  });
+
+  describe("pickWinner", () => {
+    test("keep:first returns first item in group", () => {
+      const a = makeRow({ id: "a", timestamp: "2024-01-02T00:00:00Z" });
+      const b = makeRow({ id: "b", timestamp: "2024-01-01T00:00:00Z" });
+      expect(pickWinner([a, b], "first")).toBe(a);
+    });
+
+    test("keep:earliest picks lowest timestamp", () => {
+      const early = makeRow({ id: "early", timestamp: "2024-01-01T00:00:00Z" });
+      const late = makeRow({ id: "late", timestamp: "2024-01-02T00:00:00Z" });
+      expect(pickWinner([late, early], "earliest")).toBe(early);
+    });
+
+    test("keep:highest-score picks highest extractScore body", () => {
+      const low = makeRow({ id: "low", body: "no score", timestamp: "2024-01-01T00:00:00Z" });
+      const high = makeRow({ id: "high", body: "upvotes: 42 score: 100", timestamp: "2024-01-02T00:00:00Z" });
+      expect(pickWinner([low, high], "highest-score")).toBe(high);
+    });
+  });
+
+  describe("dedupeGroupedByKey", () => {
+    test("groups by key, keeps winner, preserves input order", () => {
+      const items = [
+        makeRow({ id: "1", url: "https://ex.com/a", title: "A1" }),
+        makeRow({ id: "2", url: "https://ex.com/a", title: "A2" }),
+        makeRow({ id: "3", url: "https://ex.com/b", title: "B" }),
+      ];
+      const { result, removed } = dedupeGroupedByKey(
+        items,
+        (item) => item.url!,
+        "first",
+        (loser) => loser.title,
+      );
+      expect(result.map((r) => r.id)).toEqual(["1", "3"]);
+      expect(removed).toEqual(["A2"]);
+    });
+  });
+
+  describe("dedupeByTitleSimilarity", () => {
+    test("does not collapse items with blank titles", () => {
+      const items = [
+        makeRow({ id: "blank1", title: "", url: "https://ex.com/blank1" }),
+        makeRow({ id: "blank2", title: "", url: "https://ex.com/blank2" }),
+        makeRow({ id: "normal", title: "Real News Item", url: "https://ex.com/real" }),
+      ];
+      const { result } = dedupeByTitleSimilarity(
+        items,
+        0.5,
+        "earliest",
+        (loser) => loser.id,
+      );
+      expect(result).toHaveLength(3);
     });
   });
 
