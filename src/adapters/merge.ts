@@ -125,6 +125,19 @@ export async function aggregateBatchedFeeds<T, K>(
   });
 }
 
+/** Batched per-key fetch (0–1 item each); drops nulls, then shared dedupe/min-score/sort/limit finalize pipeline. */
+export async function aggregateBatchedItems<T, K>(
+  keys: readonly K[],
+  batchSize: number,
+  fetchOne: (key: K) => Promise<T | null>,
+  options: FinalizeFetchedItemsOptions<T>,
+  delayMs = 0,
+): Promise<T[]> {
+  const fetched = await fetchAllBatched(keys, batchSize, fetchOne, delayMs);
+  const items = fetched.filter((item): item is T => item !== null);
+  return finalizeFetchedItems(items, options);
+}
+
 /** Keep first occurrence per key (overlap when merging multiple tags/endpoints). */
 export function dedupeByKey<T, K>(items: readonly T[], key: (item: T) => K): T[] {
   const seen = new Set<K>();

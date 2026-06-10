@@ -1,6 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import {
   aggregateBatchedFeeds,
+  aggregateBatchedItems,
   aggregateParallelFeeds,
   aggregateSequentialFeeds,
   compareItemTimestampDesc,
@@ -216,6 +217,32 @@ describe("aggregateBatchedFeeds", () => {
         id: "shared",
         timestamp: new Date("2024-03-01T00:00:00.000Z"),
       },
+    ]);
+  });
+});
+
+describe("aggregateBatchedItems", () => {
+  test("batched-fetches nullable items, filters nulls, applies min-score and limit", async () => {
+    const order: number[] = [];
+    const out = await aggregateBatchedItems(
+      [1, 2, 3, 4, 5],
+      2,
+      async (id) => {
+        order.push(id);
+        if (id === 2) return null;
+        return { id, score: id <= 2 ? 5 : 100 + id };
+      },
+      {
+        limit: 2,
+        minScore: 50,
+        scoreOf: (item) => item.score,
+      },
+    );
+
+    expect(order).toEqual([1, 2, 3, 4, 5]);
+    expect(out).toEqual([
+      { id: 3, score: 103 },
+      { id: 4, score: 104 },
     ]);
   });
 });

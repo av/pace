@@ -8,7 +8,7 @@ import { joinTitle } from "./title";
 
 import { parseUnixEpochSeconds } from "./dates";
 import { fetchJson, HN_ITEM_FETCH_TIMEOUT_MS, tryOptionalFetch } from "./fetch";
-import { fetchAllBatched } from "./merge";
+import { aggregateBatchedItems } from "./merge";
 import { decodeNumericFeedTitleOptional } from "./html";
 import {
   normalizeNonNegativeNumber,
@@ -17,7 +17,6 @@ import {
   createAliasedResolver,
 } from "../utils";
 import { mapToContentItems } from "./content-item";
-import { finalizeFetchedItems } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 const HN_API = "https://hacker-news.firebaseio.com/v0";
@@ -113,15 +112,16 @@ const adapter: Adapter = {
     const overfetchForMinScore =
       minScore > 0 ? Math.min(limit * 3, ids.length) : limit;
     const sliced = ids.slice(0, overfetchForMinScore);
-    const items = (
-      await fetchAllBatched(sliced, BATCH_SIZE, fetchItem)
-    ).filter((item): item is HNItem => item !== null);
-
-    const limited = finalizeFetchedItems(items, {
-      limit,
-      minScore,
-      scoreOf: (item) => item.score ?? 0,
-    });
+    const limited = await aggregateBatchedItems(
+      sliced,
+      BATCH_SIZE,
+      fetchItem,
+      {
+        limit,
+        minScore,
+        scoreOf: (item) => item.score ?? 0,
+      },
+    );
 
     return mapToContentItems(limited, hackernewsSourceLabel(feedType), (item) => ({
       id: `hn:${item.id}`,
