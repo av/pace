@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { writeCliStderr, writeCliStdout } from "./cli-log";
 import { readConfigSource } from "./config";
+import { bootstrapServer } from "./server/bootstrap";
 import { errorMessage, normalizeParamBoolean, parseCliPort } from "./utils";
 
 export const CLI_FATAL_ERROR_PREFIXES = ["config:", "scheduler:", "index:"] as const;
@@ -67,6 +68,10 @@ export type CliConfigDeps = {
   resolvePreset: (name: string) => string | null;
   listPresets: () => string[];
   tryReadRegularFile: (path: string) => string | null;
+};
+
+export type CliServeModuleDeps = CliConfigDeps & {
+  bootstrapServer?: typeof bootstrapServer;
 };
 
 export type CliRunDeps = CliConfigDeps;
@@ -209,12 +214,13 @@ export function readPackageVersion(): string {
 
 export async function bootstrapServeModule(
   values: Pick<CliParsedValues, "config" | "preset" | "port">,
-  deps: CliConfigDeps,
+  deps: CliServeModuleDeps,
 ): Promise<void> {
   applyCliConfigEnv(values, deps);
   applyCliPortEnv(values.port);
+  const startServer = deps.bootstrapServer ?? bootstrapServer;
   try {
-    await import("./index");
+    await startServer();
   } catch (err) {
     const message = errorMessage(err);
     if (isCliFatalStartupError(message)) {
