@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
+import { readConfigSource } from "./config";
 import { errorMessage, normalizeParamBoolean, parseCliPort } from "./utils";
 
 export const CLI_FATAL_ERROR_PREFIXES = ["config:", "scheduler:", "index:"] as const;
@@ -151,6 +152,17 @@ export function assertCliServeInvocation(
   if (error) cliFailWithHelp(error.stderr, help);
 }
 
+function validateExplicitConfigPath(
+  path: string,
+  readFile: CliConfigDeps["tryReadRegularFile"],
+): void {
+  try {
+    readConfigSource({ path, explicit: true }, readFile);
+  } catch (err) {
+    cliDie(errorMessage(err));
+  }
+}
+
 /** Apply --preset / --config to PACE_CONFIG after validating the config path exists. */
 export function applyCliConfigEnv(
   values: Pick<CliParsedValues, "config" | "preset">,
@@ -158,28 +170,20 @@ export function applyCliConfigEnv(
 ): void {
   if (values.preset && !values.config) {
     const resolved = deps.resolvePreset(values.preset);
-    if (resolved) {
-      process.env.PACE_CONFIG = resolved;
-      return;
+    if (!resolved) {
+      cliDie(
+        `cli: unknown preset "${values.preset}"\nAvailable: ${deps.listPresets().join(", ")}`,
+      );
     }
-    cliDie(
-      `cli: unknown preset "${values.preset}"\nAvailable: ${deps.listPresets().join(", ")}`,
-    );
+    validateExplicitConfigPath(resolved, deps.tryReadRegularFile);
+    process.env.PACE_CONFIG = resolved;
+    return;
   }
 
   if (!values.config) return;
 
-  const configPath = values.config;
-  let configContent: string | null;
-  try {
-    configContent = deps.tryReadRegularFile(configPath);
-  } catch (err) {
-    cliDie(errorMessage(err));
-  }
-  if (configContent === null) {
-    cliDie(`config: file not found: ${configPath}`);
-  }
-  process.env.PACE_CONFIG = configPath;
+  validateExplicitConfigPath(values.config, deps.tryReadRegularFile);
+  process.env.PACE_CONFIG = values.config;
 }
 
 /** Apply validated --port to PORT. No-op when port is unset. */

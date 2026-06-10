@@ -12,6 +12,9 @@ import {
   isPanel,
   isContainer,
   loadConfig,
+  resolveConfigPath,
+  readConfigSource,
+  configFileNotFoundError,
   type PanelConfig,
   type LayoutNodeConfig,
 } from "./config";
@@ -1164,6 +1167,44 @@ layout:
       expect(() => loadConfig()).toThrow(/config: failed to read/);
     } finally {
       fs.chmodSync(cfgPath, 0o644);
+    }
+  });
+
+  test("throws shared not-found error for explicit missing config path", () => {
+    const missing = path.join(tmpDir, "missing.yaml");
+    expect(() =>
+      readConfigSource({ path: missing, explicit: true }),
+    ).toThrow(configFileNotFoundError(missing));
+  });
+
+  test("readConfigSource falls back to config.example.yaml when implicit", () => {
+    const examplePath = path.join(tmpDir, "config.example.yaml");
+    fs.writeFileSync(examplePath, "layout:\n  direction: row\n  children: []\n", "utf-8");
+    const cwd = process.cwd();
+    try {
+      process.chdir(tmpDir);
+      delete process.env.PACE_CONFIG;
+      const read = readConfigSource(resolveConfigPath(undefined));
+      expect(read?.usedConfigPath).toBe(examplePath);
+      expect(read?.raw).toContain("direction: row");
+    } finally {
+      process.chdir(cwd);
+      if (fs.existsSync(examplePath)) fs.unlinkSync(examplePath);
+    }
+  });
+
+  test("resolveConfigPath treats preset-like PACE_CONFIG as explicit when resolved", () => {
+    const presetPath = path.join(tmpDir, "config.tech-news.yaml");
+    fs.writeFileSync(presetPath, "layout:\n  direction: row\n  children: []\n", "utf-8");
+    const cwd = process.cwd();
+    try {
+      process.chdir(tmpDir);
+      const resolved = resolveConfigPath("tech-news");
+      expect(resolved.path).toBe(presetPath);
+      expect(resolved.explicit).toBe(true);
+    } finally {
+      process.chdir(cwd);
+      if (fs.existsSync(presetPath)) fs.unlinkSync(presetPath);
     }
   });
 });

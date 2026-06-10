@@ -365,37 +365,65 @@ export function listPresets(): string[] {
   return [...PRESET_NAMES];
 }
 
-export function loadConfig(): AppConfig {
-  let explicitConfigPath = process.env.PACE_CONFIG !== undefined;
-  let configPath = process.env.PACE_CONFIG ?? join(process.cwd(), "config.yaml");
+export interface ConfigPathResolution {
+  path: string;
+  explicit: boolean;
+}
 
-  if (process.env.PACE_CONFIG && !process.env.PACE_CONFIG.includes("/") && !process.env.PACE_CONFIG.includes("\\")) {
-    const resolved = resolvePreset(process.env.PACE_CONFIG);
+/** Resolve PACE_CONFIG (or defaults) to a filesystem path and whether it was explicitly requested. */
+export function resolveConfigPath(paceConfig?: string): ConfigPathResolution {
+  let explicit = paceConfig !== undefined;
+  let path = paceConfig ?? join(process.cwd(), "config.yaml");
+
+  if (paceConfig && !paceConfig.includes("/") && !paceConfig.includes("\\")) {
+    const resolved = resolvePreset(paceConfig);
     if (resolved) {
-      configPath = resolved;
-      explicitConfigPath = true;
+      path = resolved;
+      explicit = true;
     }
+  }
+
+  return { path, explicit };
+}
+
+export function configFileNotFoundError(path: string): string {
+  return `config: file not found: ${path}`;
+}
+
+export interface ConfigReadResult {
+  raw: string;
+  usedConfigPath: string;
+}
+
+export type ConfigFileReader = (path: string) => string | null;
+
+/** Read config YAML from a resolved path; falls back to config.example.yaml when implicit. */
+export function readConfigSource(
+  resolution: ConfigPathResolution,
+  readFile: ConfigFileReader = tryReadRegularFile,
+): ConfigReadResult | null {
+  const content = readFile(resolution.path);
+  if (content !== null) {
+    return { raw: content, usedConfigPath: resolution.path };
+  }
+  if (resolution.explicit) {
+    throw new Error(configFileNotFoundError(resolution.path));
   }
 
   const examplePath = join(process.cwd(), "config.example.yaml");
-
-  let raw: string;
-  let usedConfigPath: string;
-  const configContent = tryReadRegularFile(configPath);
-  if (configContent !== null) {
-    usedConfigPath = configPath;
-    raw = configContent;
-  } else if (explicitConfigPath) {
-    throw new Error(`config: file not found: ${configPath}`);
-  } else {
-    const exampleContent = tryReadRegularFile(examplePath);
-    if (exampleContent !== null) {
-      usedConfigPath = examplePath;
-      raw = exampleContent;
-    } else {
-      return defaultConfig();
-    }
+  const exampleContent = readFile(examplePath);
+  if (exampleContent !== null) {
+    return { raw: exampleContent, usedConfigPath: examplePath };
   }
+  return null;
+}
+
+export function loadConfig(): AppConfig {
+  const read = readConfigSource(resolveConfigPath(process.env.PACE_CONFIG));
+  if (read === null) {
+    return defaultConfig();
+  }
+  const { raw, usedConfigPath } = read;
 
   let parsed: Record<string, unknown>;
   try {
