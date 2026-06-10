@@ -1,8 +1,7 @@
-import { describe, test, expect, spyOn } from "bun:test";
+import { describe, test, expect } from "bun:test";
 import adapter, { resolveGitHubPeriod } from "./adapters/github";
 import { FEED_XML_ACCEPT } from "./adapters/fetch";
-import * as utilsMod from "./utils";
-import { fetchMockCallUrl, fetchMockCalls, useFetchMockSuite } from "./test/adapter-mocks";
+import { fetchMockCallUrl, fetchMockCalls, useFetchMockSuite, withErrorMessageSpy } from "./test/adapter-mocks";
 import { githubCfg } from "./test/adapter-cfg";
 import { makeErrorResponse, makeJsonResponse, makeTextResponse } from "./test/fetch-responses";
 import {
@@ -435,8 +434,7 @@ describe("github", () => {
   });
 
   test("errorMessage on !ok and network", async () => {
-    const emSpy = spyOn(utilsMod, "errorMessage");
-    try {
+    await withErrorMessageSpy(async (emSpy) => {
       mocks.fetchMock.mockImplementation(async () => makeErrorResponse(404));
 
       await expect(
@@ -452,8 +450,6 @@ describe("github", () => {
         /github: error fetching trending/,
       );
       expect(emSpy).toHaveBeenCalledTimes(2);
-    } finally {
-      emSpy.mockRestore();
-    }
+    });
   });
 });

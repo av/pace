@@ -1,9 +1,8 @@
-import { describe, expect, spyOn, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import lemmyAdapter, { lemmySourceLabel, resolveLemmySort } from "./adapters/lemmy";
-import * as utilsMod from "./utils";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { invalidMinScoreParams } from "./test/invalid-params";
-import { fetchMockCallUrl, useFetchMockSuite } from "./test/adapter-mocks";
+import { fetchMockCallUrl, useFetchMockSuite, withErrorMessageSpy } from "./test/adapter-mocks";
 import { lemmyCfg } from "./test/adapter-cfg";
 import { makePostListResponse, makePostView } from "./test/lemmy-fixtures";
 
@@ -340,8 +339,7 @@ describe("lemmy", () => {
   });
 
   test("errorMessage on !ok and network", async () => {
-    const emSpy = spyOn(utilsMod, "errorMessage");
-    try {
+    await withErrorMessageSpy(async (emSpy) => {
       mocks.fetchMock.mockResolvedValue(makeErrorResponse(500));
       await expect(lemmyAdapter.fetch(lemmyCfg())).rejects.toThrow("lemmy:");
 
@@ -350,9 +348,7 @@ describe("lemmy", () => {
 
       expect(emSpy).toHaveBeenCalledTimes(2);
       expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 500" });
-    } finally {
-      emSpy.mockRestore();
-    }
+    });
   });
 
   test("warns and returns [] when post list response omits posts field", async () => {

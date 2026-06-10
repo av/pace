@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, mock, spyOn } from "bun:test";
 import type { Adapter, AdapterConfig, ContentItem } from "../adapters/types";
+import * as utilsMod from "../utils";
 
 const originalFetch = globalThis.fetch;
 
@@ -92,4 +93,18 @@ export function makeErrorAdapter(msg = "boom"): Adapter {
 /** Build a type→adapter map from [type, adapter] pairs. */
 export function adaptersMap(...entries: [string, Adapter][]): Map<string, Adapter> {
   return new Map(entries);
+}
+
+export type ErrorMessageSpy = ReturnType<typeof spyOn<typeof utilsMod, "errorMessage">>;
+
+/** Spy utils.errorMessage for adapter HTTP/network error-path tests; restores in finally. */
+export async function withErrorMessageSpy<T>(
+  fn: (spy: ErrorMessageSpy) => T | Promise<T>,
+): Promise<T> {
+  const emSpy = spyOn(utilsMod, "errorMessage");
+  try {
+    return await fn(emSpy);
+  } finally {
+    emSpy.mockRestore();
+  }
 }

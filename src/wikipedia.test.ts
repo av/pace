@@ -1,8 +1,7 @@
-import { describe, expect, spyOn, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import wikipediaAdapter, { resolveWikipediaMode, wikipediaSourceLabel } from "./adapters/wikipedia";
 import { truncateText } from "./adapters/title";
-import * as utilsMod from "./utils";
-import { fetchMockCallUrl, useFetchMockSuite } from "./test/adapter-mocks";
+import { fetchMockCallUrl, useFetchMockSuite, withErrorMessageSpy } from "./test/adapter-mocks";
 import { wikiCfg } from "./test/adapter-cfg";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { invalidLimitParams } from "./test/invalid-params";
@@ -564,8 +563,7 @@ describe("wikipedia", () => {
   });
 
   test("errorMessage on !ok and network", async () => {
-    const emSpy = spyOn(utilsMod, "errorMessage");
-    try {
+    await withErrorMessageSpy(async (emSpy) => {
       mocks.fetchMock.mockResolvedValue(makeErrorResponse(404));
       await expect(wikipediaAdapter.fetch(wikiCfg())).rejects.toThrow("wikipedia:");
       expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 404" });
@@ -573,8 +571,6 @@ describe("wikipedia", () => {
       mocks.fetchMock.mockRejectedValue(new Error("DNS resolution failed"));
       await expect(wikipediaAdapter.fetch(wikiCfg())).rejects.toThrow("wikipedia:");
       expect(emSpy).toHaveBeenCalledTimes(2);
-    } finally {
-      emSpy.mockRestore();
-    }
+    });
   });
 });

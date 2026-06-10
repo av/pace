@@ -22,6 +22,7 @@ import {
   type TransformConfig,
   type TransformType,
 } from "./config";
+import { getAdapterName } from "./utils";
 
 function validateAllowedKeys(
   record: Record<string, unknown>,
@@ -549,4 +550,68 @@ export function validatePipelineConfig(
 
   validateTransforms(pipeline.transforms, `${path}.transforms`);
   validateOptionalPositiveNumber(pipeline.refresh_interval, `${path}.refresh_interval`);
+}
+
+function validatePipelineAdapterNameCollision(
+  pipelines: readonly PipelineConfig[],
+  adapterNames: Set<string>,
+): void {
+  for (const pipeline of pipelines) {
+    if (adapterNames.has(pipeline.name)) {
+      throw new Error(`config: duplicate pipeline/adapter name "${pipeline.name}"`);
+    }
+    adapterNames.add(pipeline.name);
+  }
+}
+
+export interface ValidatedConfigSections {
+  adapters: IngestAdapterConfig[];
+  pipelines: PipelineConfig[];
+  layout: LayoutNodeConfig;
+  llm: LlmConfig | undefined;
+}
+
+/** Validate resolved config object (post-YAML/env); shared by loadConfig. */
+export function validateParsedConfig(
+  resolved: Record<string, unknown>,
+  defaultLayout: LayoutNodeConfig,
+): ValidatedConfigSections {
+  validateTopLevelKeys(resolved);
+  validateOptionalList(resolved.adapters, "adapters");
+  validateOptionalList(resolved.pipelines, "pipelines");
+
+  const rawAdapters = (resolved.adapters ?? []) as unknown[];
+  const rawPipelines = (resolved.pipelines ?? []) as unknown[];
+  const layout = (resolved.layout ?? defaultLayout) as LayoutNodeConfig;
+
+  rawAdapters.forEach(validateAdapterConfig);
+  const adapters = rawAdapters as IngestAdapterConfig[];
+  validateUniqueUnnamedAdapterTypes(adapters);
+
+  const adapterNames = adapters.map(getAdapterName);
+  if (adapterNames.length > 0) {
+    validateUniqueStringList(adapterNames, "adapters", undefined, "adapter name");
+  }
+
+  const sourceNames = new Set(adapterNames);
+  for (const [index, pipeline] of rawPipelines.entries()) {
+    validatePipelineConfig(pipeline, index, sourceNames);
+  }
+  const pipelines = rawPipelines as PipelineConfig[];
+
+  const pipelineNames = pipelines.map((pipeline) => pipeline.name);
+  if (pipelineNames.length > 0) {
+    validateUniqueStringList(pipelineNames, "pipelines", undefined, "pipeline name");
+  }
+  validatePipelineAdapterNameCollision(pipelines, sourceNames);
+
+  validateLayout(layout, sourceNames);
+  validateLlmConfig(resolved.llm);
+
+  return {
+    adapters,
+    pipelines,
+    layout,
+    llm: resolved.llm as LlmConfig | undefined,
+  };
 }

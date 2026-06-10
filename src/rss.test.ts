@@ -1,7 +1,6 @@
-import { beforeEach, describe, expect, spyOn, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
 import rssAdapter from "./adapters/rss";
-import * as utilsMod from "./utils";
-import { useFetchMockSuite } from "./test/adapter-mocks";
+import { useFetchMockSuite, withErrorMessageSpy } from "./test/adapter-mocks";
 import { rssCfg } from "./test/adapter-cfg";
 import { makeXmlResponse } from "./test/fetch-responses";
 import {
@@ -160,19 +159,19 @@ describe("rss", () => {
   });
 
   test("errorMessage on !ok and network", async () => {
-    const emSpy = spyOn(utilsMod, "errorMessage");
-    await expect(rssAdapter.fetch(rssCfg({ urls: ["https://ex.com/badstatus"] }))).rejects.toThrow(
-      /rss: failed to fetch/,
-    );
-    expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 404" });
+    await withErrorMessageSpy(async (emSpy) => {
+      await expect(rssAdapter.fetch(rssCfg({ urls: ["https://ex.com/badstatus"] }))).rejects.toThrow(
+        /rss: failed to fetch/,
+      );
+      expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 404" });
 
-    emSpy.mockClear();
+      emSpy.mockClear();
 
-    mocks.fetchMock.mockRejectedValue(new Error("connection refused"));
-    await expect(rssAdapter.fetch(rssCfg({ urls: ["https://ex.com/neterr"] }))).rejects.toThrow(
-      /rss: error fetching/,
-    );
-    expect(emSpy).toHaveBeenCalled();
-    emSpy.mockRestore();
+      mocks.fetchMock.mockRejectedValue(new Error("connection refused"));
+      await expect(rssAdapter.fetch(rssCfg({ urls: ["https://ex.com/neterr"] }))).rejects.toThrow(
+        /rss: error fetching/,
+      );
+      expect(emSpy).toHaveBeenCalled();
+    });
   });
 });

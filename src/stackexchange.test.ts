@@ -1,10 +1,9 @@
-import { describe, expect, spyOn, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import stackexchangeAdapter, {
   resolveStackExchangeSort,
   stackExchangeSourceLabel,
 } from "./adapters/stackexchange";
-import * as utilsMod from "./utils";
-import { fetchMockCallUrl, useFetchMockSuite } from "./test/adapter-mocks";
+import { fetchMockCallUrl, useFetchMockSuite, withErrorMessageSpy } from "./test/adapter-mocks";
 import { seCfg } from "./test/adapter-cfg";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { invalidLimitParams, invalidMinScoreParams } from "./test/invalid-params";
@@ -324,8 +323,7 @@ describe("stackexchange", () => {
   });
 
   test("errorMessage on !ok and network", async () => {
-    const emSpy = spyOn(utilsMod, "errorMessage");
-    try {
+    await withErrorMessageSpy(async (emSpy) => {
       mocks.fetchMock.mockResolvedValue(makeErrorResponse(429));
       await expect(
         stackexchangeAdapter.fetch(seCfg({ site: "meta.stackexchange.com" })),
@@ -338,9 +336,7 @@ describe("stackexchange", () => {
 
       expect(emSpy).toHaveBeenCalledTimes(2);
       expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 429" });
-    } finally {
-      emSpy.mockRestore();
-    }
+    });
   });
 
   test("warns and returns [] when API response has malformed items field", async () => {

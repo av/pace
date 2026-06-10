@@ -1,8 +1,7 @@
-import { describe, expect, spyOn, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import npmAdapter, { npmSourceLabel, resolveNpmSort } from "./adapters/npm";
-import * as utilsMod from "./utils";
 import { npmCfg } from "./test/adapter-cfg";
-import { fetchMockCallUrl, useFetchMockSuite } from "./test/adapter-mocks";
+import { fetchMockCallUrl, useFetchMockSuite, withErrorMessageSpy } from "./test/adapter-mocks";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { invalidLimitParams } from "./test/invalid-params";
 import { makePackageResult, makeSearchResponse } from "./test/npm-fixtures";
@@ -297,8 +296,7 @@ describe("npm", () => {
   });
 
   test("errorMessage on !ok and network", async () => {
-    const emSpy = spyOn(utilsMod, "errorMessage");
-    try {
+    await withErrorMessageSpy(async (emSpy) => {
       mocks.fetchMock.mockResolvedValue(makeErrorResponse(429));
       await expect(
         npmAdapter.fetch(npmCfg({ keywords: ["test"] })),
@@ -312,9 +310,7 @@ describe("npm", () => {
         npmAdapter.fetch(npmCfg({ keywords: ["test"] })),
       ).rejects.toThrow("npm:");
       expect(emSpy).toHaveBeenCalled();
-    } finally {
-      emSpy.mockRestore();
-    }
+    });
   });
 
   test("warns and returns [] when search response has malformed objects field", async () => {

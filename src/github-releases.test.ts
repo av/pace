@@ -1,9 +1,8 @@
-import { describe, test, expect, spyOn } from "bun:test";
+import { describe, test, expect } from "bun:test";
 import githubReleasesAdapter from "./adapters/github-releases";
-import * as utilsMod from "./utils";
 import { makeErrorResponse } from "./test/fetch-responses";
 import { invalidLimitParams } from "./test/invalid-params";
-import { fetchMockCalls, useFetchMockSuite } from "./test/adapter-mocks";
+import { fetchMockCalls, useFetchMockSuite, withErrorMessageSpy } from "./test/adapter-mocks";
 import { githubReleasesCfg } from "./test/adapter-cfg";
 import {
   githubReleasesApiFetchMock,
@@ -192,14 +191,14 @@ describe("github-releases", () => {
   });
 
   test("errorMessage on !ok", async () => {
-    const emSpy = spyOn(utilsMod, "errorMessage");
-    mocks.fetchMock.mockResolvedValue(makeErrorResponse(404));
+    await withErrorMessageSpy(async (emSpy) => {
+      mocks.fetchMock.mockResolvedValue(makeErrorResponse(404));
 
-    await expect(
-      githubReleasesAdapter.fetch(githubReleasesCfg({ repos: ["missing/repo"] })),
-    ).rejects.toThrow(/^github-releases: failed to fetch missing\/repo: HTTP error 404$/);
+      await expect(
+        githubReleasesAdapter.fetch(githubReleasesCfg({ repos: ["missing/repo"] })),
+      ).rejects.toThrow(/^github-releases: failed to fetch missing\/repo: HTTP error 404$/);
 
-    expect(emSpy).toHaveBeenCalledTimes(1);
-    emSpy.mockRestore();
+      expect(emSpy).toHaveBeenCalledTimes(1);
+    });
   });
 });

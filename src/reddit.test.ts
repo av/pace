@@ -1,11 +1,10 @@
-import { describe, test, expect, spyOn } from "bun:test";
+import { describe, test, expect } from "bun:test";
 import redditAdapter, {
   redditSourceLabel,
   resolveRedditPeriod,
   resolveRedditSort,
 } from "./adapters/reddit";
-import * as utilsMod from "./utils";
-import { fetchMockCallUrl, useFetchMockSuite } from "./test/adapter-mocks";
+import { fetchMockCallUrl, useFetchMockSuite, withErrorMessageSpy } from "./test/adapter-mocks";
 import { redditCfg } from "./test/adapter-cfg";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { invalidLimitParams, invalidMinScoreParams } from "./test/invalid-params";
@@ -342,8 +341,7 @@ describe("reddit", () => {
   });
 
   test("errorMessage on !ok", async () => {
-    const emSpy = spyOn(utilsMod, "errorMessage");
-    try {
+    await withErrorMessageSpy(async (emSpy) => {
       mocks.fetchMock.mockResolvedValue(makeErrorResponse(404));
 
       await expect(redditAdapter.fetch(redditCfg({ subreddits: ["test"] }))).rejects.toThrow(
@@ -351,9 +349,7 @@ describe("reddit", () => {
       );
 
       expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 404" });
-    } finally {
-      emSpy.mockRestore();
-    }
+    });
   });
 
   test("warns and returns [] when listing response has malformed children field", async () => {

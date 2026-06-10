@@ -1,7 +1,6 @@
-import { describe, expect, spyOn, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import podcastAdapter from "./adapters/podcast";
-import * as utilsMod from "./utils";
-import { fetchMockCallUrl, useFetchMockSuite } from "./test/adapter-mocks";
+import { fetchMockCallUrl, useFetchMockSuite, withErrorMessageSpy } from "./test/adapter-mocks";
 import { podcastCfg } from "./test/adapter-cfg";
 import { makeErrorResponse, makeXmlResponse } from "./test/fetch-responses";
 import { invalidLimitParams } from "./test/invalid-params";
@@ -184,15 +183,15 @@ describe("podcast", () => {
   });
 
   test("errorMessage on !ok", async () => {
-    const emSpy = spyOn(utilsMod, "errorMessage");
-    mocks.fetchMock.mockResolvedValue(makeErrorResponse(404));
+    await withErrorMessageSpy(async (emSpy) => {
+      mocks.fetchMock.mockResolvedValue(makeErrorResponse(404));
 
-    await expect(
-      podcastAdapter.fetch(podcastCfg({ feeds: ["https://example.com/podcast.xml"] })),
-    ).rejects.toThrow(/podcast: failed to fetch .*404/);
+      await expect(
+        podcastAdapter.fetch(podcastCfg({ feeds: ["https://example.com/podcast.xml"] })),
+      ).rejects.toThrow(/podcast: failed to fetch .*404/);
 
-    expect(emSpy).toHaveBeenCalledTimes(1);
-    expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 404" });
-    emSpy.mockRestore();
+      expect(emSpy).toHaveBeenCalledTimes(1);
+      expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 404" });
+    });
   });
 });

@@ -1,13 +1,17 @@
-import { describe, expect, spyOn, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import arxivAdapter, {
   arxivCategorySourceLabel,
   arxivSearchSourceLabel,
 } from "./adapters/arxiv";
 import { FEED_XML_ACCEPT } from "./adapters/fetch";
-import * as utilsMod from "./utils";
 import { makeErrorResponse, makeXmlResponse } from "./test/fetch-responses";
 import { invalidLimitParams } from "./test/invalid-params";
-import { fetchMockCallHeaders, fetchMockCallUrl, useFetchMockSuite } from "./test/adapter-mocks";
+import {
+  fetchMockCallHeaders,
+  fetchMockCallUrl,
+  useFetchMockSuite,
+  withErrorMessageSpy,
+} from "./test/adapter-mocks";
 import { arxivCfg } from "./test/adapter-cfg";
 import {
   arxivDedupOverlapQueryFeedFixture,
@@ -287,8 +291,7 @@ describe("arxiv", () => {
   });
 
   test("errorMessage on !ok and network", async () => {
-    const emSpy = spyOn(utilsMod, "errorMessage");
-    try {
+    await withErrorMessageSpy(async (emSpy) => {
       mocks.fetchMock.mockResolvedValue(makeErrorResponse(429));
       await expect(
         arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"] })),
@@ -302,8 +305,6 @@ describe("arxiv", () => {
         arxivAdapter.fetch(arxivCfg({ query: "foo bar" })),
       ).rejects.toThrow(/arxiv: error fetching query "all:foo bar":/);
       expect(emSpy).toHaveBeenCalled();
-    } finally {
-      emSpy.mockRestore();
-    }
+    });
   });
 });

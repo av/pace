@@ -1,10 +1,9 @@
-import { describe, test, expect, spyOn } from "bun:test";
+import { describe, test, expect } from "bun:test";
 import hackernewsAdapter, {
   hackernewsSourceLabel,
   resolveHnFeedType,
 } from "./adapters/hackernews";
-import * as utilsMod from "./utils";
-import { fetchMockCallUrl, fetchMockCalls, useFetchMockSuite } from "./test/adapter-mocks";
+import { fetchMockCallUrl, fetchMockCalls, useFetchMockSuite, withErrorMessageSpy } from "./test/adapter-mocks";
 import { hnCfg } from "./test/adapter-cfg";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { invalidLimitParams, invalidMinScoreParams } from "./test/invalid-params";
@@ -303,15 +302,12 @@ describe("hackernews", () => {
   test("errorMessage on !ok", async () => {
     mocks.fetchMock.mockResolvedValue(makeErrorResponse(500));
 
-    const emSpy = spyOn(utilsMod, "errorMessage");
-    try {
+    await withErrorMessageSpy(async (emSpy) => {
       const cfg = hnCfg({ feed: "top" });
       await expect(hackernewsAdapter.fetch(cfg)).rejects.toThrow(
         /hackernews: failed to fetch topstories: HTTP error 500/,
       );
       expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 500" });
-    } finally {
-      emSpy.mockRestore();
-    }
+    });
   });
 });

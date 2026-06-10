@@ -2,19 +2,9 @@ import { readFileSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import yaml from "js-yaml";
 import type { AdapterConfig } from "./adapters/types";
-import {
-  validateAdapterConfig,
-  validateLayout,
-  validateLlmConfig,
-  validateOptionalList,
-  validatePipelineConfig,
-  validateTopLevelKeys,
-  validateUniqueStringList,
-  validateUniqueUnnamedAdapterTypes,
-  TRANSFORM_TYPES,
-} from "./config-validate";
+import { validateParsedConfig, TRANSFORM_TYPES } from "./config-validate";
 import { warnUnsetEnvVar } from "./config-warn";
-import { errorMessage, getAdapterName } from "./utils";
+import { errorMessage } from "./utils";
 
 export { TRANSFORM_TYPES };
 
@@ -436,49 +426,12 @@ export function loadConfig(): AppConfig {
   }
 
   const resolved = resolveEnvInObject(parsed) as Record<string, unknown>;
-  validateTopLevelKeys(resolved);
-  validateOptionalList(resolved.adapters, "adapters");
-  validateOptionalList(resolved.pipelines, "pipelines");
-
-  const rawAdapters = (resolved.adapters ?? []) as unknown[];
-  const rawPipelines = (resolved.pipelines ?? []) as unknown[];
-  const layout = resolved.layout ?? DEFAULT_LAYOUT;
-
-  rawAdapters.forEach(validateAdapterConfig);
-  const adapters = rawAdapters as IngestAdapterConfig[];
-
-  validateUniqueUnnamedAdapterTypes(adapters);
-
-  const adapterNames = adapters.map(getAdapterName);
-  if (adapterNames.length > 0) {
-    validateUniqueStringList(adapterNames, "adapters", undefined, "adapter name");
-  }
-  const names = new Set(adapterNames);
-
-  const sourceNames = new Set(names);
-  for (const [index, p] of rawPipelines.entries()) {
-    validatePipelineConfig(p, index, sourceNames);
-  }
-  const pipelines = rawPipelines as PipelineConfig[];
-
-  const pipelineNames = pipelines.map((p) => p.name);
-  if (pipelineNames.length > 0) {
-    validateUniqueStringList(pipelineNames, "pipelines", undefined, "pipeline name");
-  }
-  for (const p of pipelines) {
-    if (names.has(p.name)) {
-      throw new Error(`config: duplicate pipeline/adapter name "${p.name}"`);
-    }
-    names.add(p.name);
-  }
-
-  validateLayout(layout, names);
-  validateLlmConfig(resolved.llm);
+  const { adapters, pipelines, layout, llm } = validateParsedConfig(resolved, DEFAULT_LAYOUT);
 
   return {
     adapters,
     pipelines: pipelines.length > 0 ? pipelines : undefined,
     layout,
-    llm: resolved.llm as LlmConfig | undefined,
+    llm,
   };
 }
