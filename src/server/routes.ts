@@ -1,11 +1,13 @@
 import type { Context, Hono } from "hono";
 import type { DashboardPanel, LayoutNodeConfig } from "../config";
 import { loadDashboardPanelDataMap } from "../db";
-import { renderDashboard } from "../layout";
-import type { RefreshResult } from "../refresh-result";
+import { formatDashboardUpdatedAt, renderDashboard } from "../layout";
 import {
   collectRefreshFailures,
   formatRefreshPanelFailureBody,
+  type RefreshResult,
+} from "../refresh-result";
+import {
   formatUnknownRefreshPanelBody,
   resolveRefreshPanelBinding,
 } from "./refresh-panel";
@@ -44,13 +46,12 @@ export function registerServerRoutes(app: Hono, deps: ServerRouteDeps): void {
   app.get("/health", (c) => c.json({ status: "ok" }));
 
   app.get("/", async (c) => {
-    const now = new Date().toISOString().replace("T", " ").slice(0, 19);
     const panelData = loadDashboardPanelDataMap(deps.dashboardPanels);
 
     const content = renderDashboard({
       layout: deps.layout,
       panelData,
-      updatedAt: now,
+      updatedAt: formatDashboardUpdatedAt(),
     });
     return c.html(content);
   });

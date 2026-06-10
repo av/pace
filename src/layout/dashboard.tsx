@@ -7,6 +7,11 @@ import type { PanelData } from "./panel";
 
 export type { PanelData } from "./panel";
 
+/** Format a Date as the dashboard footer "updated at" string (UTC, no T, seconds precision). */
+export function formatDashboardUpdatedAt(date: Date = new Date()): string {
+  return date.toISOString().replace("T", " ").slice(0, 19);
+}
+
 interface DashboardProps {
   layout: LayoutNodeConfig;
   panelData: Map<string, PanelData>;

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import { spyConsole } from "./test/console-spy";
-import { renderDashboard, type PanelData } from "./layout";
+import { formatDashboardUpdatedAt, renderDashboard, type PanelData } from "./layout";
 import { resolvePanelId } from "./config";
 import { makeContentItemRow as makeItem } from "./test/content-items";
 import { flexCfg, panelCfg } from "./test/layout-cfg";
@@ -182,5 +182,11 @@ describe("renderDashboard", () => {
     expect(html).not.toContain('class="header"');
     expect(html).not.toContain("<h1>pace</h1>"); // old header branding removed
     expect(html).toContain('<link rel="stylesheet" href="/styles.css"/>');
+  });
+});
+
+describe("formatDashboardUpdatedAt", () => {
+  it("formats UTC timestamps without T and with second precision", () => {
+    expect(formatDashboardUpdatedAt(new Date("2026-05-31T00:42:17.891Z"))).toBe("2026-05-31 00:42:17");
   });
 });

@@ -1,1 +1,5 @@
-export { renderDashboard, type PanelData } from "./layout/dashboard";
+export {
+  formatDashboardUpdatedAt,
+  renderDashboard,
+  type PanelData,
+} from "./layout/dashboard";

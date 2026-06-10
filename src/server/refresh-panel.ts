@@ -1,12 +1,3 @@
-export type {
-  RefreshResult,
-} from "../refresh-result";
-export {
-  collectRefreshFailures,
-  formatRefreshPanelFailureBody,
-  formatRefreshSourceFailure,
-} from "../refresh-result";
-
 export type RefreshPanelBinding =
   | { ok: true; panelId: string; sourceNames: string[] }
   | { ok: false; param: string };
