@@ -1,7 +1,12 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { spawn, type ChildProcess } from "node:child_process";
 import { runCli } from "./test/cli-runner";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  killCliServeServer,
+  requestCliServe,
+  spawnCliServeServer,
+  waitForCliServeReady,
+} from "./test/cli-serve-harness";
+import { mkdtempSync, rmSync, writeFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import os from "node:os";
 import {
@@ -257,81 +262,41 @@ describe("cli", () => {
 
 describe("cli serve", () => {
   test("health, styles cache, refresh errors, security headers", async () => {
-    const port = 18476 + (process.pid % 200);
-    const dbPath = `/tmp/pace-iter6-server-test-${port}.db`;
-    const logPath = `/tmp/pace-iter6-server-test-${port}.log`;
-    const env = { ...process.env, PACE_DB_PATH: dbPath };
-    try { require("node:fs").unlinkSync(dbPath); } catch {}
-    try { require("node:fs").unlinkSync(logPath); } catch {}
-    let serverLog = "";
-    const proc: ChildProcess = spawn(process.execPath, ["src/cli.ts", "--port", String(port), "--preset", "tech-news", "serve"], {
-      stdio: ["ignore", "pipe", "pipe"],
-      cwd: process.cwd(),
-      env,
-    });
-    const appendLog = (d: Buffer) => { serverLog += d.toString(); };
-    proc.stdout?.on("data", appendLog);
-    proc.stderr?.on("data", appendLog);
-    const base = `http://localhost:${port}`;
-    async function waitForServerReady(deadlineMs: number): Promise<void> {
-      const start = Date.now();
-      while (Date.now() - start < deadlineMs) {
-        if (proc.exitCode !== null) {
-          throw new Error(
-            `server exited with code ${proc.exitCode} before ready:\n${serverLog}`,
-          );
-        }
-        try {
-          const signal =
-            typeof AbortSignal.timeout === "function"
-              ? AbortSignal.timeout(800)
-              : undefined;
-          const r = await fetch(`${base}/health`, { signal });
-          if (r.status === 200) return;
-        } catch {
-          // not listening yet
-        }
-        await new Promise((r) => setTimeout(r, 50));
-      }
-      throw new Error(`server not ready after ${deadlineMs}ms:\n${serverLog}`);
-    }
-    await waitForServerReady(12_000);
-    function requestSignal(): AbortSignal | undefined {
-      if (typeof AbortSignal.timeout === "function") {
-        return AbortSignal.timeout(2500);
-      }
-      return undefined;
-    }
-    async function req(url: string, method = "GET") {
-      const r = await fetch(url, { method, signal: requestSignal() });
-      const status = r.status;
-      const hd: Record<string, string> = {};
-      r.headers.forEach((v, k) => { hd[k.toLowerCase()] = v; });
-      const ct = hd["content-type"] || "";
-      let body: unknown = "";
+    const harness = spawnCliServeServer();
+    try {
       try {
-        if (ct.includes("json")) body = await r.json();
-        else body = await r.text();
-      } catch { body = ""; }
-      return { status, hd, body };
+        unlinkSync(harness.dbPath);
+      } catch {
+        // fresh start
+      }
+      await waitForCliServeReady(harness, 12_000);
+      const health = await requestCliServe(`${harness.base}/health`);
+      expect(health.status).toBe(200);
+      expect(health.body).toEqual({ status: "ok" });
+      const styles = await requestCliServe(`${harness.base}/styles.css`);
+      expect(styles.status).toBe(200);
+      expect(styles.hd["cache-control"] || "").toContain("max-age=3600");
+      const r502 = await fetch(`${harness.base}/refresh/reddit`, {
+        method: "POST",
+        redirect: "manual",
+      });
+      await expectRefreshPanelFailureOrRedirect(r502, "reddit");
+      const r404 = await fetch(`${harness.base}/refresh/unknownpanel-iter6`, {
+        method: "POST",
+        redirect: "manual",
+      });
+      await expectRefreshPanelNotFound(r404, "unknownpanel-iter6");
+      expectSecurityHeaders(health.hd);
+      expectSecurityHeaders(styles.hd);
+      expectSecurityHeaders(r502);
+      expectSecurityHeaders(r404);
+    } finally {
+      await killCliServeServer(harness);
+      try {
+        unlinkSync(harness.dbPath);
+      } catch {
+        // already removed
+      }
     }
-    const health = await req(`${base}/health`);
-    expect(health.status).toBe(200);
-    expect(health.body).toEqual({ status: "ok" });
-    const styles = await req(`${base}/styles.css`);
-    expect(styles.status).toBe(200);
-    expect(styles.hd["cache-control"] || "").toContain("max-age=3600");
-    const r502 = await fetch(`${base}/refresh/reddit`, { method: "POST", redirect: "manual" });
-    await expectRefreshPanelFailureOrRedirect(r502, "reddit");
-    const r404 = await fetch(`${base}/refresh/unknownpanel-iter6`, { method: "POST", redirect: "manual" });
-    await expectRefreshPanelNotFound(r404, "unknownpanel-iter6");
-    expectSecurityHeaders(health.hd);
-    expectSecurityHeaders(styles.hd);
-    expectSecurityHeaders(r502);
-    expectSecurityHeaders(r404);
-    if (proc.pid) { try { process.kill(proc.pid, "SIGKILL"); } catch {} }
-    await new Promise((r) => setTimeout(r, 200));
-    try { require("node:fs").unlinkSync(dbPath); } catch {}
-    try { require("node:fs").unlinkSync(logPath); } catch {}
   }, 15000);
 });
