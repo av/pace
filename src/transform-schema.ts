@@ -1,3 +1,8 @@
+/** Canonical keyword-score entry field keys; single source for validation + types. */
+export const KEYWORD_SCORE_ENTRY_FIELDS = ["term", "weight", "regex"] as const;
+
+export type KeywordScoreEntryField = (typeof KEYWORD_SCORE_ENTRY_FIELDS)[number];
+
 /** Canonical transform field keys (excludes discriminant `type`); single source for validation + types. */
 export const TRANSFORM_FIELD_KEYS = {
   latest: ["count"],

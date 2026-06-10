@@ -21,7 +21,12 @@ import {
   type PipelineConfig,
   type TransformConfig,
 } from "./config";
-import { TRANSFORM_FIELD_KEYS, transformAllowedFieldKeys, type TransformType } from "./transform-schema";
+import {
+  KEYWORD_SCORE_ENTRY_FIELDS,
+  TRANSFORM_FIELD_KEYS,
+  transformAllowedFieldKeys,
+  type TransformType,
+} from "./transform-schema";
 import { getAdapterName } from "./utils";
 
 function validateAllowedKeys(
@@ -338,8 +343,6 @@ function validateDedupeStrategyFields(transform: Record<string, unknown>, path: 
     );
   }
 }
-
-const KEYWORD_SCORE_ENTRY_FIELDS = ["term", "weight", "regex"] as const;
 
 function validateKeywordScoreEntries(value: unknown, path: string): void {
   validateNonEmptyArray(value, path);

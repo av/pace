@@ -2,6 +2,7 @@ import { describe, test, expect, beforeEach } from "bun:test";
 import { spyConsole, spyMockCallsContaining } from "./test/console-spy";
 import { runPipeline, type TransformContext } from "./transforms";
 import {
+  KEYWORD_SCORE_ENTRY_FIELDS,
   TRANSFORM_FIELD_KEYS,
   TRANSFORM_TYPES,
   transformAllowedFieldKeys,
@@ -75,6 +76,12 @@ describe("transforms - runPipeline basics", () => {
   test("TRANSFORM_TYPES matches every registry entry (no config/runtime drift)", () => {
     expect(TRANSFORM_TYPES).toHaveLength(12);
     expect(new Set(TRANSFORM_TYPES).size).toBe(TRANSFORM_TYPES.length);
+  });
+
+  test("KEYWORD_SCORE_ENTRY_FIELDS aligns with KeywordScoreEntry type", () => {
+    const exemplar = { term: "alpha", weight: 2, regex: true };
+    const configKeys = Object.keys(exemplar).sort();
+    expect([...KEYWORD_SCORE_ENTRY_FIELDS].sort()).toEqual(configKeys);
   });
 
   test("TRANSFORM_FIELD_KEYS aligns with TransformConfig and validation allowed-keys", () => {

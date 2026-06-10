@@ -5,15 +5,17 @@ import type { AdapterConfig } from "./adapters/types";
 import { validateParsedConfig } from "./config-validate";
 import { warnUnsetEnvVar } from "./config-warn";
 import {
+  KEYWORD_SCORE_ENTRY_FIELDS,
   TRANSFORM_FIELD_KEYS,
   TRANSFORM_TYPES,
   transformAllowedFieldKeys,
+  type KeywordScoreEntryField,
   type TransformType,
 } from "./transform-schema";
 import { errorMessage } from "./utils";
 
-export { TRANSFORM_FIELD_KEYS, TRANSFORM_TYPES, transformAllowedFieldKeys };
-export type { TransformType };
+export { KEYWORD_SCORE_ENTRY_FIELDS, TRANSFORM_FIELD_KEYS, TRANSFORM_TYPES, transformAllowedFieldKeys };
+export type { KeywordScoreEntryField, TransformType };
 
 export const LAYOUT_DIRECTIONS = ["row", "column"] as const;
 export type LayoutDirection = (typeof LAYOUT_DIRECTIONS)[number];
@@ -48,6 +50,15 @@ export interface KeywordScoreEntry {
   weight: number;
   regex?: boolean;
 }
+
+type AssertKeywordScoreEntryFieldsAlign =
+  keyof KeywordScoreEntry extends KeywordScoreEntryField
+    ? KeywordScoreEntryField extends keyof KeywordScoreEntry
+      ? true
+      : ["KEYWORD_SCORE_ENTRY_FIELDS has extra fields"]
+    : ["KeywordScoreEntry has extra fields"];
+
+declare const _keywordScoreEntryFieldsDriftGuard: AssertKeywordScoreEntryFieldsAlign;
 
 export type KeywordField = "title" | "body" | "source";
 
