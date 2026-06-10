@@ -14,7 +14,11 @@ import {
   expectDashboardHtmlShell,
   expectDashboardItemTitle,
   expectDashboardPanelHeading,
+  expectDashboardRefreshAction,
   expectHtmlOk,
+  expectRefreshPanelFailure,
+  expectRefreshPanelNotFound,
+  expectRefreshPanelRedirect,
   makeServerRouteDeps,
   requestDashboard,
   requestRefreshPanel,
@@ -77,7 +81,7 @@ describe("GET / dashboard", () => {
     expectDashboardItemTitle(html, "HN Story");
     expect(html).toContain('href="https://news.ycombinator.com/item"');
     expect(html).toContain('<span class="item-source">hackernews</span>');
-    expect(html).toContain('action="/refresh/tech-panel"');
+    expectDashboardRefreshAction(html, "tech-panel");
   });
 
   test("renders multiple panels via loadDashboardPanelDataMap", async () => {
@@ -144,8 +148,7 @@ describe("handleRefreshPanel", () => {
     });
 
     const res = await requestRefreshPanel(createTestServerApp(deps), "missing-panel");
-    expect(res.status).toBe(404);
-    expect(await res.text()).toContain("Unknown panel: missing-panel");
+    await expectRefreshPanelNotFound(res, "missing-panel");
   });
 
   test("returns 502 when refresh reports failures", async () => {
@@ -157,8 +160,9 @@ describe("handleRefreshPanel", () => {
     });
 
     const res = await requestRefreshPanel(createTestServerApp(deps), "reddit");
-    expect(res.status).toBe(502);
-    expect(await res.text()).toContain("Refresh failed for reddit: boom");
+    await expectRefreshPanelFailure(res, [
+      { kind: "adapter", name: "reddit", status: "failed", error: "boom" },
+    ]);
   });
 
   test("redirects on successful refresh", async () => {
@@ -170,8 +174,7 @@ describe("handleRefreshPanel", () => {
     });
 
     const res = await requestRefreshPanel(createTestServerApp(deps), "tech");
-    expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe("/");
+    expectRefreshPanelRedirect(res);
   });
 
   test("redirects when panel has no refresh sources", async () => {
@@ -184,7 +187,6 @@ describe("handleRefreshPanel", () => {
     });
 
     const res = await requestRefreshPanel(createTestServerApp(deps), "empty");
-    expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe("/");
+    expectRefreshPanelRedirect(res);
   });
 });

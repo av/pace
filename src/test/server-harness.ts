@@ -1,7 +1,12 @@
 import { expect } from "bun:test";
 import type { Hono } from "hono";
 import { buildLayoutRuntimeMaps, type LayoutNodeConfig } from "../layout/types";
+import {
+  formatRefreshPanelFailureBody,
+  type RefreshResult,
+} from "../refresh-result";
 import { createServerApp } from "../server/app";
+import { formatUnknownRefreshPanelBody } from "../server/refresh-panel";
 import type { ServerRouteDeps } from "../server/routes";
 
 export function makeServerRouteDeps(
@@ -63,4 +68,29 @@ export function expectDashboardPanelHeading(html: string, panelName: string): vo
 
 export function expectDashboardItemTitle(html: string, title: string): void {
   expect(html).toContain(`>${title}</`);
+}
+
+export function expectDashboardRefreshAction(html: string, panelId: string): void {
+  expect(html).toContain(`action="/refresh/${panelId}"`);
+}
+
+export async function expectRefreshPanelNotFound(
+  res: Response,
+  panelParam: string,
+): Promise<void> {
+  expect(res.status).toBe(404);
+  expect(await res.text()).toBe(formatUnknownRefreshPanelBody(panelParam));
+}
+
+export async function expectRefreshPanelFailure(
+  res: Response,
+  failures: ReadonlyArray<RefreshResult>,
+): Promise<void> {
+  expect(res.status).toBe(502);
+  expect(await res.text()).toBe(formatRefreshPanelFailureBody(failures));
+}
+
+export function expectRefreshPanelRedirect(res: Response): void {
+  expect(res.status).toBe(303);
+  expect(res.headers.get("location")).toBe("/");
 }
