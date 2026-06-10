@@ -17,7 +17,7 @@ import {
   createAliasedResolver,
 } from "../utils";
 import { mapToContentItems } from "./content-item";
-import { aggregateSequentialFeeds, finalizeFetchedItems } from "./merge";
+import { aggregateSequentialFeeds } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 type SortType = "Hot" | "New" | "Top" | "Active" | "MostComments";
@@ -118,26 +118,17 @@ const adapter: Adapter = {
       sort: (a: LemmyPostView, b: LemmyPostView) => b.counts.score - a.counts.score,
     };
 
-    const limited =
+    const keys = communities.length === 0 ? [instance] : communities;
+    const fetchOne = (key: string) =>
       communities.length === 0
-        ? finalizeFetchedItems(
-            await fetchLemmyPosts(
-              instance,
-              { sort, limit: String(limit) },
-              `${instance} frontpage`,
-            ),
-            finalizeOptions,
-          )
-        : await aggregateSequentialFeeds(
-            communities,
-            (community) =>
-              fetchLemmyPosts(
-                instance,
-                { community_name: community, sort, limit: String(limit) },
-                `c/${community}@${instance}`,
-              ),
-            finalizeOptions,
+        ? fetchLemmyPosts(key, { sort, limit: String(limit) }, `${key} frontpage`)
+        : fetchLemmyPosts(
+            instance,
+            { community_name: key, sort, limit: String(limit) },
+            `c/${key}@${instance}`,
           );
+
+    const limited = await aggregateSequentialFeeds(keys, fetchOne, finalizeOptions);
 
     return mapToContentItems(
       limited,

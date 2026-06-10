@@ -18,7 +18,7 @@ import {
   compareIsoTimestamp,
 } from "../utils";
 import { mapToContentItems } from "./content-item";
-import { aggregateSequentialFeeds, finalizeFetchedItems } from "./merge";
+import { aggregateSequentialFeeds } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 const LOBSTERS_BASE = "https://lobste.rs";
@@ -88,11 +88,14 @@ const adapter: Adapter = {
     const minScore = normalizeNonNegativeNumber(config.params?.min_score);
     const tags = normalizeParamStringList(config.params, "tags");
 
+    const keys = tags.length === 0 ? [feedType] : tags;
+    const isMultiSource = tags.length > 0;
+
     const finalizeOptions = {
       limit,
       minScore,
       scoreOf: (item: LobstersItem) => item.score,
-      ...(tags.length > 0
+      ...(isMultiSource
         ? {
             dedupeKey: (item: LobstersItem) => item.short_id,
             sort: lobstersSortComparator(feedType),
@@ -100,24 +103,20 @@ const adapter: Adapter = {
         : {}),
     };
 
-    const limited =
-      tags.length > 0
-        ? await aggregateSequentialFeeds(
-            tags,
-            (tag) => {
-              const tagUrl = `${LOBSTERS_BASE}/t/${encodeURIComponent(tag)}.json`;
-              return fetchJson<LobstersItem[]>("lobsters", tagUrl, `tag ${tag}`);
-            },
-            finalizeOptions,
+    const fetchOne = (key: string) =>
+      isMultiSource
+        ? fetchJson<LobstersItem[]>(
+            "lobsters",
+            `${LOBSTERS_BASE}/t/${encodeURIComponent(key)}.json`,
+            `tag ${key}`,
           )
-        : finalizeFetchedItems(
-            await fetchJson<LobstersItem[]>(
-              "lobsters",
-              `${LOBSTERS_BASE}/${feedType}.json`,
-              feedType,
-            ),
-            finalizeOptions,
+        : fetchJson<LobstersItem[]>(
+            "lobsters",
+            `${LOBSTERS_BASE}/${key}.json`,
+            key,
           );
+
+    const limited = await aggregateSequentialFeeds(keys, fetchOne, finalizeOptions);
 
     return mapToContentItems(
       limited,
