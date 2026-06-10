@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { mapToContentItems, sliceMapToContentItems } from "./adapters/content-item";
+import {
+  mapToContentItems,
+  mapToContentItemsPerSource,
+  sliceMapToContentItems,
+} from "./adapters/content-item";
 
 describe("mapToContentItems", () => {
   test("attaches shared source to each projected item", () => {
@@ -43,6 +47,42 @@ describe("mapToContentItems", () => {
       url: "https://example.com",
       timestamp: new Date(),
     }))).toEqual([]);
+  });
+});
+
+describe("mapToContentItemsPerSource", () => {
+  test("attaches per-item source labels after aggregate merge", () => {
+    const ts = new Date("2024-01-15T12:00:00Z");
+    const items = mapToContentItemsPerSource(
+      [
+        { id: "2501.0001", sourceLabel: "arxiv:cs.AI" },
+        { id: "2501.0002", sourceLabel: "arxiv:search" },
+      ],
+      (row) => row.sourceLabel,
+      (row) => ({
+        id: `arxiv:${row.id}`,
+        title: `paper-${row.id}`,
+        url: `https://arxiv.org/abs/${row.id}`,
+        timestamp: ts,
+      }),
+    );
+
+    expect(items).toEqual([
+      {
+        id: "arxiv:2501.0001",
+        title: "paper-2501.0001",
+        url: "https://arxiv.org/abs/2501.0001",
+        source: "arxiv:cs.AI",
+        timestamp: ts,
+      },
+      {
+        id: "arxiv:2501.0002",
+        title: "paper-2501.0002",
+        url: "https://arxiv.org/abs/2501.0002",
+        source: "arxiv:search",
+        timestamp: ts,
+      },
+    ]);
   });
 });
 

@@ -6,7 +6,7 @@ import {
 import {
   formatCategories,
 } from "./engagement";
-import { sliceMapToContentItems } from "./content-item";
+import { mapToContentItemsPerSource } from "./content-item";
 import { joinTitle, truncateText } from "./title";
 
 import { warnEmptyConfig } from "./empty-config";
@@ -45,6 +45,12 @@ export function arxivSearchSourceLabel(): string {
 interface ArxivSource {
   queryStr: string;
   sourceLabel: string;
+}
+
+interface TaggedArxivEntry {
+  entry: ArxivEntry;
+  sourceLabel: string;
+  timestamp: Date;
 }
 
 interface ArxivAuthor {
@@ -184,18 +190,28 @@ const adapter: Adapter = {
         : []),
     ];
 
-    return aggregateBatchedFeeds(
+    const tagged = await aggregateBatchedFeeds(
       sources,
       1,
       async ({ queryStr, sourceLabel }) => {
         const entries = await fetchArxivQuery(queryStr, limit);
-        return sliceMapToContentItems(entries, limit, sourceLabel, projectArxivEntry);
+        return entries.map((entry) => ({
+          entry,
+          sourceLabel,
+          timestamp: parseFeedEntryTimestamp(entry, FEED_ENTRY_DATE_ATOM_ORDER),
+        }));
       },
       {
         perSourceLimit: limit,
-        dedupeKey: (item) => item.id,
+        dedupeKey: (item: TaggedArxivEntry) => extractArxivId(item.entry.id),
       },
       RATE_LIMIT_DELAY_MS,
+    );
+
+    return mapToContentItemsPerSource(
+      tagged,
+      (item) => item.sourceLabel,
+      (item) => projectArxivEntry(item.entry),
     );
   },
 };
