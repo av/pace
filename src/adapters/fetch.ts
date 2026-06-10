@@ -156,6 +156,32 @@ export function arrayFieldOrEmpty<T>(
   return value as T[];
 }
 
+/**
+ * Read an optional array field from a JSON object response (e.g. Wikipedia featured
+ * feed sections that may be absent on a given day).
+ * Returns [] silently when the parent or field is null/undefined. Warns when the
+ * parent is present but not an object, or the field is present but not an array.
+ */
+export function optionalArrayFieldOrEmpty<T>(
+  prefix: string,
+  record: unknown,
+  field: string,
+  context: string,
+): T[] {
+  if (record == null) return [];
+  if (typeof record !== "object") {
+    warnArrayFieldShape(prefix, field, context, "parent is not an object");
+    return [];
+  }
+  const value = (record as Record<string, unknown>)[field];
+  if (value == null) return [];
+  if (!Array.isArray(value)) {
+    warnArrayFieldShape(prefix, field, context, `got ${typeof value}`);
+    return [];
+  }
+  return value as T[];
+}
+
 export type AtomFeedShape<TEntry> = {
   feed?: {
     title?: XmlTextField;

@@ -7,6 +7,7 @@ import {
   FEED_FETCH_TIMEOUT_MS,
   FEED_XML_ACCEPT,
   arrayFieldOrEmpty,
+  optionalArrayFieldOrEmpty,
   fetchAtomFeed,
   fetchRssAtomFeed,
   fetchJson,
@@ -390,6 +391,45 @@ describe("arrayFieldOrEmpty", () => {
       );
       expect(warn).toHaveBeenCalledWith(
         'stackexchange: expected array field "items" for from so (got string), treating as empty',
+      );
+    });
+  });
+});
+
+describe("optionalArrayFieldOrEmpty", () => {
+  test("returns array values unchanged, including empty arrays", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      expect(
+        optionalArrayFieldOrEmpty("wikipedia", { articles: [{ title: "A" }] }, "articles", "feed"),
+      ).toEqual([{ title: "A" }]);
+      expect(optionalArrayFieldOrEmpty("wikipedia", { onthisday: [] }, "onthisday", "feed")).toEqual(
+        [],
+      );
+      expect(warn).not.toHaveBeenCalled();
+    });
+  });
+
+  test("returns [] silently when parent or field is absent", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      expect(optionalArrayFieldOrEmpty("wikipedia", undefined, "articles", "feed")).toEqual([]);
+      expect(optionalArrayFieldOrEmpty("wikipedia", {}, "onthisday", "feed")).toEqual([]);
+      expect(warn).not.toHaveBeenCalled();
+    });
+  });
+
+  test("warns and returns [] when parent is not an object or field has wrong type", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      expect(optionalArrayFieldOrEmpty("wikipedia", "bad", "articles", "feed")).toEqual([]);
+      expect(warn).toHaveBeenCalledWith(
+        'wikipedia: expected array field "articles" for feed (parent is not an object), treating as empty',
+      );
+
+      warn.mockClear();
+      expect(
+        optionalArrayFieldOrEmpty("wikipedia", { news: "error" }, "news", "featured feed news"),
+      ).toEqual([]);
+      expect(warn).toHaveBeenCalledWith(
+        'wikipedia: expected array field "news" for featured feed news (got string), treating as empty',
       );
     });
   });

@@ -379,6 +379,38 @@ describe("wikipedia", () => {
     );
   });
 
+  test("warns on malformed mostread.articles shape without duplicate missing-section warn in merge mode", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      makeJsonResponse(
+        makeFeaturedResponse({
+          mostread: { articles: "not-an-array" as unknown as never },
+          news: [
+            {
+              story: "A major event occurred today.",
+              links: [
+                {
+                  title: "Major_Event",
+                  content_urls: { desktop: { page: "https://en.wikipedia.org/wiki/Major_Event" } },
+                },
+              ],
+            },
+          ],
+        }),
+      ),
+    );
+
+    const items = await wikipediaAdapter.fetch(wikiCfg({ mode: "most_read,news" }));
+
+    expect(items).toHaveLength(1);
+    expect(items[0].source).toBe("wikipedia:news");
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      'wikipedia: expected array field "articles" for featured feed most_read (got string), treating as empty',
+    );
+    expect(mocks.warnSpy).not.toHaveBeenCalledWith(
+      "wikipedia: featured feed has no most_read articles (en)",
+    );
+  });
+
   test("warns and returns empty for most_read when mostread section is missing (single mode)", async () => {
     mocks.fetchMock.mockResolvedValue(
       makeJsonResponse(makeFeaturedResponse({ mostread: undefined })),

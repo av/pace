@@ -4,7 +4,7 @@ import {
 import { joinTitle, truncateText } from "./title";
 
 import { mapToContentItems } from "./content-item";
-import { fetchJson } from "./fetch";
+import { fetchJson, optionalArrayFieldOrEmpty } from "./fetch";
 import { decodeNumericFeedTitle, stripHtml } from "./html";
 import {
   clampAdapterLimit,
@@ -111,7 +111,12 @@ async function fetchFeaturedFeed(
 }
 
 function extractMostRead(data: WikiFeaturedResponse, limit: number): ContentItem[] {
-  const articles = data.mostread?.articles ?? [];
+  const articles = optionalArrayFieldOrEmpty<WikiMostReadArticle>(
+    "wikipedia",
+    data.mostread,
+    "articles",
+    "featured feed most_read",
+  );
   return mapToContentItems(
     finalizeFetchedItems(articles, { limit }),
     wikipediaSourceLabel("most_read"),
@@ -138,7 +143,12 @@ function extractFeatured(data: WikiFeaturedResponse): ContentItem[] {
 }
 
 function extractOnThisDay(data: WikiFeaturedResponse, limit: number): ContentItem[] {
-  const events = data.onthisday ?? [];
+  const events = optionalArrayFieldOrEmpty<WikiOnThisDay>(
+    "wikipedia",
+    data,
+    "onthisday",
+    "featured feed on_this_day",
+  );
   return mapToContentItems(
     finalizeFetchedItems(events, { limit }),
     wikipediaSourceLabel("on_this_day"),
@@ -160,7 +170,12 @@ function extractOnThisDay(data: WikiFeaturedResponse, limit: number): ContentIte
 }
 
 function extractNews(data: WikiFeaturedResponse, limit: number): ContentItem[] {
-  const items = data.news ?? [];
+  const items = optionalArrayFieldOrEmpty<WikiNewsItem>(
+    "wikipedia",
+    data,
+    "news",
+    "featured feed news",
+  );
   return mapToContentItems(
     finalizeFetchedItems(items, { limit }).map((item, index) => ({ item, index })),
     wikipediaSourceLabel("news"),
