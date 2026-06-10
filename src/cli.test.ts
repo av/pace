@@ -7,15 +7,13 @@ import os from "node:os";
 import {
   applyCliConfigEnv,
   applyCliPortEnv,
+  cliHelpStdout,
   formatCliHelp,
   isCliFatalStartupError,
   normalizeCliParsedValues,
-  readPackageVersion,
   resolveCliInfoOutput,
   resolveCliServeErrors,
 } from "./cli-help";
-
-const cliHelpStdout = () => formatCliHelp(readPackageVersion()) + "\n";
 
 describe("cli-help", () => {
   test("isCliFatalStartupError matches config/scheduler/index prefixes", () => {
@@ -108,6 +106,10 @@ describe("cli-help", () => {
     expect(resolveCliInfoOutput({ version: true }, ctx)).toBe("9.9.9");
     expect(resolveCliInfoOutput({ listPresets: true }, ctx)).toBe("alpha\nbeta");
     expect(resolveCliInfoOutput({}, ctx)).toBeNull();
+  });
+
+  test("cliHelpStdout matches formatCliHelp plus console.log newline", () => {
+    expect(cliHelpStdout("1.2.3")).toBe(formatCliHelp("1.2.3") + "\n");
   });
 
   test("resolveCliServeErrors rejects unknown commands and options", () => {

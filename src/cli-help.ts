@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
+import { writeCliStderr, writeCliStdout } from "./cli-log";
 import { readConfigSource } from "./config";
 import { errorMessage, normalizeParamBoolean, parseCliPort } from "./utils";
 
@@ -11,18 +12,18 @@ export function isCliFatalStartupError(message: string): boolean {
 }
 
 export function cliDie(message: string): never {
-  console.error(message);
+  writeCliStderr(message);
   process.exit(1);
 }
 
 export function cliExitOk(stdout: string): never {
-  console.log(stdout);
+  writeCliStdout(stdout);
   process.exit(0);
 }
 
 export function cliFailWithHelp(stderrLine: string, help: string): never {
-  console.error(stderrLine);
-  console.log(help);
+  writeCliStderr(stderrLine);
+  writeCliStdout(help);
   process.exit(1);
 }
 
@@ -239,6 +240,11 @@ export async function runCli(argv: string[], deps: CliRunDeps): Promise<void> {
   runCliInfoExits(values, { version, help, listPresets: deps.listPresets });
   assertCliServeInvocation(values, positionals[0], help);
   await bootstrapServeModule(values, deps);
+}
+
+/** Bytes written to stdout by `cliExitOk(formatCliHelp(version))`. */
+export function cliHelpStdout(version?: string): string {
+  return formatCliHelp(version ?? readPackageVersion()) + "\n";
 }
 
 export function formatCliHelp(version: string): string {
