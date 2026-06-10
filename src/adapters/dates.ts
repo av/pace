@@ -1,13 +1,29 @@
+function warnDateFallback(kind: string, detail: string): void {
+  console.warn(`dates: ${kind} ${detail}, using current time`);
+}
+
 export function parseFeedDate(dateStr?: string | null): Date {
   if (!dateStr) return new Date();
   const d = new Date(dateStr);
-  return isNaN(d.getTime()) ? new Date() : d;
+  if (isNaN(d.getTime())) {
+    warnDateFallback("invalid feed date", `"${dateStr}"`);
+    return new Date();
+  }
+  return d;
 }
 
 export function parseUnixEpochSeconds(seconds?: number | null): Date {
-  if (seconds == null || !Number.isFinite(seconds)) return new Date();
+  if (seconds == null) return new Date();
+  if (!Number.isFinite(seconds)) {
+    warnDateFallback("invalid epoch seconds", String(seconds));
+    return new Date();
+  }
   const d = new Date(seconds * 1000);
-  return isNaN(d.getTime()) ? new Date() : d;
+  if (isNaN(d.getTime())) {
+    warnDateFallback("unparseable epoch seconds", String(seconds));
+    return new Date();
+  }
+  return d;
 }
 
 /** Format a duration in seconds as m:ss or h:mm:ss. */

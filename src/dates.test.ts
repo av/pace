@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach, setSystemTime } from "bun:test";
 import { formatSeconds, parseFeedDate, parseUnixEpochSeconds } from "./adapters/dates";
+import { spyConsole } from "./test/console-spy";
 
 const FIXED_NOW = new Date("2024-06-15T12:00:00.000Z");
 
@@ -19,6 +20,20 @@ describe("parseFeedDate", () => {
     expect(parseFeedDate("").toISOString()).toBe(FIXED_NOW.toISOString());
     expect(parseFeedDate("not-a-date").toISOString()).toBe(FIXED_NOW.toISOString());
   });
+
+  test("warns on invalid date string but not on missing", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      parseFeedDate("not-a-date");
+      expect(warn).toHaveBeenCalledWith(
+        'dates: invalid feed date "not-a-date", using current time',
+      );
+
+      warn.mockClear();
+      parseFeedDate(null);
+      parseFeedDate("");
+      expect(warn).not.toHaveBeenCalled();
+    });
+  });
 });
 
 describe("parseUnixEpochSeconds", () => {
@@ -36,6 +51,26 @@ describe("parseUnixEpochSeconds", () => {
     expect(parseUnixEpochSeconds(Number.POSITIVE_INFINITY).toISOString()).toBe(
       FIXED_NOW.toISOString(),
     );
+  });
+
+  test("warns on non-finite epoch seconds but not on missing", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      parseUnixEpochSeconds(Number.NaN);
+      expect(warn).toHaveBeenCalledWith(
+        "dates: invalid epoch seconds NaN, using current time",
+      );
+
+      warn.mockClear();
+      parseUnixEpochSeconds(Number.POSITIVE_INFINITY);
+      expect(warn).toHaveBeenCalledWith(
+        "dates: invalid epoch seconds Infinity, using current time",
+      );
+
+      warn.mockClear();
+      parseUnixEpochSeconds(null);
+      parseUnixEpochSeconds();
+      expect(warn).not.toHaveBeenCalled();
+    });
   });
 });
 
