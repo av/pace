@@ -3,7 +3,7 @@ import stackexchangeAdapter, {
   resolveStackExchangeSort,
   stackExchangeSourceLabel,
 } from "./adapters/stackexchange";
-import { fetchMockCallUrl, useFetchMockSuite, withErrorMessageSpy } from "./test/adapter-mocks";
+import { expectAdapterFetchError, fetchMockCallUrl, useFetchMockSuite } from "./test/adapter-mocks";
 import { seCfg } from "./test/adapter-cfg";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { invalidLimitParams, invalidMinScoreParams } from "./test/invalid-params";
@@ -323,20 +323,22 @@ describe("stackexchange", () => {
   });
 
   test("errorMessage on !ok and network", async () => {
-    await withErrorMessageSpy(async (emSpy) => {
-      mocks.fetchMock.mockResolvedValue(makeErrorResponse(429));
-      await expect(
-        stackexchangeAdapter.fetch(seCfg({ site: "meta.stackexchange.com" })),
-      ).rejects.toThrow(/429/);
-
-      mocks.fetchMock.mockRejectedValue(new Error("connection refused"));
-      await expect(
-        stackexchangeAdapter.fetch(seCfg({ site: "bad.site" })),
-      ).rejects.toThrow(/connection refused/);
-
-      expect(emSpy).toHaveBeenCalledTimes(2);
-      expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 429" });
-    });
+    await expectAdapterFetchError(
+      mocks.fetchMock,
+      [
+        {
+          httpStatus: 429,
+          fetch: () => stackexchangeAdapter.fetch(seCfg({ site: "meta.stackexchange.com" })),
+          throwMatcher: /429/,
+        },
+        {
+          networkError: new Error("connection refused"),
+          fetch: () => stackexchangeAdapter.fetch(seCfg({ site: "bad.site" })),
+          throwMatcher: /connection refused/,
+        },
+      ],
+      { clearBetweenCases: false, spy: [{ times: 2 }, { message: "HTTP error 429" }] },
+    );
   });
 
   test("warns and returns [] when API response has malformed items field", async () => {

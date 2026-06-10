@@ -2,7 +2,7 @@ import { describe, test, expect } from "bun:test";
 import githubReleasesAdapter from "./adapters/github-releases";
 import { makeErrorResponse } from "./test/fetch-responses";
 import { invalidLimitParams } from "./test/invalid-params";
-import { fetchMockCalls, useFetchMockSuite, withErrorMessageSpy } from "./test/adapter-mocks";
+import { expectAdapterFetchError, fetchMockCalls, useFetchMockSuite } from "./test/adapter-mocks";
 import { githubReleasesCfg } from "./test/adapter-cfg";
 import {
   githubReleasesApiFetchMock,
@@ -191,14 +191,15 @@ describe("github-releases", () => {
   });
 
   test("errorMessage on !ok", async () => {
-    await withErrorMessageSpy(async (emSpy) => {
-      mocks.fetchMock.mockResolvedValue(makeErrorResponse(404));
-
-      await expect(
-        githubReleasesAdapter.fetch(githubReleasesCfg({ repos: ["missing/repo"] })),
-      ).rejects.toThrow(/^github-releases: failed to fetch missing\/repo: HTTP error 404$/);
-
-      expect(emSpy).toHaveBeenCalledTimes(1);
-    });
+    await expectAdapterFetchError(
+      mocks.fetchMock,
+      {
+        httpStatus: 404,
+        fetch: () =>
+          githubReleasesAdapter.fetch(githubReleasesCfg({ repos: ["missing/repo"] })),
+        throwMatcher: /^github-releases: failed to fetch missing\/repo: HTTP error 404$/,
+      },
+      { spy: { times: 1 } },
+    );
   });
 });

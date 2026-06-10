@@ -1,6 +1,7 @@
-import { afterEach, beforeEach, mock, spyOn } from "bun:test";
+import { afterEach, beforeEach, expect, mock, spyOn } from "bun:test";
 import type { Adapter, AdapterConfig, ContentItem } from "../adapters/types";
 import * as utilsMod from "../utils";
+import { makeErrorResponse } from "./fetch-responses";
 
 const originalFetch = globalThis.fetch;
 
@@ -107,4 +108,98 @@ export async function withErrorMessageSpy<T>(
   } finally {
     emSpy.mockRestore();
   }
+}
+
+export type AdapterFetchErrorSpyExpect =
+  | "called"
+  | { times: number }
+  | { message: string };
+
+/** One fetch invocation in an adapter HTTP/network error-path test. */
+export type AdapterFetchErrorCase = {
+  /** Override fetch mock for this step; default derives from httpStatus/networkError. */
+  setupFetch?: (fetchMock: FetchMock) => void;
+  httpStatus?: number;
+  networkError?: Error;
+  fetch: () => Promise<unknown>;
+  throwMatcher: RegExp | string;
+  /** Spy assertion after this step (before optional mockClear). */
+  spy?: AdapterFetchErrorSpyExpect;
+};
+
+export type ExpectAdapterFetchErrorOptions = {
+  /** Clear errorMessage spy between cases (default: true when a case sets spy). */
+  clearBetweenCases?: boolean;
+  /** Final spy assertion(s) after all cases. */
+  spy?: AdapterFetchErrorSpyExpect | readonly AdapterFetchErrorSpyExpect[];
+};
+
+function assertErrorMessageSpy(
+  emSpy: ErrorMessageSpy,
+  spyExpect: AdapterFetchErrorSpyExpect,
+): void {
+  if (spyExpect === "called") {
+    expect(emSpy).toHaveBeenCalled();
+    return;
+  }
+  if ("times" in spyExpect) {
+    expect(emSpy).toHaveBeenCalledTimes(spyExpect.times);
+    return;
+  }
+  expect(emSpy).toHaveBeenCalledWith({ message: spyExpect.message });
+}
+
+function applyFetchMockSetup(fetchMock: FetchMock, step: AdapterFetchErrorCase): void {
+  if (step.setupFetch) {
+    step.setupFetch(fetchMock);
+    return;
+  }
+  if (step.httpStatus !== undefined) {
+    fetchMock.mockResolvedValue(makeErrorResponse(step.httpStatus));
+    return;
+  }
+  if (step.networkError) {
+    fetchMock.mockRejectedValue(step.networkError);
+    return;
+  }
+  // No explicit setup — use whatever fetch mock is already configured.
+}
+
+/**
+ * Assert adapter fetch throws and routes failure through utils.errorMessage.
+ * Consolidates duplicated HTTP/network error-path test setup across adapter suites.
+ */
+export async function expectAdapterFetchError(
+  fetchMock: FetchMock,
+  cases: AdapterFetchErrorCase | readonly AdapterFetchErrorCase[],
+  options: ExpectAdapterFetchErrorOptions = {},
+): Promise<void> {
+  const steps = Array.isArray(cases) ? [...cases] : [cases];
+  const clearBetween =
+    options.clearBetweenCases ??
+    (steps.some((step) => step.spy !== undefined) && options.spy === undefined);
+
+  await withErrorMessageSpy(async (emSpy) => {
+    for (let i = 0; i < steps.length; i++) {
+      const step = steps[i]!;
+      applyFetchMockSetup(fetchMock, step);
+      await expect(step.fetch()).rejects.toThrow(step.throwMatcher);
+      if (step.spy) {
+        assertErrorMessageSpy(emSpy, step.spy);
+      }
+      if (clearBetween && i < steps.length - 1) {
+        emSpy.mockClear();
+      }
+    }
+    if (options.spy !== undefined) {
+      const finalSpy = options.spy;
+      if (Array.isArray(finalSpy)) {
+        for (const spyExpect of finalSpy) {
+          assertErrorMessageSpy(emSpy, spyExpect);
+        }
+      } else {
+        assertErrorMessageSpy(emSpy, finalSpy);
+      }
+    }
+  });
 }

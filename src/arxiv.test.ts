@@ -10,7 +10,7 @@ import {
   fetchMockCallHeaders,
   fetchMockCallUrl,
   useFetchMockSuite,
-  withErrorMessageSpy,
+  expectAdapterFetchError,
 } from "./test/adapter-mocks";
 import { arxivCfg } from "./test/adapter-cfg";
 import {
@@ -291,20 +291,19 @@ describe("arxiv", () => {
   });
 
   test("errorMessage on !ok and network", async () => {
-    await withErrorMessageSpy(async (emSpy) => {
-      mocks.fetchMock.mockResolvedValue(makeErrorResponse(429));
-      await expect(
-        arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"] })),
-      ).rejects.toThrow(/arxiv: failed to fetch query "cat:cs.AI":/);
-      expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 429" });
-
-      emSpy.mockClear();
-
-      mocks.fetchMock.mockRejectedValue(new Error("DNS fail"));
-      await expect(
-        arxivAdapter.fetch(arxivCfg({ query: "foo bar" })),
-      ).rejects.toThrow(/arxiv: error fetching query "all:foo bar":/);
-      expect(emSpy).toHaveBeenCalled();
-    });
+    await expectAdapterFetchError(mocks.fetchMock, [
+      {
+        httpStatus: 429,
+        fetch: () => arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"] })),
+        throwMatcher: /arxiv: failed to fetch query "cat:cs.AI":/,
+        spy: { message: "HTTP error 429" },
+      },
+      {
+        networkError: new Error("DNS fail"),
+        fetch: () => arxivAdapter.fetch(arxivCfg({ query: "foo bar" })),
+        throwMatcher: /arxiv: error fetching query "all:foo bar":/,
+        spy: "called",
+      },
+    ]);
   });
 });

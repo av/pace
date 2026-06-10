@@ -2,7 +2,7 @@ import { describe, test, expect } from "bun:test";
 import producthuntAdapter from "./adapters/producthunt";
 import { makeErrorResponse, makeTextResponse, makeXmlResponse } from "./test/fetch-responses";
 import { invalidLimitParams, invalidMinScoreParams } from "./test/invalid-params";
-import { fetchMockCallUrl, useFetchMockSuite, withErrorMessageSpy } from "./test/adapter-mocks";
+import { expectAdapterFetchError, fetchMockCallUrl, useFetchMockSuite } from "./test/adapter-mocks";
 import { spyMockCallsContaining, spyMockCallsStartingWith } from "./test/console-spy";
 import { producthuntCfg } from "./test/adapter-cfg";
 import {
@@ -305,16 +305,15 @@ describe("producthunt", () => {
   });
 
   test("errorMessage on !ok", async () => {
-    await withErrorMessageSpy(async (emSpy) => {
-      mocks.fetchMock.mockResolvedValue(makeErrorResponse(429));
-
-      await expect(
-        producthuntAdapter.fetch(producthuntCfg()),
-      ).rejects.toThrow(/producthunt: failed to fetch feed: HTTP error 429/);
-
-      expect(emSpy).toHaveBeenCalledTimes(1);
-      expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 429" });
-    });
+    await expectAdapterFetchError(
+      mocks.fetchMock,
+      {
+        httpStatus: 429,
+        fetch: () => producthuntAdapter.fetch(producthuntCfg()),
+        throwMatcher: /producthunt: failed to fetch feed: HTTP error 429/,
+      },
+      { spy: [{ times: 1 }, { message: "HTTP error 429" }] },
+    );
   });
 
   test("throws on network reject from feed (wrapped)", async () => {

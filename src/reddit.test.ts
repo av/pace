@@ -4,7 +4,7 @@ import redditAdapter, {
   resolveRedditPeriod,
   resolveRedditSort,
 } from "./adapters/reddit";
-import { fetchMockCallUrl, useFetchMockSuite, withErrorMessageSpy } from "./test/adapter-mocks";
+import { expectAdapterFetchError, fetchMockCallUrl, useFetchMockSuite } from "./test/adapter-mocks";
 import { redditCfg } from "./test/adapter-cfg";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { invalidLimitParams, invalidMinScoreParams } from "./test/invalid-params";
@@ -341,14 +341,11 @@ describe("reddit", () => {
   });
 
   test("errorMessage on !ok", async () => {
-    await withErrorMessageSpy(async (emSpy) => {
-      mocks.fetchMock.mockResolvedValue(makeErrorResponse(404));
-
-      await expect(redditAdapter.fetch(redditCfg({ subreddits: ["test"] }))).rejects.toThrow(
-        /reddit: failed to fetch/,
-      );
-
-      expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 404" });
+    await expectAdapterFetchError(mocks.fetchMock, {
+      httpStatus: 404,
+      fetch: () => redditAdapter.fetch(redditCfg({ subreddits: ["test"] })),
+      throwMatcher: /reddit: failed to fetch/,
+      spy: { message: "HTTP error 404" },
     });
   });
 

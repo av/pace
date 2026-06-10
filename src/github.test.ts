@@ -1,7 +1,12 @@
 import { describe, test, expect } from "bun:test";
 import adapter, { resolveGitHubPeriod } from "./adapters/github";
 import { FEED_XML_ACCEPT } from "./adapters/fetch";
-import { fetchMockCallUrl, fetchMockCalls, useFetchMockSuite, withErrorMessageSpy } from "./test/adapter-mocks";
+import {
+  expectAdapterFetchError,
+  fetchMockCallUrl,
+  fetchMockCalls,
+  useFetchMockSuite,
+} from "./test/adapter-mocks";
 import { githubCfg } from "./test/adapter-cfg";
 import { makeErrorResponse, makeJsonResponse, makeTextResponse } from "./test/fetch-responses";
 import {
@@ -434,22 +439,28 @@ describe("github", () => {
   });
 
   test("errorMessage on !ok and network", async () => {
-    await withErrorMessageSpy(async (emSpy) => {
-      mocks.fetchMock.mockImplementation(async () => makeErrorResponse(404));
-
-      await expect(
-        adapter.fetch(githubCfg({ mode: "releases", repos: ["bad/repo"], limit: 10 })),
-      ).rejects.toThrow(/github:/);
-      expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 404" });
-
-      mocks.fetchMock.mockImplementation(async () => {
-        throw new Error("network boom");
-      });
-
-      await expect(adapter.fetch(githubCfg({ mode: "trending" }))).rejects.toThrow(
-        /github: error fetching trending/,
-      );
-      expect(emSpy).toHaveBeenCalledTimes(2);
-    });
+    await expectAdapterFetchError(
+      mocks.fetchMock,
+      [
+        {
+          setupFetch: (fetchMock) => {
+            fetchMock.mockImplementation(async () => makeErrorResponse(404));
+          },
+          fetch: () =>
+            adapter.fetch(githubCfg({ mode: "releases", repos: ["bad/repo"], limit: 10 })),
+          throwMatcher: /github:/,
+        },
+        {
+          setupFetch: (fetchMock) => {
+            fetchMock.mockImplementation(async () => {
+              throw new Error("network boom");
+            });
+          },
+          fetch: () => adapter.fetch(githubCfg({ mode: "trending" })),
+          throwMatcher: /github: error fetching trending/,
+        },
+      ],
+      { clearBetweenCases: false, spy: [{ message: "HTTP error 404" }, { times: 2 }] },
+    );
   });
 });

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import lemmyAdapter, { lemmySourceLabel, resolveLemmySort } from "./adapters/lemmy";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { invalidMinScoreParams } from "./test/invalid-params";
-import { fetchMockCallUrl, useFetchMockSuite, withErrorMessageSpy } from "./test/adapter-mocks";
+import { expectAdapterFetchError, fetchMockCallUrl, useFetchMockSuite } from "./test/adapter-mocks";
 import { lemmyCfg } from "./test/adapter-cfg";
 import { makePostListResponse, makePostView } from "./test/lemmy-fixtures";
 
@@ -339,16 +339,22 @@ describe("lemmy", () => {
   });
 
   test("errorMessage on !ok and network", async () => {
-    await withErrorMessageSpy(async (emSpy) => {
-      mocks.fetchMock.mockResolvedValue(makeErrorResponse(500));
-      await expect(lemmyAdapter.fetch(lemmyCfg())).rejects.toThrow("lemmy:");
-
-      mocks.fetchMock.mockRejectedValue(new Error("connection refused"));
-      await expect(lemmyAdapter.fetch(lemmyCfg())).rejects.toThrow("lemmy:");
-
-      expect(emSpy).toHaveBeenCalledTimes(2);
-      expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 500" });
-    });
+    await expectAdapterFetchError(
+      mocks.fetchMock,
+      [
+        {
+          httpStatus: 500,
+          fetch: () => lemmyAdapter.fetch(lemmyCfg()),
+          throwMatcher: "lemmy:",
+        },
+        {
+          networkError: new Error("connection refused"),
+          fetch: () => lemmyAdapter.fetch(lemmyCfg()),
+          throwMatcher: "lemmy:",
+        },
+      ],
+      { clearBetweenCases: false, spy: [{ times: 2 }, { message: "HTTP error 500" }] },
+    );
   });
 
   test("warns and returns [] when post list response omits posts field", async () => {

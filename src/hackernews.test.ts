@@ -3,7 +3,12 @@ import hackernewsAdapter, {
   hackernewsSourceLabel,
   resolveHnFeedType,
 } from "./adapters/hackernews";
-import { fetchMockCallUrl, fetchMockCalls, useFetchMockSuite, withErrorMessageSpy } from "./test/adapter-mocks";
+import {
+  expectAdapterFetchError,
+  fetchMockCallUrl,
+  fetchMockCalls,
+  useFetchMockSuite,
+} from "./test/adapter-mocks";
 import { hnCfg } from "./test/adapter-cfg";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { invalidLimitParams, invalidMinScoreParams } from "./test/invalid-params";
@@ -300,14 +305,12 @@ describe("hackernews", () => {
   });
 
   test("errorMessage on !ok", async () => {
-    mocks.fetchMock.mockResolvedValue(makeErrorResponse(500));
-
-    await withErrorMessageSpy(async (emSpy) => {
-      const cfg = hnCfg({ feed: "top" });
-      await expect(hackernewsAdapter.fetch(cfg)).rejects.toThrow(
-        /hackernews: failed to fetch topstories: HTTP error 500/,
-      );
-      expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 500" });
+    const cfg = hnCfg({ feed: "top" });
+    await expectAdapterFetchError(mocks.fetchMock, {
+      httpStatus: 500,
+      fetch: () => hackernewsAdapter.fetch(cfg),
+      throwMatcher: /hackernews: failed to fetch topstories: HTTP error 500/,
+      spy: { message: "HTTP error 500" },
     });
   });
 });

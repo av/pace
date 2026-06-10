@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import npmAdapter, { npmSourceLabel, resolveNpmSort } from "./adapters/npm";
 import { npmCfg } from "./test/adapter-cfg";
-import { fetchMockCallUrl, useFetchMockSuite, withErrorMessageSpy } from "./test/adapter-mocks";
+import { expectAdapterFetchError, fetchMockCallUrl, useFetchMockSuite } from "./test/adapter-mocks";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { invalidLimitParams } from "./test/invalid-params";
 import { makePackageResult, makeSearchResponse } from "./test/npm-fixtures";
@@ -296,21 +296,20 @@ describe("npm", () => {
   });
 
   test("errorMessage on !ok and network", async () => {
-    await withErrorMessageSpy(async (emSpy) => {
-      mocks.fetchMock.mockResolvedValue(makeErrorResponse(429));
-      await expect(
-        npmAdapter.fetch(npmCfg({ keywords: ["test"] })),
-      ).rejects.toThrow("npm:");
-      expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 429" });
-
-      emSpy.mockClear();
-
-      mocks.fetchMock.mockRejectedValue(new Error("ECONNREFUSED"));
-      await expect(
-        npmAdapter.fetch(npmCfg({ keywords: ["test"] })),
-      ).rejects.toThrow("npm:");
-      expect(emSpy).toHaveBeenCalled();
-    });
+    await expectAdapterFetchError(mocks.fetchMock, [
+      {
+        httpStatus: 429,
+        fetch: () => npmAdapter.fetch(npmCfg({ keywords: ["test"] })),
+        throwMatcher: "npm:",
+        spy: { message: "HTTP error 429" },
+      },
+      {
+        networkError: new Error("ECONNREFUSED"),
+        fetch: () => npmAdapter.fetch(npmCfg({ keywords: ["test"] })),
+        throwMatcher: "npm:",
+        spy: "called",
+      },
+    ]);
   });
 
   test("warns and returns [] when search response has malformed objects field", async () => {

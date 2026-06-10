@@ -4,7 +4,7 @@ import devtoAdapter, {
   devToFetchKeys,
   resolveDevToPeriod,
 } from "./adapters/devto";
-import { fetchMockCalls, useFetchMockSuite, withErrorMessageSpy } from "./test/adapter-mocks";
+import { expectAdapterFetchError, fetchMockCalls, useFetchMockSuite } from "./test/adapter-mocks";
 import { devtoCfg } from "./test/adapter-cfg";
 import { devtoDefaultFetchMock, makeDevToArticle } from "./test/devto-fixtures";
 import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
@@ -300,15 +300,14 @@ describe("devto", () => {
   });
 
   test("errorMessage on !ok", async () => {
-    await withErrorMessageSpy(async (emSpy) => {
-      mocks.fetchMock.mockResolvedValue(makeErrorResponse(403));
-
-      await expect(devtoAdapter.fetch(devtoCfg({ tags: ["javascript"] }))).rejects.toThrow(
-        'devto: failed to fetch tag "javascript": HTTP error 403',
-      );
-
-      expect(emSpy).toHaveBeenCalledTimes(1);
-      expect(emSpy).toHaveBeenCalledWith({ message: "HTTP error 403" });
-    });
+    await expectAdapterFetchError(
+      mocks.fetchMock,
+      {
+        httpStatus: 403,
+        fetch: () => devtoAdapter.fetch(devtoCfg({ tags: ["javascript"] })),
+        throwMatcher: 'devto: failed to fetch tag "javascript": HTTP error 403',
+      },
+      { spy: [{ times: 1 }, { message: "HTTP error 403" }] },
+    );
   });
 });
