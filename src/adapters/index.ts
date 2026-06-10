@@ -2,6 +2,7 @@ import type { Dirent } from "node:fs";
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { errorMessage } from "../utils";
+import { warnAdapter } from "./empty-config";
 import type { Adapter } from "./types";
 
 const EXCLUDED = new Set(["types.ts", "index.ts"]);
@@ -22,10 +23,6 @@ const ADAPTER_SUPPORT_MODULES = new Set([
   "title.ts",
 ]);
 const ADAPTERS_DIR = import.meta.dir;
-
-function warnDiscover(detail: string): void {
-  console.warn(`discoverAdapters: ${detail}`);
-}
 
 function isAdapterSourceFile(name: string): boolean {
   const lower = name.toLowerCase();
@@ -61,18 +58,18 @@ export async function discoverAdapters(): Promise<Map<string, Adapter>> {
   try {
     files = await readdir(ADAPTERS_DIR, { withFileTypes: true });
     if (!Array.isArray(files)) {
-      warnDiscover(`failed to read ${ADAPTERS_DIR}: non-iterable result`);
+      warnAdapter("discoverAdapters", `failed to read ${ADAPTERS_DIR}: non-iterable result`);
       return adapters;
     }
   } catch (err) {
-    warnDiscover(`failed to read ${ADAPTERS_DIR}: ${errorMessage(err)}`);
+    warnAdapter("discoverAdapters", `failed to read ${ADAPTERS_DIR}: ${errorMessage(err)}`);
     return adapters;
   }
 
   for (const entry of files) {
     const parsed = parseReaddirEntry(entry);
     if (!parsed) {
-      warnDiscover("skipped invalid readdir entry");
+      warnAdapter("discoverAdapters", "skipped invalid readdir entry");
       continue;
     }
     const { file, isFile } = parsed;
@@ -82,19 +79,21 @@ export async function discoverAdapters(): Promise<Map<string, Adapter>> {
       const mod = await import(join(ADAPTERS_DIR, file));
       const adapter: unknown = mod.default;
       if (!isValidAdapter(adapter)) {
-        warnDiscover(
-          `skipped ${file} (invalid default export: plain object with trimmed name and fetch)`
+        warnAdapter(
+          "discoverAdapters",
+          `skipped ${file} (invalid default export: plain object with trimmed name and fetch)`,
         );
         continue;
       }
       if (adapters.has(adapter.name)) {
-        warnDiscover(
-          `duplicate adapter "${adapter.name}" in ${file} (overwrites previous; check config source types)`
+        warnAdapter(
+          "discoverAdapters",
+          `duplicate adapter "${adapter.name}" in ${file} (overwrites previous; check config source types)`,
         );
       }
       adapters.set(adapter.name, adapter);
     } catch (err) {
-      warnDiscover(`failed to import ${file}: ${errorMessage(err)}`);
+      warnAdapter("discoverAdapters", `failed to import ${file}: ${errorMessage(err)}`);
     }
   }
 

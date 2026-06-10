@@ -1,5 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import {
+  aggregateParallelFeeds,
   compareItemTimestampDesc,
   dedupeByKey,
   fetchAllBatched,
@@ -7,6 +8,7 @@ import {
   fetchAndConcat,
   mapAndConcat,
   finalizeFetchedItems,
+  perSourceTotalLimit,
   sliceAndMap,
   sliceAndMapDefined,
 } from "./adapters/merge";
@@ -60,6 +62,49 @@ describe("fetchAndConcat", () => {
   test("returns empty array when keys is empty", async () => {
     const out = await fetchAndConcat([], async () => [{ v: 1 }]);
     expect(out).toEqual([]);
+  });
+});
+
+describe("perSourceTotalLimit", () => {
+  test("multiplies per-source cap by source count", () => {
+    expect(perSourceTotalLimit(10, 3)).toBe(30);
+  });
+
+  test("returns MAX_SAFE_INTEGER when per-source cap is unlimited", () => {
+    expect(perSourceTotalLimit(Number.MAX_SAFE_INTEGER, 5)).toBe(Number.MAX_SAFE_INTEGER);
+  });
+});
+
+describe("aggregateParallelFeeds", () => {
+  test("parallel-fetches, dedupes, sorts, and applies per-source total cap", async () => {
+    const out = await aggregateParallelFeeds(
+      ["a", "b"],
+      async (key) => [
+        {
+          id: key === "a" ? "shared" : "b-only",
+          timestamp: new Date(key === "a" ? "2024-01-01T00:00:00.000Z" : "2024-06-01T00:00:00.000Z"),
+        },
+        {
+          id: "shared",
+          timestamp: new Date("2024-03-01T00:00:00.000Z"),
+        },
+      ],
+      {
+        perSourceLimit: 1,
+        dedupeKey: (item) => item.id,
+      },
+    );
+
+    expect(out).toEqual([
+      {
+        id: "b-only",
+        timestamp: new Date("2024-06-01T00:00:00.000Z"),
+      },
+      {
+        id: "shared",
+        timestamp: new Date("2024-01-01T00:00:00.000Z"),
+      },
+    ]);
   });
 });
 

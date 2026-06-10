@@ -20,12 +20,7 @@ import { fetchAtomFeed, fetchJson, buildGitHubApiHeaders } from "./fetch";
 import { fetchRepoTagline } from "./github-repo-meta";
 import { decodeNumericFeedTitle } from "./html";
 import { warnEmptyConfig } from "./empty-config";
-import {
-  compareItemTimestampDesc,
-  fetchAllParallel,
-  finalizeFetchedItems,
-  sliceAndMap,
-} from "./merge";
+import { aggregateParallelFeeds, sliceAndMap } from "./merge";
 import { capText, joinTitleWithTagline } from "./title";
 import type { ContentItem } from "./types";
 
@@ -179,16 +174,15 @@ export async function fetchGitHubReposReleases(
   limit: number,
   adapterName: string,
 ): Promise<ContentItem[]> {
-  const items = await fetchAllParallel(
+  return aggregateParallelFeeds(
     resolved.repos,
     (repo) =>
       source === "api"
         ? fetchGitHubApiReleases(repo, limit, adapterName, resolved.token)
         : fetchGitHubAtomReleases(repo, limit, adapterName, resolved.token),
+    {
+      perSourceLimit: limit,
+      dedupeKey: (item) => item.url || item.id,
+    },
   );
-  return finalizeFetchedItems(items, {
-    limit: limit * resolved.repos.length,
-    dedupeKey: (item) => item.url || item.id,
-    sort: compareItemTimestampDesc,
-  });
 }

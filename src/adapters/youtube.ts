@@ -20,12 +20,7 @@ import {
   clampAdapterLimit,
   normalizeParamStringList,
 } from "../utils";
-import {
-  compareItemTimestampDesc,
-  fetchAllParallel,
-  finalizeFetchedItems,
-  sliceAndMap,
-} from "./merge";
+import { aggregateParallelFeeds, sliceAndMap } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 interface YTEntry {
@@ -117,14 +112,14 @@ const adapter: Adapter = {
       ...channels.map((ch) => ["channel", ch] as const),
       ...playlists.map((pl) => ["playlist", pl] as const),
     ];
-    const allItems = await fetchAllParallel(sources, ([kind, id]) =>
-      fetchYoutubeFeed(kind, id, limit),
+    return aggregateParallelFeeds(
+      sources,
+      ([kind, id]) => fetchYoutubeFeed(kind, id, limit),
+      {
+        perSourceLimit: limit,
+        dedupeKey: (item) => item.id,
+      },
     );
-    return finalizeFetchedItems(allItems, {
-      limit: limit * sources.length,
-      dedupeKey: (item) => item.id,
-      sort: compareItemTimestampDesc,
-    });
   },
 };
 

@@ -27,9 +27,7 @@ import {
   normalizeParamStringList,
 } from "../utils";
 import {
-  compareItemTimestampDesc,
-  fetchAllParallel,
-  finalizeFetchedItems,
+  aggregateParallelFeeds,
   sliceAndMapDefined,
 } from "./merge";
 
@@ -273,11 +271,9 @@ const adapter: Adapter = {
       return warnEmptyConfig("podcast", "no feeds configured");
     }
 
-    const allItems = await fetchAllParallel(feeds, (url) => fetchPodcastFeed(url, limit));
-    return finalizeFetchedItems(allItems, {
-      limit: limit * feeds.length,
+    return aggregateParallelFeeds(feeds, (url) => fetchPodcastFeed(url, limit), {
+      perSourceLimit: limit,
       dedupeKey: (item) => item.url || item.id,
-      sort: compareItemTimestampDesc,
     });
   },
 };

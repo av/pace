@@ -12,12 +12,7 @@ import {
   resolveDecodedFeedRootTitle,
 } from "./feed-entry";
 import { fetchRssAtomFeed } from "./fetch";
-import {
-  compareItemTimestampDesc,
-  fetchAllParallel,
-  finalizeFetchedItems,
-  sliceAndMap,
-} from "./merge";
+import { aggregateParallelFeeds, sliceAndMap } from "./merge";
 import { extractHostname } from "../dedupe";
 import { clampAdapterLimit, normalizeParamStringList, simpleHash } from "../utils";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
@@ -83,18 +78,10 @@ const adapter: Adapter = {
       limitRaw !== undefined
         ? clampAdapterLimit(limitRaw, 50, 200)
         : Number.MAX_SAFE_INTEGER;
-    const totalLimit =
-      perFeedLimit === Number.MAX_SAFE_INTEGER
-        ? Number.MAX_SAFE_INTEGER
-        : perFeedLimit * urls.length;
 
-    const allItems = await fetchAllParallel(urls, (url) =>
-      fetchFeed(url, perFeedLimit),
-    );
-    return finalizeFetchedItems(allItems, {
-      limit: totalLimit,
+    return aggregateParallelFeeds(urls, (url) => fetchFeed(url, perFeedLimit), {
+      perSourceLimit: perFeedLimit,
       dedupeKey: (item) => item.url || item.id,
-      sort: compareItemTimestampDesc,
     });
   },
 };

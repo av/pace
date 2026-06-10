@@ -33,6 +33,32 @@ export async function fetchAllParallel<T, K>(
   return results.flat();
 }
 
+/** Global cap when each source may contribute up to `perSourceLimit` items. */
+export function perSourceTotalLimit(perSourceLimit: number, sourceCount: number): number {
+  if (perSourceLimit === Number.MAX_SAFE_INTEGER) return Number.MAX_SAFE_INTEGER;
+  return perSourceLimit * sourceCount;
+}
+
+export type AggregateParallelFeedsOptions<T> = {
+  perSourceLimit: number;
+  dedupeKey: (item: T) => unknown;
+  sort?: (a: T, b: T) => number;
+};
+
+/** Parallel multi-source fetch with shared dedupe/sort/limit finalize pipeline. */
+export async function aggregateParallelFeeds<T, K>(
+  keys: readonly K[],
+  fetchOne: (key: K) => Promise<T[]>,
+  options: AggregateParallelFeedsOptions<T>,
+): Promise<T[]> {
+  const items = await fetchAllParallel(keys, fetchOne);
+  return finalizeFetchedItems(items, {
+    limit: perSourceTotalLimit(options.perSourceLimit, keys.length),
+    dedupeKey: options.dedupeKey,
+    sort: options.sort ?? compareItemTimestampDesc,
+  });
+}
+
 /** Parallel fetch in fixed-size batches with optional delay between batches (rate limiting). */
 export async function fetchAllBatched<T, K>(
   keys: readonly K[],
