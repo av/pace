@@ -138,6 +138,85 @@ export async function aggregateBatchedItems<T, K>(
   return finalizeFetchedItems(items, options);
 }
 
+/** Pair batched fetch results with their source keys (order-preserving zip to Map). */
+export function zipToKeyedMap<K, V>(
+  keys: readonly K[],
+  values: readonly V[],
+  keyOf: (key: K) => string,
+): Map<string, V> {
+  const map = new Map<string, V>();
+  for (let i = 0; i < keys.length; i++) {
+    map.set(keyOf(keys[i]), values[i]);
+  }
+  return map;
+}
+
+/** Batched per-key fetch with keyed results (rate-limited enrichment / lookup). */
+export async function fetchAllBatchedKeyed<T, K>(
+  keys: readonly K[],
+  batchSize: number,
+  keyOf: (key: K) => string,
+  fetchOne: (key: K) => Promise<T>,
+  delayMs = 0,
+): Promise<Map<string, T>> {
+  const results = await fetchAllBatched(keys, batchSize, fetchOne, delayMs);
+  return zipToKeyedMap(keys, results, keyOf);
+}
+
+export type FilterItemsByEnrichedScoreOptions<T, E> = {
+  keyOf: (item: T) => string;
+  minScore: number;
+  scoreOf: (enrichment: E) => number | undefined;
+};
+
+/** Filter primary items by optional per-key enrichment score (e.g. min_upvotes after enrich). */
+export function filterItemsByEnrichedScore<T, E>(
+  items: readonly T[],
+  enrichedByKey: ReadonlyMap<string, E | null | undefined>,
+  options: FilterItemsByEnrichedScoreOptions<T, E>,
+): T[] {
+  if (options.minScore <= 0) return [...items];
+  return items.filter((item) => {
+    const enrichment = enrichedByKey.get(options.keyOf(item));
+    if (enrichment == null) return false;
+    const score = options.scoreOf(enrichment);
+    return score !== undefined && score >= options.minScore;
+  });
+}
+
+export type EnrichAndFilterBatchedOptions<T, E> = {
+  batchSize: number;
+  delayMs?: number;
+  keyOf: (item: T) => string;
+  enrich: (item: T) => Promise<E | null>;
+  minScore?: number;
+  scoreOf?: (enrichment: E) => number | undefined;
+};
+
+/** Batched secondary enrichment with optional score filter on enrichment metadata. */
+export async function enrichAndFilterItemsBatched<T, E>(
+  items: readonly T[],
+  options: EnrichAndFilterBatchedOptions<T, E>,
+): Promise<{ enrichedByKey: Map<string, E | null>; items: T[] }> {
+  const enrichedByKey = await fetchAllBatchedKeyed(
+    items,
+    options.batchSize,
+    options.keyOf,
+    options.enrich,
+    options.delayMs ?? 0,
+  );
+  const minScore = options.minScore ?? 0;
+  const filtered =
+    minScore > 0 && options.scoreOf
+      ? filterItemsByEnrichedScore(items, enrichedByKey, {
+          keyOf: options.keyOf,
+          minScore,
+          scoreOf: options.scoreOf,
+        })
+      : [...items];
+  return { enrichedByKey, items: filtered };
+}
+
 /** Keep first occurrence per key (overlap when merging multiple tags/endpoints). */
 export function dedupeByKey<T, K>(items: readonly T[], key: (item: T) => K): T[] {
   const seen = new Set<K>();

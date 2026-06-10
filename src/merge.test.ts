@@ -6,15 +6,19 @@ import {
   aggregateSequentialFeeds,
   compareItemTimestampDesc,
   dedupeByKey,
+  enrichAndFilterItemsBatched,
   fetchAllBatched,
+  fetchAllBatchedKeyed,
   fetchAllParallel,
   fetchAndConcat,
   fetchAndConcatBatched,
+  filterItemsByEnrichedScore,
   mapAndConcat,
   finalizeFetchedItems,
   perSourceTotalLimit,
   sliceAndMap,
   sliceAndMapDefined,
+  zipToKeyedMap,
 } from "./adapters/merge";
 
 describe("dedupeByKey", () => {
@@ -244,6 +248,87 @@ describe("aggregateBatchedItems", () => {
       { id: 3, score: 103 },
       { id: 4, score: 104 },
     ]);
+  });
+});
+
+describe("zipToKeyedMap", () => {
+  test("pairs keys with values preserving order", () => {
+    const map = zipToKeyedMap(
+      [{ id: "a" }, { id: "b" }],
+      [10, 20],
+      (item) => item.id,
+    );
+    expect(map.get("a")).toBe(10);
+    expect(map.get("b")).toBe(20);
+    expect(map.size).toBe(2);
+  });
+});
+
+describe("fetchAllBatchedKeyed", () => {
+  test("returns keyed map from batched fetches", async () => {
+    const map = await fetchAllBatchedKeyed(
+      [{ id: "x" }, { id: "y" }],
+      1,
+      (item) => item.id,
+      async (item) => item.id.length,
+      0,
+    );
+    expect(map.get("x")).toBe(1);
+    expect(map.get("y")).toBe(1);
+  });
+});
+
+describe("filterItemsByEnrichedScore", () => {
+  test("filters items without defined enrichment score below threshold", () => {
+    const items = [{ id: "a" }, { id: "b" }, { id: "c" }];
+    const enriched = new Map<string, { upvotes?: number } | null>([
+      ["a", { upvotes: 50 }],
+      ["b", { upvotes: 200 }],
+      ["c", null],
+    ]);
+    const out = filterItemsByEnrichedScore(items, enriched, {
+      keyOf: (item) => item.id,
+      minScore: 100,
+      scoreOf: (data) => data.upvotes,
+    });
+    expect(out).toEqual([{ id: "b" }]);
+  });
+
+  test("returns all items when minScore is 0", () => {
+    const items = [{ id: "a" }];
+    const enriched = new Map([["a", { upvotes: 1 }]]);
+    const out = filterItemsByEnrichedScore(items, enriched, {
+      keyOf: (item) => item.id,
+      minScore: 0,
+      scoreOf: (data) => data.upvotes,
+    });
+    expect(out).toEqual(items);
+  });
+});
+
+describe("enrichAndFilterItemsBatched", () => {
+  test("batched-enriches, keys results, and filters by enrichment score", async () => {
+    const order: string[] = [];
+    const { enrichedByKey, items } = await enrichAndFilterItemsBatched(
+      [{ id: "a", url: "/a" }, { id: "b", url: "/b" }, { id: "c", url: "/c" }],
+      {
+        batchSize: 2,
+        keyOf: (item) => item.id,
+        enrich: async (item) => {
+          order.push(item.id);
+          if (item.id === "b") return null;
+          return { upvotes: item.id === "a" ? 50 : 300 };
+        },
+        minScore: 100,
+        scoreOf: (data) => data.upvotes,
+      },
+    );
+
+    expect(order).toEqual(["a", "b", "c"]);
+    expect(enrichedByKey.get("a")).toEqual({ upvotes: 50 });
+    expect(enrichedByKey.get("b")).toBeNull();
+    expect(enrichedByKey.get("c")).toEqual({ upvotes: 300 });
+    expect(items).toEqual([{ id: "c", url: "/c" }]);
   });
 });
 

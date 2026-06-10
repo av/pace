@@ -21,7 +21,7 @@ import {
   warnFilterRemovedAll,
   warnIneffectiveParam,
 } from "./empty-config";
-import { fetchAllBatched, finalizeFetchedItems, sliceAndMap } from "./merge";
+import { enrichAndFilterItemsBatched, finalizeFetchedItems, sliceAndMap } from "./merge";
 import {
   fetchAtomFeed,
   fetchText,
@@ -273,29 +273,23 @@ const adapter: Adapter = {
     });
 
     let enrichedMap = new Map<string, EnrichedData | null>();
+    let filtered = items;
     if (enrich) {
       warnAdapter(
         "producthunt",
         `enriching ${items.length} items (this may take a moment)...`,
       );
-      const enrichResults = await fetchAllBatched(
-        items,
-        ENRICH_BATCH_SIZE,
-        (item) => enrichProduct(item.content.url),
-        ENRICH_DELAY_MS,
-      );
-      for (let i = 0; i < items.length; i++) {
-        enrichedMap.set(items[i].content.id, enrichResults[i]);
-      }
-    }
-
-    let filtered = items;
-    if (enrich && minUpvotes > 0) {
-      filtered = items.filter((item) => {
-        const data = enrichedMap.get(item.content.id);
-        return data?.upvotes !== undefined && data.upvotes >= minUpvotes;
+      const enriched = await enrichAndFilterItemsBatched(items, {
+        batchSize: ENRICH_BATCH_SIZE,
+        delayMs: ENRICH_DELAY_MS,
+        keyOf: (item) => item.content.id,
+        enrich: (item) => enrichProduct(item.content.url),
+        minScore: minUpvotes,
+        scoreOf: (data) => data.upvotes,
       });
-      if (items.length > 0 && filtered.length === 0) {
+      enrichedMap = enriched.enrichedByKey;
+      filtered = enriched.items;
+      if (minUpvotes > 0 && items.length > 0 && filtered.length === 0) {
         warnFilterRemovedAll(
           "producthunt",
           "min_upvotes",
