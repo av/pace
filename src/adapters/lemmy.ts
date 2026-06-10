@@ -7,7 +7,7 @@ import {
 } from "./engagement";
 import { joinTitle } from "./title";
 
-import { fetchJson } from "./fetch";
+import { arrayFieldOrEmpty, fetchJson } from "./fetch";
 import { decodeNumericFeedTitleOptional } from "./html";
 import {
   normalizeNonNegativeNumber,
@@ -98,7 +98,7 @@ async function fetchLemmyPosts(
   const json = await fetchJson<LemmyPostListResponse>("lemmy", url, context, {
     accept: "application/json",
   });
-  return json.posts ?? [];
+  return arrayFieldOrEmpty<LemmyPostView>("lemmy", json, "posts", context);
 }
 
 const adapter: Adapter = {

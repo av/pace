@@ -316,4 +316,15 @@ describe("npm", () => {
       emSpy.mockRestore();
     }
   });
+
+  test("warns and returns [] when search response has malformed objects field", async () => {
+    mocks.fetchMock.mockResolvedValue(makeJsonResponse({ objects: 42, total: 0 }));
+
+    const items = await npmAdapter.fetch(npmCfg({ keywords: ["broken"] }));
+
+    expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      'npm: expected array field "objects" for broken (got number), treating as empty',
+    );
+  });
 });

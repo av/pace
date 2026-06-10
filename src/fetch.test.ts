@@ -6,6 +6,7 @@ import {
   DEFAULT_FETCH_TIMEOUT_MS,
   FEED_FETCH_TIMEOUT_MS,
   FEED_XML_ACCEPT,
+  arrayFieldOrEmpty,
   fetchAtomFeed,
   fetchRssAtomFeed,
   fetchJson,
@@ -351,6 +352,44 @@ describe("tryOptionalFetch", () => {
 
       expect(warn).toHaveBeenCalledWith(
         "producthunt: failed to fetch https://example.com: HTTP error 404",
+      );
+    });
+  });
+});
+
+describe("arrayFieldOrEmpty", () => {
+  test("returns array values unchanged, including empty arrays", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      expect(arrayFieldOrEmpty("reddit", { children: [{ id: 1 }] }, "children", "r/test")).toEqual([
+        { id: 1 },
+      ]);
+      expect(arrayFieldOrEmpty("lemmy", { posts: [] }, "posts", "frontpage")).toEqual([]);
+      expect(warn).not.toHaveBeenCalled();
+    });
+  });
+
+  test("warns and returns [] when parent is not an object", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      expect(arrayFieldOrEmpty("reddit", undefined, "children", "r/test")).toEqual([]);
+      expect(warn).toHaveBeenCalledWith(
+        'reddit: expected array field "children" for r/test (response is not an object), treating as empty',
+      );
+    });
+  });
+
+  test("warns and returns [] when field is missing or wrong type", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      expect(arrayFieldOrEmpty("npm", {}, "objects", "react")).toEqual([]);
+      expect(warn).toHaveBeenCalledWith(
+        'npm: expected array field "objects" for react (field is missing), treating as empty',
+      );
+
+      warn.mockClear();
+      expect(arrayFieldOrEmpty("stackexchange", { items: "error" }, "items", "from so")).toEqual(
+        [],
+      );
+      expect(warn).toHaveBeenCalledWith(
+        'stackexchange: expected array field "items" for from so (got string), treating as empty',
       );
     });
   });

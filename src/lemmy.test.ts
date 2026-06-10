@@ -354,4 +354,15 @@ describe("lemmy", () => {
       emSpy.mockRestore();
     }
   });
+
+  test("warns and returns [] when post list response omits posts field", async () => {
+    mocks.fetchMock.mockResolvedValue(makeJsonResponse({}));
+
+    const items = await lemmyAdapter.fetch(lemmyCfg());
+
+    expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      'lemmy: expected array field "posts" for lemmy.ml frontpage (field is missing), treating as empty',
+    );
+  });
 });

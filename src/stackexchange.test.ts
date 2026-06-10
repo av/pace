@@ -342,4 +342,15 @@ describe("stackexchange", () => {
       emSpy.mockRestore();
     }
   });
+
+  test("warns and returns [] when API response has malformed items field", async () => {
+    mocks.fetchMock.mockResolvedValue(makeJsonResponse({ items: null, quota_remaining: 100 }));
+
+    const items = await stackexchangeAdapter.fetch(seCfg());
+
+    expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      'stackexchange: expected array field "items" for from stackoverflow (field is missing), treating as empty',
+    );
+  });
 });

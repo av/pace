@@ -118,6 +118,44 @@ export async function fetchJson<T>(
   return fetchBody(prefix, url, context, options, async (res) => (await res.json()) as T);
 }
 
+function warnArrayFieldShape(
+  prefix: string,
+  field: string,
+  context: string,
+  detail: string,
+): void {
+  console.warn(
+    `${prefix}: expected array field "${field}" for ${context} (${detail}), treating as empty`,
+  );
+}
+
+/**
+ * Read a required array field from a JSON object response.
+ * Returns [] and warns when the parent is not an object, the field is missing,
+ * or the field is present but not an array. Legitimate empty arrays pass through silently.
+ */
+export function arrayFieldOrEmpty<T>(
+  prefix: string,
+  record: unknown,
+  field: string,
+  context: string,
+): T[] {
+  if (record == null || typeof record !== "object") {
+    warnArrayFieldShape(prefix, field, context, "response is not an object");
+    return [];
+  }
+  const value = (record as Record<string, unknown>)[field];
+  if (value == null) {
+    warnArrayFieldShape(prefix, field, context, "field is missing");
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    warnArrayFieldShape(prefix, field, context, `got ${typeof value}`);
+    return [];
+  }
+  return value as T[];
+}
+
 export type AtomFeedShape<TEntry> = {
   feed?: {
     title?: XmlTextField;

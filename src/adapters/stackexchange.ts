@@ -8,7 +8,7 @@ import {
 import { joinTitle } from "./title";
 
 import { parseUnixEpochSeconds } from "./dates";
-import { fetchJson } from "./fetch";
+import { arrayFieldOrEmpty, fetchJson } from "./fetch";
 import { decodeNumericFeedTitle } from "./html";
 import {
   clampAdapterLimit,
@@ -114,7 +114,7 @@ async function fetchQuestions(
     );
   }
 
-  return json.items ?? [];
+  return arrayFieldOrEmpty<SEQuestion>("stackexchange", json, "items", `from ${site}`);
 }
 
 const adapter: Adapter = {

@@ -7,7 +7,7 @@ import redditAdapter, {
 import * as utilsMod from "./utils";
 import { fetchMockCallUrl, useFetchMockSuite } from "./test/adapter-mocks";
 import { redditCfg } from "./test/adapter-cfg";
-import { makeErrorResponse } from "./test/fetch-responses";
+import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { invalidLimitParams, invalidMinScoreParams } from "./test/invalid-params";
 import { makeListingResponse, makePost } from "./test/reddit-fixtures";
 
@@ -354,5 +354,16 @@ describe("reddit", () => {
     } finally {
       emSpy.mockRestore();
     }
+  });
+
+  test("warns and returns [] when listing response has malformed children field", async () => {
+    mocks.fetchMock.mockResolvedValue(makeJsonResponse({ data: { children: "not-an-array" } }));
+
+    const items = await redditAdapter.fetch(redditCfg({ subreddits: ["broken"] }));
+
+    expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      'reddit: expected array field "children" for /r/broken/hot (got string), treating as empty',
+    );
   });
 });
