@@ -17,6 +17,7 @@ import {
 import {
   expectRefreshPanelFailureOrRedirect,
   expectRefreshPanelNotFound,
+  expectSecurityHeaders,
 } from "./test/server-harness";
 
 describe("cli-help", () => {
@@ -324,22 +325,10 @@ describe("cli serve", () => {
     await expectRefreshPanelFailureOrRedirect(r502, "reddit");
     const r404 = await fetch(`${base}/refresh/unknownpanel-iter6`, { method: "POST", redirect: "manual" });
     await expectRefreshPanelNotFound(r404, "unknownpanel-iter6");
-    const secKeys = ["x-content-type-options", "x-frame-options", "referrer-policy", "content-security-policy", "permissions-policy"];
-    const toCheck = [
-      health,
-      styles,
-      { hd: Object.fromEntries(r502.headers.entries()) },
-      { hd: Object.fromEntries(r404.headers.entries()) },
-    ];
-    toCheck.forEach((resp) => {
-      const lowerHd: Record<string, string> = {};
-      Object.entries(resp.hd || {}).forEach(([k, v]) => { lowerHd[k.toLowerCase()] = v as string; });
-      secKeys.forEach((k) => {
-        expect(lowerHd[k]).toBeDefined();
-      });
-      expect(lowerHd["content-security-policy"]).toContain("default-src 'self'");
-      expect(lowerHd["permissions-policy"]).toBe("interest-cohort=()");
-    });
+    expectSecurityHeaders(health.hd);
+    expectSecurityHeaders(styles.hd);
+    expectSecurityHeaders(r502);
+    expectSecurityHeaders(r404);
     if (proc.pid) { try { process.kill(proc.pid, "SIGKILL"); } catch {} }
     await new Promise((r) => setTimeout(r, 200));
     try { require("node:fs").unlinkSync(dbPath); } catch {}

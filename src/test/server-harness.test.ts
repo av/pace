@@ -5,7 +5,31 @@ import {
   expectRefreshPanelFailureOrRedirect,
   expectRefreshPanelNotFound,
   expectRefreshPanelRedirect,
+  expectSecurityHeaders,
+  responseHeadersToLowercase,
 } from "./server-harness";
+import { SECURITY_HEADERS } from "../server/security-headers";
+
+describe("server-harness security header helpers", () => {
+  test("responseHeadersToLowercase normalizes mixed-case header records", () => {
+    expect(responseHeadersToLowercase({ "X-Frame-Options": "DENY" })).toEqual({
+      "x-frame-options": "DENY",
+    });
+  });
+
+  test("expectSecurityHeaders asserts SECURITY_HEADERS contract on Response", () => {
+    const headers = new Headers(SECURITY_HEADERS);
+    expectSecurityHeaders(new Response(null, { headers }));
+  });
+
+  test("expectSecurityHeaders asserts SECURITY_HEADERS contract on header record", () => {
+    const lower: Record<string, string> = {};
+    for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
+      lower[name.toLowerCase()] = value;
+    }
+    expectSecurityHeaders(lower);
+  });
+});
 
 describe("server-harness refresh helpers", () => {
   test("expectDashboardRefreshAction matches encoded panel id in form action", () => {

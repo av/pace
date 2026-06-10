@@ -1,6 +1,7 @@
 import { expect } from "bun:test";
 import type { Hono } from "hono";
 import { buildLayoutRuntimeMaps, type LayoutNodeConfig } from "../layout/types";
+import { SECURITY_HEADERS } from "../server/security-headers";
 import {
   formatRefreshPanelFailureBody,
   type RefreshResult,
@@ -42,6 +43,39 @@ export async function requestDashboard(app: Hono): Promise<Response> {
 
 export async function requestRefreshPanel(app: Hono, panelParam: string): Promise<Response> {
   return requestServerRoute(app, `/refresh/${panelParam}`, { method: "POST" });
+}
+
+type SecurityHeaderSource = Response | Headers | Record<string, string>;
+
+function resolveSecurityHeaderSource(
+  headers: SecurityHeaderSource,
+): Headers | Record<string, string> {
+  return headers instanceof Response ? headers.headers : headers;
+}
+
+export function responseHeadersToLowercase(
+  headers: SecurityHeaderSource,
+): Record<string, string> {
+  const source = resolveSecurityHeaderSource(headers);
+  const lower: Record<string, string> = {};
+  if (source instanceof Headers) {
+    source.forEach((value, key) => {
+      lower[key.toLowerCase()] = value;
+    });
+    return lower;
+  }
+  for (const [key, value] of Object.entries(source)) {
+    lower[key.toLowerCase()] = value;
+  }
+  return lower;
+}
+
+/** Assert the standard security header contract from security-headers.ts. */
+export function expectSecurityHeaders(headers: SecurityHeaderSource): void {
+  const lower = responseHeadersToLowercase(headers);
+  for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
+    expect(lower[name.toLowerCase()]).toBe(value);
+  }
 }
 
 export function expectHtmlOk(res: Response): void {

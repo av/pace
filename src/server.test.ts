@@ -16,6 +16,7 @@ import {
   expectDashboardPanelHeading,
   expectDashboardRefreshAction,
   expectHtmlOk,
+  expectSecurityHeaders,
   expectRefreshPanelFailure,
   expectRefreshPanelNotFound,
   expectRefreshPanelRedirect,
@@ -32,17 +33,9 @@ describe("securityHeadersMiddleware", () => {
     app.get("/probe", (c) => c.text("ok"));
 
     const res = await app.request("/probe");
-    const hd: Record<string, string> = {};
-    res.headers.forEach((v, k) => {
-      hd[k.toLowerCase()] = v;
-    });
 
     expect(res.status).toBe(200);
-    expect(hd["x-content-type-options"]).toBe("nosniff");
-    expect(hd["x-frame-options"]).toBe("DENY");
-    expect(hd["referrer-policy"]).toBe("strict-origin-when-cross-origin");
-    expect(hd["content-security-policy"]).toContain("default-src 'self'");
-    expect(hd["permissions-policy"]).toBe("interest-cohort=()");
+    expectSecurityHeaders(res);
   });
 });
 
@@ -58,7 +51,7 @@ describe("GET / dashboard", () => {
     const html = await res.text();
     expectDashboardHtmlShell(html);
     expectDashboardFooterUtc(html);
-    expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+    expectSecurityHeaders(res);
   });
 
   test("renders panel items loaded from database", async () => {
