@@ -19,7 +19,7 @@ import {
   normalizeParamStringList,
 } from "../utils";
 import { mapToContentItems } from "./content-item";
-import { aggregateSequentialFeeds, finalizeFetchedItems } from "./merge";
+import { aggregateSequentialFeeds } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 interface MastodonStatus {
@@ -228,23 +228,16 @@ const adapter: Adapter = {
         compareIsoTimestamp(a.created_at, b.created_at, "desc"),
     };
 
-    const limited =
+    const keys =
+      mode === "public" ? [instance] : mode === "hashtag" ? hashtags : accounts;
+    const fetchOne =
       mode === "public"
-        ? finalizeFetchedItems(
-            await fetchPublicTimeline(instance, limit, onlyMedia),
-            finalizeOptions,
-          )
+        ? (inst: string) => fetchPublicTimeline(inst, limit, onlyMedia)
         : mode === "hashtag"
-          ? await aggregateSequentialFeeds(
-              hashtags,
-              (tag) => fetchHashtagTimeline(instance, tag, limit, onlyMedia),
-              finalizeOptions,
-            )
-          : await aggregateSequentialFeeds(
-              accounts,
-              (handle) => fetchAccountTimeline(handle, limit, onlyMedia),
-              finalizeOptions,
-            );
+          ? (tag: string) => fetchHashtagTimeline(instance, tag, limit, onlyMedia)
+          : (handle: string) => fetchAccountTimeline(handle, limit, onlyMedia);
+
+    const limited = await aggregateSequentialFeeds(keys, fetchOne, finalizeOptions);
 
     return mapToContentItems(limited, mastodonSourceLabel(mode, instance, hashtags), (status) => ({
       id: `mastodon:${instance}:${status.id}`,
