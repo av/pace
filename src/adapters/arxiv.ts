@@ -26,7 +26,8 @@ import {
   normalizeParamString,
   normalizeParamStringList,
 } from "../utils";
-import { aggregateBatchedFeeds, dedupeByKey } from "./merge";
+import { dedupeByKey } from "../dedupe";
+import { aggregateBatchedFeeds } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 const ARXIV_API = "http://export.arxiv.org/api/query";
 const RATE_LIMIT_DELAY_MS = 3000;

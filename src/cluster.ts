@@ -2,6 +2,7 @@ import type { TransformConfig } from "./config";
 import type { ContentItemRow } from "./db";
 import { extractEngagementScore, stripEngagementMetricCounts } from "./adapters/engagement";
 import { extractHostname, jaccardSimilarity, unionFind } from "./dedupe";
+import { logTransformClusterSummary } from "./transform-warn";
 import { compareIsoTimestamp } from "./utils";
 
 export const CLUSTER_STOP_WORDS = new Set([
@@ -266,12 +267,7 @@ export function applyCluster(
     result.push(items[idx]);
   }
 
-  const clusterSummary = clusters
-    .map((c) => `"${c.label}" (${c.indices.length} items)`)
-    .join(", ");
-  console.log(
-    `transforms: cluster strategy=${strategy}, ${clusters.length} cluster(s): ${clusterSummary || "none"}, ${unclustered.length} unclustered`
-  );
+  logTransformClusterSummary(strategy, clusters, unclustered.length);
 
   return result;
 }

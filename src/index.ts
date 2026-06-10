@@ -12,6 +12,7 @@ import {
   type SourcePanelMap,
 } from "./scheduler";
 import { parsePort, getAdapterName } from "./utils";
+import { logServerListening } from "./server-log";
 import { securityHeadersMiddleware } from "./server/security-headers";
 import { BUNDLED_STATIC, registerBundledStatic } from "./server/static";
 import { registerServerRoutes } from "./server/routes";
@@ -60,7 +61,7 @@ async function start() {
   ["SIGTERM", "SIGINT"].forEach((sig) => process.on(sig, shutdown));
 
   Bun.serve({ port, fetch: app.fetch });
-  console.log(`index: listening on http://localhost:${port}`);
+  logServerListening(port);
 }
 
 await start();

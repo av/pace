@@ -1,3 +1,4 @@
+import { dedupeByKey } from "../dedupe";
 import { sliceToLimit, sleep } from "../utils";
 
 /** Map each key sequentially and concatenate results (sync multi-mode / multi-section merge). */
@@ -215,17 +216,6 @@ export async function enrichAndFilterItemsBatched<T, E>(
         })
       : [...items];
   return { enrichedByKey, items: filtered };
-}
-
-/** Keep first occurrence per key (overlap when merging multiple tags/endpoints). */
-export function dedupeByKey<T, K>(items: readonly T[], key: (item: T) => K): T[] {
-  const seen = new Set<K>();
-  return items.filter((item) => {
-    const k = key(item);
-    if (seen.has(k)) return false;
-    seen.add(k);
-    return true;
-  });
 }
 
 /** Compare items newest-first by `timestamp` Date field (for finalizeFetchedItems sort). */

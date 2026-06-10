@@ -58,3 +58,17 @@ export function warnUnknownTransformType(type: string): void {
 export function warnUnknownDedupeStrategy(strategy: string): void {
   warnTransform(`unknown dedupe strategy "${strategy}", passing items through`);
 }
+
+/** Log cluster transform summary after grouping completes. */
+export function logTransformClusterSummary(
+  strategy: string,
+  clusters: ReadonlyArray<{ label: string; indices: readonly unknown[] }>,
+  unclusteredCount: number,
+): void {
+  const clusterSummary = clusters
+    .map((c) => `"${c.label}" (${c.indices.length} items)`)
+    .join(", ");
+  logTransform(
+    `cluster strategy=${strategy}, ${clusters.length} cluster(s): ${clusterSummary || "none"}, ${unclusteredCount} unclustered`,
+  );
+}

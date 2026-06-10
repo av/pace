@@ -5,7 +5,6 @@ import {
   aggregateParallelFeeds,
   aggregateSequentialFeeds,
   compareItemTimestampDesc,
-  dedupeByKey,
   enrichAndFilterItemsBatched,
   fetchAllBatched,
   fetchAllBatchedKeyed,
@@ -20,24 +19,6 @@ import {
   sliceAndMapDefined,
   zipToKeyedMap,
 } from "./adapters/merge";
-
-describe("dedupeByKey", () => {
-  test("keeps first occurrence per key", () => {
-    const items = [
-      { id: "a", n: 1 },
-      { id: "b", n: 2 },
-      { id: "a", n: 3 },
-    ];
-    expect(dedupeByKey(items, (x) => x.id)).toEqual([
-      { id: "a", n: 1 },
-      { id: "b", n: 2 },
-    ]);
-  });
-
-  test("returns empty array for empty input", () => {
-    expect(dedupeByKey([], (x: { id: string }) => x.id)).toEqual([]);
-  });
-});
 
 describe("mapAndConcat", () => {
   test("concatenates results in key order", () => {

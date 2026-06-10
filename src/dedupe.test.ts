@@ -1,6 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import { spyConsole } from "./test/console-spy";
 import {
+  dedupeByKey,
   normalizeUrl,
   extractHostname,
   jaccardSimilarity,
@@ -10,6 +11,24 @@ import {
 } from "./dedupe";
 
 describe("dedupe utils", () => {
+  describe("dedupeByKey", () => {
+    test("keeps first occurrence per key", () => {
+      const items = [
+        { id: "a", n: 1 },
+        { id: "b", n: 2 },
+        { id: "a", n: 3 },
+      ];
+      expect(dedupeByKey(items, (x) => x.id)).toEqual([
+        { id: "a", n: 1 },
+        { id: "b", n: 2 },
+      ]);
+    });
+
+    test("returns empty array for empty input", () => {
+      expect(dedupeByKey([], (x: { id: string }) => x.id)).toEqual([]);
+    });
+  });
+
   describe("normalizeUrl", () => {
     test("returns empty string for falsy/empty input", () => {
       expect(normalizeUrl("")).toBe("");

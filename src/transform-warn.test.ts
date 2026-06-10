@@ -4,6 +4,7 @@ import {
   logTransformDedupeRemoved,
   logTransformDetail,
   logTransformMinScoreFiltered,
+  logTransformClusterSummary,
   warnTransform,
   warnInvalidHalfLife,
   warnInvalidKeywordScoreRegex,
@@ -51,6 +52,15 @@ describe("transform warn utilities", () => {
     expect(logSpy).toHaveBeenCalledWith("  - item-9");
     expect(logSpy).not.toHaveBeenCalledWith("  - item-10");
     expect(logSpy).toHaveBeenCalledWith("  ... and 2 more");
+  });
+
+  test("logTransformClusterSummary describes strategy, clusters, and unclustered count", () => {
+    logSpy = spyOn(console, "log").mockImplementation(() => {});
+
+    logTransformClusterSummary("auto", [{ label: "GitHub", indices: [0, 1] }], 0);
+    expect(logSpy).toHaveBeenCalledWith(
+      'transforms: cluster strategy=auto, 1 cluster(s): "GitHub" (2 items), 0 unclustered',
+    );
   });
 
   test("logTransformMinScoreFiltered describes filtered count and threshold", () => {

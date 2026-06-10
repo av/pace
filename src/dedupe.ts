@@ -106,6 +106,17 @@ export function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
   return union === 0 ? 0 : intersection / union;
 }
 
+/** Keep first occurrence per key (overlap when merging multiple tags/endpoints). */
+export function dedupeByKey<T, K>(items: readonly T[], key: (item: T) => K): T[] {
+  const seen = new Set<K>();
+  return items.filter((item) => {
+    const k = key(item);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
+
 export function unionFind(n: number): {
   find: (x: number) => number;
   union: (x: number, y: number) => void;
