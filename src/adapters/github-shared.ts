@@ -179,15 +179,12 @@ export async function fetchGitHubReposReleases(
   limit: number,
   adapterName: string,
 ): Promise<ContentItem[]> {
-  if (source === "api") {
-    return fetchAllParallel(resolved.repos, (repo) =>
-      fetchGitHubApiReleases(repo, limit, adapterName, resolved.token),
-    );
-  }
-
   const items = await fetchAllParallel(
     resolved.repos,
-    (repo) => fetchGitHubAtomReleases(repo, limit, adapterName, resolved.token),
+    (repo) =>
+      source === "api"
+        ? fetchGitHubApiReleases(repo, limit, adapterName, resolved.token)
+        : fetchGitHubAtomReleases(repo, limit, adapterName, resolved.token),
   );
   return finalizeFetchedItems(items, {
     limit: limit * resolved.repos.length,
