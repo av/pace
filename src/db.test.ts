@@ -17,6 +17,7 @@ import {
   replacePanelItems,
   contentRowToItem,
   contentItemToRow,
+  coreContentItemFields,
   contentRowsToItems,
   contentRowMapById,
   filterRowsByItemIds,
@@ -448,6 +449,37 @@ test("contentRowToItem converts null body to undefined", () => {
     summary: null,
   });
   expect(contentRowToItem(row).body).toBeUndefined();
+});
+
+test("coreContentItemFields normalizes Date timestamps and null body from items or rows", () => {
+  const fromItem = coreContentItemFields(
+    makeItem({
+      id: "c1",
+      title: "T",
+      url: "https://ex.com",
+      source: "src",
+      body: undefined,
+      timestamp: new Date("2024-06-01T12:00:00.000Z"),
+    }),
+  );
+  expect(fromItem).toEqual({
+    id: "c1",
+    title: "T",
+    url: "https://ex.com",
+    source: "src",
+    body: null,
+    timestamp: "2024-06-01T12:00:00.000Z",
+  });
+
+  const fromRow = coreContentItemFields(
+    makeRow({
+      id: "c2",
+      body: "kept",
+      timestamp: "2024-07-01T00:00:00.000Z",
+    }),
+  );
+  expect(fromRow.timestamp).toBe("2024-07-01T00:00:00.000Z");
+  expect(fromRow.body).toBe("kept");
 });
 
 test("contentItemToRow preserves base row metadata and defaults merged panel", () => {

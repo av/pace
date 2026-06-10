@@ -42,20 +42,36 @@ function runPanelItemsTx(
   }
 }
 
+/** Six identity columns plus ISO timestamp shared by row conversion and INSERT binding. */
+export type CoreContentItemFields = Pick<
+  ContentItemRow,
+  "id" | "title" | "url" | "source" | "body"
+> & { timestamp: string };
+
+type CoreContentItemSource = Pick<ContentItemFields, "id" | "title" | "url" | "source"> & {
+  body?: string | null;
+  timestamp: Date | string;
+};
+
+/** Normalize adapter items or persisted rows into the seven core INSERT columns (minus panel_id). */
+export function coreContentItemFields(source: CoreContentItemSource): CoreContentItemFields {
+  return {
+    id: source.id,
+    title: source.title,
+    url: source.url,
+    source: source.source,
+    body: source.body ?? null,
+    timestamp: source.timestamp instanceof Date ? source.timestamp.toISOString() : source.timestamp,
+  };
+}
+
 /** Seven core INSERT columns shared by saveItems and replacePanelItems. */
 function bindCoreContentItemParams(
   panelId: string,
-  item: Pick<ContentItemRow, "id" | "title" | "url" | "source" | "body"> & { timestamp: string },
+  item: CoreContentItemSource,
 ): [string, string, string, string, string, string | null, string] {
-  return [
-    item.id,
-    panelId,
-    item.title,
-    item.url,
-    item.source,
-    item.body ?? null,
-    item.timestamp,
-  ];
+  const core = coreContentItemFields(item);
+  return [core.id, panelId, core.title, core.url, core.source, core.body, core.timestamp];
 }
 
 /** Optional panel_id filter for queries scoped to one panel or all panels. */
@@ -149,12 +165,7 @@ export function saveItems(panelId: string, items: ContentItem[]): void {
   runPanelItemsTx(panelId, items.length, "save", () => {
     for (const item of items) {
       runItemOp(panelId, item, "save", () => {
-        stmt.run(
-          ...bindCoreContentItemParams(panelId, {
-            ...item,
-            timestamp: item.timestamp.toISOString(),
-          }),
-        );
+        stmt.run(...bindCoreContentItemParams(panelId, item));
       });
     }
   });
@@ -288,14 +299,10 @@ export function contentRowToItem(row: ContentItemRow): ContentItem {
 }
 
 export function contentItemToRow(item: ContentItem, base?: ContentItemRow): ContentItemRow {
+  const core = coreContentItemFields(item);
   return {
-    id: item.id,
+    ...core,
     panel_id: base?.panel_id ?? "merged",
-    title: item.title,
-    url: item.url,
-    source: item.source,
-    body: item.body ?? null,
-    timestamp: item.timestamp.toISOString(),
     fetched_at: base?.fetched_at ?? new Date().toISOString(),
     summary: base?.summary ?? (item.body ?? null),
   };
