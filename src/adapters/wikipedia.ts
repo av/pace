@@ -13,7 +13,7 @@ import {
   normalizeStringList,
   createAliasedResolver,
 } from "../utils";
-import { finalizeFetchedItems } from "./merge";
+import { finalizeFetchedItems, mapAndConcat } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 type Mode = "most_read" | "featured" | "on_this_day" | "news";
@@ -244,15 +244,13 @@ const adapter: Adapter = {
       return items;
     }
 
-    const merged: ContentItem[] = [];
-    for (const mode of modes) {
-      merged.push(...extractForMode(data, mode, limit));
-    }
-
-    return finalizeFetchedItems(merged, {
-      limit,
-      dedupeKey: (item) => item.url,
-    });
+    return finalizeFetchedItems(
+      mapAndConcat(modes, (mode) => extractForMode(data, mode, limit)),
+      {
+        limit,
+        dedupeKey: (item) => item.url,
+      },
+    );
   },
 };
 

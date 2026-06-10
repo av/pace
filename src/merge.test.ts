@@ -5,6 +5,7 @@ import {
   fetchAllBatched,
   fetchAllParallel,
   fetchAndConcat,
+  mapAndConcat,
   finalizeFetchedItems,
   sliceAndMap,
   sliceAndMapDefined,
@@ -25,6 +26,23 @@ describe("dedupeByKey", () => {
 
   test("returns empty array for empty input", () => {
     expect(dedupeByKey([], (x: { id: string }) => x.id)).toEqual([]);
+  });
+});
+
+describe("mapAndConcat", () => {
+  test("concatenates results in key order", () => {
+    const order: string[] = [];
+    const out = mapAndConcat(["b", "a"], (key) => {
+      order.push(key);
+      return key === "a" ? [{ v: 1 }] : [{ v: 2 }, { v: 3 }];
+    });
+    expect(order).toEqual(["b", "a"]);
+    expect(out).toEqual([{ v: 2 }, { v: 3 }, { v: 1 }]);
+  });
+
+  test("returns empty array when keys is empty", () => {
+    const out = mapAndConcat([], () => [{ v: 1 }]);
+    expect(out).toEqual([]);
   });
 });
 

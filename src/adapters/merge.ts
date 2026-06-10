@@ -1,5 +1,17 @@
 import { sliceToLimit, sleep } from "../utils";
 
+/** Map each key sequentially and concatenate results (sync multi-mode / multi-section merge). */
+export function mapAndConcat<T, K = string>(
+  keys: readonly K[],
+  mapOne: (key: K) => T[],
+): T[] {
+  const merged: T[] = [];
+  for (const key of keys) {
+    merged.push(...mapOne(key));
+  }
+  return merged;
+}
+
 /** Fetch each key sequentially and concatenate results (multi-tag / multi-endpoint merge). */
 export async function fetchAndConcat<T, K = string>(
   keys: readonly K[],
