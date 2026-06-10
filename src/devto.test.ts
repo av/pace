@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, spyOn, test } from "bun:test";
-import devtoAdapter, { devtoSourceLabel, resolveDevToPeriod } from "./adapters/devto";
+import devtoAdapter, {
+  devtoSourceLabel,
+  devToFetchKeys,
+  resolveDevToPeriod,
+} from "./adapters/devto";
 import * as utilsMod from "./utils";
 import { fetchMockCalls, useFetchMockSuite } from "./test/adapter-mocks";
 import { devtoCfg } from "./test/adapter-cfg";
@@ -22,6 +26,20 @@ describe("devtoSourceLabel", () => {
 
   test("joins multiple tags with + when no username", () => {
     expect(devtoSourceLabel(undefined, ["typescript", "react"])).toBe("devto:typescript+react");
+  });
+});
+
+describe("devToFetchKeys", () => {
+  test("orders username before tags when both configured", () => {
+    expect(devToFetchKeys("alice", ["typescript", "react"])).toEqual([
+      { kind: "user", username: "alice" },
+      { kind: "tag", tag: "typescript" },
+      { kind: "tag", tag: "react" },
+    ]);
+  });
+
+  test("returns empty list when neither username nor tags set", () => {
+    expect(devToFetchKeys(undefined, [])).toEqual([]);
   });
 });
 

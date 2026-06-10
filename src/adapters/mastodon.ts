@@ -19,7 +19,7 @@ import {
   normalizeParamStringList,
 } from "../utils";
 import { mapToContentItems } from "./content-item";
-import { finalizeFetchedItems, fetchAndConcat } from "./merge";
+import { aggregateSequentialFeeds, finalizeFetchedItems } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 interface MastodonStatus {
@@ -189,38 +189,19 @@ function parseAccountHandle(handle: string): { username: string; instance: strin
   return { username: parts[0], instance: parts[1] };
 }
 
-async function fetchMastodonStatuses(
-  mode: MastodonMode,
-  instance: string,
-  hashtags: string[],
-  accounts: string[],
+async function fetchAccountTimeline(
+  handle: string,
   limit: number,
   onlyMedia: boolean,
 ): Promise<MastodonStatus[]> {
-  if (mode === "public") {
-    return fetchPublicTimeline(instance, limit, onlyMedia);
+  const parsed = parseAccountHandle(handle);
+  if (!parsed) {
+    warnInvalidInput("mastodon", "account handle", handle);
+    return [];
   }
-  if (mode === "hashtag") {
-    return fetchAndConcat(hashtags, (tag) =>
-      fetchHashtagTimeline(instance, tag, limit, onlyMedia),
-    );
-  }
-
-  return fetchAndConcat(accounts, async (handle) => {
-    const parsed = parseAccountHandle(handle);
-    if (!parsed) {
-      warnInvalidInput("mastodon", "account handle", handle);
-      return [];
-    }
-    const account = await lookupAccount(parsed.instance, parsed.username);
-    if (!account) return [];
-    return fetchAccountStatuses(
-      parsed.instance,
-      account.id,
-      limit,
-      onlyMedia,
-    );
-  });
+  const account = await lookupAccount(parsed.instance, parsed.username);
+  if (!account) return [];
+  return fetchAccountStatuses(parsed.instance, account.id, limit, onlyMedia);
 }
 
 const adapter: Adapter = {
@@ -238,22 +219,32 @@ const adapter: Adapter = {
     const onlyMedia = normalizeParamBoolean(config.params, "only_media");
 
     const mode = resolveMastodonMode(accounts, hashtags);
-    let allStatuses = await fetchMastodonStatuses(
-      mode,
-      instance,
-      hashtags,
-      accounts,
+    const finalizeOptions = {
       limit,
-      onlyMedia,
-    );
-
-    const limited = finalizeFetchedItems(allStatuses, {
-      limit,
-      dedupeKey: (status) => status.id,
+      dedupeKey: (status: MastodonStatus) => status.id,
       minScore: minFavourites,
-      scoreOf: (status) => status.favourites_count,
-      sort: (a, b) => compareIsoTimestamp(a.created_at, b.created_at, "desc"),
-    });
+      scoreOf: (status: MastodonStatus) => status.favourites_count,
+      sort: (a: MastodonStatus, b: MastodonStatus) =>
+        compareIsoTimestamp(a.created_at, b.created_at, "desc"),
+    };
+
+    const limited =
+      mode === "public"
+        ? finalizeFetchedItems(
+            await fetchPublicTimeline(instance, limit, onlyMedia),
+            finalizeOptions,
+          )
+        : mode === "hashtag"
+          ? await aggregateSequentialFeeds(
+              hashtags,
+              (tag) => fetchHashtagTimeline(instance, tag, limit, onlyMedia),
+              finalizeOptions,
+            )
+          : await aggregateSequentialFeeds(
+              accounts,
+              (handle) => fetchAccountTimeline(handle, limit, onlyMedia),
+              finalizeOptions,
+            );
 
     return mapToContentItems(limited, mastodonSourceLabel(mode, instance, hashtags), (status) => ({
       id: `mastodon:${instance}:${status.id}`,

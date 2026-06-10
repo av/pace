@@ -20,7 +20,7 @@ import {
   createAliasedResolver,
 } from "../utils";
 import { mapToContentItems } from "./content-item";
-import { finalizeFetchedItems, fetchAndConcat } from "./merge";
+import { aggregateSequentialFeeds } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 const DEVTO_API = "https://dev.to/api/articles";
@@ -70,6 +70,19 @@ async function fetchDevToArticles(
 }
 
 type DevToPeriod = 1 | 7 | 30 | 365;
+
+type DevToFetchKey = { kind: "user"; username: string } | { kind: "tag"; tag: string };
+
+/** Ordered fetch keys for username and/or tag sources (username first when both set). */
+export function devToFetchKeys(
+  username: string | undefined,
+  tags: readonly string[],
+): DevToFetchKey[] {
+  const keys: DevToFetchKey[] = [];
+  if (username) keys.push({ kind: "user", username });
+  for (const tag of tags) keys.push({ kind: "tag", tag });
+  return keys;
+}
 
 /** Build devto source label from username and/or tag list. */
 export function devtoSourceLabel(
@@ -124,34 +137,28 @@ const adapter: Adapter = {
       return warnEmptyConfig("devto", "no tags or username configured");
     }
 
-    const allArticles: DevToArticle[] = [];
-
-    if (username) {
-      const articles = await fetchDevToArticles(
-        { username, per_page: perPage },
-        `user "${username}"`,
-      );
-      allArticles.push(...articles);
-    }
-
-    if (tags.length > 0) {
-      allArticles.push(
-        ...(await fetchAndConcat(tags, (tag) =>
-          fetchDevToArticles(
-            { tag, top: String(top), per_page: perPage },
-            `tag "${tag}"`,
-          ),
-        )),
-      );
-    }
-
-    const limited = finalizeFetchedItems(allArticles, {
-      limit: perPage,
-      dedupeKey: (article) => article.id,
-      minScore: minReactions,
-      scoreOf: (article) => article.positive_reactions_count,
-      sort: (a, b) => b.positive_reactions_count - a.positive_reactions_count,
-    });
+    const limited = await aggregateSequentialFeeds(
+      devToFetchKeys(username, tags),
+      async (key) => {
+        if (key.kind === "user") {
+          return fetchDevToArticles(
+            { username: key.username, per_page: perPage },
+            `user "${key.username}"`,
+          );
+        }
+        return fetchDevToArticles(
+          { tag: key.tag, top: String(top), per_page: perPage },
+          `tag "${key.tag}"`,
+        );
+      },
+      {
+        limit: perPage,
+        dedupeKey: (article) => article.id,
+        minScore: minReactions,
+        scoreOf: (article) => article.positive_reactions_count,
+        sort: (a, b) => b.positive_reactions_count - a.positive_reactions_count,
+      },
+    );
 
     return mapToContentItems(limited, devtoSourceLabel(username, tags), (article) => ({
       id: `devto:${article.id}`,
