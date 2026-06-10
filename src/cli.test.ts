@@ -63,6 +63,35 @@ describe("cli-help", () => {
         },
       );
       expect(process.env.PACE_CONFIG).toBe("/tmp/my.yaml");
+
+      let missingExit: number | undefined;
+      let missingStderr = "";
+      const origExit = process.exit;
+      const origError = console.error;
+      try {
+        process.exit = ((code?: number) => {
+          missingExit = code ?? 0;
+          throw new Error("cliDie");
+        }) as typeof process.exit;
+        console.error = (msg: string) => {
+          missingStderr = String(msg);
+        };
+        expect(() =>
+          applyCliConfigEnv(
+            { config: "/tmp/missing.yaml" },
+            {
+              resolvePreset: () => null,
+              listPresets: () => [],
+              tryReadRegularFile: () => null,
+            },
+          ),
+        ).toThrow("cliDie");
+        expect(missingExit).toBe(1);
+        expect(missingStderr).toBe("config: file not found: /tmp/missing.yaml");
+      } finally {
+        process.exit = origExit;
+        console.error = origError;
+      }
     } finally {
       if (orig === undefined) delete process.env.PACE_CONFIG;
       else process.env.PACE_CONFIG = orig;
@@ -175,6 +204,14 @@ describe("cli", () => {
     const res = runCli(["--config", tmpDir]);
     expect(res.status).toBe(1);
     expect(res.stderr).toContain(`config: ${tmpDir} is not a regular file`);
+    expect(res.stdout).toBe("");
+  });
+
+  test("--config missing file rejected at CLI validation", () => {
+    const missing = join(tmpDir, "does-not-exist.yaml");
+    const res = runCli(["--config", missing]);
+    expect(res.status).toBe(1);
+    expect(res.stderr.trim()).toBe(`config: file not found: ${missing}`);
     expect(res.stdout).toBe("");
   });
 

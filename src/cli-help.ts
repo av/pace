@@ -170,10 +170,14 @@ export function applyCliConfigEnv(
   if (!values.config) return;
 
   const configPath = values.config;
+  let configContent: string | null;
   try {
-    deps.tryReadRegularFile(configPath);
+    configContent = deps.tryReadRegularFile(configPath);
   } catch (err) {
     cliDie(errorMessage(err));
+  }
+  if (configContent === null) {
+    cliDie(`config: file not found: ${configPath}`);
   }
   process.env.PACE_CONFIG = configPath;
 }
