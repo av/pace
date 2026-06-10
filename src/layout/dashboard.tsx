@@ -1,11 +1,10 @@
 /** @jsx jsx */
 import { jsx } from "hono/jsx";
 import type { FC } from "hono/jsx";
-import type { LayoutNodeConfig } from "../config";
+import type { LayoutNodeConfig, PanelData } from "./types";
 import { LayoutNode } from "./layout-node";
-import type { PanelData } from "./panel";
 
-export type { PanelData } from "./panel";
+export type { PanelData } from "./types";
 
 /** Format a Date as the dashboard footer "updated at" string (UTC, no T, seconds precision). */
 export function formatDashboardUpdatedAt(date: Date = new Date()): string {

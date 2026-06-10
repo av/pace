@@ -1,8 +1,8 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import type { Adapter } from "../adapters/types";
 import { discoverAdapters } from "../adapters/index";
-import { loadConfig, buildLayoutRuntimeMaps, type AppConfig } from "../config";
+import { loadConfig, type AppConfig } from "../config";
+import { buildLayoutRuntimeMaps, type Adapter } from "../layout/types";
 import { initDb, closeDb } from "../db";
 import { createModel } from "../llm";
 import {

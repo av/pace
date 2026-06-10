@@ -1,4 +1,4 @@
-import type { FlexContainerConfig } from "../config";
+import type { FlexContainerConfig } from "./types";
 
 export function flexStyle(f?: number): string {
   return `flex:${f ?? 1};`;

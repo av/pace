@@ -1,10 +1,10 @@
 /** @jsx jsx */
 import { jsx } from "hono/jsx";
 import type { FC } from "hono/jsx";
-import type { FlexContainerConfig, LayoutNodeConfig } from "../config";
-import { isPanel } from "../config";
+import type { FlexContainerConfig, LayoutNodeConfig, PanelData } from "./types";
+import { isPanel } from "./types";
 import { flexContainerStyle } from "./flex-styles";
-import { Panel, type PanelData } from "./panel";
+import { Panel } from "./panel";
 
 export const LayoutNode: FC<{ node: LayoutNodeConfig; panelData: Map<string, PanelData> }> = ({ node, panelData }) => {
   if (isPanel(node)) {

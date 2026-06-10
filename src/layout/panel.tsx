@@ -1,13 +1,10 @@
 /** @jsx jsx */
 import { jsx } from "hono/jsx";
 import type { FC } from "hono/jsx";
-import type { PanelConfig } from "../config";
-import { resolvePanelId } from "../config";
-import type { ContentItemRow, DashboardPanelSnapshot } from "../db";
+import type { ContentItemRow, PanelConfig, PanelData } from "./types";
+import { resolvePanelId } from "./types";
 import { relativeTime, safeLinkUrl } from "../utils";
 import { flexStyle } from "./flex-styles";
-
-export type PanelData = DashboardPanelSnapshot;
 
 const ContentItemCard: FC<{ item: ContentItemRow }> = ({ item }) => {
   const href = safeLinkUrl(item.url);

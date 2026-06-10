@@ -1,5 +1,5 @@
 import type { Context, Hono } from "hono";
-import type { DashboardPanel, LayoutNodeConfig } from "../config";
+import type { DashboardPanel, LayoutNodeConfig } from "../layout/types";
 import { loadDashboardPanelDataMap } from "../db";
 import { formatDashboardUpdatedAt, renderDashboard } from "../layout";
 import {

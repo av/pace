@@ -1,7 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { Hono } from "hono";
-import type { Adapter } from "../adapters/types";
-import { buildLayoutRuntimeMaps } from "../config";
+import { buildLayoutRuntimeMaps, type Adapter } from "../layout/types";
 import { singlePanelLayout, testAppConfig } from "../test/app-config";
 import { bootstrapServer, type BootstrapServerDeps } from "./bootstrap";
 

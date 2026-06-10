@@ -1,6 +1,6 @@
 import { expect } from "bun:test";
 import type { Hono } from "hono";
-import { buildLayoutRuntimeMaps, type LayoutNodeConfig } from "../config";
+import { buildLayoutRuntimeMaps, type LayoutNodeConfig } from "../layout/types";
 import { createServerApp } from "../server/app";
 import type { ServerRouteDeps } from "../server/routes";
 
