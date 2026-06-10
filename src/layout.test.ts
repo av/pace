@@ -135,6 +135,18 @@ describe("renderDashboard", () => {
     expect(html).not.toContain('action="/refresh/' + resolvePanelId(panelCfg("Named", "s"))); // would be hash if no id
   });
 
+  it("prefers panelId from loaded panel data over layout-derived id", () => {
+    const layout = panelCfg("Named", "s", { id: "layout-id" });
+    const panelData = new Map<string, PanelData>([["Named", {
+      panelId: "runtime-id",
+      items: [],
+      lastRefreshedAt: null,
+    }]]);
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain('action="/refresh/runtime-id"');
+    expect(html).not.toContain('action="/refresh/layout-id"');
+  });
+
   it("renders relativeTime edge buckets (m/h/d) and NaN timestamp as empty", () => {
     const now = Date.now();
     const m59 = new Date(now - 59 * 60000).toISOString();

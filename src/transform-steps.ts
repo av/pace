@@ -14,7 +14,6 @@ import {
   dedupeByTitleSimilarity,
   dedupeGroupedByKey,
   normalizeUrl,
-  sortByInputOrder,
 } from "./dedupe";
 import { sliceToLimit } from "./utils";
 
@@ -181,6 +180,3 @@ export function applyDedupe(items: ContentItemRow[], config: DedupeTransformConf
   }
 }
 
-export function sortRowsByInputOrder(rows: ContentItemRow[], order: ContentItemRow[]): ContentItemRow[] {
-  return sortByInputOrder(rows, order);
-}

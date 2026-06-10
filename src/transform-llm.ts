@@ -8,8 +8,8 @@ import {
   filterRowsByItemIds,
   contentItemsToRows,
 } from "./db";
+import { sortByInputOrder } from "./dedupe";
 import { summarizeItem, lensItems, mergeItems, filterItemsByLlm } from "./llm";
-import { sortRowsByInputOrder } from "./transform-steps";
 
 export interface TransformContext {
   llmModel: Model<Api> | null;
@@ -41,7 +41,7 @@ function rowsInItemOrder(rows: ContentItemRow[], orderedItems: { id: string }[])
     const row = rowById.get(item.id);
     return row ? [row] : [];
   });
-  return sortRowsByInputOrder(rows, order);
+  return sortByInputOrder(rows, order);
 }
 
 async function filterRows(

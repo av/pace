@@ -1,6 +1,6 @@
 import type { Context, Hono } from "hono";
 import type { DashboardPanel, LayoutNodeConfig } from "../config";
-import { loadDashboardPanelData } from "../db";
+import { loadDashboardPanelDataMap } from "../db";
 import { renderDashboard } from "../layout";
 import type { RefreshResult } from "../scheduler";
 
@@ -39,12 +39,7 @@ export function registerServerRoutes(app: Hono, deps: ServerRouteDeps): void {
 
   app.get("/", async (c) => {
     const now = new Date().toISOString().replace("T", " ").slice(0, 19);
-    const panelData = new Map<string, ReturnType<typeof loadDashboardPanelData>>();
-
-    for (const { panel, pid, isAll } of deps.dashboardPanels) {
-      const limit = panel.limit ?? 50;
-      panelData.set(panel.panel, loadDashboardPanelData(pid, isAll, limit));
-    }
+    const panelData = loadDashboardPanelDataMap(deps.dashboardPanels);
 
     const content = renderDashboard({
       layout: deps.layout,

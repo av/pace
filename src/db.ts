@@ -2,6 +2,7 @@ import { Database } from "bun:sqlite";
 import { join, dirname } from "node:path";
 import * as fs from "node:fs";
 import type { ContentItem, ContentItemFields } from "./adapters/types";
+import type { DashboardPanel } from "./config";
 import { warnDbClose } from "./db-warn";
 import { errorMessage } from "./utils";
 
@@ -198,15 +199,18 @@ function getDedupedItems(panelId?: string, limit?: number): ContentItemRow[] {
   return db.prepare(sql).all(...params) as ContentItemRow[];
 }
 
-export function getRecentItems(limit: number = 50): ContentItemRow[] {
+export const DEFAULT_PANEL_LIMIT = 50;
+
+export function getRecentItems(limit: number = DEFAULT_PANEL_LIMIT): ContentItemRow[] {
   return getDedupedItems(undefined, limit);
 }
 
-export function getItemsByPanel(panelId: string, limit: number = 50): ContentItemRow[] {
+export function getItemsByPanel(panelId: string, limit: number = DEFAULT_PANEL_LIMIT): ContentItemRow[] {
   return getDedupedItems(panelId, limit);
 }
 
 export interface DashboardPanelSnapshot {
+  panelId: string;
   items: ContentItemRow[];
   lastRefreshedAt: string | null;
 }
@@ -217,9 +221,21 @@ export function loadDashboardPanelData(
   limit: number,
 ): DashboardPanelSnapshot {
   return {
+    panelId,
     items: isAll ? getRecentItems(limit) : getItemsByPanel(panelId, limit),
     lastRefreshedAt: getLastFetchedAt(isAll ? undefined : panelId),
   };
+}
+
+export function loadDashboardPanelDataMap(
+  dashboardPanels: readonly DashboardPanel[],
+): Map<string, DashboardPanelSnapshot> {
+  const panelData = new Map<string, DashboardPanelSnapshot>();
+  for (const { panel, pid, isAll } of dashboardPanels) {
+    const limit = panel.limit ?? DEFAULT_PANEL_LIMIT;
+    panelData.set(panel.panel, loadDashboardPanelData(pid, isAll, limit));
+  }
+  return panelData;
 }
 
 export function getLastFetchedAt(panelId?: string): string | null {

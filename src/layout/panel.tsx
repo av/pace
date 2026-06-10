@@ -3,14 +3,11 @@ import { jsx } from "hono/jsx";
 import type { FC } from "hono/jsx";
 import type { PanelConfig } from "../config";
 import { resolvePanelId } from "../config";
-import type { ContentItemRow } from "../db";
+import type { ContentItemRow, DashboardPanelSnapshot } from "../db";
 import { relativeTime, safeLinkUrl } from "../utils";
 import { flexStyle } from "./flex-styles";
 
-export interface PanelData {
-  items: ContentItemRow[];
-  lastRefreshedAt?: string | null;
-}
+export type PanelData = DashboardPanelSnapshot;
 
 const ContentItemCard: FC<{ item: ContentItemRow }> = ({ item }) => {
   const href = safeLinkUrl(item.url);
@@ -33,7 +30,7 @@ const ContentItemCard: FC<{ item: ContentItemRow }> = ({ item }) => {
 
 export const Panel: FC<{ node: PanelConfig; panelData: Map<string, PanelData> }> = ({ node, panelData }) => {
   const data = panelData.get(node.panel);
-  const panelId = resolvePanelId(node);
+  const panelId = data?.panelId ?? resolvePanelId(node);
   const items = data?.items ?? [];
   const lastRefreshedAt = data?.lastRefreshedAt;
 

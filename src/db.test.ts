@@ -13,6 +13,8 @@ import {
   getAllItemsByPanel,
   getLastFetchedAt,
   loadDashboardPanelData,
+  loadDashboardPanelDataMap,
+  DEFAULT_PANEL_LIMIT,
   pruneOldItems,
   replacePanelItems,
   contentRowToItem,
@@ -131,12 +133,37 @@ test("loadDashboardPanelData routes all vs panel-scoped queries", () => {
   saveItems("other", [makeItem({ id: "o1", url: "https://other", timestamp: new Date() })]);
 
   const scoped = loadDashboardPanelData("scoped", false, 10);
+  expect(scoped.panelId).toBe("scoped");
   expect(scoped.items.map((item) => item.id)).toEqual(["s1"]);
   expect(scoped.lastRefreshedAt).not.toBeNull();
 
   const all = loadDashboardPanelData("scoped", true, 10);
+  expect(all.panelId).toBe("scoped");
   expect(all.items.map((item) => item.id).sort()).toEqual(["o1", "s1"]);
   expect(all.lastRefreshedAt).not.toBeNull();
+});
+
+test("loadDashboardPanelDataMap loads each dashboard panel with default limit", () => {
+  initDb();
+  saveItems("tech-panel", [makeItem({ id: "t1", url: "https://tech", timestamp: new Date() })]);
+  saveItems("other-panel", [makeItem({ id: "o1", url: "https://other", timestamp: new Date() })]);
+
+  const panelData = loadDashboardPanelDataMap([
+    { panel: { panel: "Tech", source: "hackernews", id: "tech-panel" }, pid: "tech-panel", isAll: false },
+    { panel: { panel: "All", source: "all" }, pid: "all-panel", isAll: true },
+  ]);
+
+  expect(panelData.get("Tech")).toEqual({
+    panelId: "tech-panel",
+    items: expect.arrayContaining([expect.objectContaining({ id: "t1" })]),
+    lastRefreshedAt: expect.any(String),
+  });
+  expect(panelData.get("Tech")?.items).toHaveLength(1);
+
+  const all = panelData.get("All");
+  expect(all?.panelId).toBe("all-panel");
+  expect(all?.items.map((item) => item.id).sort()).toEqual(["o1", "t1"]);
+  expect(DEFAULT_PANEL_LIMIT).toBe(50);
 });
 
 test("getLastFetchedAt returns recent fetched_at per panel or globally", () => {
