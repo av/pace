@@ -1,13 +1,13 @@
 import {
-  type TransformConfig,
-  type KeywordField,
-  type DedupeStrategy,
-  type DedupeKeep,
+  DEDUPE_DEFAULT_KEEP,
   DEDUPE_DEFAULT_STRATEGY,
   DEDUPE_DEFAULT_THRESHOLD,
-  DEDUPE_DEFAULT_KEEP,
   isDedupeStrategy,
-} from "./config";
+  type DedupeKeep,
+  type DedupeStrategy,
+  type KeywordField,
+  type TransformConfig,
+} from "./config/types";
 import type { ContentItemRow } from "./db";
 import {
   finalizeDedupeRun,

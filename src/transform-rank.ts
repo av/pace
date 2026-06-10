@@ -1,4 +1,4 @@
-import type { TransformConfig } from "./config";
+import type { TransformConfig } from "./config/types";
 import type { ContentItemRow } from "./db";
 import { extractEngagementScore } from "./adapters/engagement";
 import { compareIsoTimestamp } from "./utils";

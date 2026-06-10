@@ -1,4 +1,4 @@
-import type { AppConfig, LayoutDirection, LayoutNodeConfig } from "../config";
+import type { AppConfig, LayoutDirection, LayoutNodeConfig } from "../config/types";
 
 export interface TestAppConfigPanel {
   panel: string;

@@ -7,7 +7,7 @@ import {
   type Api,
   type Context,
 } from "@mariozechner/pi-ai";
-import type { LlmConfig } from "./config";
+import type { LlmConfig } from "./config/types";
 import type { ContentItem } from "./adapters/types";
 import { capText } from "./adapters/title";
 import { warnLlm } from "./llm-warn";

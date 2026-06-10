@@ -12,7 +12,7 @@ import {
   replacePanelItems,
   pruneOldItems as dbPruneOldItems,
 } from "./db";
-import type { AppConfig, IngestAdapterConfig, PipelineConfig, TransformConfig } from "./config";
+import type { AppConfig, IngestAdapterConfig, PipelineConfig, TransformConfig } from "./config/types";
 import { runPipeline, type TransformContext } from "./transforms";
 
 interface RunningGuarded {

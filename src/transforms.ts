@@ -1,4 +1,4 @@
-import type { TransformConfig, TransformType } from "./config";
+import type { TransformConfig, TransformType } from "./config/types";
 import type { ContentItemRow } from "./db";
 import { applyCluster } from "./cluster";
 import {

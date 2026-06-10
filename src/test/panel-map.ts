@@ -1,4 +1,4 @@
-import { buildLayoutRuntimeMaps, type AppConfig, type LayoutNodeConfig } from "../config";
+import { buildLayoutRuntimeMaps, type AppConfig, type LayoutNodeConfig } from "../config/types";
 import { getAdapterName } from "../utils";
 import type { SourcePanelMap } from "../scheduler";
 

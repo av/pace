@@ -6,17 +6,15 @@ import {
   DEDUPE_STRATEGIES,
   isRecord,
   KEYWORD_FIELDS,
+  KEYWORD_SCORE_ENTRY_FIELDS,
   SORT_DIRECTIONS,
   SORT_FIELDS,
-  type DedupeStrategy,
-  type TransformConfig,
-} from "./config";
-import {
-  KEYWORD_SCORE_ENTRY_FIELDS,
   TRANSFORM_TYPES,
   transformAllowedFieldKeys,
+  type DedupeStrategy,
+  type TransformConfig,
   type TransformType,
-} from "./transform-schema";
+} from "./config/types";
 import {
   validateAllowedKeys,
   validateEnum,

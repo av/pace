@@ -1,4 +1,4 @@
-import type { TransformConfig } from "./config";
+import type { TransformConfig } from "./config/types";
 import type { ContentItemRow } from "./db";
 import { extractEngagementScore, stripEngagementMetricCounts } from "./adapters/engagement";
 import { extractHostname, jaccardSimilarity, unionFind } from "./dedupe";

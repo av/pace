@@ -1,4 +1,4 @@
-import type { DedupeKeep } from "./config";
+import type { DedupeKeep } from "./config/types";
 import type { ContentItemRow } from "./db";
 import { extractScore } from "./adapters/engagement";
 import { compareIsoTimestamp, normalizeHostname, tryParseUrl } from "./utils";

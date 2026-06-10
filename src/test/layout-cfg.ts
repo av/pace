@@ -1,4 +1,4 @@
-import type { FlexContainerConfig, LayoutNodeConfig, PanelConfig, SourceValue } from "../config";
+import type { FlexContainerConfig, LayoutNodeConfig, PanelConfig, SourceValue } from "../config/types";
 
 export function panelCfg(
   panel: string,
