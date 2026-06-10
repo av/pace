@@ -7,6 +7,7 @@ import {
 } from "./engagement";
 import { joinTitle, truncateText } from "./title";
 
+import { warnInvalidInput } from "./empty-config";
 import { fetchJson, HN_ITEM_FETCH_TIMEOUT_MS, tryOptionalFetch } from "./fetch";
 import { decodeNumericFeedTitle, stripHtml } from "./html";
 import {
@@ -208,7 +209,7 @@ async function fetchMastodonStatuses(
   return fetchAndConcat(accounts, async (handle) => {
     const parsed = parseAccountHandle(handle);
     if (!parsed) {
-      console.warn(`mastodon: invalid account handle: ${handle}`);
+      warnInvalidInput("mastodon", "account handle", handle);
       return [];
     }
     const account = await lookupAccount(parsed.instance, parsed.username);

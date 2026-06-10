@@ -16,6 +16,11 @@ import {
   normalizeNonNegativeNumber,
   normalizeParamBoolean,
 } from "../utils";
+import {
+  warnAdapter,
+  warnFilterRemovedAll,
+  warnIneffectiveParam,
+} from "./empty-config";
 import { fetchAllBatched, finalizeFetchedItems, sliceAndMap } from "./merge";
 import {
   fetchAtomFeed,
@@ -257,9 +262,7 @@ const adapter: Adapter = {
     const enrich = normalizeParamBoolean(config.params, "enrich");
 
     if (minUpvotes > 0 && !enrich) {
-      console.warn(
-        "producthunt: min_upvotes has no effect without enrich: true",
-      );
+      warnIneffectiveParam("producthunt", "min_upvotes", "enrich: true");
     }
 
     const effectiveLimit = limit ?? Number.MAX_SAFE_INTEGER;
@@ -271,8 +274,9 @@ const adapter: Adapter = {
 
     let enrichedMap = new Map<string, EnrichedData | null>();
     if (enrich) {
-      console.warn(
-        `producthunt: enriching ${items.length} items (this may take a moment)...`,
+      warnAdapter(
+        "producthunt",
+        `enriching ${items.length} items (this may take a moment)...`,
       );
       const enrichResults = await fetchAllBatched(
         items,
@@ -292,8 +296,12 @@ const adapter: Adapter = {
         return data?.upvotes !== undefined && data.upvotes >= minUpvotes;
       });
       if (items.length > 0 && filtered.length === 0) {
-        console.warn(
-          `producthunt: min_upvotes (${minUpvotes}) filtered all ${items.length} enriched item(s)`,
+        warnFilterRemovedAll(
+          "producthunt",
+          "min_upvotes",
+          minUpvotes,
+          items.length,
+          "enriched item(s)",
         );
       }
     }

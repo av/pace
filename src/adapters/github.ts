@@ -4,6 +4,7 @@ import {
 } from "./engagement";
 import { joinTitle, joinTitleWithTagline } from "./title";
 
+import { warnEmptyFetchResult } from "./empty-config";
 import { FEED_FETCH_TIMEOUT_MS, fetchText } from "./fetch";
 import {
   clampAdapterLimit,
@@ -111,7 +112,7 @@ async function fetchTrending(
 
   const repos = parseTrendingHtml(html);
   if (repos.length === 0) {
-    console.warn("github: no repos found on trending page");
+    warnEmptyFetchResult("github", "repos", "trending page");
     return [];
   }
 
