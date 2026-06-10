@@ -5,8 +5,8 @@ import { installTempDbHooks } from "./test/temp-db";
 import type { Adapter } from "./adapters/types";
 import { makeContentItem } from "./test/content-items";
 import { adaptersMap, makeErrorAdapter, makeMockAdapter } from "./test/adapter-mocks";
+import { withErrorMessageSpy } from "./test/error-message-spy";
 import * as dbMod from "./db";
-import * as utilsMod from "./utils";
 import {
   startScheduler,
   stopScheduler,
@@ -110,18 +110,18 @@ describe("scheduler", () => {
     const pruneSpy = spyOn(dbMod, "pruneOldItems").mockImplementation(() => {
       throw new Error("db prune fail");
     });
-    const emSpy = spyOn(utilsMod, "errorMessage");
     try {
-      await spyConsole(["warn"], ({ warn: warnSpy }) => {
-        const adapters = adaptersMap(["test", makeMockAdapter([])]);
-        startScheduler(baseConfig, adapters, basePanelMap, null);
-        expect(pruneSpy).toHaveBeenCalledWith(30);
-        expect(emSpy).toHaveBeenCalled();
-        expect(warnSpy).toHaveBeenCalledWith("scheduler: failed to prune: db prune fail");
+      await withErrorMessageSpy(async (emSpy) => {
+        await spyConsole(["warn"], ({ warn: warnSpy }) => {
+          const adapters = adaptersMap(["test", makeMockAdapter([])]);
+          startScheduler(baseConfig, adapters, basePanelMap, null);
+          expect(pruneSpy).toHaveBeenCalledWith(30);
+          expect(emSpy).toHaveBeenCalled();
+          expect(warnSpy).toHaveBeenCalledWith("scheduler: failed to prune: db prune fail");
+        });
       });
     } finally {
       pruneSpy.mockRestore();
-      emSpy.mockRestore();
     }
   });
 

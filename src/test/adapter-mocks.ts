@@ -1,7 +1,15 @@
 import { afterEach, beforeEach, expect, mock, spyOn } from "bun:test";
 import type { Adapter, AdapterConfig, ContentItem } from "../adapters/types";
-import * as utilsMod from "../utils";
 import { makeErrorResponse } from "./fetch-responses";
+import {
+  assertErrorMessageSpy,
+  withErrorMessageSpy,
+  type ErrorMessageSpy,
+  type ErrorMessageSpyExpect,
+} from "./error-message-spy";
+
+export type { ErrorMessageSpy };
+export { withErrorMessageSpy };
 
 const originalFetch = globalThis.fetch;
 
@@ -96,24 +104,7 @@ export function adaptersMap(...entries: [string, Adapter][]): Map<string, Adapte
   return new Map(entries);
 }
 
-export type ErrorMessageSpy = ReturnType<typeof spyOn<typeof utilsMod, "errorMessage">>;
-
-/** Spy utils.errorMessage for adapter HTTP/network error-path tests; restores in finally. */
-export async function withErrorMessageSpy<T>(
-  fn: (spy: ErrorMessageSpy) => T | Promise<T>,
-): Promise<T> {
-  const emSpy = spyOn(utilsMod, "errorMessage");
-  try {
-    return await fn(emSpy);
-  } finally {
-    emSpy.mockRestore();
-  }
-}
-
-export type AdapterFetchErrorSpyExpect =
-  | "called"
-  | { times: number }
-  | { message: string };
+export type AdapterFetchErrorSpyExpect = ErrorMessageSpyExpect;
 
 /** One fetch invocation in an adapter HTTP/network error-path test. */
 export type AdapterFetchErrorCase = {
@@ -133,21 +124,6 @@ export type ExpectAdapterFetchErrorOptions = {
   /** Final spy assertion(s) after all cases. */
   spy?: AdapterFetchErrorSpyExpect | readonly AdapterFetchErrorSpyExpect[];
 };
-
-function assertErrorMessageSpy(
-  emSpy: ErrorMessageSpy,
-  spyExpect: AdapterFetchErrorSpyExpect,
-): void {
-  if (spyExpect === "called") {
-    expect(emSpy).toHaveBeenCalled();
-    return;
-  }
-  if ("times" in spyExpect) {
-    expect(emSpy).toHaveBeenCalledTimes(spyExpect.times);
-    return;
-  }
-  expect(emSpy).toHaveBeenCalledWith({ message: spyExpect.message });
-}
 
 function applyFetchMockSetup(fetchMock: FetchMock, step: AdapterFetchErrorCase): void {
   if (step.setupFetch) {
