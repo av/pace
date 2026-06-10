@@ -1,6 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import {
   aggregateParallelFeeds,
+  aggregateSequentialFeeds,
   compareItemTimestampDesc,
   dedupeByKey,
   fetchAllBatched,
@@ -72,6 +73,36 @@ describe("perSourceTotalLimit", () => {
 
   test("returns MAX_SAFE_INTEGER when per-source cap is unlimited", () => {
     expect(perSourceTotalLimit(Number.MAX_SAFE_INTEGER, 5)).toBe(Number.MAX_SAFE_INTEGER);
+  });
+});
+
+describe("aggregateSequentialFeeds", () => {
+  test("sequential-fetches, dedupes, filters by min score, sorts, and slices", async () => {
+    const order: string[] = [];
+    const out = await aggregateSequentialFeeds(
+      ["b", "a"],
+      async (key) => {
+        order.push(key);
+        return [
+          { id: key === "a" ? "shared" : "b-only", score: key === "a" ? 10 : 8 },
+          { id: "shared", score: 5 },
+          { id: "low", score: 2 },
+        ];
+      },
+      {
+        limit: 2,
+        dedupeKey: (item) => item.id,
+        minScore: 5,
+        scoreOf: (item) => item.score,
+        sort: (a, b) => b.score - a.score,
+      },
+    );
+
+    expect(order).toEqual(["b", "a"]);
+    expect(out).toEqual([
+      { id: "b-only", score: 8 },
+      { id: "shared", score: 5 },
+    ]);
   });
 });
 

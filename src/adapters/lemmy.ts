@@ -17,7 +17,7 @@ import {
   createAliasedResolver,
 } from "../utils";
 import { mapToContentItems } from "./content-item";
-import { finalizeFetchedItems, fetchAndConcat } from "./merge";
+import { aggregateSequentialFeeds, finalizeFetchedItems } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 type SortType = "Hot" | "New" | "Top" | "Active" | "MostComments";
@@ -110,28 +110,34 @@ const adapter: Adapter = {
     const limit = clampAdapterLimit(config.params?.limit, 25, 50);
     const minScore = normalizeNonNegativeNumber(config.params?.min_score);
 
-    const allPosts =
-      communities.length === 0
-        ? await fetchLemmyPosts(
-            instance,
-            { sort, limit: String(limit) },
-            `${instance} frontpage`,
-          )
-        : await fetchAndConcat(communities, (community) =>
-            fetchLemmyPosts(
-              instance,
-              { community_name: community, sort, limit: String(limit) },
-              `c/${community}@${instance}`,
-            ),
-          );
-
-    const limited = finalizeFetchedItems(allPosts, {
+    const finalizeOptions = {
       limit,
-      dedupeKey: (view) => view.post.id,
+      dedupeKey: (view: LemmyPostView) => view.post.id,
       minScore,
-      scoreOf: (view) => view.counts.score,
-      sort: (a, b) => b.counts.score - a.counts.score,
-    });
+      scoreOf: (view: LemmyPostView) => view.counts.score,
+      sort: (a: LemmyPostView, b: LemmyPostView) => b.counts.score - a.counts.score,
+    };
+
+    const limited =
+      communities.length === 0
+        ? finalizeFetchedItems(
+            await fetchLemmyPosts(
+              instance,
+              { sort, limit: String(limit) },
+              `${instance} frontpage`,
+            ),
+            finalizeOptions,
+          )
+        : await aggregateSequentialFeeds(
+            communities,
+            (community) =>
+              fetchLemmyPosts(
+                instance,
+                { community_name: community, sort, limit: String(limit) },
+                `c/${community}@${instance}`,
+              ),
+            finalizeOptions,
+          );
 
     return mapToContentItems(
       limited,

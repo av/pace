@@ -59,6 +59,18 @@ export async function aggregateParallelFeeds<T, K>(
   });
 }
 
+export type AggregateSequentialFeedsOptions<T> = FinalizeFetchedItemsOptions<T>;
+
+/** Sequential multi-source fetch with shared dedupe/min-score/sort/limit finalize pipeline. */
+export async function aggregateSequentialFeeds<T, K>(
+  keys: readonly K[],
+  fetchOne: (key: K) => Promise<T[]>,
+  options: AggregateSequentialFeedsOptions<T>,
+): Promise<T[]> {
+  const items = await fetchAndConcat(keys, fetchOne);
+  return finalizeFetchedItems(items, options);
+}
+
 /** Parallel fetch in fixed-size batches with optional delay between batches (rate limiting). */
 export async function fetchAllBatched<T, K>(
   keys: readonly K[],

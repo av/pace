@@ -19,7 +19,7 @@ import {
   createAliasedResolver,
 } from "../utils";
 import { mapToContentItems } from "./content-item";
-import { finalizeFetchedItems, fetchAndConcat } from "./merge";
+import { aggregateSequentialFeeds, finalizeFetchedItems } from "./merge";
 import { type Adapter, type AdapterConfig, type ContentItem } from "./types";
 
 const SE_API = "https://api.stackexchange.com/2.3";
@@ -127,21 +127,24 @@ const adapter: Adapter = {
 
     const effectiveSort = resolveStackExchangeSort(sort);
 
-    let questions: SEQuestion[];
-    if (tags.length > 1) {
-      questions = await fetchAndConcat(tags, (tag) =>
-        fetchQuestions(site, effectiveSort, [tag], limit),
-      );
-    } else {
-      questions = await fetchQuestions(site, effectiveSort, tags, limit);
-    }
-
-    const limited = finalizeFetchedItems(questions, {
+    const finalizeOptions = {
       limit,
-      dedupeKey: tags.length > 1 ? (q) => q.question_id : undefined,
+      dedupeKey: tags.length > 1 ? (q: SEQuestion) => q.question_id : undefined,
       minScore,
-      scoreOf: (q) => q.score,
-    });
+      scoreOf: (q: SEQuestion) => q.score,
+    };
+
+    const limited =
+      tags.length > 1
+        ? await aggregateSequentialFeeds(
+            tags,
+            (tag) => fetchQuestions(site, effectiveSort, [tag], limit),
+            finalizeOptions,
+          )
+        : finalizeFetchedItems(
+            await fetchQuestions(site, effectiveSort, tags, limit),
+            finalizeOptions,
+          );
 
     return mapToContentItems(
       limited,

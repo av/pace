@@ -18,7 +18,7 @@ import {
   compareIsoTimestamp,
 } from "../utils";
 import { mapToContentItems } from "./content-item";
-import { finalizeFetchedItems, fetchAndConcat } from "./merge";
+import { aggregateSequentialFeeds, finalizeFetchedItems } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 const LOBSTERS_BASE = "https://lobste.rs";
@@ -88,29 +88,36 @@ const adapter: Adapter = {
     const minScore = normalizeNonNegativeNumber(config.params?.min_score);
     const tags = normalizeParamStringList(config.params, "tags");
 
-    let items: LobstersItem[] = [];
-
-    if (tags.length > 0) {
-      items = await fetchAndConcat(tags, (tag) => {
-        const tagUrl = `${LOBSTERS_BASE}/t/${encodeURIComponent(tag)}.json`;
-        return fetchJson<LobstersItem[]>("lobsters", tagUrl, `tag ${tag}`);
-      });
-    } else {
-      const feedUrl = `${LOBSTERS_BASE}/${feedType}.json`;
-      items = await fetchJson<LobstersItem[]>("lobsters", feedUrl, feedType);
-    }
-
-    const limited = finalizeFetchedItems(items, {
+    const finalizeOptions = {
       limit,
       minScore,
-      scoreOf: (item) => item.score,
+      scoreOf: (item: LobstersItem) => item.score,
       ...(tags.length > 0
         ? {
-            dedupeKey: (item) => item.short_id,
+            dedupeKey: (item: LobstersItem) => item.short_id,
             sort: lobstersSortComparator(feedType),
           }
         : {}),
-    });
+    };
+
+    const limited =
+      tags.length > 0
+        ? await aggregateSequentialFeeds(
+            tags,
+            (tag) => {
+              const tagUrl = `${LOBSTERS_BASE}/t/${encodeURIComponent(tag)}.json`;
+              return fetchJson<LobstersItem[]>("lobsters", tagUrl, `tag ${tag}`);
+            },
+            finalizeOptions,
+          )
+        : finalizeFetchedItems(
+            await fetchJson<LobstersItem[]>(
+              "lobsters",
+              `${LOBSTERS_BASE}/${feedType}.json`,
+              feedType,
+            ),
+            finalizeOptions,
+          );
 
     return mapToContentItems(
       limited,
