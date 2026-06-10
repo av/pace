@@ -9,6 +9,7 @@ import {
   isDedupeStrategy,
 } from "./config";
 import type { ContentItemRow } from "./db";
+import { warnUnknownDedupeStrategy } from "./transform-warn";
 import { extractScore } from "./adapters/engagement";
 import { normalizeUrl, levenshteinSimilarity } from "./dedupe";
 import { compareIsoTimestamp, sliceToLimit } from "./utils";
@@ -263,7 +264,7 @@ function applyDedupeTitleSimilarity(
 export function applyDedupe(items: ContentItemRow[], config: DedupeTransformConfig): ContentItemRow[] {
   const opts = resolveDedupeOptions(config);
   if (!isDedupeStrategy(opts.strategy)) {
-    console.warn(`transforms: unknown dedupe strategy "${opts.strategy}", passing items through`);
+    warnUnknownDedupeStrategy(opts.strategy);
     return items;
   }
   switch (opts.strategy) {

@@ -1,7 +1,8 @@
 import type { TransformConfig } from "./config";
 import type { ContentItemRow } from "./db";
 import { extractEngagementScore } from "./adapters/engagement";
-import { compareIsoTimestamp, errorMessage } from "./utils";
+import { compareIsoTimestamp } from "./utils";
+import { warnInvalidHalfLife, warnInvalidKeywordScoreRegex } from "./transform-warn";
 
 export type SortTransformConfig = Extract<TransformConfig, { type: "sort" }>;
 
@@ -24,7 +25,7 @@ export function applySort(
 function parseHalfLife(str: string): number {
   const match = str.trim().match(/^(\d+(?:\.\d+)?)\s*(m|min|h|hr|d|day|w|wk)s?$/i);
   if (!match) {
-    console.warn(`transforms: invalid half_life "${str}", defaulting to 12h`);
+    warnInvalidHalfLife(str, "12h");
     return 12 * 60 * 60 * 1000;
   }
   const value = parseFloat(match[1]);
@@ -124,9 +125,7 @@ export function applyKeywordScore(
       try {
         return { regex: new RegExp(kw.term, "gi"), weight: kw.weight, term: kw.term };
       } catch (err) {
-        console.warn(
-          `transforms: invalid keyword-score regex "${kw.term}": ${errorMessage(err)}, treating as literal`,
-        );
+        warnInvalidKeywordScoreRegex(kw.term, err);
         return { regex: null, literal: kw.term.toLowerCase(), weight: kw.weight, term: kw.term };
       }
     }

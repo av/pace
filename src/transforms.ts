@@ -20,6 +20,7 @@ import {
   type TimeDecayTransformConfig,
 } from "./transform-rank";
 import { llmTransforms, type TransformContext } from "./transform-llm";
+import { warnUnknownTransformType } from "./transform-warn";
 
 export type { TransformContext };
 
@@ -60,7 +61,7 @@ export async function runPipeline(
   for (const step of pipeline) {
     const fn = transforms[step.type];
     if (!fn) {
-      console.warn(`transforms: unknown transform type "${step.type}", skipping`);
+      warnUnknownTransformType(step.type);
       continue;
     }
     result = await Promise.resolve(fn(result, step, ctx));
