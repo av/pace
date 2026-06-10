@@ -2,7 +2,7 @@ import { Database } from "bun:sqlite";
 import { join, dirname } from "node:path";
 import * as fs from "node:fs";
 import type { ContentItem, ContentItemFields } from "./adapters/types";
-import type { DashboardPanel } from "./config";
+import type { DashboardPanel } from "./layout/types";
 import { warnDbClose } from "./db-warn";
 import { errorMessage } from "./utils";
 

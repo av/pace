@@ -14,7 +14,7 @@ import {
   PIPELINE_INITIAL_DELAY_MS,
   DEFAULT_REFRESH_INTERVAL_MIN,
 } from "./scheduler";
-import { allPanelRefreshSourceNames, resolvePanelRefreshSourceNames } from "./config";
+import { allPanelRefreshSourceNames, resolvePanelRefreshSourceNames } from "./layout/types";
 import {
   adapterAndPipelinePanelsLayout,
   adapterPipelineLayout,

@@ -1,16 +1,14 @@
 import { ADAPTER_PARAM_KEYS, isAdapterType } from "./adapters/params";
+import type { IngestAdapterConfig, LlmConfig, PipelineConfig } from "./config";
 import {
   collectPanels,
   isRecord,
   LAYOUT_DIRECTIONS,
   normalizeSource,
   resolvePanelId,
-  type IngestAdapterConfig,
   type LayoutNodeConfig,
-  type LlmConfig,
   type PanelConfig,
-  type PipelineConfig,
-} from "./config";
+} from "./layout/types";
 import { validateTransforms } from "./transform-validate";
 import { getAdapterName } from "./utils";
 import {
