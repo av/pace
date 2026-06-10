@@ -15,13 +15,14 @@ import {
   clampAdapterLimit,
   normalizeNonNegativeNumber,
   normalizeParamBoolean,
+  sliceToLimit,
 } from "../utils";
 import {
   warnAdapter,
   warnFilterRemovedAll,
   warnIneffectiveParam,
 } from "./empty-config";
-import { enrichAndFilterItemsBatched, finalizeFetchedItems, sliceAndMap } from "./merge";
+import { enrichAndFilterItemsBatched } from "./merge";
 import {
   fetchAtomFeed,
   fetchText,
@@ -229,7 +230,7 @@ function buildBody(
   );
 }
 
-async function fetchProductHuntFeed(limit: number): Promise<{
+async function fetchProductHuntFeed(limit: number | undefined): Promise<{
   feedTitle: string;
   items: ParsedPHEntry[];
 }> {
@@ -244,9 +245,8 @@ async function fetchProductHuntFeed(limit: number): Promise<{
     "producthunt",
   )!;
 
-  const items = sliceAndMap(entries, limit, (entry) =>
-    parseEntry(entry, feedTitle),
-  );
+  const limited = limit !== undefined ? sliceToLimit(entries, limit) : entries;
+  const items = limited.map((entry) => parseEntry(entry, feedTitle));
   return { feedTitle, items };
 }
 
@@ -265,12 +265,7 @@ const adapter: Adapter = {
       warnIneffectiveParam("producthunt", "min_upvotes", "enrich: true");
     }
 
-    const effectiveLimit = limit ?? Number.MAX_SAFE_INTEGER;
-    const { items: feedItems } = await fetchProductHuntFeed(effectiveLimit);
-
-    const items = finalizeFetchedItems(feedItems, {
-      limit: effectiveLimit,
-    });
+    const { items } = await fetchProductHuntFeed(limit);
 
     let enrichedMap = new Map<string, EnrichedData | null>();
     let filtered = items;

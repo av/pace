@@ -4,17 +4,19 @@ import {
   type FeedItemBodyFields,
   type XmlTextField,
 } from "./atom";
+import { mapToContentItemsPerSource, type ContentItemProjection } from "./content-item";
 import { warnEmptyConfig } from "./empty-config";
 import {
-  buildFeedContentItem,
+  decodeFeedEntryTitle,
   extractFeedEntryStrippedBody,
-  projectFeedEntryToContentItem,
+  FEED_ENTRY_DATE_RSS_ORDER,
+  parseFeedEntryTimestamp,
   resolveDecodedFeedRootTitle,
 } from "./feed-entry";
 import { fetchRssAtomFeed } from "./fetch";
-import { aggregateParallelFeeds, sliceAndMap } from "./merge";
+import { aggregateParallelFeeds } from "./merge";
 import { extractHostname } from "../dedupe";
-import { clampAdapterLimit, normalizeParamStringList, simpleHash } from "../utils";
+import { clampAdapterLimit, normalizeParamStringList, simpleHash, sliceToLimit } from "../utils";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 interface RssFeedItem extends FeedItemBodyFields {
@@ -38,20 +40,34 @@ interface RssFeedParsed {
   };
 }
 
-function parseItem(raw: RssFeedItem, source: string): ContentItem {
-  return projectFeedEntryToContentItem("rss", raw, ({ title }) => {
-    const link = extractAtomLink(raw.link);
-    const body = extractFeedEntryStrippedBody(raw);
-    return {
-      idSuffix: link || `${title}:${simpleHash(body ?? "")}`,
-      url: link || "",
-      source,
-      body,
-    };
-  });
+interface TaggedRssItem {
+  raw: RssFeedItem;
+  source: string;
+  timestamp: Date;
 }
 
-async function fetchFeed(url: string, limit: number): Promise<ContentItem[]> {
+function rssDedupeKey(item: TaggedRssItem): string {
+  const link = extractAtomLink(item.raw.link);
+  if (link) return link;
+  const title = decodeFeedEntryTitle(item.raw.title);
+  const body = extractFeedEntryStrippedBody(item.raw);
+  return `rss:${link || `${title}:${simpleHash(body ?? "")}`}`;
+}
+
+function projectRssItem(item: TaggedRssItem): ContentItemProjection {
+  const link = extractAtomLink(item.raw.link);
+  const title = decodeFeedEntryTitle(item.raw.title);
+  const body = extractFeedEntryStrippedBody(item.raw);
+  return {
+    id: `rss:${link || `${title}:${simpleHash(body ?? "")}`}`,
+    title,
+    url: link || "",
+    timestamp: item.timestamp,
+    body,
+  };
+}
+
+async function fetchFeed(url: string, limit: number): Promise<TaggedRssItem[]> {
   const { parsed, items } = await fetchRssAtomFeed<RssFeedItem, RssFeedParsed>(
     "rss",
     url,
@@ -62,7 +78,11 @@ async function fetchFeed(url: string, limit: number): Promise<ContentItem[]> {
     parsed?.feed?.title,
   );
   const source = feedTitle ?? (extractHostname(url, "rss") || url);
-  return sliceAndMap(items, limit, (item) => parseItem(item, source));
+  return sliceToLimit(items, limit).map((raw) => ({
+    raw,
+    source,
+    timestamp: parseFeedEntryTimestamp(raw, FEED_ENTRY_DATE_RSS_ORDER),
+  }));
 }
 
 const adapter: Adapter = {
@@ -79,10 +99,12 @@ const adapter: Adapter = {
         ? clampAdapterLimit(limitRaw, 50, 200)
         : Number.MAX_SAFE_INTEGER;
 
-    return aggregateParallelFeeds(urls, (url) => fetchFeed(url, perFeedLimit), {
+    const tagged = await aggregateParallelFeeds(urls, (url) => fetchFeed(url, perFeedLimit), {
       perSourceLimit: perFeedLimit,
-      dedupeKey: (item) => item.url || item.id,
+      dedupeKey: rssDedupeKey,
     });
+
+    return mapToContentItemsPerSource(tagged, (item) => item.source, projectRssItem);
   },
 };
 

@@ -1,6 +1,7 @@
 import {
   normalizeParamString,
   normalizeParamStringList,
+  sliceToLimit,
 } from "../utils";
 import {
   extractAtomLink,
@@ -8,19 +9,19 @@ import {
   type FeedItemBodyFields,
   type XmlTextField,
 } from "./atom";
-import { mapToContentItems } from "./content-item";
+import { mapToContentItemsPerSource, type ContentItemProjection } from "./content-item";
 import {
   decodeFeedEntryTitle,
   extractFeedEntryStrippedBody,
   FEED_ENTRY_DATE_ATOM_ORDER,
-  projectFeedEntryToContentItem,
+  parseFeedEntryTimestamp,
   resolveDecodedFeedRootTitle,
 } from "./feed-entry";
 import { fetchAtomFeed, fetchJson, buildGitHubApiHeaders } from "./fetch";
 import { fetchRepoTagline } from "./github-repo-meta";
 import { decodeNumericFeedTitle } from "./html";
 import { warnEmptyConfig } from "./empty-config";
-import { aggregateParallelFeeds, sliceAndMap } from "./merge";
+import { aggregateParallelFeeds } from "./merge";
 import { capText, joinTitleWithTagline } from "./title";
 import type { ContentItem } from "./types";
 
@@ -73,6 +74,21 @@ interface GHAtomFeedParsed {
   };
 }
 
+interface TaggedGHAtomEntry {
+  entry: GHAtomEntry;
+  repo: string;
+  source: string;
+  tagline: string;
+  timestamp: Date;
+}
+
+interface TaggedGHApiRelease {
+  release: GitHubRelease;
+  repo: string;
+  tagline: string;
+  timestamp: Date;
+}
+
 /** Shared repos/token parsing for github and github-releases adapters. */
 export function resolveGitHubRepos(
   params: Record<string, unknown> | undefined,
@@ -102,12 +118,67 @@ export function formatGitHubReleaseDisplayTitle(
   return joinTitleWithTagline(releaseTitle, tagline);
 }
 
+function githubAtomDedupeKey(item: TaggedGHAtomEntry): string {
+  const link = extractAtomLink(item.entry.link);
+  return link || `https://github.com/${item.repo}/releases`;
+}
+
+function githubApiDedupeKey(item: TaggedGHApiRelease): string {
+  return item.release.html_url || `github:${item.repo}:${item.release.id}`;
+}
+
+function projectGitHubAtomEntry(item: TaggedGHAtomEntry): ContentItemProjection {
+  const { entry, repo, tagline } = item;
+  const title = decodeFeedEntryTitle(entry.title, "(untitled release)");
+  const link = extractAtomLink(entry.link);
+  const tagMatch = link.match(/\/releases\/tag\/(.+)$/);
+  const tag = tagMatch ? tagMatch[1] : "";
+  const strippedBody = extractFeedEntryStrippedBody(entry);
+  const body = strippedBody ? capText(strippedBody, 500) : undefined;
+  return {
+    id: `github:${repo}:${tag || title}`,
+    title: formatGitHubReleaseDisplayTitle(repo, { tag, title }, tagline),
+    url: link || `https://github.com/${repo}/releases`,
+    timestamp: item.timestamp,
+    body,
+  };
+}
+
+function projectGitHubApiRelease(item: TaggedGHApiRelease): ContentItemProjection {
+  const { release, repo, tagline } = item;
+  return {
+    id: `github:${repo}:${release.id}`,
+    title: formatGitHubReleaseDisplayTitle(
+      repo,
+      { title: release.name ?? release.tag_name },
+      tagline,
+    ),
+    url: release.html_url,
+    timestamp: item.timestamp,
+    body: release.body ?? undefined,
+  };
+}
+
 export async function fetchGitHubAtomReleases(
   repo: string,
   limit: number,
   adapterName: string,
   token?: string,
 ): Promise<ContentItem[]> {
+  const tagged = await fetchGitHubAtomReleasesRaw(repo, limit, adapterName, token);
+  return mapToContentItemsPerSource(
+    tagged,
+    (item) => item.source,
+    projectGitHubAtomEntry,
+  );
+}
+
+async function fetchGitHubAtomReleasesRaw(
+  repo: string,
+  limit: number,
+  adapterName: string,
+  token?: string,
+): Promise<TaggedGHAtomEntry[]> {
   const url = `https://github.com/${repo}/releases.atom`;
 
   const { parsed, entries } = await fetchAtomFeed<GHAtomEntry, GHAtomFeedParsed>(
@@ -119,28 +190,13 @@ export async function fetchGitHubAtomReleases(
   const source = githubAtomFeedSourceLabel(repo, feedTitle);
   const tagline = await fetchRepoTagline(repo, adapterName, token);
 
-  return sliceAndMap(entries, limit, (entry) =>
-    projectFeedEntryToContentItem(
-      "github",
-      entry,
-      ({ title }) => {
-        const link = extractAtomLink(entry.link);
-        const tagMatch = link.match(/\/releases\/tag\/(.+)$/);
-        const tag = tagMatch ? tagMatch[1] : "";
-        const strippedBody = extractFeedEntryStrippedBody(entry);
-        const body = strippedBody ? capText(strippedBody, 500) : undefined;
-        return {
-          idSuffix: `${repo}:${tag || title}`,
-          url: link || `https://github.com/${repo}/releases`,
-          source,
-          body,
-          title: formatGitHubReleaseDisplayTitle(repo, { tag, title }, tagline),
-        };
-      },
-      FEED_ENTRY_DATE_ATOM_ORDER,
-      (title) => decodeFeedEntryTitle(title, "(untitled release)"),
-    ),
-  );
+  return sliceToLimit(entries, limit).map((entry) => ({
+    entry,
+    repo,
+    source,
+    tagline,
+    timestamp: parseFeedEntryTimestamp(entry, FEED_ENTRY_DATE_ATOM_ORDER),
+  }));
 }
 
 export async function fetchGitHubApiReleases(
@@ -149,21 +205,30 @@ export async function fetchGitHubApiReleases(
   adapterName: string,
   token?: string,
 ): Promise<ContentItem[]> {
+  const tagged = await fetchGitHubApiReleasesRaw(repo, perPage, adapterName, token);
+  return mapToContentItemsPerSource(
+    tagged,
+    (item) => githubRepoSourceLabel(item.repo),
+    projectGitHubApiRelease,
+  );
+}
+
+async function fetchGitHubApiReleasesRaw(
+  repo: string,
+  perPage: number,
+  adapterName: string,
+  token?: string,
+): Promise<TaggedGHApiRelease[]> {
   const url = `https://api.github.com/repos/${repo}/releases?per_page=${perPage}`;
   const releases = await fetchJson<GitHubRelease[]>(adapterName, url, repo, {
     headers: buildGitHubApiHeaders(token),
   });
   const tagline = await fetchRepoTagline(repo, adapterName, token);
-  return mapToContentItems(releases, githubRepoSourceLabel(repo), (release) => ({
-    id: `github:${repo}:${release.id}`,
-    title: formatGitHubReleaseDisplayTitle(
-      repo,
-      { title: release.name ?? release.tag_name },
-      tagline,
-    ),
-    url: release.html_url,
+  return releases.map((release) => ({
+    release,
+    repo,
+    tagline,
     timestamp: new Date(release.published_at),
-    body: release.body ?? undefined,
   }));
 }
 
@@ -174,15 +239,33 @@ export async function fetchGitHubReposReleases(
   limit: number,
   adapterName: string,
 ): Promise<ContentItem[]> {
-  return aggregateParallelFeeds(
+  if (source === "api") {
+    const tagged = await aggregateParallelFeeds(
+      resolved.repos,
+      (repo) => fetchGitHubApiReleasesRaw(repo, limit, adapterName, resolved.token),
+      {
+        perSourceLimit: limit,
+        dedupeKey: githubApiDedupeKey,
+      },
+    );
+    return mapToContentItemsPerSource(
+      tagged,
+      (item) => githubRepoSourceLabel(item.repo),
+      projectGitHubApiRelease,
+    );
+  }
+
+  const tagged = await aggregateParallelFeeds(
     resolved.repos,
-    (repo) =>
-      source === "api"
-        ? fetchGitHubApiReleases(repo, limit, adapterName, resolved.token)
-        : fetchGitHubAtomReleases(repo, limit, adapterName, resolved.token),
+    (repo) => fetchGitHubAtomReleasesRaw(repo, limit, adapterName, resolved.token),
     {
       perSourceLimit: limit,
-      dedupeKey: (item) => item.url || item.id,
+      dedupeKey: githubAtomDedupeKey,
     },
+  );
+  return mapToContentItemsPerSource(
+    tagged,
+    (item) => item.source,
+    projectGitHubAtomEntry,
   );
 }
