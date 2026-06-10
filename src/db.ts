@@ -42,6 +42,30 @@ function runPanelItemsTx(
   }
 }
 
+/** Seven core INSERT columns shared by saveItems and replacePanelItems. */
+function bindCoreContentItemParams(
+  panelId: string,
+  item: Pick<ContentItemRow, "id" | "title" | "url" | "source" | "body"> & { timestamp: string },
+): [string, string, string, string, string, string | null, string] {
+  return [
+    item.id,
+    panelId,
+    item.title,
+    item.url,
+    item.source,
+    item.body ?? null,
+    item.timestamp,
+  ];
+}
+
+/** Optional panel_id filter for queries scoped to one panel or all panels. */
+function panelIdWhereClause(panelId?: string): { where: string; params: unknown[] } {
+  if (panelId != null) {
+    return { where: "WHERE panel_id = ?", params: [panelId] };
+  }
+  return { where: "", params: [] };
+}
+
 export function getDb(): Database {
   const desiredPath = process.env.PACE_DB_PATH || join(process.cwd(), "data", "pace.db");
   if (!db || currentDbPath !== desiredPath) {
@@ -126,13 +150,10 @@ export function saveItems(panelId: string, items: ContentItem[]): void {
     for (const item of items) {
       runItemOp(panelId, item, "save", () => {
         stmt.run(
-          item.id,
-          panelId,
-          item.title,
-          item.url,
-          item.source,
-          item.body ?? null,
-          item.timestamp.toISOString()
+          ...bindCoreContentItemParams(panelId, {
+            ...item,
+            timestamp: item.timestamp.toISOString(),
+          }),
         );
       });
     }
@@ -157,8 +178,7 @@ function dedupWinnerSubquery(panelFilter: string): string {
 
 function getDedupedItems(panelId?: string, limit?: number): ContentItemRow[] {
   const db = getDb();
-  const panelFilter = panelId != null ? "WHERE panel_id = ?" : "";
-  const params: unknown[] = panelId != null ? [panelId] : [];
+  const { where: panelFilter, params } = panelIdWhereClause(panelId);
   let sql = `SELECT * FROM content_items WHERE ${dedupWinnerSubquery(panelFilter)} ORDER BY timestamp DESC`;
   if (limit != null) {
     sql += ` LIMIT ?`;
@@ -193,11 +213,10 @@ export function loadDashboardPanelData(
 
 export function getLastFetchedAt(panelId?: string): string | null {
   const db = getDb();
-  const sql = panelId !== undefined
-    ? "SELECT MAX(fetched_at) as last_fetched FROM content_items WHERE panel_id = ?"
-    : "SELECT MAX(fetched_at) as last_fetched FROM content_items";
-  const params = panelId !== undefined ? [panelId] : [];
-  const row = db.prepare(sql).get(...params) as { last_fetched: string | null } | null;
+  const { where, params } = panelIdWhereClause(panelId);
+  const row = db
+    .prepare(`SELECT MAX(fetched_at) as last_fetched FROM content_items ${where}`)
+    .get(...params) as { last_fetched: string | null } | null;
   return row?.last_fetched ?? null;
 }
 
@@ -222,13 +241,7 @@ export function replacePanelItems(panelId: string, items: ContentItemRow[]): voi
     for (const item of items) {
       runItemOp(panelId, item, "replace", () => {
         stmt.run(
-          item.id,
-          panelId,
-          item.title,
-          item.url,
-          item.source,
-          item.body,
-          item.timestamp,
+          ...bindCoreContentItemParams(panelId, item),
           item.fetched_at,
           item.summary ?? summaryMap.get(item.id) ?? null,
         );
