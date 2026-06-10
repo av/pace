@@ -26,7 +26,7 @@ import {
   normalizeParamString,
   normalizeParamStringList,
 } from "../utils";
-import { compareItemTimestampDesc, fetchAllBatched, finalizeFetchedItems } from "./merge";
+import { aggregateBatchedFeeds, dedupeByKey } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 const ARXIV_API = "http://export.arxiv.org/api/query";
 const RATE_LIMIT_DELAY_MS = 3000;
@@ -88,20 +88,17 @@ function extractAuthors(author: ArxivEntry["author"]): string {
 }
 
 function extractCategories(entry: ArxivEntry): string[] {
-  const cats: string[] = [];
-  if (entry["arxiv:primary_category"]?.["@_term"]) {
-    cats.push(entry["arxiv:primary_category"]["@_term"]);
-  }
+  const terms: string[] = [];
+  const primary = entry["arxiv:primary_category"]?.["@_term"];
+  if (primary) terms.push(primary);
   if (entry.category) {
     const categories = Array.isArray(entry.category) ? entry.category : [entry.category];
     for (const cat of categories) {
       const term = cat["@_term"];
-      if (term && !cats.includes(term)) {
-        cats.push(term);
-      }
+      if (term) terms.push(term);
     }
   }
-  return cats;
+  return dedupeByKey(terms, (term) => term);
 }
 
 function extractPdfLink(link: ArxivEntry["link"]): string {
@@ -186,27 +183,19 @@ const adapter: Adapter = {
         : []),
     ];
 
-    const allItems = (
-      await fetchAllBatched(
-        sources,
-        1,
-        async ({ queryStr, sourceLabel }) => {
-          const entries = await fetchArxivQuery(queryStr, limit);
-          return sliceMapToContentItems(entries, limit, sourceLabel, projectArxivEntry);
-        },
-        RATE_LIMIT_DELAY_MS,
-      )
-    ).flat();
-
-    const totalLimit = categories.length > 1 || (categories.length > 0 && query)
-      ? limit * (categories.length + (query ? 1 : 0))
-      : limit;
-
-    return finalizeFetchedItems(allItems, {
-      limit: totalLimit,
-      dedupeKey: (item) => item.id,
-      sort: compareItemTimestampDesc,
-    });
+    return aggregateBatchedFeeds(
+      sources,
+      1,
+      async ({ queryStr, sourceLabel }) => {
+        const entries = await fetchArxivQuery(queryStr, limit);
+        return sliceMapToContentItems(entries, limit, sourceLabel, projectArxivEntry);
+      },
+      {
+        perSourceLimit: limit,
+        dedupeKey: (item) => item.id,
+      },
+      RATE_LIMIT_DELAY_MS,
+    );
   },
 };
 

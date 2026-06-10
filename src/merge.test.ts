@@ -1,5 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import {
+  aggregateBatchedFeeds,
   aggregateParallelFeeds,
   aggregateSequentialFeeds,
   compareItemTimestampDesc,
@@ -7,6 +8,7 @@ import {
   fetchAllBatched,
   fetchAllParallel,
   fetchAndConcat,
+  fetchAndConcatBatched,
   mapAndConcat,
   finalizeFetchedItems,
   perSourceTotalLimit,
@@ -153,6 +155,68 @@ describe("fetchAllParallel", () => {
   test("returns empty array when keys is empty", async () => {
     const out = await fetchAllParallel([], async () => [{ v: 1 }]);
     expect(out).toEqual([]);
+  });
+});
+
+describe("fetchAndConcatBatched", () => {
+  test("concatenates per-key arrays in batch order with optional delay", async () => {
+    const order: string[] = [];
+    const out = await fetchAndConcatBatched(
+      ["b", "a"],
+      1,
+      async (key) => {
+        order.push(key);
+        return key === "a" ? [{ v: 1 }] : [{ v: 2 }, { v: 3 }];
+      },
+      10,
+    );
+    expect(order).toEqual(["b", "a"]);
+    expect(out).toEqual([{ v: 2 }, { v: 3 }, { v: 1 }]);
+  });
+
+  test("returns empty array when keys is empty", async () => {
+    const out = await fetchAndConcatBatched([], 2, async () => [{ v: 1 }]);
+    expect(out).toEqual([]);
+  });
+});
+
+describe("aggregateBatchedFeeds", () => {
+  test("batched-fetches, dedupes, sorts, and applies per-source total cap", async () => {
+    const order: string[] = [];
+    const out = await aggregateBatchedFeeds(
+      ["b", "a"],
+      1,
+      async (key) => {
+        order.push(key);
+        return [
+          {
+            id: key === "a" ? "shared" : "b-only",
+            timestamp: new Date(key === "a" ? "2024-01-01T00:00:00.000Z" : "2024-06-01T00:00:00.000Z"),
+          },
+          {
+            id: "shared",
+            timestamp: new Date("2024-03-01T00:00:00.000Z"),
+          },
+        ];
+      },
+      {
+        perSourceLimit: 1,
+        dedupeKey: (item) => item.id,
+      },
+      5,
+    );
+
+    expect(order).toEqual(["b", "a"]);
+    expect(out).toEqual([
+      {
+        id: "b-only",
+        timestamp: new Date("2024-06-01T00:00:00.000Z"),
+      },
+      {
+        id: "shared",
+        timestamp: new Date("2024-03-01T00:00:00.000Z"),
+      },
+    ]);
   });
 });
 

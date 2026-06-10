@@ -11,6 +11,7 @@ import { fetchMockCallHeaders, fetchMockCallUrl, useFetchMockSuite } from "./tes
 import { arxivCfg } from "./test/adapter-cfg";
 import {
   arxivDedupOverlapQueryFeedFixture,
+  arxivDuplicateCategoriesFeedFixture,
   arxivDoubleEncodedAbstractFeedFixture,
   arxivEntityAbstractFeedFixture,
   arxivFeedFixture,
@@ -108,6 +109,16 @@ describe("arxiv", () => {
 
     const headers = fetchMockCallHeaders(mocks.fetchMock);
     expect(headers.Accept).toBe(FEED_XML_ACCEPT);
+  });
+
+  test("deduplicates overlapping primary and secondary categories in body", async () => {
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(arxivDuplicateCategoriesFeedFixture()));
+
+    const items = await arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"] }));
+
+    expect(items.length).toBe(1);
+    expect(items[0].body).toContain("Categories: cs.AI, cs.LG");
+    expect(items[0].body).not.toContain("cs.AI, cs.AI");
   });
 
   test("fetches by single category and maps items with correct fields, source, body parts", async () => {

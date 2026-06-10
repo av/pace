@@ -123,6 +123,25 @@ export function arxivDedupOverlapQueryFeedFixture(): string {
   ]);
 }
 
+/** Feed where primary category repeats in secondary category list (dedupe body test). */
+export function arxivDuplicateCategoriesFeedFixture(): string {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:arxiv="http://arxiv.org/schemas/atom">
+  <entry>
+    <id>http://arxiv.org/abs/2401.00998v1</id>
+    <title>Deduped Categories Paper</title>
+    <summary>Abstract text.</summary>
+    <published>2024-05-20T12:00:00Z</published>
+    <author><name>Cat Author</name></author>
+    <arxiv:primary_category term="cs.AI" />
+    <category term="cs.AI" />
+    <category term="cs.LG" />
+    <link href="http://arxiv.org/abs/2401.00998v1" rel="alternate" type="text/html" />
+    <link title="pdf" href="http://arxiv.org/pdf/2401.00998" type="application/pdf" />
+  </entry>
+</feed>`;
+}
+
 /** Compact multi-entry feed for per-source limit tests. */
 export function arxivLimitMultiEntryFeedFixture(count: number): string {
   const entries: ArxivEntryFixture[] = Array.from({ length: count }, (_, i) => ({

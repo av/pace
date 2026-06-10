@@ -89,6 +89,42 @@ export async function fetchAllBatched<T, K>(
   return results;
 }
 
+/** Batched fetch where each key returns an array; concatenates in key order (rate-limited multi-source merge). */
+export async function fetchAndConcatBatched<T, K>(
+  keys: readonly K[],
+  batchSize: number,
+  fetchOne: (key: K) => Promise<T[]>,
+  delayMs = 0,
+): Promise<T[]> {
+  return (await fetchAllBatched(keys, batchSize, fetchOne, delayMs)).flat();
+}
+
+export type AggregateBatchedFeedsOptions<T> = {
+  perSourceLimit: number;
+  dedupeKey?: (item: T) => unknown;
+  minScore?: number;
+  scoreOf?: (item: T) => number;
+  sort?: (a: T, b: T) => number;
+};
+
+/** Batched multi-source fetch with shared dedupe/min-score/sort/per-source total cap finalize pipeline. */
+export async function aggregateBatchedFeeds<T, K>(
+  keys: readonly K[],
+  batchSize: number,
+  fetchOne: (key: K) => Promise<T[]>,
+  options: AggregateBatchedFeedsOptions<T>,
+  delayMs = 0,
+): Promise<T[]> {
+  const items = await fetchAndConcatBatched(keys, batchSize, fetchOne, delayMs);
+  return finalizeFetchedItems(items, {
+    limit: perSourceTotalLimit(options.perSourceLimit, keys.length),
+    dedupeKey: options.dedupeKey,
+    minScore: options.minScore,
+    scoreOf: options.scoreOf,
+    sort: options.sort ?? compareItemTimestampDesc,
+  });
+}
+
 /** Keep first occurrence per key (overlap when merging multiple tags/endpoints). */
 export function dedupeByKey<T, K>(items: readonly T[], key: (item: T) => K): T[] {
   const seen = new Set<K>();
