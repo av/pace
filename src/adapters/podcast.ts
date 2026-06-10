@@ -8,8 +8,8 @@ import {
 } from "./atom";
 import { formatSeconds } from "./dates";
 import { warnEmptyConfig, warnEmptyFetchResult } from "./empty-config";
+import { mapToContentItemsPerSource, type ContentItemProjection } from "./content-item";
 import {
-  buildFeedContentItem,
   decodeFeedEntryTitle,
   extractFeedEntryStrippedBody,
   FEED_ENTRY_DATE_PODCAST_ORDER,
@@ -121,6 +121,21 @@ interface PodcastEpisode {
   author: string | null;
 }
 
+interface TaggedPodcastEpisode {
+  episode: PodcastEpisode;
+  timestamp: Date;
+}
+
+function podcastUniqueId(ep: PodcastEpisode): string {
+  return ep.guid || ep.audioUrl || ep.url || ep.title;
+}
+
+function podcastDedupeKey(item: TaggedPodcastEpisode): string {
+  const ep = item.episode;
+  if (ep.url) return ep.url;
+  return `podcast:${slugify(ep.showName)}:${podcastUniqueId(ep)}`;
+}
+
 function parseEpisode(
   item: PodcastFeedItem,
   showName: string,
@@ -215,22 +230,22 @@ function buildBody(ep: PodcastEpisode): string {
   );
 }
 
-function episodeToContentItem(ep: PodcastEpisode): ContentItem {
+function projectPodcastEpisode(item: TaggedPodcastEpisode): ContentItemProjection {
+  const ep = item.episode;
   const slug = slugify(ep.showName);
-  const uniqueId = ep.guid || ep.audioUrl || ep.url || ep.title;
-  return buildFeedContentItem(`podcast:${slug}:${uniqueId}`, {
+  return {
+    id: `podcast:${slug}:${podcastUniqueId(ep)}`,
     title: ep.title,
     url: ep.url,
-    source: `podcast:${slug}`,
-    timestamp: ep.publishDate,
+    timestamp: item.timestamp,
     body: buildBody(ep),
-  });
+  };
 }
 
 async function fetchPodcastFeed(
   feedUrl: string,
   limit: number,
-): Promise<ContentItem[]> {
+): Promise<TaggedPodcastEpisode[]> {
   const { parsed, items } = await fetchRssAtomFeed<PodcastFeedItem, PodcastFeedParsed>(
     "podcast",
     feedUrl,
@@ -257,7 +272,7 @@ async function fetchPodcastFeed(
 
   return sliceAndMapDefined(items, limit, (item) => {
     const ep = parseEpisode(item, showName, channelLink);
-    return ep ? episodeToContentItem(ep) : null;
+    return ep ? { episode: ep, timestamp: ep.publishDate } : null;
   });
 }
 
@@ -271,10 +286,20 @@ const adapter: Adapter = {
       return warnEmptyConfig("podcast", "no feeds configured");
     }
 
-    return aggregateParallelFeeds(feeds, (url) => fetchPodcastFeed(url, limit), {
-      perSourceLimit: limit,
-      dedupeKey: (item) => item.url || item.id,
-    });
+    const tagged = await aggregateParallelFeeds(
+      feeds,
+      (url) => fetchPodcastFeed(url, limit),
+      {
+        perSourceLimit: limit,
+        dedupeKey: podcastDedupeKey,
+      },
+    );
+
+    return mapToContentItemsPerSource(
+      tagged,
+      (item) => `podcast:${slugify(item.episode.showName)}`,
+      projectPodcastEpisode,
+    );
   },
 };
 
