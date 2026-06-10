@@ -6,7 +6,7 @@ describe("server log utilities", () => {
     const logSpy = spyOn(console, "log").mockImplementation(() => {});
 
     logServerListening(7453);
-    expect(logSpy).toHaveBeenCalledWith("index: listening on http://localhost:7453");
+    expect(logSpy).toHaveBeenCalledWith("server: listening on http://localhost:7453");
     logSpy.mockRestore();
   });
 });
