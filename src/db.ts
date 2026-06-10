@@ -2,14 +2,11 @@ import { Database } from "bun:sqlite";
 import { join, dirname } from "node:path";
 import * as fs from "node:fs";
 import type { ContentItem, ContentItemFields } from "./adapters/types";
+import { warnDbClose } from "./db-warn";
 import { errorMessage } from "./utils";
 
 let db: Database | null = null;
 let currentDbPath: string | null = null;
-
-function warnDbClose(err: unknown): void {
-  console.warn(`db: failed to close: ${errorMessage(err)}`);
-}
 
 /** Re-throw per-item db: errors; wrap transaction failures with context. */
 function rethrowDbTxError(e: unknown, wrapped: string): never {

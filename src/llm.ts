@@ -10,13 +10,9 @@ import {
 import type { LlmConfig } from "./config";
 import type { ContentItem } from "./adapters/types";
 import { capText } from "./adapters/title";
-import { errorMessage } from "./utils";
+import { warnLlm } from "./llm-warn";
 
 const KNOWN_PROVIDERS = new Set<string>(getProviders());
-
-function warnLlm(message: string, err?: unknown): void {
-  console.warn(err !== undefined ? `llm: ${message}: ${errorMessage(err)}` : `llm: ${message}`);
-}
 
 function isKnownProvider(provider: string): provider is KnownProvider {
   return KNOWN_PROVIDERS.has(provider);

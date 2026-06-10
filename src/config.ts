@@ -13,6 +13,7 @@ import {
   validateUniqueUnnamedAdapterTypes,
   TRANSFORM_TYPES,
 } from "./config-validate";
+import { warnUnsetEnvVar } from "./config-warn";
 import { errorMessage, getAdapterName } from "./utils";
 
 export { TRANSFORM_TYPES };
@@ -159,12 +160,6 @@ function assertEnvVarsFullyExpanded(value: string): void {
   throw new Error(
     `config: unexpanded env var placeholder(s): ${placeholders.join(", ")} (check for a cyclic \${VAR} chain)`,
   );
-}
-
-function warnUnsetEnvVar(name: string, warnedUnset: Set<string>): void {
-  if (warnedUnset.has(name)) return;
-  warnedUnset.add(name);
-  console.warn(`config: env var ${name} is unset (expanding to empty)`);
 }
 
 function resolveEnvVars(value: string, depth = 0, warnedUnset = new Set<string>()): string {
