@@ -19,7 +19,7 @@ import {
   createAliasedResolver,
 } from "../utils";
 import { mapToContentItems } from "./content-item";
-import { finalizeFetchedItems } from "./merge";
+import { finalizeFetchedItems, fetchAndConcat } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 const REDDIT_BASE = "https://www.reddit.com";
@@ -137,18 +137,9 @@ const adapter: Adapter = {
       return warnEmptyConfig("reddit", "no subreddits configured");
     }
 
-    const allPosts: RedditPost[] = [];
-
-    for (const sub of subreddits) {
-      const path = `/r/${sub}`;
-      const posts = await fetchRedditListing(
-        path,
-        effectiveSort,
-        limit,
-        effectivePeriod,
-      );
-      allPosts.push(...posts);
-    }
+    const allPosts = await fetchAndConcat(subreddits, (sub) =>
+      fetchRedditListing(`/r/${sub}`, effectiveSort, limit, effectivePeriod),
+    );
 
     const limited = finalizeFetchedItems(allPosts, {
       limit,

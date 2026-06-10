@@ -205,24 +205,21 @@ async function fetchMastodonStatuses(
     );
   }
 
-  const allStatuses: MastodonStatus[] = [];
-  for (const handle of accounts) {
+  return fetchAndConcat(accounts, async (handle) => {
     const parsed = parseAccountHandle(handle);
     if (!parsed) {
       console.warn(`mastodon: invalid account handle: ${handle}`);
-      continue;
+      return [];
     }
     const account = await lookupAccount(parsed.instance, parsed.username);
-    if (!account) continue;
-    const statuses = await fetchAccountStatuses(
+    if (!account) return [];
+    return fetchAccountStatuses(
       parsed.instance,
       account.id,
       limit,
       onlyMedia,
     );
-    allStatuses.push(...statuses);
-  }
-  return allStatuses;
+  });
 }
 
 const adapter: Adapter = {

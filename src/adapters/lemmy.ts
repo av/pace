@@ -17,7 +17,7 @@ import {
   createAliasedResolver,
 } from "../utils";
 import { mapToContentItems } from "./content-item";
-import { finalizeFetchedItems } from "./merge";
+import { finalizeFetchedItems, fetchAndConcat } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 type SortType = "Hot" | "New" | "Top" | "Active" | "MostComments";
@@ -110,25 +110,20 @@ const adapter: Adapter = {
     const limit = clampAdapterLimit(config.params?.limit, 25, 50);
     const minScore = normalizeNonNegativeNumber(config.params?.min_score);
 
-    const allPosts: LemmyPostView[] = [];
-
-    if (communities.length === 0) {
-      const posts = await fetchLemmyPosts(
-        instance,
-        { sort, limit: String(limit) },
-        `${instance} frontpage`,
-      );
-      allPosts.push(...posts);
-    } else {
-      for (const community of communities) {
-        const posts = await fetchLemmyPosts(
-          instance,
-          { community_name: community, sort, limit: String(limit) },
-          `c/${community}@${instance}`,
-        );
-        allPosts.push(...posts);
-      }
-    }
+    const allPosts =
+      communities.length === 0
+        ? await fetchLemmyPosts(
+            instance,
+            { sort, limit: String(limit) },
+            `${instance} frontpage`,
+          )
+        : await fetchAndConcat(communities, (community) =>
+            fetchLemmyPosts(
+              instance,
+              { community_name: community, sort, limit: String(limit) },
+              `c/${community}@${instance}`,
+            ),
+          );
 
     const limited = finalizeFetchedItems(allPosts, {
       limit,
