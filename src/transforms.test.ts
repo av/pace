@@ -1,7 +1,12 @@
 import { describe, test, expect, beforeEach } from "bun:test";
 import { spyConsole, spyMockCallsContaining } from "./test/console-spy";
 import { runPipeline, type TransformContext } from "./transforms";
-import { TRANSFORM_TYPES, type TransformConfig } from "./config";
+import {
+  TRANSFORM_FIELD_KEYS,
+  TRANSFORM_TYPES,
+  transformAllowedFieldKeys,
+  type TransformConfig,
+} from "./config";
 import type { ContentItemRow } from "./db";
 import { makeContentItemRow as makeRow } from "./test/content-items";
 
@@ -70,6 +75,55 @@ describe("transforms - runPipeline basics", () => {
   test("TRANSFORM_TYPES matches every registry entry (no config/runtime drift)", () => {
     expect(TRANSFORM_TYPES).toHaveLength(12);
     expect(new Set(TRANSFORM_TYPES).size).toBe(TRANSFORM_TYPES.length);
+  });
+
+  test("TRANSFORM_FIELD_KEYS aligns with TransformConfig and validation allowed-keys", () => {
+    const exemplars: Record<TransformConfig["type"], TransformConfig> = {
+      latest: { type: "latest", count: 1 },
+      filter: { type: "filter", keywords: ["a"], fields: ["title"] },
+      exclude: { type: "exclude", keywords: ["a"], fields: ["body"] },
+      sort: { type: "sort", field: "title", direction: "asc" },
+      dedupe: {
+        type: "dedupe",
+        strategy: "url",
+        threshold: 0.9,
+        keep: "latest",
+        log: true,
+      },
+      "keyword-score": {
+        type: "keyword-score",
+        keywords: [{ term: "a", weight: 1, regex: true }],
+        min_score: 1,
+        annotate: true,
+      },
+      "time-decay": {
+        type: "time-decay",
+        half_life: "24h",
+        engagement_weight: 1,
+        recency_weight: 1,
+        decay: "linear",
+        annotate: true,
+        min_score: 0.5,
+      },
+      cluster: {
+        type: "cluster",
+        strategy: "auto",
+        min_cluster_size: 2,
+        max_clusters: 5,
+        similarity_threshold: 0.8,
+        annotate: true,
+      },
+      "llm-summarize": { type: "llm-summarize" },
+      "llm-filter": { type: "llm-filter", criteria: "relevant" },
+      "llm-rank": { type: "llm-rank", interests: ["tech"] },
+      "llm-merge": { type: "llm-merge", prompt: "merge" },
+    };
+
+    for (const transformType of TRANSFORM_TYPES) {
+      const configKeys = Object.keys(exemplars[transformType]).filter((key) => key !== "type").sort();
+      expect([...TRANSFORM_FIELD_KEYS[transformType]].sort()).toEqual(configKeys);
+      expect(transformAllowedFieldKeys(transformType)).toEqual(["type", ...TRANSFORM_FIELD_KEYS[transformType]]);
+    }
   });
 
   test("empty pipeline returns items unchanged", async () => {

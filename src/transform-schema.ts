@@ -1,0 +1,27 @@
+/** Canonical transform field keys (excludes discriminant `type`); single source for validation + types. */
+export const TRANSFORM_FIELD_KEYS = {
+  latest: ["count"],
+  filter: ["keywords", "fields"],
+  exclude: ["keywords", "fields"],
+  sort: ["field", "direction"],
+  dedupe: ["strategy", "threshold", "keep", "log"],
+  "keyword-score": ["keywords", "min_score", "annotate"],
+  "time-decay": ["half_life", "engagement_weight", "recency_weight", "decay", "annotate", "min_score"],
+  cluster: ["strategy", "min_cluster_size", "max_clusters", "similarity_threshold", "annotate"],
+  "llm-summarize": [],
+  "llm-filter": ["criteria"],
+  "llm-rank": ["interests"],
+  "llm-merge": ["prompt"],
+} as const satisfies Record<string, readonly string[]>;
+
+export type TransformType = keyof typeof TRANSFORM_FIELD_KEYS;
+
+/** Canonical transform type ids (keys of TRANSFORM_FIELD_KEYS). */
+export const TRANSFORM_TYPES: readonly TransformType[] = Object.keys(
+  TRANSFORM_FIELD_KEYS,
+) as TransformType[];
+
+/** Allowed YAML keys per transform step (`type` plus variant-specific fields). */
+export function transformAllowedFieldKeys(type: TransformType): readonly string[] {
+  return ["type", ...TRANSFORM_FIELD_KEYS[type]];
+}

@@ -2,11 +2,18 @@ import { readFileSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import yaml from "js-yaml";
 import type { AdapterConfig } from "./adapters/types";
-import { validateParsedConfig, TRANSFORM_TYPES } from "./config-validate";
+import { validateParsedConfig } from "./config-validate";
 import { warnUnsetEnvVar } from "./config-warn";
+import {
+  TRANSFORM_FIELD_KEYS,
+  TRANSFORM_TYPES,
+  transformAllowedFieldKeys,
+  type TransformType,
+} from "./transform-schema";
 import { errorMessage } from "./utils";
 
-export { TRANSFORM_TYPES };
+export { TRANSFORM_FIELD_KEYS, TRANSFORM_TYPES, transformAllowedFieldKeys };
+export type { TransformType };
 
 export const LAYOUT_DIRECTIONS = ["row", "column"] as const;
 export type LayoutDirection = (typeof LAYOUT_DIRECTIONS)[number];
@@ -87,7 +94,39 @@ export type TransformConfig =
   | { type: "llm-rank"; interests?: string[] }
   | { type: "llm-merge"; prompt?: string };
 
-export type TransformType = TransformConfig["type"];
+type TransformConfigFieldKeys<T extends TransformType> = Exclude<
+  keyof Extract<TransformConfig, { type: T }>,
+  "type"
+>;
+
+type TransformSchemaFieldKeys<T extends TransformType> = (typeof TRANSFORM_FIELD_KEYS)[T][number];
+
+type AssertTransformFieldKeysAlign<T extends TransformType> =
+  TransformConfigFieldKeys<T> extends TransformSchemaFieldKeys<T>
+    ? TransformSchemaFieldKeys<T> extends TransformConfigFieldKeys<T>
+      ? true
+      : ["TRANSFORM_FIELD_KEYS has extra fields", T]
+    : ["TransformConfig has extra fields", T];
+
+type AssertTransformTypesMatch =
+  TransformConfig["type"] extends TransformType
+    ? TransformType extends TransformConfig["type"]
+      ? true
+      : ["TRANSFORM_FIELD_KEYS has extra transform type"]
+    : ["TransformConfig has extra transform type"];
+
+type AssertTransformSchemaDrift =
+  AssertTransformTypesMatch extends true
+    ? {
+        [T in TransformType]: AssertTransformFieldKeysAlign<T> extends true
+          ? true
+          : AssertTransformFieldKeysAlign<T>;
+      }[TransformType] extends true
+      ? true
+      : never
+    : never;
+
+declare const _transformSchemaDriftGuard: AssertTransformSchemaDrift;
 
 export interface LlmConfig {
   provider?: string;

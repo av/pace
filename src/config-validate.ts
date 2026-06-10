@@ -20,8 +20,8 @@ import {
   type PanelConfig,
   type PipelineConfig,
   type TransformConfig,
-  type TransformType,
 } from "./config";
+import { TRANSFORM_FIELD_KEYS, transformAllowedFieldKeys, type TransformType } from "./transform-schema";
 import { getAdapterName } from "./utils";
 
 function validateAllowedKeys(
@@ -375,91 +375,60 @@ function validateFilterExcludeFields(transform: Record<string, unknown>, path: s
   }
 }
 
-const TRANSFORM_SCHEMAS: Readonly<Record<TransformType, TransformSchema>> = {
-  latest: {
-    fields: ["type", "count"],
-    validate: (transform, path) => validatePositiveInteger(transform.count, `${path}.count`),
+const TRANSFORM_VALIDATORS: Readonly<Partial<Record<TransformType, TransformFieldValidator>>> = {
+  latest: (transform, path) => validatePositiveInteger(transform.count, `${path}.count`),
+  filter: validateFilterExcludeFields,
+  exclude: validateFilterExcludeFields,
+  sort: (transform, path) => {
+    validateEnum(transform.field, SORT_FIELDS, `${path}.field`);
+    validateOptionalEnum(transform.direction, SORT_DIRECTIONS, `${path}.direction`);
   },
-  filter: {
-    fields: ["type", "keywords", "fields"],
-    validate: validateFilterExcludeFields,
+  dedupe: (transform, path) => {
+    validateOptionalEnum(transform.strategy, DEDUPE_STRATEGIES, `${path}.strategy`);
+    validateOptionalUnitNumber(transform.threshold, `${path}.threshold`);
+    validateOptionalEnum(transform.keep, DEDUPE_KEEP_OPTIONS, `${path}.keep`);
+    validateOptionalBoolean(transform.log, `${path}.log`);
+    validateDedupeStrategyFields(transform, path);
   },
-  exclude: {
-    fields: ["type", "keywords", "fields"],
-    validate: validateFilterExcludeFields,
+  "keyword-score": (transform, path) => {
+    validateKeywordScoreEntries(transform.keywords, `${path}.keywords`);
+    validateOptionalFiniteNumber(transform.min_score, `${path}.min_score`);
+    validateOptionalBoolean(transform.annotate, `${path}.annotate`);
   },
-  sort: {
-    fields: ["type", "field", "direction"],
-    validate: (transform, path) => {
-      validateEnum(transform.field, SORT_FIELDS, `${path}.field`);
-      validateOptionalEnum(transform.direction, SORT_DIRECTIONS, `${path}.direction`);
-    },
+  "time-decay": (transform, path) => {
+    validateOptionalNonEmptyString(transform.half_life, `${path}.half_life`);
+    validateOptionalFiniteNumber(transform.engagement_weight, `${path}.engagement_weight`);
+    validateOptionalFiniteNumber(transform.recency_weight, `${path}.recency_weight`);
+    validateOptionalEnum(transform.decay, DECAY_TYPES, `${path}.decay`);
+    validateOptionalBoolean(transform.annotate, `${path}.annotate`);
+    validateOptionalFiniteNumber(transform.min_score, `${path}.min_score`);
   },
-  dedupe: {
-    fields: ["type", "strategy", "threshold", "keep", "log"],
-    validate: (transform, path) => {
-      validateOptionalEnum(transform.strategy, DEDUPE_STRATEGIES, `${path}.strategy`);
-      validateOptionalUnitNumber(transform.threshold, `${path}.threshold`);
-      validateOptionalEnum(transform.keep, DEDUPE_KEEP_OPTIONS, `${path}.keep`);
-      validateOptionalBoolean(transform.log, `${path}.log`);
-      validateDedupeStrategyFields(transform, path);
-    },
+  cluster: (transform, path) => {
+    validateOptionalEnum(transform.strategy, CLUSTER_STRATEGIES, `${path}.strategy`);
+    validateOptionalPositiveInteger(transform.min_cluster_size, `${path}.min_cluster_size`);
+    validateOptionalPositiveInteger(transform.max_clusters, `${path}.max_clusters`);
+    validateOptionalUnitNumber(transform.similarity_threshold, `${path}.similarity_threshold`);
+    validateOptionalBoolean(transform.annotate, `${path}.annotate`);
   },
-  "keyword-score": {
-    fields: ["type", "keywords", "min_score", "annotate"],
-    validate: (transform, path) => {
-      validateKeywordScoreEntries(transform.keywords, `${path}.keywords`);
-      validateOptionalFiniteNumber(transform.min_score, `${path}.min_score`);
-      validateOptionalBoolean(transform.annotate, `${path}.annotate`);
-    },
+  "llm-filter": (transform, path) => {
+    validateOptionalNonEmptyString(transform.criteria, `${path}.criteria`);
+    if (transform.criteria === undefined) {
+      throw new Error(`config: ${path}.criteria is required`);
+    }
   },
-  "time-decay": {
-    fields: ["type", "half_life", "engagement_weight", "recency_weight", "decay", "annotate", "min_score"],
-    validate: (transform, path) => {
-      validateOptionalNonEmptyString(transform.half_life, `${path}.half_life`);
-      validateOptionalFiniteNumber(transform.engagement_weight, `${path}.engagement_weight`);
-      validateOptionalFiniteNumber(transform.recency_weight, `${path}.recency_weight`);
-      validateOptionalEnum(transform.decay, DECAY_TYPES, `${path}.decay`);
-      validateOptionalBoolean(transform.annotate, `${path}.annotate`);
-      validateOptionalFiniteNumber(transform.min_score, `${path}.min_score`);
-    },
-  },
-  cluster: {
-    fields: ["type", "strategy", "min_cluster_size", "max_clusters", "similarity_threshold", "annotate"],
-    validate: (transform, path) => {
-      validateOptionalEnum(transform.strategy, CLUSTER_STRATEGIES, `${path}.strategy`);
-      validateOptionalPositiveInteger(transform.min_cluster_size, `${path}.min_cluster_size`);
-      validateOptionalPositiveInteger(transform.max_clusters, `${path}.max_clusters`);
-      validateOptionalUnitNumber(transform.similarity_threshold, `${path}.similarity_threshold`);
-      validateOptionalBoolean(transform.annotate, `${path}.annotate`);
-    },
-  },
-  "llm-summarize": {
-    fields: ["type"],
-  },
-  "llm-filter": {
-    fields: ["type", "criteria"],
-    validate: (transform, path) => {
-      validateOptionalNonEmptyString(transform.criteria, `${path}.criteria`);
-      if (transform.criteria === undefined) {
-        throw new Error(`config: ${path}.criteria is required`);
-      }
-    },
-  },
-  "llm-rank": {
-    fields: ["type", "interests"],
-    validate: (transform, path) => validateOptionalStringList(transform.interests, `${path}.interests`),
-  },
-  "llm-merge": {
-    fields: ["type", "prompt"],
-    validate: (transform, path) => validateOptionalNonEmptyString(transform.prompt, `${path}.prompt`),
-  },
+  "llm-rank": (transform, path) => validateOptionalStringList(transform.interests, `${path}.interests`),
+  "llm-merge": (transform, path) => validateOptionalNonEmptyString(transform.prompt, `${path}.prompt`),
 };
 
-/** Canonical transform type ids (keys of TRANSFORM_SCHEMAS / TransformConfig discriminant). */
-export const TRANSFORM_TYPES: readonly TransformType[] = Object.keys(
-  TRANSFORM_SCHEMAS,
-) as TransformType[];
+const TRANSFORM_SCHEMAS: Readonly<Record<TransformType, TransformSchema>> = Object.fromEntries(
+  (Object.keys(TRANSFORM_FIELD_KEYS) as TransformType[]).map((transformType) => [
+    transformType,
+    {
+      fields: transformAllowedFieldKeys(transformType),
+      validate: TRANSFORM_VALIDATORS[transformType],
+    },
+  ]),
+) as Readonly<Record<TransformType, TransformSchema>>;
 
 function isTransformType(value: string): value is TransformType {
   return value in TRANSFORM_SCHEMAS;
