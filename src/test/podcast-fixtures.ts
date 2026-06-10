@@ -98,6 +98,17 @@ export function podcastNoChannelFixture(): string {
   return `<?xml version="1.0"?><rss><foo>no channel</foo></rss>`;
 }
 
+/** RSS feed with channel but no episode items. */
+export function podcastEmptyFeedFixture(): string {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Empty Podcast Show</title>
+    <link>https://example.com/empty-podcast</link>
+  </channel>
+</rss>`;
+}
+
 /** Multi-episode feed for limit/cap/floor adapter tests. */
 export function podcastMultiEpisodeFeedFixture(episodeCount: number): string {
   const episodes: PodcastEpisodeFixture[] = Array.from({ length: episodeCount }, (_, i) => {

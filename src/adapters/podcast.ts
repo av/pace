@@ -257,8 +257,6 @@ async function fetchPodcastFeed(
   )!;
   const channelLink = typeof channel.link === "string" ? channel.link : "";
 
-  if (items.length === 0) return [];
-
   return sliceAndMapDefined(items, limit, (item) => {
     const ep = parseEpisode(item, showName, channelLink);
     return ep ? episodeToContentItem(ep) : null;

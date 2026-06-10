@@ -6,6 +6,7 @@ import {
   extractRssAtomItems,
   parseFeedXml,
   parseXml,
+  shouldWarnLegitimatelyEmptyFeed,
   type XmlTextField,
 } from "./atom";
 import { errorMessage } from "../utils";
@@ -128,6 +129,23 @@ function warnArrayFieldShape(
   );
 }
 
+/** Warn when a feed fetch succeeded but returned no items (absent or empty item/entry list). */
+export function warnEmptyFeedItems(prefix: string, context: string): void {
+  console.warn(`${prefix}: no entries found in ${context}`);
+}
+
+function finalizeFeedItemList<TEntry, TParsed extends RssAtomFeedShape<TEntry>>(
+  prefix: string,
+  context: string,
+  parsed: TParsed,
+  items: TEntry[],
+): TEntry[] {
+  if (shouldWarnLegitimatelyEmptyFeed(parsed, items)) {
+    warnEmptyFeedItems(prefix, context);
+  }
+  return items;
+}
+
 /**
  * Read a required array field from a JSON object response.
  * Returns [] and warns when the parent is not an object, the field is missing,
@@ -230,9 +248,10 @@ export async function fetchAtomFeed<TEntry, TParsed extends AtomFeedShape<TEntry
   options: FetchWithTimeoutOptions = {},
 ): Promise<{ parsed: TParsed; entries: TEntry[] }> {
   const parsed = await fetchAndParseFeedXml<TParsed>(prefix, url, context, options);
+  const entries = extractRssAtomItems(parsed, { prefix, context });
   return {
     parsed,
-    entries: extractRssAtomItems(parsed, { prefix, context }),
+    entries: finalizeFeedItemList(prefix, context, parsed, entries),
   };
 }
 
@@ -249,9 +268,10 @@ export async function fetchRssAtomFeed<
   options: FetchRssAtomFeedOptions = {},
 ): Promise<{ parsed: TParsed; items: TEntry[] }> {
   const parsed = await fetchAndParseFeedXml<TParsed>(prefix, url, context, options);
+  const items = extractRssAtomItems(parsed, { prefix, context });
   return {
     parsed,
-    items: extractRssAtomItems(parsed, { prefix, context }),
+    items: finalizeFeedItemList(prefix, context, parsed, items),
   };
 }
 

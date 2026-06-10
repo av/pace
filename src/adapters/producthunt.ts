@@ -239,11 +239,6 @@ async function fetchProductHuntFeed(limit: number): Promise<{
     "producthunt",
   )!;
 
-  if (entries.length === 0) {
-    console.warn("producthunt: no entries found in feed");
-    return { feedTitle, items: [] };
-  }
-
   const items = sliceAndMap(entries, limit, (entry) =>
     parseEntry(entry, feedTitle),
   );

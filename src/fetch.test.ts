@@ -252,6 +252,25 @@ describe("fetchAtomFeed", () => {
       expect(warn).toHaveBeenCalledWith(
         'youtube: expected feed field "entry" for channel feed (got string), treating as empty',
       );
+      expect(warn).not.toHaveBeenCalledWith(
+        "youtube: no entries found in channel feed",
+      );
+    });
+  });
+
+  test("warns when Atom feed has no entries", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      makeXmlResponse('<feed xmlns="http://www.w3.org/2005/Atom"></feed>'),
+    );
+
+    await spyConsole(["warn"], async ({ warn }) => {
+      const { entries } = await fetchAtomFeed(
+        "producthunt",
+        "https://example.com/feed",
+        "feed",
+      );
+      expect(entries).toEqual([]);
+      expect(warn).toHaveBeenCalledWith("producthunt: no entries found in feed");
     });
   });
 });
@@ -323,6 +342,25 @@ describe("fetchRssAtomFeed", () => {
       expect(items).toEqual([]);
       expect(warn).toHaveBeenCalledWith(
         'rss: expected feed field "item" for bad feed (got string), treating as empty',
+      );
+      expect(warn).not.toHaveBeenCalledWith("rss: no entries found in bad feed");
+    });
+  });
+
+  test("warns when RSS channel has no items", async () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel><title>Empty Show</title></channel></rss>`;
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(xml));
+
+    await spyConsole(["warn"], async ({ warn }) => {
+      const { items } = await fetchRssAtomFeed(
+        "podcast",
+        "https://example.com/empty.xml",
+        "https://example.com/empty.xml",
+      );
+      expect(items).toEqual([]);
+      expect(warn).toHaveBeenCalledWith(
+        "podcast: no entries found in https://example.com/empty.xml",
       );
     });
   });

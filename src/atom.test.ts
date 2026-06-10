@@ -7,6 +7,7 @@ import {
   extractRssAtomItems,
   extractXmlText,
   normalizeFeedItemList,
+  shouldWarnLegitimatelyEmptyFeed,
   normalizeXmlList,
   parseFeedXml,
 } from "./adapters/atom";
@@ -170,6 +171,45 @@ describe("extractRssAtomItems", () => {
         feed: { entry: 42 as unknown as { title: string } },
       }),
     ).toEqual([]);
+  });
+});
+
+describe("shouldWarnLegitimatelyEmptyFeed", () => {
+  test("true when feed root exists but item/entry field is absent or empty", () => {
+    expect(
+      shouldWarnLegitimatelyEmptyFeed({ feed: {} }, []),
+    ).toBe(true);
+    expect(
+      shouldWarnLegitimatelyEmptyFeed({ rss: { channel: {} } }, []),
+    ).toBe(true);
+    expect(
+      shouldWarnLegitimatelyEmptyFeed({ rss: { channel: { item: [] } } }, []),
+    ).toBe(true);
+    expect(
+      shouldWarnLegitimatelyEmptyFeed({ feed: { entry: [] } }, []),
+    ).toBe(true);
+  });
+
+  test("false when items exist, feed root is missing, or item/entry field is malformed", () => {
+    expect(
+      shouldWarnLegitimatelyEmptyFeed(
+        { rss: { channel: { item: { title: "one" } } } },
+        [{ title: "one" }],
+      ),
+    ).toBe(false);
+    expect(shouldWarnLegitimatelyEmptyFeed({}, [])).toBe(false);
+    expect(
+      shouldWarnLegitimatelyEmptyFeed(
+        { rss: { channel: { item: "broken" } } },
+        [],
+      ),
+    ).toBe(false);
+    expect(
+      shouldWarnLegitimatelyEmptyFeed(
+        { feed: { entry: "broken" as unknown as { title: string } } },
+        [],
+      ),
+    ).toBe(false);
   });
 });
 

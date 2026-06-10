@@ -6,6 +6,7 @@ import { podcastCfg } from "./test/adapter-cfg";
 import { makeErrorResponse, makeXmlResponse } from "./test/fetch-responses";
 import { invalidLimitParams } from "./test/invalid-params";
 import {
+  podcastEmptyFeedFixture,
   podcastFeedFixture,
   podcastLongDescriptionFeedFixture,
   podcastMultiEpisodeFeedFixture,
@@ -159,6 +160,18 @@ describe("podcast", () => {
     expect(items).toEqual([]);
     expect(mocks.warnSpy).toHaveBeenCalledWith(
       expect.stringContaining("podcast: no channel found in feed https://ex.com/nochan.xml"),
+    );
+  });
+
+  test("warns and returns [] when feed has channel but no episodes", async () => {
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(podcastEmptyFeedFixture()));
+
+    const feedUrl = "https://ex.com/empty.xml";
+    const items = await podcastAdapter.fetch(podcastCfg({ feeds: [feedUrl] }));
+
+    expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      `podcast: no entries found in ${feedUrl}`,
     );
   });
 

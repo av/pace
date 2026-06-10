@@ -163,6 +163,37 @@ export function extractRssAtomItems<T>(
   return [];
 }
 
+/**
+ * True when a feed parsed successfully with a feed root but zero extractable items,
+ * and the item/entry field is absent or an empty array (not malformed — shape warn covers that).
+ */
+export function shouldWarnLegitimatelyEmptyFeed<T>(
+  parsed: {
+    rss?: { channel?: { item?: T | T[] } };
+    feed?: { entry?: T | T[] };
+  },
+  items: T[],
+): boolean {
+  if (items.length > 0) return false;
+
+  const hasFeedRoot = parsed.rss?.channel != null || parsed.feed != null;
+  if (!hasFeedRoot) return false;
+
+  const rssItems = parsed.rss?.channel?.item;
+  if (rssItems != null) {
+    if (Array.isArray(rssItems)) return rssItems.length === 0;
+    return typeof rssItems === "object";
+  }
+
+  const atomEntries = parsed.feed?.entry;
+  if (atomEntries != null) {
+    if (Array.isArray(atomEntries)) return atomEntries.length === 0;
+    return typeof atomEntries === "object";
+  }
+
+  return true;
+}
+
 export function extractAtomLink(link: AtomLinkField): string {
   if (!link) return "";
   if (typeof link === "string") return link;
