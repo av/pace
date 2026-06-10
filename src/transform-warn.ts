@@ -12,6 +12,15 @@ export function logTransformDetail(message: string): void {
   console.log(`  ${message}`);
 }
 
+/** Format one dedupe-removed item line for transform operational logs. */
+export function formatTransformDedupeRemovedLine(
+  loser: { title: string; url: string | null },
+  winner?: { title: string },
+): string {
+  const line = `"${loser.title}" (${loser.url})`;
+  return winner ? `${line} -> kept "${winner.title}"` : line;
+}
+
 /** Log dedupe removal summary with capped detail lines. */
 export function logTransformDedupeRemoved(
   label: string,

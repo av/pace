@@ -9,7 +9,11 @@ import {
   isDedupeStrategy,
 } from "./config";
 import type { ContentItemRow } from "./db";
-import { logTransformDedupeRemoved, warnUnknownDedupeStrategy } from "./transform-warn";
+import {
+  formatTransformDedupeRemovedLine,
+  logTransformDedupeRemoved,
+  warnUnknownDedupeStrategy,
+} from "./transform-warn";
 import {
   dedupeByTitleSimilarity,
   dedupeGroupedByKey,
@@ -80,11 +84,6 @@ export function applyExclude(items: ContentItemRow[], config: ExcludeTransformCo
   return filterByKeywordMatch(items, config, false);
 }
 
-function formatDedupeRemovedLine(loser: ContentItemRow, winner?: ContentItemRow): string {
-  const line = `"${loser.title}" (${loser.url})`;
-  return winner ? `${line} -> kept "${winner.title}"` : line;
-}
-
 function finalizeDedupeRun(
   { result, removed }: { result: ContentItemRow[]; removed: string[] },
   label: string,
@@ -124,7 +123,7 @@ function applyDedupeUrl(items: ContentItemRow[], shouldLog: boolean): ContentIte
       urlItems,
       (item) => item.url!,
       "first",
-      (item) => formatDedupeRemovedLine(item),
+      (item) => formatTransformDedupeRemovedLine(item),
     ),
     "url",
     shouldLog,
@@ -141,7 +140,7 @@ function applyDedupeDomainNormalized(
       items,
       (item) => normalizeUrl(item.url),
       keep,
-      (item, winner) => formatDedupeRemovedLine(item, winner),
+      (item, winner) => formatTransformDedupeRemovedLine(item, winner),
     ),
     "domain-normalized",
     shouldLog,
@@ -156,7 +155,7 @@ function applyDedupeTitleSimilarity(
 ): ContentItemRow[] {
   return finalizeDedupeRun(
     dedupeByTitleSimilarity(items, threshold, keep, (loser, winner) =>
-      formatDedupeRemovedLine(loser, winner),
+      formatTransformDedupeRemovedLine(loser, winner),
     ),
     "title-similarity",
     shouldLog,

@@ -2,7 +2,12 @@ import type { Context, Hono } from "hono";
 import type { DashboardPanel, LayoutNodeConfig } from "../config";
 import { loadDashboardPanelDataMap } from "../db";
 import { renderDashboard } from "../layout";
-import type { RefreshResult } from "../scheduler";
+import {
+  collectRefreshFailures,
+  formatRefreshPanelFailureBody,
+  formatUnknownRefreshPanelBody,
+  resolveRefreshPanelBinding,
+} from "./refresh-panel";
 
 export type RefreshSourcesFn = (sourceNames: string[]) => Promise<RefreshResult[]>;
 
@@ -16,18 +21,18 @@ export type ServerRouteDeps = {
 
 export async function handleRefreshPanel(c: Context, deps: ServerRouteDeps): Promise<Response> {
   const param = c.req.param("panel");
-  const panelId = deps.panelNameToId.get(param) ?? param;
-  const sourceNames = deps.panelIdToRefreshSourceNames.get(panelId);
-  if (!sourceNames) return c.text(`Unknown panel: ${param}`, 404);
+  const binding = resolveRefreshPanelBinding(
+    param,
+    deps.panelNameToId,
+    deps.panelIdToRefreshSourceNames,
+  );
+  if (!binding.ok) return c.text(formatUnknownRefreshPanelBody(binding.param), 404);
 
-  if (sourceNames.length > 0) {
-    const results = await deps.refreshSources(sourceNames);
-    const failures = results.filter((result) => result.status === "failed");
+  if (binding.sourceNames.length > 0) {
+    const results = await deps.refreshSources(binding.sourceNames);
+    const failures = collectRefreshFailures(results);
     if (failures.length > 0) {
-      const details = failures
-        .map((result) => `${result.name}${result.error ? `: ${result.error}` : ""}`)
-        .join("; ");
-      return c.text(`Refresh failed for ${details}`, 502);
+      return c.text(formatRefreshPanelFailureBody(failures), 502);
     }
   }
 

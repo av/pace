@@ -1,5 +1,6 @@
 import { describe, test, expect, spyOn, afterEach } from "bun:test";
 import {
+  formatTransformDedupeRemovedLine,
   logTransform,
   logTransformDedupeRemoved,
   logTransformDetail,
@@ -27,6 +28,18 @@ describe("transform warn utilities", () => {
     logTransform("keyword-score scored 3 items, 2 passed");
     expect(logSpy).toHaveBeenCalledWith(
       "transforms: keyword-score scored 3 items, 2 passed",
+    );
+  });
+
+  test("formatTransformDedupeRemovedLine includes winner when provided", () => {
+    const loser = { title: "Old post", url: "https://example.com/old" };
+    const winner = { title: "New post" };
+
+    expect(formatTransformDedupeRemovedLine(loser)).toBe(
+      '"Old post" (https://example.com/old)',
+    );
+    expect(formatTransformDedupeRemovedLine(loser, winner)).toBe(
+      '"Old post" (https://example.com/old) -> kept "New post"',
     );
   });
 
