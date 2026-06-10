@@ -2,34 +2,28 @@ import type { Dirent } from "node:fs";
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { errorMessage } from "../utils";
+import { loadBuiltinAdapters } from "./adapter-registry";
 import { warnAdapter } from "./empty-config";
+import { isAdapterType } from "./params";
 import type { Adapter } from "./types";
 
-const EXCLUDED = new Set(["types.ts", "index.ts"]);
-/** Shared modules co-located with adapters; not default-export adapters. */
-const ADAPTER_SUPPORT_MODULES = new Set([
-  "atom.ts",
-  "content-item.ts",
-  "dates.ts",
-  "empty-config.ts",
-  "feed-entry.ts",
-  "engagement.ts",
-  "fetch.ts",
-  "github-repo-meta.ts",
-  "github-shared.ts",
-  "html.ts",
-  "merge.ts",
-  "params.ts",
-  "title.ts",
-]);
+const EXCLUDED = new Set(["types.ts", "index.ts", "adapter-registry.ts"]);
 const ADAPTERS_DIR = import.meta.dir;
 
-function isAdapterSourceFile(name: string): boolean {
+function adapterFileStem(name: string): string | null {
   const lower = name.toLowerCase();
-  if (name.startsWith(".") || EXCLUDED.has(lower)) return false;
+  if (!lower.endsWith(".ts")) return null;
+  return lower.slice(0, -3);
+}
+
+function isExtensionAdapterSourceFile(name: string): boolean {
+  if (name.startsWith(".")) return false;
+  const lower = name.toLowerCase();
+  if (EXCLUDED.has(lower)) return false;
   if (!lower.endsWith(".ts")) return false;
   if (lower.endsWith(".test.ts") || lower.endsWith(".d.ts")) return false;
-  if (ADAPTER_SUPPORT_MODULES.has(lower)) return false;
+  const stem = adapterFileStem(name);
+  if (stem && isAdapterType(stem)) return false;
   return true;
 }
 
@@ -52,7 +46,7 @@ function isValidAdapter(adapter: unknown): adapter is Adapter {
 }
 
 export async function discoverAdapters(): Promise<Map<string, Adapter>> {
-  const adapters = new Map<string, Adapter>();
+  const adapters = loadBuiltinAdapters();
 
   let files: (string | Dirent)[];
   try {
@@ -73,11 +67,12 @@ export async function discoverAdapters(): Promise<Map<string, Adapter>> {
       continue;
     }
     const { file, isFile } = parsed;
-    if (!isFile || !isAdapterSourceFile(file)) continue;
+    if (!isFile || !isExtensionAdapterSourceFile(file)) continue;
 
     try {
       const mod = await import(join(ADAPTERS_DIR, file));
       const adapter: unknown = mod.default;
+      if (adapter === undefined) continue;
       if (!isValidAdapter(adapter)) {
         warnAdapter(
           "discoverAdapters",

@@ -54,11 +54,11 @@ describe("discoverAdapters", () => {
     expect(invalidExportCalls.length).toBe(0);
   });
 
-  test("readdir failure returns empty Map and warns", async () => {
+  test("readdir failure still returns built-in registry and warns", async () => {
     mockReaddirThrows(new Error("readdir boom for direct edge test"));
     const adapters = await discoverAdapters();
     expect(adapters).toBeInstanceOf(Map);
-    expect(adapters.size).toBe(0);
+    expect(adapters.size).toBe(ADAPTER_TYPES.length);
     const readdirWarns = discoveryWarnsContaining(warnSpy, "discoverAdapters: failed to read");
     expect(readdirWarns.length).toBe(1);
   });
@@ -82,15 +82,6 @@ describe("discoverAdapters", () => {
       readdir: (file: string) => readdirWithRss(file),
       setup(file: string) {
         mockAdapterDefault(file, { foo: "bad shape, no name/fetch fn" });
-      },
-    },
-    {
-      label: "missing default export",
-      file: "nodefault-direct-34-edge.ts",
-      rejected: ["nodefault-direct-34-edge"],
-      readdir: (file: string) => readdirWithRss(file),
-      setup(file: string) {
-        mockAdapterModule(file, {});
       },
     },
     {
@@ -516,14 +507,22 @@ describe("discoverAdapters", () => {
     expectInvalidDefaultExport(adapters, warnSpy, badMixedName, ["bad-mixed-67"]);
   });
 
-  test("non-iterable readdir returns empty Map and warns", async () => {
+  test("non-iterable readdir still returns built-in registry and warns", async () => {
     mockReaddir(null);
     const adapters = await discoverAdapters();
     expect(adapters).toBeInstanceOf(Map);
-    expect(adapters.size).toBe(0);
+    expect(adapters.size).toBe(ADAPTER_TYPES.length);
     const readdirWarns = discoveryWarnsContaining(warnSpy, "non-iterable");
     expect(readdirWarns.length).toBe(1);
     expect(readdirWarns[0]).toContain("discoverAdapters:");
+  });
+
+  test("missing default export skipped silently (support-module structural filter)", async () => {
+    const file = "nodefault-direct-34-edge.ts";
+    mockAdapterModule(file, {});
+    mockReaddir(readdirWithRss(file));
+    const adapters = await discoverAdapters();
+    expectSkippedWithoutWarnings(adapters, warnSpy, ["nodefault-direct-34-edge"]);
   });
 
   test("corrupt readdir entries skipped with warn", async () => {
