@@ -159,7 +159,7 @@ describe("podcast", () => {
 
     expect(items).toEqual([]);
     expect(mocks.warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining("podcast: no channel found in feed https://ex.com/nochan.xml"),
+      "podcast: no channel found on feed https://ex.com/nochan.xml",
     );
   });
 

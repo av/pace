@@ -7,7 +7,7 @@ import {
   type XmlTextField,
 } from "./atom";
 import { formatSeconds } from "./dates";
-import { warnEmptyConfig } from "./empty-config";
+import { warnEmptyConfig, warnEmptyFetchResult } from "./empty-config";
 import {
   buildFeedContentItem,
   decodeFeedEntryTitle,
@@ -246,7 +246,7 @@ async function fetchPodcastFeed(
 
   const channel = parsed.rss?.channel;
   if (!channel) {
-    console.warn(`podcast: no channel found in feed ${feedUrl}`);
+    warnEmptyFetchResult("podcast", "channel", `feed ${feedUrl}`);
     return [];
   }
 

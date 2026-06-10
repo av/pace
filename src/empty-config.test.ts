@@ -3,6 +3,7 @@ import {
   warnAdapter,
   warnEmptyConfig,
   warnEmptyFetchResult,
+  warnEmptySection,
   warnFilterRemovedAll,
   warnIneffectiveParam,
   warnInvalidInput,
@@ -50,6 +51,15 @@ describe("adapter warn utilities", () => {
 
     warnEmptyFetchResult("github", "repos", "trending page");
     expect(warnSpy).toHaveBeenCalledWith("github: no repos found on trending page");
+  });
+
+  test("warnEmptySection describes absent or empty payload sections", () => {
+    warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+
+    warnEmptySection("wikipedia", "featured feed", "most_read articles (en)");
+    expect(warnSpy).toHaveBeenCalledWith(
+      "wikipedia: featured feed has no most_read articles (en)",
+    );
   });
 
   test("warnFilterRemovedAll describes filter removing every item", () => {

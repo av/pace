@@ -8,6 +8,7 @@ import {
 import { joinTitle } from "./title";
 
 import { parseUnixEpochSeconds } from "./dates";
+import { warnAdapter } from "./empty-config";
 import { arrayFieldOrEmpty, fetchJson } from "./fetch";
 import { decodeNumericFeedTitle } from "./html";
 import {
@@ -109,9 +110,7 @@ async function fetchQuestions(
   });
 
   if (json.quota_remaining !== undefined && json.quota_remaining < 10) {
-    console.warn(
-      `stackexchange: API quota low (${json.quota_remaining} remaining)`,
-    );
+    warnAdapter("stackexchange", `API quota low (${json.quota_remaining} remaining)`);
   }
 
   return arrayFieldOrEmpty<SEQuestion>("stackexchange", json, "items", `from ${site}`);

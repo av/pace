@@ -38,6 +38,15 @@ export function warnEmptyFetchResult(
   warnAdapter(adapterName, `no ${resource} found on ${location}`);
 }
 
+/** Warn when an expected section of a fetched payload is absent or empty. */
+export function warnEmptySection(
+  adapterName: string,
+  source: string,
+  section: string,
+): void {
+  warnAdapter(adapterName, `${source} has no ${section}`);
+}
+
 /** Warn when a post-fetch filter removed every item from a non-empty set. */
 export function warnFilterRemovedAll(
   adapterName: string,

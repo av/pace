@@ -3,6 +3,7 @@ import {
 } from "./engagement";
 import { joinTitle, truncateText } from "./title";
 
+import { warnEmptySection } from "./empty-config";
 import { mapToContentItems } from "./content-item";
 import { fetchJson, optionalArrayFieldOrEmpty } from "./fetch";
 import { decodeNumericFeedTitle, stripHtml } from "./html";
@@ -223,18 +224,6 @@ function extractForMode(data: WikiFeaturedResponse, mode: Mode, limit: number): 
   }
 }
 
-function warnEmptyFeaturedSection(mode: "most_read" | "featured", language: string): void {
-  if (mode === "most_read") {
-    console.warn(
-      `wikipedia: featured feed has no most_read articles (${language})`,
-    );
-  } else {
-    console.warn(
-      `wikipedia: featured feed has no article of the day (${language})`,
-    );
-  }
-}
-
 const adapter: Adapter = {
   name: "wikipedia",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
@@ -254,7 +243,13 @@ const adapter: Adapter = {
         items.length === 0 &&
         (mode === "most_read" || mode === "featured")
       ) {
-        warnEmptyFeaturedSection(mode, language);
+        warnEmptySection(
+          "wikipedia",
+          "featured feed",
+          mode === "most_read"
+            ? `most_read articles (${language})`
+            : `article of the day (${language})`,
+        );
       }
       return items;
     }
