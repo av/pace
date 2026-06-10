@@ -2,6 +2,7 @@ import { describe, test, expect } from "bun:test";
 import {
   expectDashboardRefreshAction,
   expectRefreshPanelFailure,
+  expectRefreshPanelFailureOrRedirect,
   expectRefreshPanelNotFound,
   expectRefreshPanelRedirect,
 } from "./server-harness";
@@ -31,5 +32,16 @@ describe("server-harness refresh helpers", () => {
       headers: { location: "/" },
     });
     expectRefreshPanelRedirect(res);
+  });
+
+  test("expectRefreshPanelFailureOrRedirect accepts 303 or 502 with source prefix", async () => {
+    const redirect = new Response(null, {
+      status: 303,
+      headers: { location: "/" },
+    });
+    await expectRefreshPanelFailureOrRedirect(redirect, "reddit");
+
+    const failure = new Response("Refresh failed for reddit: boom", { status: 502 });
+    await expectRefreshPanelFailureOrRedirect(failure, "reddit");
   });
 });

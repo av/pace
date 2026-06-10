@@ -94,3 +94,16 @@ export function expectRefreshPanelRedirect(res: Response): void {
   expect(res.status).toBe(303);
   expect(res.headers.get("location")).toBe("/");
 }
+
+/** Live-server refresh may succeed (303) or fail (502) depending on adapter fetch. */
+export async function expectRefreshPanelFailureOrRedirect(
+  res: Response,
+  failureSource: string,
+): Promise<void> {
+  if (res.status === 303) {
+    expectRefreshPanelRedirect(res);
+    return;
+  }
+  expect(res.status).toBe(502);
+  expect(await res.text()).toContain(`Refresh failed for ${failureSource}:`);
+}

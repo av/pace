@@ -24,10 +24,11 @@ export {
   collectPanels,
   isContainer,
   isPanel,
+  isRecord,
   normalizeSource,
   resolvePanelId,
   resolvePanelRefreshSourceNames,
-} from "./layout/domain";
+} from "./layout/types";
 export type {
   DashboardPanel,
   FlexContainerConfig,
@@ -37,8 +38,8 @@ export type {
   PanelConfig,
   SourceConfig,
   SourceValue,
-} from "./layout/domain";
-import { isRecord, type LayoutNodeConfig } from "./layout/domain";
+} from "./layout/types";
+import { isRecord, type LayoutNodeConfig } from "./layout/types";
 
 export interface KeywordScoreEntry {
   term: string;
@@ -229,8 +230,6 @@ function resolveEnvInObject(obj: unknown): unknown {
   }
   return obj;
 }
-
-export { isRecord };
 
 export function tryReadRegularFile(path: string): string | null {
   if (!existsSync(path)) {

@@ -16,12 +16,16 @@ export type {
 } from "./domain";
 
 export {
+  LAYOUT_DIRECTIONS,
+  allPanelRefreshSourceNames,
   buildLayoutRuntimeMaps,
   collectPanels,
   isContainer,
   isPanel,
+  isRecord,
   normalizeSource,
   resolvePanelId,
+  resolvePanelRefreshSourceNames,
 } from "./domain";
 
 export type { ContentItemRow, DashboardPanelSnapshot } from "../db";

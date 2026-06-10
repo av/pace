@@ -14,6 +14,10 @@ import {
   resolveCliInfoOutput,
   resolveCliServeErrors,
 } from "./cli-help";
+import {
+  expectRefreshPanelFailureOrRedirect,
+  expectRefreshPanelNotFound,
+} from "./test/server-harness";
 
 describe("cli-help", () => {
   test("isCliFatalStartupError matches config/scheduler/index prefixes", () => {
@@ -317,14 +321,9 @@ describe("cli serve", () => {
     expect(styles.status).toBe(200);
     expect(styles.hd["cache-control"] || "").toContain("max-age=3600");
     const r502 = await fetch(`${base}/refresh/reddit`, { method: "POST", redirect: "manual" });
-    const r502Status = r502.status;
-    const r502Body = await r502.text().catch(() => "");
-    expect([502, 303]).toContain(r502Status);
-    if (r502Status === 502) expect(r502Body).toContain("Refresh failed for reddit:");
+    await expectRefreshPanelFailureOrRedirect(r502, "reddit");
     const r404 = await fetch(`${base}/refresh/unknownpanel-iter6`, { method: "POST", redirect: "manual" });
-    expect(r404.status).toBe(404);
-    const r404Body = await r404.text().catch(() => "");
-    expect(r404Body).toContain("Unknown panel:");
+    await expectRefreshPanelNotFound(r404, "unknownpanel-iter6");
     const secKeys = ["x-content-type-options", "x-frame-options", "referrer-policy", "content-security-policy", "permissions-policy"];
     const toCheck = [
       health,

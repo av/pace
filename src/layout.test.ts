@@ -4,6 +4,7 @@ import { formatDashboardUpdatedAt, renderDashboard, type PanelData } from "./lay
 import { resolvePanelId } from "./config";
 import { makeContentItemRow as makeItem } from "./test/content-items";
 import { flexCfg, panelCfg } from "./test/layout-cfg";
+import { expectDashboardRefreshAction } from "./test/server-harness";
 
 describe("renderDashboard", () => {
   it("renders full HTML5 doctype + basic shell with title, footer, and stylesheet link", () => {
@@ -34,7 +35,8 @@ describe("renderDashboard", () => {
     expect(html).toContain('target="_blank" rel="noopener noreferrer"');
     expect(html).toContain("just now");
     expect(html).toContain('<span class="item-source">mysrc</span>');
-    expect(html).toContain('<form method="POST" action="/refresh/');
+    expect(html).toContain('<form method="POST"');
+    expectDashboardRefreshAction(html, resolvePanelId(panelCfg("My Panel", "mysrc")));
   });
 
   it("renders item without safe url as plain span (no anchor) for ftp:// and invalid", () => {
@@ -131,7 +133,7 @@ describe("renderDashboard", () => {
     const layout = panelCfg("Named", "s", { id: "my-explicit-id" });
     const panelData = new Map<string, PanelData>([["Named", { items: [] }]]);
     const html = renderDashboard({ layout, panelData, updatedAt: "now" });
-    expect(html).toContain('action="/refresh/my-explicit-id"');
+    expectDashboardRefreshAction(html, "my-explicit-id");
     expect(html).not.toContain('action="/refresh/' + resolvePanelId(panelCfg("Named", "s"))); // would be hash if no id
   });
 
@@ -143,7 +145,7 @@ describe("renderDashboard", () => {
       lastRefreshedAt: null,
     }]]);
     const html = renderDashboard({ layout, panelData, updatedAt: "now" });
-    expect(html).toContain('action="/refresh/runtime-id"');
+    expectDashboardRefreshAction(html, "runtime-id");
     expect(html).not.toContain('action="/refresh/layout-id"');
   });
 
