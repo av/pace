@@ -1,5 +1,6 @@
 import { describe, test, expect, spyOn, afterEach } from "bun:test";
 import {
+  logScheduler,
   warnScheduler,
   warnRefreshFailure,
   warnPruneFailure,
@@ -10,6 +11,14 @@ describe("scheduler warn utilities", () => {
 
   afterEach(() => {
     warnSpy?.mockRestore();
+  });
+
+  test("logScheduler prefixes message with scheduler module name", () => {
+    const logSpy = spyOn(console, "log").mockImplementation(() => {});
+
+    logScheduler("fetched 3 items");
+    expect(logSpy).toHaveBeenCalledWith("scheduler: fetched 3 items");
+    logSpy.mockRestore();
   });
 
   test("warnScheduler prefixes message with scheduler module name", () => {

@@ -2,6 +2,11 @@ import { errorMessage } from "./utils";
 
 const SCHEDULER_PREFIX = "scheduler";
 
+/** Prefix a message with scheduler module name and log as info. */
+export function logScheduler(message: string): void {
+  console.log(`${SCHEDULER_PREFIX}: ${message}`);
+}
+
 /** Prefix a message with scheduler module name and log as warning. */
 export function warnScheduler(message: string): void {
   console.warn(`${SCHEDULER_PREFIX}: ${message}`);

@@ -1,5 +1,5 @@
 import type { Adapter, ContentItem } from "./adapters/types";
-import { warnPruneFailure, warnRefreshFailure } from "./scheduler-warn";
+import { logScheduler, warnPruneFailure, warnRefreshFailure } from "./scheduler-warn";
 import { compareIsoTimestamp, errorMessage, getAdapterName } from "./utils";
 import type { Model, Api } from "@mariozechner/pi-ai";
 import {
@@ -88,7 +88,7 @@ function computeRefreshInterval(refreshInterval?: number): { intervalMin: number
 }
 
 function logScheduledRefresh(label: string, intervalMin: number): void {
-  console.log(`scheduler: ${label} — every ${intervalMin}m`);
+  logScheduler(`${label} — every ${intervalMin}m`);
 }
 
 function scheduleTimedEntryRefresh<T extends TimedEntryBase>(
@@ -167,7 +167,7 @@ async function runTransformsAndReplaceOnPanels(
   const logMode = options.logMode ?? "when-changed";
   if (logMode === "always" || items.length !== transformed.length) {
     const detail = options.logDetail ? `${options.logDetail} ` : "";
-    console.log(`scheduler: ${options.logLabel} — ${detail}${items.length} → ${transformed.length} items`);
+    logScheduler(`${options.logLabel} — ${detail}${items.length} → ${transformed.length} items`);
   }
 }
 
@@ -266,7 +266,7 @@ async function runAdapter(entry: AdapterEntry): Promise<RefreshResult> {
     const items = await adapter.fetch(adapterConfig);
     if (items.length > 0) {
       saveItemsToPanels(panelIds, items);
-      console.log(`scheduler: ${name} — fetched ${items.length} items`);
+      logScheduler(`${name} — fetched ${items.length} items`);
     }
 
     const transforms = adapterConfig.transforms;
@@ -297,7 +297,7 @@ function pruneOldItems(): void {
   try {
     const changes = dbPruneOldItems(30);
     if (changes > 0) {
-      console.log(`scheduler: pruned ${changes} items older than 30 days`);
+      logScheduler(`pruned ${changes} items older than 30 days`);
     }
   } catch (err) {
     warnPruneFailure(err);
