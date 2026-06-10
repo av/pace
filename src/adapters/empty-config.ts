@@ -60,3 +60,39 @@ export function warnFilterRemovedAll(
     `${filterName} (${filterValue}) filtered all ${totalCount} ${itemLabel}`,
   );
 }
+
+/** Warn when a JSON response field should be an array but has wrong shape. */
+export function warnMalformedArrayField(
+  adapterName: string,
+  field: string,
+  context: string,
+  detail: string,
+): void {
+  warnAdapter(
+    adapterName,
+    `expected array field "${field}" for ${context} (${detail}), treating as empty`,
+  );
+}
+
+/** Warn when a feed XML field should be an item/entry list but has wrong shape. */
+export function warnMalformedFeedField(
+  adapterName: string,
+  field: string,
+  context: string,
+  detail: string,
+): void {
+  warnAdapter(
+    adapterName,
+    `expected feed field "${field}" for ${context} (${detail}), treating as empty`,
+  );
+}
+
+/** Warn when a feed fetch succeeded but returned no items. */
+export function warnEmptyFeedEntries(adapterName: string, context: string): void {
+  warnAdapter(adapterName, `no entries found in ${context}`);
+}
+
+/** Warn when date parsing falls back to current time. */
+export function warnDateParseFallback(kind: string, detail: string): void {
+  warnAdapter("dates", `${kind} ${detail}, using current time`);
+}

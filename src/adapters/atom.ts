@@ -1,5 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import { errorMessage } from "../utils";
+import { warnMalformedFeedField } from "./empty-config";
 
 export type AtomLinkField =
   | string
@@ -103,16 +104,7 @@ export type FeedItemWarnContext = {
   context: string;
 };
 
-function warnFeedItemFieldShape(
-  prefix: string,
-  field: string,
-  context: string,
-  detail: string,
-): void {
-  console.warn(
-    `${prefix}: expected feed field "${field}" for ${context} (${detail}), treating as empty`,
-  );
-}
+
 
 /**
  * Normalize RSS `channel.item` / Atom `feed.entry` lists.
@@ -131,7 +123,7 @@ export function normalizeFeedItemList<T>(
     );
     if (malformed) {
       if (warn) {
-        warnFeedItemFieldShape(
+        warnMalformedFeedField(
           warn.prefix,
           field,
           warn.context,
@@ -144,7 +136,7 @@ export function normalizeFeedItemList<T>(
   }
   if (typeof value === "object") return [value];
   if (warn) {
-    warnFeedItemFieldShape(warn.prefix, field, warn.context, `got ${typeof value}`);
+    warnMalformedFeedField(warn.prefix, field, warn.context, `got ${typeof value}`);
   }
   return [];
 }

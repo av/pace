@@ -1,12 +1,16 @@
 import { describe, test, expect, spyOn, afterEach } from "bun:test";
 import {
   warnAdapter,
+  warnDateParseFallback,
   warnEmptyConfig,
+  warnEmptyFeedEntries,
   warnEmptyFetchResult,
   warnEmptySection,
   warnFilterRemovedAll,
   warnIneffectiveParam,
   warnInvalidInput,
+  warnMalformedArrayField,
+  warnMalformedFeedField,
 } from "./adapters/empty-config";
 
 describe("adapter warn utilities", () => {
@@ -68,6 +72,42 @@ describe("adapter warn utilities", () => {
     warnFilterRemovedAll("producthunt", "min_upvotes", 100, 2, "enriched item(s)");
     expect(warnSpy).toHaveBeenCalledWith(
       "producthunt: min_upvotes (100) filtered all 2 enriched item(s)",
+    );
+  });
+
+  test("warnMalformedArrayField describes malformed JSON array fields", () => {
+    warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+
+    warnMalformedArrayField("reddit", "children", "r/test", "got string");
+    expect(warnSpy).toHaveBeenCalledWith(
+      'reddit: expected array field "children" for r/test (got string), treating as empty',
+    );
+  });
+
+  test("warnMalformedFeedField describes malformed feed item/entry fields", () => {
+    warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+
+    warnMalformedFeedField("rss", "item", "bad feed", "got string");
+    expect(warnSpy).toHaveBeenCalledWith(
+      'rss: expected feed field "item" for bad feed (got string), treating as empty',
+    );
+  });
+
+  test("warnEmptyFeedEntries describes legitimately empty feeds", () => {
+    warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+
+    warnEmptyFeedEntries("podcast", "https://example.com/empty.xml");
+    expect(warnSpy).toHaveBeenCalledWith(
+      "podcast: no entries found in https://example.com/empty.xml",
+    );
+  });
+
+  test("warnDateParseFallback describes date parsing fallbacks", () => {
+    warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+
+    warnDateParseFallback("invalid feed date", '"not-a-date"');
+    expect(warnSpy).toHaveBeenCalledWith(
+      'dates: invalid feed date "not-a-date", using current time',
     );
   });
 });

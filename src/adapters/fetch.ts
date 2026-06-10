@@ -10,6 +10,10 @@ import {
   type XmlTextField,
 } from "./atom";
 import { errorMessage } from "../utils";
+import {
+  warnEmptyFeedEntries,
+  warnMalformedArrayField,
+} from "./empty-config";
 
 export const PACE_USER_AGENT = "pace/1.0";
 export const PACE_FEED_USER_AGENT =
@@ -118,20 +122,9 @@ export async function fetchJson<T>(
   return fetchBody(prefix, url, context, options, async (res) => (await res.json()) as T);
 }
 
-function warnArrayFieldShape(
-  prefix: string,
-  field: string,
-  context: string,
-  detail: string,
-): void {
-  console.warn(
-    `${prefix}: expected array field "${field}" for ${context} (${detail}), treating as empty`,
-  );
-}
-
 /** Warn when a feed fetch succeeded but returned no items (absent or empty item/entry list). */
 export function warnEmptyFeedItems(prefix: string, context: string): void {
-  console.warn(`${prefix}: no entries found in ${context}`);
+  warnEmptyFeedEntries(prefix, context);
 }
 
 function finalizeFeedItemList<TEntry, TParsed extends RssAtomFeedShape<TEntry>>(
@@ -158,16 +151,16 @@ export function arrayFieldOrEmpty<T>(
   context: string,
 ): T[] {
   if (record == null || typeof record !== "object") {
-    warnArrayFieldShape(prefix, field, context, "response is not an object");
+    warnMalformedArrayField(prefix, field, context, "response is not an object");
     return [];
   }
   const value = (record as Record<string, unknown>)[field];
   if (value == null) {
-    warnArrayFieldShape(prefix, field, context, "field is missing");
+    warnMalformedArrayField(prefix, field, context, "field is missing");
     return [];
   }
   if (!Array.isArray(value)) {
-    warnArrayFieldShape(prefix, field, context, `got ${typeof value}`);
+    warnMalformedArrayField(prefix, field, context, `got ${typeof value}`);
     return [];
   }
   return value as T[];
@@ -187,13 +180,13 @@ export function optionalArrayFieldOrEmpty<T>(
 ): T[] {
   if (record == null) return [];
   if (typeof record !== "object") {
-    warnArrayFieldShape(prefix, field, context, "parent is not an object");
+    warnMalformedArrayField(prefix, field, context, "parent is not an object");
     return [];
   }
   const value = (record as Record<string, unknown>)[field];
   if (value == null) return [];
   if (!Array.isArray(value)) {
-    warnArrayFieldShape(prefix, field, context, `got ${typeof value}`);
+    warnMalformedArrayField(prefix, field, context, `got ${typeof value}`);
     return [];
   }
   return value as T[];

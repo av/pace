@@ -1,12 +1,10 @@
-function warnDateFallback(kind: string, detail: string): void {
-  console.warn(`dates: ${kind} ${detail}, using current time`);
-}
+import { warnDateParseFallback } from "./empty-config";
 
 export function parseFeedDate(dateStr?: string | null): Date {
   if (!dateStr) return new Date();
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) {
-    warnDateFallback("invalid feed date", `"${dateStr}"`);
+    warnDateParseFallback("invalid feed date", `"${dateStr}"`);
     return new Date();
   }
   return d;
@@ -15,12 +13,12 @@ export function parseFeedDate(dateStr?: string | null): Date {
 export function parseUnixEpochSeconds(seconds?: number | null): Date {
   if (seconds == null) return new Date();
   if (!Number.isFinite(seconds)) {
-    warnDateFallback("invalid epoch seconds", String(seconds));
+    warnDateParseFallback("invalid epoch seconds", String(seconds));
     return new Date();
   }
   const d = new Date(seconds * 1000);
   if (isNaN(d.getTime())) {
-    warnDateFallback("unparseable epoch seconds", String(seconds));
+    warnDateParseFallback("unparseable epoch seconds", String(seconds));
     return new Date();
   }
   return d;
