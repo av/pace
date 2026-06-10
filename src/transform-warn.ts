@@ -32,6 +32,17 @@ export function logTransformDedupeRemoved(
   if (removed.length > 10) logTransformDetail(`... and ${removed.length - 10} more`);
 }
 
+/** Optionally log dedupe removals, then return the deduped result. */
+export function finalizeDedupeRun<T>(
+  run: { result: T; removed: string[] },
+  label: string,
+  shouldLog: boolean,
+  extra = "",
+): T {
+  if (shouldLog && run.removed.length > 0) logTransformDedupeRemoved(label, run.removed, extra);
+  return run.result;
+}
+
 /** Log when min_score filter removes items from a scored transform. */
 export function logTransformMinScoreFiltered(
   label: string,

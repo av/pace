@@ -10,8 +10,8 @@ import {
 } from "./config";
 import type { ContentItemRow } from "./db";
 import {
+  finalizeDedupeRun,
   formatTransformDedupeRemovedLine,
-  logTransformDedupeRemoved,
   warnUnknownDedupeStrategy,
 } from "./transform-warn";
 import {
@@ -82,20 +82,6 @@ export function applyFilter(items: ContentItemRow[], config: FilterTransformConf
 
 export function applyExclude(items: ContentItemRow[], config: ExcludeTransformConfig): ContentItemRow[] {
   return filterByKeywordMatch(items, config, false);
-}
-
-function finalizeDedupeRun(
-  { result, removed }: { result: ContentItemRow[]; removed: string[] },
-  label: string,
-  shouldLog: boolean,
-  extra = "",
-): ContentItemRow[] {
-  maybeLogDedupeRemoved(shouldLog, label, removed, extra);
-  return result;
-}
-
-function maybeLogDedupeRemoved(shouldLog: boolean, label: string, removed: string[], extra = ""): void {
-  if (shouldLog && removed.length > 0) logTransformDedupeRemoved(label, removed, extra);
 }
 
 interface DedupeRunOptions {

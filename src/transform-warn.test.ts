@@ -1,5 +1,6 @@
 import { describe, test, expect, spyOn, afterEach } from "bun:test";
 import {
+  finalizeDedupeRun,
   formatTransformDedupeRemovedLine,
   logTransform,
   logTransformDedupeRemoved,
@@ -48,6 +49,31 @@ describe("transform warn utilities", () => {
 
     logTransformDetail("- duplicate item");
     expect(logSpy).toHaveBeenCalledWith("  - duplicate item");
+  });
+
+  test("finalizeDedupeRun logs removals when enabled and returns result", () => {
+    logSpy = spyOn(console, "log").mockImplementation(() => {});
+
+    const result = finalizeDedupeRun(
+      { result: ["kept"], removed: ['"dup" (https://example.com)'] },
+      "url",
+      true,
+    );
+    expect(result).toEqual(["kept"]);
+    expect(logSpy).toHaveBeenCalledWith("transforms: dedupe:url removed 1 duplicate(s):");
+    expect(logSpy).toHaveBeenCalledWith('  - "dup" (https://example.com)');
+  });
+
+  test("finalizeDedupeRun skips logging when disabled or nothing removed", () => {
+    logSpy = spyOn(console, "log").mockImplementation(() => {});
+
+    expect(
+      finalizeDedupeRun({ result: ["kept"], removed: ['"dup" (https://example.com)'] }, "url", false),
+    ).toEqual(["kept"]);
+    expect(
+      finalizeDedupeRun({ result: ["kept"], removed: [] }, "url", true),
+    ).toEqual(["kept"]);
+    expect(logSpy).not.toHaveBeenCalled();
   });
 
   test("logTransformDedupeRemoved caps detail lines and reports overflow", () => {
