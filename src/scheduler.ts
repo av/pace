@@ -1,4 +1,5 @@
 import type { Adapter, ContentItem } from "./adapters/types";
+import { warnPruneFailure, warnRefreshFailure } from "./scheduler-warn";
 import { compareIsoTimestamp, errorMessage, getAdapterName } from "./utils";
 import type { Model, Api } from "@mariozechner/pi-ai";
 import {
@@ -69,7 +70,7 @@ async function executeWithRunningGuard(
     return { kind, name, status: "ok" };
   } catch (err) {
     const msg = errorMessage(err);
-    console.warn(`scheduler: failed to refresh ${name}: ${msg}`);
+    warnRefreshFailure(name, err);
     entry.lastError = msg;
     return { kind, name, status: "failed", error: msg };
   } finally {
@@ -299,7 +300,7 @@ function pruneOldItems(): void {
       console.log(`scheduler: pruned ${changes} items older than 30 days`);
     }
   } catch (err) {
-    console.warn(`scheduler: failed to prune: ${errorMessage(err)}`);
+    warnPruneFailure(err);
   }
 }
 
