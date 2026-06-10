@@ -236,6 +236,24 @@ describe("fetchAtomFeed", () => {
       fetchAtomFeed("arxiv", "https://example.com/query", "query"),
     ).rejects.toThrow(/^arxiv: failed to fetch query: HTTP error 404$/);
   });
+
+  test("uses shared RSS/Atom extraction and warns on malformed Atom entry field", async () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Bad</title><entry>broken</entry></feed>`;
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(xml));
+
+    await spyConsole(["warn"], async ({ warn }) => {
+      const { entries } = await fetchAtomFeed(
+        "youtube",
+        "https://example.com/feed.xml",
+        "channel feed",
+      );
+      expect(entries).toEqual([]);
+      expect(warn).toHaveBeenCalledWith(
+        'youtube: expected feed field "entry" for channel feed (got string), treating as empty',
+      );
+    });
+  });
 });
 
 describe("fetchRssAtomFeed", () => {
@@ -293,6 +311,20 @@ describe("fetchRssAtomFeed", () => {
     await expect(
       fetchRssAtomFeed("rss", "https://example.com/feed.xml"),
     ).rejects.toThrow(/rss: error parsing xml from/);
+  });
+
+  test("warns and returns [] when RSS item field is malformed", async () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel><title>Bad</title><item>not-an-object</item></channel></rss>`;
+    mocks.fetchMock.mockResolvedValue(makeXmlResponse(xml));
+
+    await spyConsole(["warn"], async ({ warn }) => {
+      const { items } = await fetchRssAtomFeed("rss", "https://example.com/bad.xml", "bad feed");
+      expect(items).toEqual([]);
+      expect(warn).toHaveBeenCalledWith(
+        'rss: expected feed field "item" for bad feed (got string), treating as empty',
+      );
+    });
   });
 
   test("accepts custom parser for CDATA-heavy feeds", async () => {

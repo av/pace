@@ -4,7 +4,6 @@
 import type { XMLParser } from "fast-xml-parser";
 import {
   extractRssAtomItems,
-  normalizeXmlList,
   parseFeedXml,
   parseXml,
   type XmlTextField,
@@ -231,7 +230,10 @@ export async function fetchAtomFeed<TEntry, TParsed extends AtomFeedShape<TEntry
   options: FetchWithTimeoutOptions = {},
 ): Promise<{ parsed: TParsed; entries: TEntry[] }> {
   const parsed = await fetchAndParseFeedXml<TParsed>(prefix, url, context, options);
-  return { parsed, entries: normalizeXmlList(parsed.feed?.entry) };
+  return {
+    parsed,
+    entries: extractRssAtomItems(parsed, { prefix, context }),
+  };
 }
 
 export type FetchRssAtomFeedOptions = FetchFeedXmlOptions;
@@ -247,7 +249,10 @@ export async function fetchRssAtomFeed<
   options: FetchRssAtomFeedOptions = {},
 ): Promise<{ parsed: TParsed; items: TEntry[] }> {
   const parsed = await fetchAndParseFeedXml<TParsed>(prefix, url, context, options);
-  return { parsed, items: extractRssAtomItems(parsed) };
+  return {
+    parsed,
+    items: extractRssAtomItems(parsed, { prefix, context }),
+  };
 }
 
 /**

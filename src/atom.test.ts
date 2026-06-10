@@ -6,9 +6,11 @@ import {
   extractFeedRootTitle,
   extractRssAtomItems,
   extractXmlText,
+  normalizeFeedItemList,
   normalizeXmlList,
   parseFeedXml,
 } from "./adapters/atom";
+import { spyConsole } from "./test/console-spy";
 
 describe("extractXmlText", () => {
   test("returns undefined for missing or empty values", () => {
@@ -94,6 +96,45 @@ describe("extractFeedRootTitle", () => {
   });
 });
 
+describe("normalizeFeedItemList", () => {
+  test("returns [] for absent values and wraps singleton objects", () => {
+    expect(normalizeFeedItemList(undefined, "item")).toEqual([]);
+    expect(normalizeFeedItemList({ title: "one" }, "item")).toEqual([
+      { title: "one" },
+    ]);
+    expect(
+      normalizeFeedItemList([{ id: "a" }, { id: "b" }], "entry"),
+    ).toEqual([{ id: "a" }, { id: "b" }]);
+  });
+
+  test("returns [] for malformed primitives without warn when context omitted", () => {
+    expect(normalizeFeedItemList("broken", "item")).toEqual([]);
+    expect(normalizeFeedItemList([{ ok: true }, "bad"], "item")).toEqual([]);
+  });
+
+  test("warns on malformed shape when warn context is provided", async () => {
+    await spyConsole(["warn"], ({ warn: warnSpy }) => {
+      expect(
+        normalizeFeedItemList("broken", "item", {
+          prefix: "rss",
+          context: "https://ex.com/feed",
+        }),
+      ).toEqual([]);
+      expect(warnSpy).toHaveBeenCalledWith(
+        'rss: expected feed field "item" for https://ex.com/feed (got string), treating as empty',
+      );
+
+      normalizeFeedItemList([{ ok: true }, null], "entry", {
+        prefix: "arxiv",
+        context: 'query "cat:cs.AI"',
+      });
+      expect(warnSpy).toHaveBeenCalledWith(
+        'arxiv: expected feed field "entry" for query "cat:cs.AI" (array contains non-object entry), treating as empty',
+      );
+    });
+  });
+});
+
 describe("extractRssAtomItems", () => {
   test("reads RSS channel items or Atom entries", () => {
     expect(extractRssAtomItems({})).toEqual([]);
@@ -107,6 +148,28 @@ describe("extractRssAtomItems", () => {
         feed: { entry: [{ title: "a" }, { title: "b" }] },
       }),
     ).toEqual([{ title: "a" }, { title: "b" }]);
+  });
+
+  test("prefers RSS items over Atom entries when both are present", () => {
+    expect(
+      extractRssAtomItems({
+        rss: { channel: { item: { title: "rss" } } },
+        feed: { entry: { title: "atom" } },
+      }),
+    ).toEqual([{ title: "rss" }]);
+  });
+
+  test("returns [] for malformed item/entry fields instead of coercing primitives", () => {
+    expect(
+      extractRssAtomItems({
+        rss: { channel: { item: "broken" } },
+      }),
+    ).toEqual([]);
+    expect(
+      extractRssAtomItems({
+        feed: { entry: 42 as unknown as { title: string } },
+      }),
+    ).toEqual([]);
   });
 });
 

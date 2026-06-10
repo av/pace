@@ -98,14 +98,68 @@ export function extractFeedRootTitle(
   return extractXmlText(rssTitle) ?? extractXmlText(atomTitle);
 }
 
-export function extractRssAtomItems<T>(parsed: {
-  rss?: { channel?: { item?: T | T[] } };
-  feed?: { entry?: T | T[] };
-}): T[] {
+export type FeedItemWarnContext = {
+  prefix: string;
+  context: string;
+};
+
+function warnFeedItemFieldShape(
+  prefix: string,
+  field: string,
+  context: string,
+  detail: string,
+): void {
+  console.warn(
+    `${prefix}: expected feed field "${field}" for ${context} (${detail}), treating as empty`,
+  );
+}
+
+/**
+ * Normalize RSS `channel.item` / Atom `feed.entry` lists.
+ * Absent fields return [] silently. Malformed primitives or non-object array
+ * entries return []; warn when `warn` context is provided (fetch layer).
+ */
+export function normalizeFeedItemList<T>(
+  value: T | T[] | undefined | null,
+  field: string,
+  warn?: FeedItemWarnContext,
+): T[] {
+  if (value == null) return [];
+  if (Array.isArray(value)) {
+    const malformed = value.some(
+      (entry) => entry == null || typeof entry !== "object",
+    );
+    if (malformed) {
+      if (warn) {
+        warnFeedItemFieldShape(
+          warn.prefix,
+          field,
+          warn.context,
+          "array contains non-object entry",
+        );
+      }
+      return [];
+    }
+    return value;
+  }
+  if (typeof value === "object") return [value];
+  if (warn) {
+    warnFeedItemFieldShape(warn.prefix, field, warn.context, `got ${typeof value}`);
+  }
+  return [];
+}
+
+export function extractRssAtomItems<T>(
+  parsed: {
+    rss?: { channel?: { item?: T | T[] } };
+    feed?: { entry?: T | T[] };
+  },
+  warn?: FeedItemWarnContext,
+): T[] {
   const rssItems = parsed.rss?.channel?.item;
-  if (rssItems != null) return normalizeXmlList(rssItems);
+  if (rssItems != null) return normalizeFeedItemList(rssItems, "item", warn);
   const atomEntries = parsed.feed?.entry;
-  if (atomEntries != null) return normalizeXmlList(atomEntries);
+  if (atomEntries != null) return normalizeFeedItemList(atomEntries, "entry", warn);
   return [];
 }
 
