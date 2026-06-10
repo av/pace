@@ -1,3 +1,5 @@
+import { warnUrlParseFailure } from "./utils-warn";
+
 function hasStringMessage(err: unknown): err is { message: string } {
   return (
     typeof err === "object" &&
@@ -23,9 +25,7 @@ export function tryParseUrl(
   try {
     return new URL(url);
   } catch (err) {
-    console.warn(
-      `${warnContext}: ${label} failed for "${url}": ${errorMessage(err)}`,
-    );
+    warnUrlParseFailure(warnContext, label, url, errorMessage(err));
     return null;
   }
 }
