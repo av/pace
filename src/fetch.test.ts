@@ -13,6 +13,7 @@ import {
   jsonObjectOrNull,
   optionalArrayFieldOrEmpty,
   optionalObjectArrayFieldOrEmpty,
+  optionalObjectFieldOrNull,
   fetchAtomFeed,
   fetchRssAtomFeed,
   fetchJson,
@@ -695,6 +696,89 @@ describe("jsonObjectArrayOrEmpty", () => {
       ).toEqual([]);
       expect(warn).toHaveBeenCalledWith(
         "mastodon: expected JSON array for public timeline from ex.com (got object), treating as empty",
+      );
+    });
+  });
+});
+
+describe("optionalObjectFieldOrNull", () => {
+  const required = ["title", "content_urls"] as const;
+
+  test("returns valid object unchanged", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      const tfa = {
+        title: "Featured_Article",
+        content_urls: { desktop: { page: "https://en.wikipedia.org/wiki/Featured_Article" } },
+      };
+      expect(
+        optionalObjectFieldOrNull(
+          "wikipedia",
+          { tfa },
+          "tfa",
+          "featured feed tfa",
+          required,
+        ),
+      ).toEqual(tfa);
+      expect(warn).not.toHaveBeenCalled();
+    });
+  });
+
+  test("returns null silently when parent or field is absent", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      expect(
+        optionalObjectFieldOrNull("wikipedia", undefined, "tfa", "featured feed tfa", required),
+      ).toBeNull();
+      expect(
+        optionalObjectFieldOrNull("wikipedia", {}, "tfa", "featured feed tfa", required),
+      ).toBeNull();
+      expect(warn).not.toHaveBeenCalled();
+    });
+  });
+
+  test("warns on malformed field shape and returns null", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      expect(
+        optionalObjectFieldOrNull(
+          "wikipedia",
+          { tfa: "broken" },
+          "tfa",
+          "featured feed tfa",
+          required,
+        ),
+      ).toBeNull();
+      expect(warn).toHaveBeenCalledWith(
+        'wikipedia: expected object field "tfa" for featured feed tfa (got string), treating as null',
+      );
+
+      warn.mockClear();
+      expect(
+        optionalObjectFieldOrNull(
+          "wikipedia",
+          { tfa: [{ title: "array" }] },
+          "tfa",
+          "featured feed tfa",
+          required,
+        ),
+      ).toBeNull();
+      expect(warn).toHaveBeenCalledWith(
+        'wikipedia: expected object field "tfa" for featured feed tfa (got array), treating as null',
+      );
+    });
+  });
+
+  test("warns when required fields are missing and returns null", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      expect(
+        optionalObjectFieldOrNull(
+          "wikipedia",
+          { tfa: { extract: "no title or urls" } },
+          "tfa",
+          "featured feed tfa",
+          required,
+        ),
+      ).toBeNull();
+      expect(warn).toHaveBeenCalledWith(
+        "wikipedia: expected object field \"tfa\" for featured feed tfa (missing required field(s): title, content_urls), treating as null",
       );
     });
   });

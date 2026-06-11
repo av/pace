@@ -75,6 +75,19 @@ export function warnMalformedArrayField(
   );
 }
 
+/** Warn when a JSON response field should be an object but has wrong shape. */
+export function warnMalformedObjectField(
+  adapterName: string,
+  field: string,
+  context: string,
+  detail: string,
+): void {
+  warnAdapter(
+    adapterName,
+    `expected object field "${field}" for ${context} (${detail}), treating as null`,
+  );
+}
+
 /** Warn when a top-level JSON response should be an array but has wrong shape. */
 export function warnMalformedJsonArray(
   adapterName: string,

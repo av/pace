@@ -15,6 +15,7 @@ import {
   warnMalformedArrayField,
   warnMalformedJsonArray,
   warnMalformedJsonObject,
+  warnMalformedObjectField,
   warnOptionalFetchFailure,
   warnSkippedInvalidArrayElements,
   warnSkippedNonNumericArrayElements,
@@ -358,6 +359,51 @@ export function optionalObjectArrayFieldOrEmpty<T extends Record<string, unknown
 ): T[] {
   const raw = optionalArrayFieldOrEmpty<unknown>(prefix, record, field, context);
   return filterValidObjectArrayElements<T>(prefix, raw, context, requiredFields);
+}
+
+/**
+ * Read an optional object field from a JSON object response (e.g. Wikipedia tfa).
+ * Returns null silently when the parent or field is null/undefined. Warns when the
+ * parent is present but not an object, the field is present but not an object, or
+ * required fields are missing.
+ */
+export function optionalObjectFieldOrNull<T extends Record<string, unknown>>(
+  prefix: string,
+  record: unknown,
+  field: string,
+  context: string,
+  requiredFields: readonly string[],
+): T | null {
+  if (record == null) return null;
+  if (typeof record !== "object") {
+    warnMalformedObjectField(prefix, field, context, "parent is not an object");
+    return null;
+  }
+  const value = (record as Record<string, unknown>)[field];
+  if (value == null) return null;
+  if (typeof value !== "object" || Array.isArray(value)) {
+    warnMalformedObjectField(
+      prefix,
+      field,
+      context,
+      Array.isArray(value) ? "got array" : `got ${typeof value}`,
+    );
+    return null;
+  }
+  const missing = missingRequiredJsonObjectFields(
+    value as Record<string, unknown>,
+    requiredFields,
+  );
+  if (missing.length > 0) {
+    warnMalformedObjectField(
+      prefix,
+      field,
+      context,
+      `missing required field(s): ${missing.join(", ")}`,
+    );
+    return null;
+  }
+  return value as T;
 }
 
 export type AtomFeedShape<TEntry> = {

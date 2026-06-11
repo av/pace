@@ -12,6 +12,7 @@ import {
   warnMalformedArrayField,
   warnMalformedJsonArray,
   warnMalformedJsonObject,
+  warnMalformedObjectField,
   warnMalformedFeedField,
   warnOptionalFetchFailure,
   warnSkippedInvalidArrayElements,
@@ -86,6 +87,15 @@ describe("adapter warn utilities", () => {
     warnMalformedArrayField("reddit", "children", "r/test", "got string");
     expect(warnSpy).toHaveBeenCalledWith(
       'reddit: expected array field "children" for r/test (got string), treating as empty',
+    );
+  });
+
+  test("warnMalformedObjectField describes malformed JSON object fields", () => {
+    warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+
+    warnMalformedObjectField("wikipedia", "tfa", "featured feed tfa", "got string");
+    expect(warnSpy).toHaveBeenCalledWith(
+      'wikipedia: expected object field "tfa" for featured feed tfa (got string), treating as null',
     );
   });
 

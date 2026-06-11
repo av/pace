@@ -9,6 +9,7 @@ import {
   fetchJson,
   jsonObjectOrNull,
   optionalObjectArrayFieldOrEmpty,
+  optionalObjectFieldOrNull,
 } from "./fetch";
 import { decodeNumericFeedTitle, stripHtml } from "./html";
 import {
@@ -80,6 +81,7 @@ interface WikiNewsItem {
   links: WikiArticle[];
 }
 
+const WIKI_TFA_REQUIRED_FIELDS = ["title", "content_urls"] as const;
 const WIKI_MOST_READ_ARTICLE_REQUIRED_FIELDS = [
   "title",
   "content_urls",
@@ -148,7 +150,13 @@ function extractMostRead(data: WikiFeaturedResponse, limit?: number): ContentIte
 }
 
 function extractFeatured(data: WikiFeaturedResponse): ContentItem[] {
-  const tfa = data.tfa;
+  const tfa = optionalObjectFieldOrNull<WikiArticle>(
+    "wikipedia",
+    data,
+    "tfa",
+    "featured feed tfa",
+    WIKI_TFA_REQUIRED_FIELDS,
+  );
   if (!tfa) return [];
   return mapToContentItems([tfa], wikipediaSourceLabel("featured"), (tfa) => ({
     id: `wikipedia:tfa:${tfa.title}`,

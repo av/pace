@@ -422,6 +422,74 @@ describe("wikipedia", () => {
     );
   });
 
+  test("warns and returns empty when tfa has malformed shape (single mode)", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      makeJsonResponse(makeFeaturedResponse({ tfa: "not-an-object" as unknown as never })),
+    );
+
+    const items = await wikipediaAdapter.fetch(wikiCfg({ mode: "featured" }));
+
+    expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      'wikipedia: expected object field "tfa" for featured feed tfa (got string), treating as null',
+    );
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "wikipedia: featured feed has no article of the day (en)",
+    );
+  });
+
+  test("warns and returns empty when tfa is missing required fields (single mode)", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      makeJsonResponse(
+        makeFeaturedResponse({
+          tfa: { extract: "No title or content_urls." },
+        }),
+      ),
+    );
+
+    const items = await wikipediaAdapter.fetch(wikiCfg({ mode: "featured" }));
+
+    expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "wikipedia: expected object field \"tfa\" for featured feed tfa (missing required field(s): title, content_urls), treating as null",
+    );
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "wikipedia: featured feed has no article of the day (en)",
+    );
+  });
+
+  test("warns on malformed tfa without duplicate missing-section warn in merge mode", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      makeJsonResponse(
+        makeFeaturedResponse({
+          tfa: "broken" as unknown as never,
+          news: [
+            {
+              story: "A major event occurred today.",
+              links: [
+                {
+                  title: "Major_Event",
+                  content_urls: { desktop: { page: "https://en.wikipedia.org/wiki/Major_Event" } },
+                },
+              ],
+            },
+          ],
+        }),
+      ),
+    );
+
+    const items = await wikipediaAdapter.fetch(wikiCfg({ mode: "featured,news" }));
+
+    expect(items).toHaveLength(1);
+    expect(items[0].source).toBe("wikipedia:news");
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      'wikipedia: expected object field "tfa" for featured feed tfa (got string), treating as null',
+    );
+    expect(mocks.warnSpy).not.toHaveBeenCalledWith(
+      "wikipedia: featured feed has no article of the day (en)",
+    );
+  });
+
   test("warns and returns empty when featured feed response is not an object", async () => {
     mocks.fetchMock.mockResolvedValue(makeJsonResponse(["broken"]));
 
