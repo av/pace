@@ -7,7 +7,12 @@ import {
 import { joinTitle } from "./title";
 
 import { parseUnixEpochSeconds } from "./dates";
-import { fetchJson, HN_ITEM_FETCH_TIMEOUT_MS, tryOptionalFetch } from "./fetch";
+import {
+  fetchJson,
+  HN_ITEM_FETCH_TIMEOUT_MS,
+  jsonArrayOrEmpty,
+  tryOptionalFetch,
+} from "./fetch";
 import { aggregateBatchedItems } from "./merge";
 import { decodeNumericFeedTitleOptional } from "./html";
 import {
@@ -103,11 +108,12 @@ const adapter: Adapter = {
 
     const endpoint = FEED_ENDPOINTS[feedType];
 
-    const ids = await fetchJson<number[]>(
+    const json = await fetchJson<unknown>(
       "hackernews",
       `${HN_API}/${endpoint}.json`,
       endpoint,
     );
+    const ids = jsonArrayOrEmpty<number>("hackernews", json, endpoint);
 
     const overfetchForMinScore =
       minScore > 0 ? Math.min(limit * 3, ids.length) : limit;

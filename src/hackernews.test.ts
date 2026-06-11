@@ -313,4 +313,20 @@ describe("hackernews", () => {
       spy: { message: "HTTP error 500" },
     });
   });
+
+  test("warns and returns [] when story ID list response is not a JSON array", async () => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes("topstories.json")) {
+        return makeJsonResponse({ error: "unexpected shape" });
+      }
+      return makeJsonResponse(null);
+    });
+
+    const results = await hackernewsAdapter.fetch(hnCfg());
+
+    expect(results).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "hackernews: expected JSON array for topstories (got object), treating as empty",
+    );
+  });
 });
