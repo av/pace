@@ -10,7 +10,7 @@ import { parseUnixEpochSeconds } from "./dates";
 import {
   fetchJson,
   HN_ITEM_FETCH_TIMEOUT_MS,
-  jsonArrayOrEmpty,
+  jsonNumericArrayOrEmpty,
   tryOptionalFetch,
 } from "./fetch";
 import { aggregateBatchedItems } from "./merge";
@@ -113,7 +113,7 @@ const adapter: Adapter = {
       `${HN_API}/${endpoint}.json`,
       endpoint,
     );
-    const ids = jsonArrayOrEmpty<number>("hackernews", json, endpoint);
+    const ids = jsonNumericArrayOrEmpty("hackernews", json, endpoint);
 
     const overfetchForMinScore =
       minScore > 0 ? Math.min(limit * 3, ids.length) : limit;

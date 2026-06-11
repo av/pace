@@ -375,4 +375,38 @@ describe("mastodon", () => {
       "mastodon: expected JSON array for public timeline from ex.com (got object), treating as empty",
     );
   });
+
+  test("warns and returns [] when account lookup response is not a JSON object", async () => {
+    mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const urlStr = typeof input === "string" ? input : input.toString();
+      if (urlStr.includes("/accounts/lookup")) {
+        return makeJsonResponse(["unexpected", "array"]);
+      }
+      return makeJsonResponse([]);
+    });
+
+    const items = await adapter.fetch(mastodonCfg({ accounts: ["user@ex.com"] }));
+
+    expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "mastodon: expected JSON object for account lookup user@ex.com (got array), treating as null",
+    );
+  });
+
+  test("warns and returns [] when account lookup response lacks required id field", async () => {
+    mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const urlStr = typeof input === "string" ? input : input.toString();
+      if (urlStr.includes("/accounts/lookup")) {
+        return makeJsonResponse({ username: "user", acct: "user" });
+      }
+      return makeJsonResponse([]);
+    });
+
+    const items = await adapter.fetch(mastodonCfg({ accounts: ["user@ex.com"] }));
+
+    expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "mastodon: expected JSON object for account lookup user@ex.com (missing required field(s): id), treating as null",
+    );
+  });
 });

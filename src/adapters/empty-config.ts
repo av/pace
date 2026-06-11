@@ -87,6 +87,31 @@ export function warnMalformedJsonArray(
   );
 }
 
+/** Warn when a top-level JSON response should be an object but has wrong shape. */
+export function warnMalformedJsonObject(
+  adapterName: string,
+  context: string,
+  detail: string,
+): void {
+  warnAdapter(
+    adapterName,
+    `expected JSON object for ${context} (${detail}), treating as null`,
+  );
+}
+
+/** Warn when a JSON array contains non-numeric elements that were filtered out. */
+export function warnSkippedNonNumericArrayElements(
+  adapterName: string,
+  context: string,
+  skipped: number,
+  total: number,
+): void {
+  warnAdapter(
+    adapterName,
+    `skipped ${skipped} non-numeric element(s) in ${context} (${total} total)`,
+  );
+}
+
 /** Warn when a feed XML field should be an item/entry list but has wrong shape. */
 export function warnMalformedFeedField(
   adapterName: string,

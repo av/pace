@@ -8,6 +8,8 @@ import {
   FEED_XML_ACCEPT,
   arrayFieldOrEmpty,
   jsonArrayOrEmpty,
+  jsonNumericArrayOrEmpty,
+  jsonObjectOrNull,
   optionalArrayFieldOrEmpty,
   fetchAtomFeed,
   fetchRssAtomFeed,
@@ -526,6 +528,81 @@ describe("jsonArrayOrEmpty", () => {
       expect(jsonArrayOrEmpty("devto", undefined, 'user "alice"')).toEqual([]);
       expect(warn).toHaveBeenCalledWith(
         'devto: expected JSON array for user "alice" (response is null/undefined), treating as empty',
+      );
+    });
+  });
+});
+
+describe("jsonNumericArrayOrEmpty", () => {
+  test("returns integer elements unchanged, including empty arrays", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      expect(jsonNumericArrayOrEmpty("hackernews", [1, 2, 3], "topstories")).toEqual([1, 2, 3]);
+      expect(jsonNumericArrayOrEmpty("hackernews", [], "newstories")).toEqual([]);
+      expect(warn).not.toHaveBeenCalled();
+    });
+  });
+
+  test("filters non-integer elements and warns", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      expect(
+        jsonNumericArrayOrEmpty("hackernews", [1, "2", null, 3.5, 4], "topstories"),
+      ).toEqual([1, 4]);
+      expect(warn).toHaveBeenCalledWith(
+        "hackernews: skipped 3 non-numeric element(s) in topstories (5 total)",
+      );
+    });
+  });
+
+  test("warns and returns [] when payload is not an array", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      expect(jsonNumericArrayOrEmpty("hackernews", { ids: [1] }, "topstories")).toEqual([]);
+      expect(warn).toHaveBeenCalledWith(
+        "hackernews: expected JSON array for topstories (got object), treating as empty",
+      );
+    });
+  });
+});
+
+describe("jsonObjectOrNull", () => {
+  test("returns object when shape and required fields are valid", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      const account = { id: "acct42", username: "test" };
+      expect(
+        jsonObjectOrNull<{ id: string; username: string }>(
+          "mastodon",
+          account,
+          "account lookup test@ex.com",
+          ["id"],
+        ),
+      ).toEqual(account);
+      expect(warn).not.toHaveBeenCalled();
+    });
+  });
+
+  test("warns and returns null for non-object payloads", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      expect(
+        jsonObjectOrNull("mastodon", ["acct"], "account lookup test@ex.com", ["id"]),
+      ).toBeNull();
+      expect(warn).toHaveBeenCalledWith(
+        "mastodon: expected JSON object for account lookup test@ex.com (got array), treating as null",
+      );
+
+      warn.mockClear();
+      expect(jsonObjectOrNull("mastodon", null, "account lookup test@ex.com", ["id"])).toBeNull();
+      expect(warn).toHaveBeenCalledWith(
+        "mastodon: expected JSON object for account lookup test@ex.com (response is null/undefined), treating as null",
+      );
+    });
+  });
+
+  test("warns and returns null when required fields are missing", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      expect(
+        jsonObjectOrNull("mastodon", { username: "test" }, "account lookup test@ex.com", ["id"]),
+      ).toBeNull();
+      expect(warn).toHaveBeenCalledWith(
+        "mastodon: expected JSON object for account lookup test@ex.com (missing required field(s): id), treating as null",
       );
     });
   });

@@ -329,4 +329,33 @@ describe("hackernews", () => {
       "hackernews: expected JSON array for topstories (got object), treating as empty",
     );
   });
+
+  test("filters non-numeric story IDs and fetches valid items only", async () => {
+    const ids = [1, "bad", null, 2, 3.5, 3];
+    const items = [1, 2, 3].map((id) => makeHNItem(id, { score: 10 + id }));
+    mocks.fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes("topstories.json")) return makeJsonResponse(ids);
+      const match = url.match(/item\/(\d+)\.json/);
+      if (match) {
+        const id = parseInt(match[1], 10);
+        return makeJsonResponse(items.find((i) => i.id === id) || null);
+      }
+      return makeJsonResponse(null);
+    });
+
+    const results = await hackernewsAdapter.fetch(hnCfg({ limit: 10 }));
+
+    expect(results).toHaveLength(3);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "hackernews: skipped 3 non-numeric element(s) in topstories (6 total)",
+    );
+    const itemCalls = fetchMockCalls(mocks.fetchMock).filter((c) =>
+      c.url.includes("/item/"),
+    );
+    expect(itemCalls.map((c) => c.url)).toEqual([
+      expect.stringContaining("/item/1.json"),
+      expect.stringContaining("/item/2.json"),
+      expect.stringContaining("/item/3.json"),
+    ]);
+  });
 });

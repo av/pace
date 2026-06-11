@@ -12,6 +12,7 @@ import {
   fetchJson,
   HN_ITEM_FETCH_TIMEOUT_MS,
   jsonArrayOrEmpty,
+  jsonObjectOrNull,
   tryOptionalFetch,
 } from "./fetch";
 import { decodeNumericFeedTitle, stripHtml } from "./html";
@@ -122,14 +123,16 @@ async function lookupAccount(
   username: string,
 ): Promise<MastodonAccount | null> {
   const context = `account lookup ${username}@${instance}`;
-  return tryOptionalFetch("mastodon", context, () =>
-    fetchJson<MastodonAccount>(
+  const raw = await tryOptionalFetch("mastodon", context, () =>
+    fetchJson<unknown>(
       "mastodon",
       `https://${instance}/api/v1/accounts/lookup?acct=${encodeURIComponent(username)}`,
       context,
       { timeoutMs: HN_ITEM_FETCH_TIMEOUT_MS },
     ),
   );
+  if (!raw) return null;
+  return jsonObjectOrNull<MastodonAccount>("mastodon", raw, context, ["id"]);
 }
 
 function withOnlyMedia(url: string, onlyMedia: boolean): string {

@@ -14,7 +14,9 @@ import {
   warnEmptyFeedEntries,
   warnMalformedArrayField,
   warnMalformedJsonArray,
+  warnMalformedJsonObject,
   warnOptionalFetchFailure,
+  warnSkippedNonNumericArrayElements,
 } from "./empty-config";
 
 export const PACE_USER_AGENT = "pace/1.0";
@@ -186,6 +188,85 @@ export function jsonArrayOrEmpty<T>(
     return [];
   }
   return value as T[];
+}
+
+function missingRequiredJsonObjectFields(
+  record: Record<string, unknown>,
+  requiredFields: readonly string[],
+): string[] {
+  return requiredFields.filter((field) => {
+    const fieldValue = record[field];
+    return (
+      fieldValue == null ||
+      (typeof fieldValue === "string" && fieldValue.length === 0)
+    );
+  });
+}
+
+/**
+ * Validate a top-level JSON object response (e.g. Mastodon account lookup).
+ * Returns null and warns when the payload is not an object or required fields are absent.
+ */
+export function jsonObjectOrNull<T extends Record<string, unknown>>(
+  prefix: string,
+  value: unknown,
+  context: string,
+  requiredFields: readonly string[] = [],
+): T | null {
+  if (value == null) {
+    warnMalformedJsonObject(
+      prefix,
+      context,
+      "response is null/undefined",
+    );
+    return null;
+  }
+  if (typeof value !== "object" || Array.isArray(value)) {
+    warnMalformedJsonObject(
+      prefix,
+      context,
+      Array.isArray(value) ? "got array" : `got ${typeof value}`,
+    );
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  const missing = missingRequiredJsonObjectFields(record, requiredFields);
+  if (missing.length > 0) {
+    warnMalformedJsonObject(
+      prefix,
+      context,
+      `missing required field(s): ${missing.join(", ")}`,
+    );
+    return null;
+  }
+  return value as T;
+}
+
+/**
+ * Validate a top-level JSON array of finite integers (e.g. Hacker News story IDs).
+ * Non-array payloads warn via jsonArrayOrEmpty; non-integer elements are filtered with a warn.
+ */
+export function jsonNumericArrayOrEmpty(
+  prefix: string,
+  value: unknown,
+  context: string,
+): number[] {
+  const raw = jsonArrayOrEmpty<unknown>(prefix, value, context);
+  if (raw.length === 0) return [];
+
+  const numeric: number[] = [];
+  let skipped = 0;
+  for (const element of raw) {
+    if (typeof element === "number" && Number.isInteger(element)) {
+      numeric.push(element);
+    } else {
+      skipped++;
+    }
+  }
+  if (skipped > 0) {
+    warnSkippedNonNumericArrayElements(prefix, context, skipped, raw.length);
+  }
+  return numeric;
 }
 
 /**

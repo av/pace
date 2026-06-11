@@ -11,8 +11,10 @@ import {
   warnInvalidInput,
   warnMalformedArrayField,
   warnMalformedJsonArray,
+  warnMalformedJsonObject,
   warnMalformedFeedField,
   warnOptionalFetchFailure,
+  warnSkippedNonNumericArrayElements,
 } from "./adapters/empty-config";
 
 describe("adapter warn utilities", () => {
@@ -101,6 +103,24 @@ describe("adapter warn utilities", () => {
     warnMalformedFeedField("rss", "item", "bad feed", "got string");
     expect(warnSpy).toHaveBeenCalledWith(
       'rss: expected feed field "item" for bad feed (got string), treating as empty',
+    );
+  });
+
+  test("warnMalformedJsonObject describes malformed top-level JSON objects", () => {
+    warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+
+    warnMalformedJsonObject("mastodon", "account lookup user@ex.com", "got array");
+    expect(warnSpy).toHaveBeenCalledWith(
+      "mastodon: expected JSON object for account lookup user@ex.com (got array), treating as null",
+    );
+  });
+
+  test("warnSkippedNonNumericArrayElements describes filtered array elements", () => {
+    warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+
+    warnSkippedNonNumericArrayElements("hackernews", "topstories", 2, 5);
+    expect(warnSpy).toHaveBeenCalledWith(
+      "hackernews: skipped 2 non-numeric element(s) in topstories (5 total)",
     );
   });
 
