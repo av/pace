@@ -303,4 +303,15 @@ describe("lobsters", () => {
       lobstersAdapter.fetch(lobstersCfg({ feed: "active" })),
     ).rejects.toThrow(/lobsters:.*error fetching active.*connection refused/);
   });
+
+  test("warns and returns [] when feed response is not a JSON array", async () => {
+    mocks.fetchMock.mockResolvedValue(makeJsonResponse({ error: "unexpected shape" }));
+
+    const items = await lobstersAdapter.fetch(lobstersCfg({ feed: "newest" }));
+
+    expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "lobsters: expected JSON array for newest (got object), treating as empty",
+    );
+  });
 });

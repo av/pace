@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { githubReleasesAdapter } from "./adapters/github-shared";
-import { makeErrorResponse } from "./test/fetch-responses";
+import { makeErrorResponse, makeJsonResponse } from "./test/fetch-responses";
 import { invalidLimitParams } from "./test/invalid-params";
 import { expectAdapterFetchError, fetchMockCalls, useFetchMockSuite } from "./test/adapter-mocks";
 import { githubReleasesCfg } from "./test/adapter-cfg";
@@ -261,6 +261,22 @@ describe("github-releases", () => {
         throwMatcher: /^github-releases: failed to fetch missing\/repo: HTTP error 404$/,
       },
       { spy: { times: 1 } },
+    );
+  });
+
+  test("warns and returns [] when releases API response is not a JSON array", async () => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes("/releases?")) {
+        return makeJsonResponse({ error: "unexpected shape" });
+      }
+      return githubReleasesApiFetchMock(url, { description: "A cool repo" });
+    });
+
+    const items = await githubReleasesAdapter.fetch(githubReleasesCfg({ repos: ["o/r"] }));
+
+    expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "github-releases: expected JSON array for o/r (got object), treating as empty",
     );
   });
 });

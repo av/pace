@@ -358,4 +358,21 @@ describe("mastodon", () => {
       "mastodon: error fetching account lookup user@ex.com: lookup connection refused",
     );
   });
+
+  test("warns and returns [] when public timeline response is not a JSON array", async () => {
+    mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const urlStr = typeof input === "string" ? input : input.toString();
+      if (urlStr.includes("/timelines/public")) {
+        return makeJsonResponse({ error: "unexpected shape" });
+      }
+      return makeErrorResponse(404);
+    });
+
+    const items = await adapter.fetch(mastodonCfg({ instance: "ex.com" }));
+
+    expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "mastodon: expected JSON array for public timeline from ex.com (got object), treating as empty",
+    );
+  });
 });

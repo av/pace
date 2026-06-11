@@ -7,7 +7,7 @@ import {
 } from "./engagement";
 import { joinTitle } from "./title";
 
-import { fetchJson } from "./fetch";
+import { fetchJson, jsonArrayOrEmpty } from "./fetch";
 import { decodeNumericFeedTitleOptional } from "./html";
 import {
   normalizeNonNegativeNumber,
@@ -103,18 +103,14 @@ const adapter: Adapter = {
         : {}),
     };
 
-    const fetchOne = (key: string) =>
-      isMultiSource
-        ? fetchJson<LobstersItem[]>(
-            "lobsters",
-            `${LOBSTERS_BASE}/t/${encodeURIComponent(key)}.json`,
-            `tag ${key}`,
-          )
-        : fetchJson<LobstersItem[]>(
-            "lobsters",
-            `${LOBSTERS_BASE}/${key}.json`,
-            key,
-          );
+    const fetchOne = async (key: string) => {
+      const context = isMultiSource ? `tag ${key}` : key;
+      const url = isMultiSource
+        ? `${LOBSTERS_BASE}/t/${encodeURIComponent(key)}.json`
+        : `${LOBSTERS_BASE}/${key}.json`;
+      const json = await fetchJson<unknown>("lobsters", url, context);
+      return jsonArrayOrEmpty<LobstersItem>("lobsters", json, context);
+    };
 
     const limited = await aggregateSequentialFeeds(keys, fetchOne, finalizeOptions);
 

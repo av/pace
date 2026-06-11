@@ -17,7 +17,12 @@ import {
   parseFeedEntryTimestamp,
   resolveDecodedFeedRootTitle,
 } from "./feed-entry";
-import { fetchAtomFeed, fetchJson, buildGitHubApiHeaders } from "./fetch";
+import {
+  fetchAtomFeed,
+  fetchJson,
+  buildGitHubApiHeaders,
+  jsonArrayOrEmpty,
+} from "./fetch";
 import { fetchRepoTagline } from "./github-repo-meta";
 import { decodeNumericFeedTitle } from "./html";
 import { warnEmptyConfig } from "./empty-config";
@@ -192,9 +197,10 @@ async function fetchGitHubApiReleasesRaw(
   token?: string,
 ): Promise<TaggedGHApiRelease[]> {
   const url = `https://api.github.com/repos/${repo}/releases?per_page=${limit}`;
-  const releases = await fetchJson<GitHubRelease[]>(adapterName, url, repo, {
+  const json = await fetchJson<unknown>(adapterName, url, repo, {
     headers: buildGitHubApiHeaders(token),
   });
+  const releases = jsonArrayOrEmpty<GitHubRelease>(adapterName, json, repo);
   const tagline = await fetchRepoTagline(repo, adapterName, token);
   return sliceAndMap(releases, limit, (release) => ({
     release,

@@ -8,7 +8,12 @@ import {
 import { joinTitle, truncateText } from "./title";
 
 import { warnInvalidInput } from "./empty-config";
-import { fetchJson, HN_ITEM_FETCH_TIMEOUT_MS, tryOptionalFetch } from "./fetch";
+import {
+  fetchJson,
+  HN_ITEM_FETCH_TIMEOUT_MS,
+  jsonArrayOrEmpty,
+  tryOptionalFetch,
+} from "./fetch";
 import { decodeNumericFeedTitle, stripHtml } from "./html";
 import {
   clampAdapterLimit,
@@ -140,11 +145,9 @@ async function fetchPublicTimeline(
     `https://${instance}/api/v1/timelines/public?limit=${limit}`,
     onlyMedia,
   );
-  return fetchJson<MastodonStatus[]>(
-    "mastodon",
-    url,
-    `public timeline from ${instance}`,
-  );
+  const context = `public timeline from ${instance}`;
+  const json = await fetchJson<unknown>("mastodon", url, context);
+  return jsonArrayOrEmpty<MastodonStatus>("mastodon", json, context);
 }
 
 async function fetchHashtagTimeline(
@@ -158,11 +161,9 @@ async function fetchHashtagTimeline(
     `https://${instance}/api/v1/timelines/tag/${encodeURIComponent(tag)}?limit=${limit}`,
     onlyMedia,
   );
-  return fetchJson<MastodonStatus[]>(
-    "mastodon",
-    url,
-    `hashtag #${tag} from ${instance}`,
-  );
+  const context = `hashtag #${tag} from ${instance}`;
+  const json = await fetchJson<unknown>("mastodon", url, context);
+  return jsonArrayOrEmpty<MastodonStatus>("mastodon", json, context);
 }
 
 async function fetchAccountStatuses(
@@ -175,11 +176,9 @@ async function fetchAccountStatuses(
     `https://${instance}/api/v1/accounts/${accountId}/statuses?limit=${limit}&exclude_replies=true&exclude_reblogs=true`,
     onlyMedia,
   );
-  return fetchJson<MastodonStatus[]>(
-    "mastodon",
-    url,
-    `account ${accountId} statuses from ${instance}`,
-  );
+  const context = `account ${accountId} statuses from ${instance}`;
+  const json = await fetchJson<unknown>("mastodon", url, context);
+  return jsonArrayOrEmpty<MastodonStatus>("mastodon", json, context);
 }
 
 function parseAccountHandle(handle: string): { username: string; instance: string } | null {
