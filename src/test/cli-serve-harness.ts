@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import { responseHeadersToLowercase } from "./server-harness";
 
 export type CliServeHarness = {
   proc: ChildProcess;
@@ -51,6 +52,12 @@ export function spawnCliServeServer(
   return harness;
 }
 
+/** Build an absolute URL for a live CLI server route. */
+export function cliServeUrl(harness: CliServeHarness, path: string): string {
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  return `${harness.base}${normalized}`;
+}
+
 /** Poll /health until the live CLI server responds or the process exits. */
 export async function waitForCliServeReady(
   harness: CliServeHarness,
@@ -64,9 +71,8 @@ export async function waitForCliServeReady(
       );
     }
     try {
-      const signal = cliServeRequestSignal(800);
-      const response = await fetch(`${harness.base}/health`, { signal });
-      if (response.status === 200) return;
+      const health = await requestCliServeHealth(harness, { signal: cliServeRequestSignal(800) });
+      if (health.status === 200) return;
     } catch {
       // not listening yet
     }
@@ -94,11 +100,24 @@ export async function requestCliServeRefresh(
   panelParam: string,
   options?: { signal?: AbortSignal },
 ): Promise<Response> {
-  return fetch(`${harness.base}/refresh/${panelParam}`, {
+  return fetch(cliServeUrl(harness, `/refresh/${panelParam}`), {
     method: "POST",
     redirect: "manual",
     signal: options?.signal ?? cliServeRequestSignal(),
   });
+}
+
+async function parseCliServeResponse(response: Response): Promise<CliServeResponse> {
+  const hd = responseHeadersToLowercase(response);
+  const contentType = hd["content-type"] || "";
+  let body: unknown = "";
+  try {
+    if (contentType.includes("json")) body = await response.json();
+    else body = await response.text();
+  } catch {
+    body = "";
+  }
+  return { status: response.status, hd, body };
 }
 
 /** Issue an HTTP request against a live CLI server with parsed headers/body. */
@@ -111,19 +130,31 @@ export async function requestCliServe(
     method,
     signal: options?.signal ?? cliServeRequestSignal(),
   });
-  const hd: Record<string, string> = {};
-  response.headers.forEach((value, key) => {
-    hd[key.toLowerCase()] = value;
-  });
-  const contentType = hd["content-type"] || "";
-  let body: unknown = "";
-  try {
-    if (contentType.includes("json")) body = await response.json();
-    else body = await response.text();
-  } catch {
-    body = "";
-  }
-  return { status: response.status, hd, body };
+  return parseCliServeResponse(response);
+}
+
+/** GET / against a live CLI server. */
+export async function requestCliServeDashboard(
+  harness: CliServeHarness,
+  options?: { signal?: AbortSignal },
+): Promise<CliServeResponse> {
+  return requestCliServe(cliServeUrl(harness, "/"), "GET", options);
+}
+
+/** GET /health against a live CLI server. */
+export async function requestCliServeHealth(
+  harness: CliServeHarness,
+  options?: { signal?: AbortSignal },
+): Promise<CliServeResponse> {
+  return requestCliServe(cliServeUrl(harness, "/health"), "GET", options);
+}
+
+/** GET /styles.css against a live CLI server. */
+export async function requestCliServeStyles(
+  harness: CliServeHarness,
+  options?: { signal?: AbortSignal },
+): Promise<CliServeResponse> {
+  return requestCliServe(cliServeUrl(harness, "/styles.css"), "GET", options);
 }
 
 /** Stop a live CLI server child process started by spawnCliServeServer. */

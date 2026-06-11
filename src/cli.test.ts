@@ -2,8 +2,10 @@ import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { runCli } from "./test/cli-runner";
 import {
   killCliServeServer,
-  requestCliServe,
+  requestCliServeDashboard,
+  requestCliServeHealth,
   requestCliServeRefresh,
+  requestCliServeStyles,
   spawnCliServeServer,
   waitForCliServeReady,
 } from "./test/cli-serve-harness";
@@ -21,6 +23,8 @@ import {
   resolveCliServeErrors,
 } from "./cli-help";
 import {
+  expectDashboardFooterUtc,
+  expectDashboardHtmlShell,
   expectRefreshPanelFailureOrRedirect,
   expectRefreshPanelNotFound,
   expectSecurityHeaders,
@@ -271,10 +275,16 @@ describe("cli serve", () => {
         // fresh start
       }
       await waitForCliServeReady(harness, 12_000);
-      const health = await requestCliServe(`${harness.base}/health`);
+      const dashboard = await requestCliServeDashboard(harness);
+      expect(dashboard.status).toBe(200);
+      expect(dashboard.hd["content-type"] || "").toMatch(/text\/html/);
+      expectDashboardHtmlShell(String(dashboard.body));
+      expectDashboardFooterUtc(String(dashboard.body));
+      expectSecurityHeaders(dashboard.hd);
+      const health = await requestCliServeHealth(harness);
       expect(health.status).toBe(200);
       expect(health.body).toEqual({ status: "ok" });
-      const styles = await requestCliServe(`${harness.base}/styles.css`);
+      const styles = await requestCliServeStyles(harness);
       expect(styles.status).toBe(200);
       expect(styles.hd["cache-control"] || "").toContain("max-age=3600");
       const r502 = await requestCliServeRefresh(harness, "reddit");

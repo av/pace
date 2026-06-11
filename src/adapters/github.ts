@@ -10,10 +10,9 @@ import {
   clampAdapterLimit,
   normalizeParamString,
   createAliasedResolver,
-  sliceToLimit,
 } from "../utils";
 import { decodeNumericFeedTitle, FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
-import { mapToContentItems } from "./content-item";
+import { sliceMapToContentItems } from "./content-item";
 import {
   fetchGitHubReposReleases,
   githubTrendingSourceLabel,
@@ -123,8 +122,9 @@ async function fetchTrending(
     monthly: "this month",
   };
 
-  return mapToContentItems(
-    sliceToLimit(repos, limit),
+  return sliceMapToContentItems(
+    repos,
+    limit,
     githubTrendingSourceLabel(language),
     (repo) => {
       const body = joinTitle(

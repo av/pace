@@ -1,7 +1,10 @@
 import { describe, test, expect, spyOn, afterEach } from "bun:test";
 import {
   cliServeRequestSignal,
+  cliServeUrl,
   requestCliServe,
+  requestCliServeDashboard,
+  requestCliServeHealth,
   requestCliServeRefresh,
   type CliServeHarness,
 } from "./cli-serve-harness";
@@ -39,6 +42,42 @@ describe("cli-serve-harness request helpers", () => {
     expect(result.body).toEqual({ status: "ok" });
     expect(result.hd["content-type"]).toContain("application/json");
     expect(result.hd["x-frame-options"]).toBe("DENY");
+  });
+
+  test("cliServeUrl normalizes paths against harness base", () => {
+    const harness = { base: "http://localhost:12345" } as CliServeHarness;
+    expect(cliServeUrl(harness, "/")).toBe("http://localhost:12345/");
+    expect(cliServeUrl(harness, "health")).toBe("http://localhost:12345/health");
+  });
+
+  test("requestCliServeDashboard GETs root HTML", async () => {
+    fetchSpy = spyOn(globalThis, "fetch").mockImplementation(async (url, init) => {
+      expect(url).toBe("http://localhost:12345/");
+      expect(init?.method).toBe("GET");
+      return new Response("<!DOCTYPE html><title>pace</title>", {
+        status: 200,
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+      });
+    });
+    const harness = { base: "http://localhost:12345" } as CliServeHarness;
+    const result = await requestCliServeDashboard(harness);
+    expect(result.status).toBe(200);
+    expect(String(result.body)).toContain("<title>pace</title>");
+    expect(result.hd["content-type"]).toContain("text/html");
+  });
+
+  test("requestCliServeHealth GETs /health", async () => {
+    fetchSpy = spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+      expect(url).toBe("http://localhost:12345/health");
+      return new Response(JSON.stringify({ status: "ok" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+    const harness = { base: "http://localhost:12345" } as CliServeHarness;
+    const result = await requestCliServeHealth(harness);
+    expect(result.status).toBe(200);
+    expect(result.body).toEqual({ status: "ok" });
   });
 
   test("requestCliServeRefresh POSTs with redirect manual", async () => {
