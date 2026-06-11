@@ -9,7 +9,7 @@ import { joinTitle } from "./title";
 
 import { parseUnixEpochSeconds } from "./dates";
 import { warnAdapter } from "./empty-config";
-import { arrayFieldOrEmpty, fetchJson } from "./fetch";
+import { arrayFieldOrEmpty, fetchJson, jsonObjectOrNull } from "./fetch";
 import { decodeNumericFeedTitle } from "./html";
 import {
   clampAdapterLimit,
@@ -103,17 +103,20 @@ async function fetchQuestions(
 
   const url = `${SE_API}/questions?${params.toString()}`;
 
-  const json = await fetchJson<SEResponse>("stackexchange", url, `from ${site}`, {
+  const context = `from ${site}`;
+  const raw = await fetchJson<unknown>("stackexchange", url, context, {
     headers: {
       "Accept-Encoding": "gzip",
     },
   });
+  const json = jsonObjectOrNull<SEResponse>("stackexchange", raw, context, ["items"]);
+  if (json == null) return [];
 
   if (json.quota_remaining !== undefined && json.quota_remaining < 10) {
     warnAdapter("stackexchange", `API quota low (${json.quota_remaining} remaining)`);
   }
 
-  return arrayFieldOrEmpty<SEQuestion>("stackexchange", json, "items", `from ${site}`);
+  return arrayFieldOrEmpty<SEQuestion>("stackexchange", json, "items", context);
 }
 
 const adapter: Adapter = {

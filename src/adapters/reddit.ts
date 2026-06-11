@@ -9,7 +9,7 @@ import { joinTitle } from "./title";
 
 import { parseUnixEpochSeconds } from "./dates";
 import { warnEmptyConfig } from "./empty-config";
-import { arrayFieldOrEmpty, fetchJson } from "./fetch";
+import { arrayFieldOrEmpty, fetchJson, jsonObjectOrNull } from "./fetch";
 import { decodeNumericFeedTitle } from "./html";
 import {
   normalizeNonNegativeNumber,
@@ -117,8 +117,10 @@ async function fetchRedditListing(
   }
 
   const context = `${path}/${sort}`;
-  const json = await fetchJson<RedditListing>("reddit", url, context);
-  return arrayFieldOrEmpty<RedditPost>("reddit", json?.data, "children", context);
+  const raw = await fetchJson<unknown>("reddit", url, context);
+  const json = jsonObjectOrNull<RedditListing>("reddit", raw, context, ["data"]);
+  if (json == null) return [];
+  return arrayFieldOrEmpty<RedditPost>("reddit", json.data, "children", context);
 }
 
 const adapter: Adapter = {

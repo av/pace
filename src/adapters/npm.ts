@@ -7,7 +7,7 @@ import { joinTitle, joinTitleWithTagline } from "./title";
 
 import { mapToContentItems } from "./content-item";
 import { warnEmptyConfig } from "./empty-config";
-import { arrayFieldOrEmpty, fetchJson } from "./fetch";
+import { arrayFieldOrEmpty, fetchJson, jsonObjectOrNull } from "./fetch";
 import { decodeNumericFeedTitle } from "./html";
 import {
   clampAdapterLimit,
@@ -72,9 +72,11 @@ async function searchNpm(
   const params = new URLSearchParams(query);
   const url = `${NPM_REGISTRY}/-/v1/search?${params.toString()}`;
 
-  const json = await fetchJson<NpmSearchResult>("npm", url, context, {
+  const raw = await fetchJson<unknown>("npm", url, context, {
     accept: "application/json",
   });
+  const json = jsonObjectOrNull<NpmSearchResult>("npm", raw, context, ["objects"]);
+  if (json == null) return [];
   return arrayFieldOrEmpty<NpmPackageResult>("npm", json, "objects", context);
 }
 

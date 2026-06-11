@@ -359,4 +359,15 @@ describe("reddit", () => {
       'reddit: expected array field "children" for /r/broken/hot (got string), treating as empty',
     );
   });
+
+  test("warns and returns [] when listing response is not an object", async () => {
+    mocks.fetchMock.mockResolvedValue(makeJsonResponse(null));
+
+    const items = await redditAdapter.fetch(redditCfg({ subreddits: ["broken"] }));
+
+    expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "reddit: expected JSON object for /r/broken/hot (response is null/undefined), treating as null",
+    );
+  });
 });

@@ -364,7 +364,18 @@ describe("lemmy", () => {
 
     expect(items).toEqual([]);
     expect(mocks.warnSpy).toHaveBeenCalledWith(
-      'lemmy: expected array field "posts" for lemmy.ml frontpage (field is missing), treating as empty',
+      "lemmy: expected JSON object for lemmy.ml frontpage (missing required field(s): posts), treating as null",
+    );
+  });
+
+  test("warns and returns [] when post list response is not an object", async () => {
+    mocks.fetchMock.mockResolvedValue(makeJsonResponse("broken"));
+
+    const items = await lemmyAdapter.fetch(lemmyCfg());
+
+    expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "lemmy: expected JSON object for lemmy.ml frontpage (got string), treating as null",
     );
   });
 });

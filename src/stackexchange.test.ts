@@ -348,7 +348,18 @@ describe("stackexchange", () => {
 
     expect(items).toEqual([]);
     expect(mocks.warnSpy).toHaveBeenCalledWith(
-      'stackexchange: expected array field "items" for from stackoverflow (field is missing), treating as empty',
+      "stackexchange: expected JSON object for from stackoverflow (missing required field(s): items), treating as null",
+    );
+  });
+
+  test("warns and returns [] when API response is not an object", async () => {
+    mocks.fetchMock.mockResolvedValue(makeJsonResponse(["broken"]));
+
+    const items = await stackexchangeAdapter.fetch(seCfg());
+
+    expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "stackexchange: expected JSON object for from stackoverflow (got array), treating as null",
     );
   });
 });

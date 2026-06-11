@@ -322,4 +322,15 @@ describe("npm", () => {
       'npm: expected array field "objects" for broken (got number), treating as empty',
     );
   });
+
+  test("warns and returns [] when search response is not an object", async () => {
+    mocks.fetchMock.mockResolvedValue(makeJsonResponse([]));
+
+    const items = await npmAdapter.fetch(npmCfg({ keywords: ["broken"] }));
+
+    expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "npm: expected JSON object for broken (got array), treating as null",
+    );
+  });
 });

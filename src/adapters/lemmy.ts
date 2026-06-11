@@ -7,7 +7,7 @@ import {
 } from "./engagement";
 import { joinTitle } from "./title";
 
-import { arrayFieldOrEmpty, fetchJson } from "./fetch";
+import { arrayFieldOrEmpty, fetchJson, jsonObjectOrNull } from "./fetch";
 import { decodeNumericFeedTitleOptional } from "./html";
 import {
   normalizeNonNegativeNumber,
@@ -95,9 +95,11 @@ async function fetchLemmyPosts(
   const query = new URLSearchParams(params);
   const url = `https://${instance}/api/v3/post/list?${query.toString()}`;
 
-  const json = await fetchJson<LemmyPostListResponse>("lemmy", url, context, {
+  const raw = await fetchJson<unknown>("lemmy", url, context, {
     accept: "application/json",
   });
+  const json = jsonObjectOrNull<LemmyPostListResponse>("lemmy", raw, context, ["posts"]);
+  if (json == null) return [];
   return arrayFieldOrEmpty<LemmyPostView>("lemmy", json, "posts", context);
 }
 
