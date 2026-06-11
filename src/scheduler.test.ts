@@ -227,6 +227,40 @@ describe("scheduler", () => {
     });
   });
 
+  test("runPipelineJob reads source items via layout sourceToReadKey panel mapping", async () => {
+    dbMod.saveItems("hn-panel", [
+      makeContentItem({
+        id: "h1",
+        title: "HN item",
+        url: "https://hn/1",
+        source: "hn",
+        timestamp: new Date("2024-06-01T12:00:00.000Z"),
+      }),
+    ]);
+    const config = testAppConfig(
+      {
+        adapters: [],
+        pipelines: [{
+          name: "curated",
+          sources: ["hn"],
+          transforms: [{ type: "latest", count: 10 }],
+        }],
+      },
+      {
+        direction: "column",
+        panels: [
+          { panel: "tech", source: "hn", id: "hn-panel" },
+          { panel: "pipe", source: "curated", id: "out" },
+        ],
+      },
+    );
+    const pm = sourcePanelMapFromConfig(config);
+    startScheduler(config, new Map(), pm, null);
+    await refreshSources(["curated"]);
+    const out = dbMod.getAllItemsByPanel("out");
+    expect(out.map((r) => r.id)).toEqual(["pipeline:curated:h1"]);
+  });
+
   test("runPipelineJob preserves source concat order when timestamps tie (stable sort)", async () => {
     const ts = "2024-06-01T12:00:00.000Z";
     dbMod.saveItems("srcA", [
