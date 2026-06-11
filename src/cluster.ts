@@ -188,46 +188,61 @@ function computeClusterSimilarity(
   }
 }
 
-export function applyCluster(
-  items: ContentItemRow[],
-  cfg: ClusterTransformConfig
-): ContentItemRow[] {
-  const strategy = cfg.strategy ?? "auto";
-  const minClusterSize = cfg.min_cluster_size ?? 2;
-  const maxClusters = cfg.max_clusters ?? 10;
-  const similarityThreshold = cfg.similarity_threshold ?? 0.3;
-  const annotate = cfg.annotate ?? true;
+interface SimilarityEdge {
+  i: number;
+  j: number;
+  sim: number;
+}
 
-  if (items.length < 2) return items;
+interface ClusterGroup {
+  indices: number[];
+  label: string;
+}
 
-  const signals = buildClusterSignals(items);
-
-  const similarities: Array<{ i: number; j: number; sim: number }> = [];
-  for (let i = 0; i < items.length; i++) {
-    for (let j = i + 1; j < items.length; j++) {
+function buildSimilarityGraph(
+  itemCount: number,
+  signals: ClusterItemSignals[],
+  strategy: ClusterTransformConfig["strategy"] | "auto",
+  similarityThreshold: number
+): SimilarityEdge[] {
+  const similarities: SimilarityEdge[] = [];
+  for (let i = 0; i < itemCount; i++) {
+    for (let j = i + 1; j < itemCount; j++) {
       const sim = computeClusterSimilarity(signals[i], signals[j], strategy);
       if (sim >= similarityThreshold) {
         similarities.push({ i, j, sim });
       }
     }
   }
-
   similarities.sort((a, b) => b.sim - a.sim);
+  return similarities;
+}
 
-  const { find, union } = unionFind(items.length);
+function groupIndicesByUnionFind(
+  itemCount: number,
+  similarities: SimilarityEdge[]
+): Map<number, number[]> {
+  const { find, union } = unionFind(itemCount);
   for (const { i, j } of similarities) {
     union(i, j);
   }
 
   const clusterMap = new Map<number, number[]>();
-  for (let i = 0; i < items.length; i++) {
+  for (let i = 0; i < itemCount; i++) {
     const root = find(i);
     const group = clusterMap.get(root) ?? [];
     group.push(i);
     clusterMap.set(root, group);
   }
+  return clusterMap;
+}
 
-  const clusters: Array<{ indices: number[]; label: string }> = [];
+function partitionClusters(
+  clusterMap: Map<number, number[]>,
+  minClusterSize: number,
+  maxClusters: number
+): { clusters: ClusterGroup[]; unclustered: number[] } {
+  const clusters: ClusterGroup[] = [];
   const unclustered: number[] = [];
 
   for (const [, indices] of clusterMap) {
@@ -246,7 +261,18 @@ export function applyCluster(
     clusters.splice(maxClusters);
   }
 
+  return { clusters, unclustered };
+}
+
+function buildAnnotatedClusterResult(
+  items: ContentItemRow[],
+  signals: ClusterItemSignals[],
+  clusters: ClusterGroup[],
+  unclustered: number[],
+  annotate: boolean
+): ContentItemRow[] {
   const result: ContentItemRow[] = [];
+
   for (const cluster of clusters) {
     cluster.label = generateClusterLabel(cluster.indices, signals, clusters.length);
     cluster.indices.sort(
@@ -266,6 +292,27 @@ export function applyCluster(
   for (const idx of unclustered) {
     result.push(items[idx]);
   }
+
+  return result;
+}
+
+export function applyCluster(
+  items: ContentItemRow[],
+  cfg: ClusterTransformConfig
+): ContentItemRow[] {
+  const strategy = cfg.strategy ?? "auto";
+  const minClusterSize = cfg.min_cluster_size ?? 2;
+  const maxClusters = cfg.max_clusters ?? 10;
+  const similarityThreshold = cfg.similarity_threshold ?? 0.3;
+  const annotate = cfg.annotate ?? true;
+
+  if (items.length < 2) return items;
+
+  const signals = buildClusterSignals(items);
+  const similarities = buildSimilarityGraph(items.length, signals, strategy, similarityThreshold);
+  const clusterMap = groupIndicesByUnionFind(items.length, similarities);
+  const { clusters, unclustered } = partitionClusters(clusterMap, minClusterSize, maxClusters);
+  const result = buildAnnotatedClusterResult(items, signals, clusters, unclustered, annotate);
 
   logTransformClusterSummary(strategy, clusters, unclustered.length);
 
