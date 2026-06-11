@@ -422,6 +422,31 @@ describe("wikipedia", () => {
     );
   });
 
+  test("warns and returns empty when featured feed response is not an object", async () => {
+    mocks.fetchMock.mockResolvedValue(makeJsonResponse(["broken"]));
+
+    const items = await wikipediaAdapter.fetch(wikiCfg({ mode: "most_read" }));
+
+    expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "wikipedia: expected JSON object for featured feed (got array), treating as null",
+    );
+    expect(mocks.warnSpy).not.toHaveBeenCalledWith(
+      "wikipedia: featured feed has no most_read articles (en)",
+    );
+  });
+
+  test("warns and returns empty when featured feed response is null", async () => {
+    mocks.fetchMock.mockResolvedValue(makeJsonResponse(null));
+
+    const items = await wikipediaAdapter.fetch(wikiCfg({ mode: "featured,news" }));
+
+    expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "wikipedia: expected JSON object for featured feed (response is null/undefined), treating as null",
+    );
+  });
+
   test("warns on malformed mostread.articles shape without duplicate missing-section warn in merge mode", async () => {
     mocks.fetchMock.mockResolvedValue(
       makeJsonResponse(

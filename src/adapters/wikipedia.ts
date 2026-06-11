@@ -5,7 +5,7 @@ import { joinTitle, truncateText } from "./title";
 
 import { warnEmptySection } from "./empty-config";
 import { mapToContentItems, mapToContentItemsWithLimit } from "./content-item";
-import { fetchJson, optionalArrayFieldOrEmpty } from "./fetch";
+import { fetchJson, jsonObjectOrNull, optionalArrayFieldOrEmpty } from "./fetch";
 import { decodeNumericFeedTitle, stripHtml } from "./html";
 import {
   clampAdapterLimit,
@@ -106,9 +106,10 @@ async function fetchFeaturedFeed(
   year: string,
   month: string,
   day: string,
-): Promise<WikiFeaturedResponse> {
+): Promise<WikiFeaturedResponse | null> {
   const url = `https://${language}.wikipedia.org/api/rest_v1/feed/featured/${year}/${month}/${day}`;
-  return fetchJson<WikiFeaturedResponse>("wikipedia", url, "featured feed");
+  const raw = await fetchJson<unknown>("wikipedia", url, "featured feed");
+  return jsonObjectOrNull<WikiFeaturedResponse>("wikipedia", raw, "featured feed");
 }
 
 function extractMostRead(data: WikiFeaturedResponse, limit?: number): ContentItem[] {
@@ -237,6 +238,7 @@ const adapter: Adapter = {
 
     const { year, month, day } = todayParts();
     const data = await fetchFeaturedFeed(language, year, month, day);
+    if (data == null) return [];
 
     if (modes.length === 1) {
       const mode = modes[0];
