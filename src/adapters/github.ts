@@ -21,8 +21,19 @@ import {
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 type TrendingPeriod = "daily" | "weekly" | "monthly";
+type GitHubMode = "trending" | "releases";
 
 const DEFAULT_PERIOD: TrendingPeriod = "daily";
+const DEFAULT_MODE: GitHubMode = "releases";
+
+/** Map configured mode param (canonical name or alias) to github adapter mode. Unknown → releases. */
+export const resolveGitHubMode = createAliasedResolver<GitHubMode>({
+  types: ["trending", "releases"],
+  aliases: {
+    release: "releases",
+  },
+  fallback: DEFAULT_MODE,
+});
 
 /** Map configured since param (canonical name or alias) to GitHub trending period. Unknown → daily. */
 export const resolveGitHubPeriod = createAliasedResolver<TrendingPeriod>({
@@ -150,25 +161,34 @@ async function fetchTrending(
   );
 }
 
+type GitHubModeFetcher = (
+  config: AdapterConfig,
+  limit: number,
+) => Promise<ContentItem[]>;
+
+const GITHUB_MODE_PIPELINES = {
+  trending: async (config, limit) => {
+    const language = normalizeParamString(config.params, "language", "");
+    const since = resolveGitHubPeriod(
+      normalizeParamString(config.params, "since", "daily"),
+    );
+    return fetchTrending(language, since, limit);
+  },
+  releases: async (config, limit) => {
+    const resolved = resolveGitHubRepos(config.params, "github");
+    if (!resolved) return [];
+    return fetchGitHubReposReleases(resolved, "atom", limit, "github");
+  },
+} satisfies Record<GitHubMode, GitHubModeFetcher>;
+
 const adapter: Adapter = {
   name: "github",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const mode = normalizeParamString(config.params, "mode", "releases");
+    const mode = resolveGitHubMode(
+      normalizeParamString(config.params, "mode", DEFAULT_MODE),
+    );
     const limit = clampAdapterLimit(config.params?.limit, 10, 50);
-
-    if (mode === "trending") {
-      const language = normalizeParamString(config.params, "language", "");
-      const since = resolveGitHubPeriod(
-        normalizeParamString(config.params, "since", "daily"),
-      );
-
-      return fetchTrending(language, since, limit);
-    }
-
-    const resolved = resolveGitHubRepos(config.params, "github");
-    if (!resolved) return [];
-
-    return fetchGitHubReposReleases(resolved, "atom", limit, "github");
+    return GITHUB_MODE_PIPELINES[mode](config, limit);
   },
 };
 

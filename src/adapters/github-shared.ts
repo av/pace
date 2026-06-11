@@ -187,16 +187,16 @@ async function fetchGitHubAtomReleasesRaw(
 
 async function fetchGitHubApiReleasesRaw(
   repo: string,
-  perPage: number,
+  limit: number,
   adapterName: string,
   token?: string,
 ): Promise<TaggedGHApiRelease[]> {
-  const url = `https://api.github.com/repos/${repo}/releases?per_page=${perPage}`;
+  const url = `https://api.github.com/repos/${repo}/releases?per_page=${limit}`;
   const releases = await fetchJson<GitHubRelease[]>(adapterName, url, repo, {
     headers: buildGitHubApiHeaders(token),
   });
   const tagline = await fetchRepoTagline(repo, adapterName, token);
-  return sliceAndMap(releases, perPage, (release) => ({
+  return sliceAndMap(releases, limit, (release) => ({
     release,
     repo,
     tagline,

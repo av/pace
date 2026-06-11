@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import adapter, { resolveGitHubPeriod } from "./adapters/github";
+import adapter, { resolveGitHubMode, resolveGitHubPeriod } from "./adapters/github";
 import { FEED_XML_ACCEPT } from "./adapters/fetch";
 import {
   expectAdapterFetchError,
@@ -22,6 +22,19 @@ const mocks = useFetchMockSuite();
 
 const githubFetchCalls = () => fetchMockCalls(mocks.fetchMock);
 
+
+describe("resolveGitHubMode", () => {
+  test.each([
+    ["trending", "trending"],
+    ["releases", "releases"],
+    ["release", "releases"],
+    ["TRENDING", "trending"],
+    ["invalid", "releases"],
+    ["", "releases"],
+  ] as const)("maps %s → %s", (input, expected) => {
+    expect(resolveGitHubMode(input)).toBe(expected);
+  });
+});
 
 describe("resolveGitHubPeriod", () => {
   test.each([
@@ -101,6 +114,14 @@ describe("github", () => {
 
   test("blank-only mode uses default releases", async () => {
     const items = await adapter.fetch(githubCfg({ mode: "   " }));
+
+    expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith("github: no repos configured");
+    expect(mocks.fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("unknown mode falls back to releases pipeline", async () => {
+    const items = await adapter.fetch(githubCfg({ mode: "invalid-mode" }));
 
     expect(items).toEqual([]);
     expect(mocks.warnSpy).toHaveBeenCalledWith("github: no repos configured");
