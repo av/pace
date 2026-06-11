@@ -254,17 +254,12 @@ export function jsonObjectOrNull<T extends Record<string, unknown>>(
   return value as T;
 }
 
-/**
- * Validate a top-level JSON array of objects with required fields (e.g. Mastodon statuses).
- * Non-array payloads warn via jsonArrayOrEmpty; invalid elements are filtered with a warn.
- */
-export function jsonObjectArrayOrEmpty<T extends Record<string, unknown>>(
+function filterValidObjectArrayElements<T extends Record<string, unknown>>(
   prefix: string,
-  value: unknown,
+  raw: unknown[],
   context: string,
   requiredFields: readonly string[],
 ): T[] {
-  const raw = jsonArrayOrEmpty<unknown>(prefix, value, context);
   if (raw.length === 0) return [];
 
   const valid: T[] = [];
@@ -280,6 +275,20 @@ export function jsonObjectArrayOrEmpty<T extends Record<string, unknown>>(
     warnSkippedInvalidArrayElements(prefix, context, skipped, raw.length, requiredFields);
   }
   return valid;
+}
+
+/**
+ * Validate a top-level JSON array of objects with required fields (e.g. Mastodon statuses).
+ * Non-array payloads warn via jsonArrayOrEmpty; invalid elements are filtered with a warn.
+ */
+export function jsonObjectArrayOrEmpty<T extends Record<string, unknown>>(
+  prefix: string,
+  value: unknown,
+  context: string,
+  requiredFields: readonly string[],
+): T[] {
+  const raw = jsonArrayOrEmpty<unknown>(prefix, value, context);
+  return filterValidObjectArrayElements<T>(prefix, raw, context, requiredFields);
 }
 
 /**
@@ -333,6 +342,22 @@ export function optionalArrayFieldOrEmpty<T>(
     return [];
   }
   return value as T[];
+}
+
+/**
+ * Read an optional array field of objects with required keys (e.g. Wikipedia featured
+ * feed sections). Absent parent/field stays silent like optionalArrayFieldOrEmpty;
+ * malformed shapes warn; invalid elements are filtered with a warn.
+ */
+export function optionalObjectArrayFieldOrEmpty<T extends Record<string, unknown>>(
+  prefix: string,
+  record: unknown,
+  field: string,
+  context: string,
+  requiredFields: readonly string[],
+): T[] {
+  const raw = optionalArrayFieldOrEmpty<unknown>(prefix, record, field, context);
+  return filterValidObjectArrayElements<T>(prefix, raw, context, requiredFields);
 }
 
 export type AtomFeedShape<TEntry> = {

@@ -12,6 +12,7 @@ import {
   jsonObjectArrayOrEmpty,
   jsonObjectOrNull,
   optionalArrayFieldOrEmpty,
+  optionalObjectArrayFieldOrEmpty,
   fetchAtomFeed,
   fetchRssAtomFeed,
   fetchJson,
@@ -504,6 +505,100 @@ describe("optionalArrayFieldOrEmpty", () => {
       ).toEqual([]);
       expect(warn).toHaveBeenCalledWith(
         'wikipedia: expected array field "news" for featured feed news (got string), treating as empty',
+      );
+    });
+  });
+});
+
+describe("optionalObjectArrayFieldOrEmpty", () => {
+  const required = ["title", "content_urls", "views", "rank"] as const;
+
+  test("returns valid object elements unchanged, including empty arrays", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      const articles = [
+        {
+          title: "A",
+          content_urls: { desktop: { page: "https://en.wikipedia.org/wiki/A" } },
+          views: 100,
+          rank: 1,
+        },
+      ];
+      expect(
+        optionalObjectArrayFieldOrEmpty(
+          "wikipedia",
+          { articles },
+          "articles",
+          "featured feed most_read",
+          required,
+        ),
+      ).toEqual(articles);
+      expect(warn).not.toHaveBeenCalled();
+    });
+  });
+
+  test("returns [] silently when parent or field is absent", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      expect(
+        optionalObjectArrayFieldOrEmpty(
+          "wikipedia",
+          undefined,
+          "articles",
+          "featured feed most_read",
+          required,
+        ),
+      ).toEqual([]);
+      expect(
+        optionalObjectArrayFieldOrEmpty(
+          "wikipedia",
+          {},
+          "onthisday",
+          "featured feed on_this_day",
+          ["text", "year"],
+        ),
+      ).toEqual([]);
+      expect(warn).not.toHaveBeenCalled();
+    });
+  });
+
+  test("warns on malformed field shape and returns []", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      expect(
+        optionalObjectArrayFieldOrEmpty(
+          "wikipedia",
+          { articles: "bad" },
+          "articles",
+          "featured feed most_read",
+          required,
+        ),
+      ).toEqual([]);
+      expect(warn).toHaveBeenCalledWith(
+        'wikipedia: expected array field "articles" for featured feed most_read (got string), treating as empty',
+      );
+    });
+  });
+
+  test("filters invalid elements and warns", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      const valid = {
+        title: "Valid",
+        content_urls: { desktop: { page: "https://en.wikipedia.org/wiki/Valid" } },
+        views: 50,
+        rank: 1,
+      };
+      const payload = {
+        articles: [valid, { title: "Missing fields" }, null, { views: 1, rank: 2 }],
+      };
+      expect(
+        optionalObjectArrayFieldOrEmpty(
+          "wikipedia",
+          payload,
+          "articles",
+          "featured feed most_read",
+          required,
+        ),
+      ).toEqual([valid]);
+      expect(warn).toHaveBeenCalledWith(
+        "wikipedia: skipped 3 invalid element(s) in featured feed most_read (4 total; required: title, content_urls, views, rank)",
       );
     });
   });

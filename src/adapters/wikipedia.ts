@@ -5,7 +5,11 @@ import { joinTitle, truncateText } from "./title";
 
 import { warnEmptySection } from "./empty-config";
 import { mapToContentItems, mapToContentItemsWithLimit } from "./content-item";
-import { fetchJson, jsonObjectOrNull, optionalArrayFieldOrEmpty } from "./fetch";
+import {
+  fetchJson,
+  jsonObjectOrNull,
+  optionalObjectArrayFieldOrEmpty,
+} from "./fetch";
 import { decodeNumericFeedTitle, stripHtml } from "./html";
 import {
   clampAdapterLimit,
@@ -76,6 +80,15 @@ interface WikiNewsItem {
   links: WikiArticle[];
 }
 
+const WIKI_MOST_READ_ARTICLE_REQUIRED_FIELDS = [
+  "title",
+  "content_urls",
+  "views",
+  "rank",
+] as const;
+const WIKI_ON_THIS_DAY_REQUIRED_FIELDS = ["text", "year"] as const;
+const WIKI_NEWS_ITEM_REQUIRED_FIELDS = ["story"] as const;
+
 function truncateWikiExtract(extract: string | undefined, max: number): string {
   if (!extract) return "";
   return truncateText(extract, max, { ellipsis: "...", inclusive: false, trim: false });
@@ -113,11 +126,12 @@ async function fetchFeaturedFeed(
 }
 
 function extractMostRead(data: WikiFeaturedResponse, limit?: number): ContentItem[] {
-  const articles = optionalArrayFieldOrEmpty<WikiMostReadArticle>(
+  const articles = optionalObjectArrayFieldOrEmpty<WikiMostReadArticle>(
     "wikipedia",
     data.mostread,
     "articles",
     "featured feed most_read",
+    WIKI_MOST_READ_ARTICLE_REQUIRED_FIELDS,
   );
   return mapToContentItemsWithLimit(
     articles,
@@ -146,11 +160,12 @@ function extractFeatured(data: WikiFeaturedResponse): ContentItem[] {
 }
 
 function extractOnThisDay(data: WikiFeaturedResponse, limit?: number): ContentItem[] {
-  const events = optionalArrayFieldOrEmpty<WikiOnThisDay>(
+  const events = optionalObjectArrayFieldOrEmpty<WikiOnThisDay>(
     "wikipedia",
     data,
     "onthisday",
     "featured feed on_this_day",
+    WIKI_ON_THIS_DAY_REQUIRED_FIELDS,
   );
   return mapToContentItemsWithLimit(
     events,
@@ -174,11 +189,12 @@ function extractOnThisDay(data: WikiFeaturedResponse, limit?: number): ContentIt
 }
 
 function extractNews(data: WikiFeaturedResponse, limit?: number): ContentItem[] {
-  const items = optionalArrayFieldOrEmpty<WikiNewsItem>(
+  const items = optionalObjectArrayFieldOrEmpty<WikiNewsItem>(
     "wikipedia",
     data,
     "news",
     "featured feed news",
+    WIKI_NEWS_ITEM_REQUIRED_FIELDS,
   );
   return mapToContentItems(
     optionalSliceToLimit(items, limit).map((item, index) => ({ item, index })),

@@ -447,6 +447,90 @@ describe("wikipedia", () => {
     );
   });
 
+  test("filters most_read articles missing required fields", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      makeJsonResponse(
+        makeFeaturedResponse({
+          mostread: {
+            articles: [
+              makeMostReadArticle(),
+              { title: "Incomplete", views: 100, rank: 2 },
+              makeMostReadArticle({ title: "Third_Article", rank: 3 }),
+            ],
+          },
+        }),
+      ),
+    );
+
+    const items = await wikipediaAdapter.fetch(wikiCfg());
+
+    expect(items).toHaveLength(2);
+    expect(items.map((item) => item.title)).toEqual(["Test Article", "Third Article"]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "wikipedia: skipped 1 invalid element(s) in featured feed most_read (3 total; required: title, content_urls, views, rank)",
+    );
+  });
+
+  test("filters on_this_day events missing required fields", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      makeJsonResponse(
+        makeFeaturedResponse({
+          onthisday: [
+            {
+              text: "Something <b>important</b> happened.",
+              year: 1969,
+              pages: [
+                {
+                  title: "Moon_Landing",
+                  content_urls: { desktop: { page: "https://en.wikipedia.org/wiki/Moon_Landing" } },
+                },
+              ],
+            },
+            { text: "Missing year" },
+            { year: 2000 },
+          ],
+        }),
+      ),
+    );
+
+    const items = await wikipediaAdapter.fetch(wikiCfg({ mode: "on_this_day" }));
+
+    expect(items).toHaveLength(1);
+    expect(items[0].title).toBe("1969: Something important happened.");
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "wikipedia: skipped 2 invalid element(s) in featured feed on_this_day (3 total; required: text, year)",
+    );
+  });
+
+  test("filters news items missing required story field", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      makeJsonResponse(
+        makeFeaturedResponse({
+          news: [
+            {
+              story: "Valid headline.",
+              links: [
+                {
+                  title: "Valid_Event",
+                  content_urls: { desktop: { page: "https://en.wikipedia.org/wiki/Valid_Event" } },
+                },
+              ],
+            },
+            { links: [{ title: "No_Story" }] },
+          ],
+        }),
+      ),
+    );
+
+    const items = await wikipediaAdapter.fetch(wikiCfg({ mode: "news" }));
+
+    expect(items).toHaveLength(1);
+    expect(items[0].title).toBe("Valid headline.");
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "wikipedia: skipped 1 invalid element(s) in featured feed news (2 total; required: story)",
+    );
+  });
+
   test("warns on malformed mostread.articles shape without duplicate missing-section warn in merge mode", async () => {
     mocks.fetchMock.mockResolvedValue(
       makeJsonResponse(
