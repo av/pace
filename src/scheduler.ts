@@ -12,37 +12,20 @@ import {
   replacePanelItems,
   pruneOldItems as dbPruneOldItems,
 } from "./db";
-import type { AppConfig, IngestAdapterConfig, PipelineConfig, TransformConfig } from "./config/types";
-import { runPipeline, type TransformContext } from "./transforms";
+import type { AppConfig, TransformConfig } from "./config/types";
+import { runPipeline } from "./transforms";
+import {
+  createSchedulerState,
+  type AdapterEntry,
+  type PipelineEntry,
+  type RunningGuarded,
+  type SchedulerState,
+  type TimedEntryBase,
+} from "./scheduler-state";
 
-interface RunningGuarded {
-  running: boolean;
-  lastError?: string;
-}
+export { SchedulerState, createSchedulerState } from "./scheduler-state";
 
-interface TimedEntryBase extends RunningGuarded {
-  panelIds: string[];
-  intervalMs: number;
-  timer: ReturnType<typeof setInterval> | null;
-  initialTimer?: ReturnType<typeof setTimeout> | null;
-}
-
-interface AdapterEntry extends TimedEntryBase {
-  name: string;
-  adapterConfig: IngestAdapterConfig;
-  adapter: Adapter;
-}
-
-interface PipelineEntry extends TimedEntryBase {
-  config: PipelineConfig;
-  initialTimer: ReturnType<typeof setTimeout> | null;
-}
-
-const adapterEntries: AdapterEntry[] = [];
-const pipelineEntries: PipelineEntry[] = [];
-let transformCtx: TransformContext = { llmModel: null };
-let sourceToReadKey: Map<string, string> = new Map();
-let pruneTimer: ReturnType<typeof setInterval> | null = null;
+const state = createSchedulerState();
 
 export const PIPELINE_INITIAL_DELAY_MS = 5000;
 export const DEFAULT_REFRESH_INTERVAL_MIN = 15;
@@ -129,10 +112,10 @@ function replaceItemsOnPanels(panelIds: string[], items: ContentItemRow[]): void
   for (const pid of panelIds) replacePanelItems(pid, items);
 }
 
-function gatherPipelineInputItems(sources: string[]): ContentItemRow[] {
+function gatherPipelineInputItems(scheduler: SchedulerState, sources: string[]): ContentItemRow[] {
   let items: ContentItemRow[] = [];
   for (const source of sources) {
-    const readKey = sourceToReadKey.get(source) ?? source;
+    const readKey = scheduler.sourceToReadKey.get(source) ?? source;
     items = items.concat(getAllItemsByPanel(readKey));
   }
   items.sort((a, b) => compareIsoTimestamp(a.timestamp, b.timestamp, "desc"));
@@ -149,12 +132,13 @@ interface RunTransformsOptions {
 }
 
 async function runTransformsAndReplaceOnPanels(
+  scheduler: SchedulerState,
   panelIds: string[],
   items: ContentItemRow[],
   transforms: TransformConfig[],
   options: RunTransformsOptions,
 ): Promise<void> {
-  const transformed = await runPipeline(items, transforms, transformCtx);
+  const transformed = await runPipeline(items, transforms, scheduler.transformCtx);
   const output = options.mapOutput ? options.mapOutput(transformed) : transformed;
   replaceItemsOnPanels(panelIds, output);
   const logMode = options.logMode ?? "when-changed";
@@ -165,12 +149,13 @@ async function runTransformsAndReplaceOnPanels(
 }
 
 async function applyTransformsOnPanels(
+  scheduler: SchedulerState,
   panelIds: string[],
   transforms: TransformConfig[],
   logName: string,
 ): Promise<void> {
   for (const pid of panelIds) {
-    await runTransformsAndReplaceOnPanels([pid], getAllItemsByPanel(pid), transforms, {
+    await runTransformsAndReplaceOnPanels(scheduler, [pid], getAllItemsByPanel(pid), transforms, {
       logLabel: logName,
       logDetail: "transforms:",
     });
@@ -183,7 +168,7 @@ export function startScheduler(
   panelMap: SourcePanelMap,
   model?: Model<Api> | null,
 ): void {
-  if (adapterEntries.length > 0 || pipelineEntries.length > 0) {
+  if (state.isStarted()) {
     return;
   }
 
@@ -194,8 +179,8 @@ export function startScheduler(
     throw new Error(missingAdapterTypesMessage(missingAdapterTypes));
   }
 
-  transformCtx = { llmModel: model ?? null, llmConfig: config.llm };
-  sourceToReadKey = panelMap.sourceToReadKey;
+  state.transformCtx = { llmModel: model ?? null, llmConfig: config.llm };
+  state.sourceToReadKey = panelMap.sourceToReadKey;
 
   for (const adapterCfg of config.adapters) {
     const adapter = adapters.get(adapterCfg.type);
@@ -215,8 +200,8 @@ export function startScheduler(
       running: false,
     };
 
-    scheduleTimedEntryRefresh(entry, runAdapter);
-    adapterEntries.push(entry);
+    scheduleTimedEntryRefresh(entry, (e) => runAdapter(state, e));
+    state.adapterEntries.push(entry);
 
     logScheduledRefresh(name, intervalMin);
   }
@@ -235,20 +220,20 @@ export function startScheduler(
         running: false,
       };
 
-      scheduleTimedEntryRefresh(entry, runPipelineJob, {
+      scheduleTimedEntryRefresh(entry, (e) => runPipelineJob(state, e), {
         initialDelayMs: PIPELINE_INITIAL_DELAY_MS,
       });
 
-      pipelineEntries.push(entry);
+      state.pipelineEntries.push(entry);
       logScheduledRefresh(`pipeline "${pipelineCfg.name}"`, intervalMin);
     }
   }
 
   pruneOldItems();
-  pruneTimer = setInterval(pruneOldItems, 24 * 60 * 60 * 1000);
+  state.pruneTimer = setInterval(pruneOldItems, 24 * 60 * 60 * 1000);
 }
 
-async function runAdapter(entry: AdapterEntry): Promise<RefreshResult> {
+async function runAdapter(scheduler: SchedulerState, entry: AdapterEntry): Promise<RefreshResult> {
   const { name, panelIds, adapter, adapterConfig } = entry;
   return executeWithRunningGuard(entry, name, "adapter", async () => {
     const items = await adapter.fetch(adapterConfig);
@@ -259,17 +244,17 @@ async function runAdapter(entry: AdapterEntry): Promise<RefreshResult> {
 
     const transforms = adapterConfig.transforms;
     if (transforms && transforms.length > 0) {
-      await applyTransformsOnPanels(panelIds, transforms, name);
+      await applyTransformsOnPanels(scheduler, panelIds, transforms, name);
     }
   });
 }
 
-async function runPipelineJob(entry: PipelineEntry): Promise<RefreshResult> {
+async function runPipelineJob(scheduler: SchedulerState, entry: PipelineEntry): Promise<RefreshResult> {
   const { config, panelIds } = entry;
   const name = config.name;
   return executeWithRunningGuard(entry, name, "pipeline", async () => {
-    const items = gatherPipelineInputItems(config.sources);
-    await runTransformsAndReplaceOnPanels(panelIds, items, config.transforms, {
+    const items = gatherPipelineInputItems(scheduler, config.sources);
+    await runTransformsAndReplaceOnPanels(scheduler, panelIds, items, config.transforms, {
       logLabel: `pipeline "${config.name}"`,
       logMode: "always",
       mapOutput: (transformed) =>
@@ -292,9 +277,9 @@ function pruneOldItems(): void {
   }
 }
 
-function dependentPipelineNames(adapterNames: Set<string>, seed: Set<string>): Set<string> {
+function dependentPipelineNames(scheduler: SchedulerState, adapterNames: Set<string>, seed: Set<string>): Set<string> {
   const names = new Set(seed);
-  for (const pipeline of pipelineEntries) {
+  for (const pipeline of scheduler.pipelineEntries) {
     if (names.has(pipeline.config.name)) continue;
     if (pipeline.config.sources.some((source) => adapterNames.has(source))) {
       names.add(pipeline.config.name);
@@ -303,38 +288,39 @@ function dependentPipelineNames(adapterNames: Set<string>, seed: Set<string>): S
   return names;
 }
 
-function planRefresh(sourceNames: readonly string[]): {
+function planRefresh(scheduler: SchedulerState, sourceNames: readonly string[]): {
   adapters: AdapterEntry[];
   pipelines: PipelineEntry[];
 } {
   const sourceNameSet = new Set(sourceNames);
 
-  const selectedPipelines = pipelineEntries.filter((entry) =>
+  const selectedPipelines = scheduler.pipelineEntries.filter((entry) =>
     sourceNameSet.has(entry.config.name),
   );
   const adapterNameSet = new Set(
-    adapterEntries.filter((entry) => sourceNameSet.has(entry.name)).map((entry) => entry.name),
+    scheduler.adapterEntries.filter((entry) => sourceNameSet.has(entry.name)).map((entry) => entry.name),
   );
   for (const pipeline of selectedPipelines) {
     for (const source of pipeline.config.sources) adapterNameSet.add(source);
   }
 
   const pipelineNameSet = dependentPipelineNames(
+    scheduler,
     adapterNameSet,
     new Set(selectedPipelines.map((entry) => entry.config.name)),
   );
 
   return {
-    adapters: adapterEntries.filter((entry) => adapterNameSet.has(entry.name)),
-    pipelines: pipelineEntries.filter((entry) => pipelineNameSet.has(entry.config.name)),
+    adapters: scheduler.adapterEntries.filter((entry) => adapterNameSet.has(entry.name)),
+    pipelines: scheduler.pipelineEntries.filter((entry) => pipelineNameSet.has(entry.config.name)),
   };
 }
 
 export async function refreshSources(sourceNames: string[]): Promise<RefreshResult[]> {
-  const { adapters, pipelines } = planRefresh(sourceNames);
+  const { adapters, pipelines } = planRefresh(state, sourceNames);
 
-  const adapterResults = await Promise.all(adapters.map((entry) => runAdapter(entry)));
-  const pipelineResults = await Promise.all(pipelines.map((entry) => runPipelineJob(entry)));
+  const adapterResults = await Promise.all(adapters.map((entry) => runAdapter(state, entry)));
+  const pipelineResults = await Promise.all(pipelines.map((entry) => runPipelineJob(state, entry)));
 
   return adapterResults.concat(pipelineResults);
 }
@@ -345,12 +331,5 @@ function clearScheduledTimers(entry: TimedEntryBase): void {
 }
 
 export function stopScheduler(): void {
-  for (const entry of [...adapterEntries, ...pipelineEntries]) clearScheduledTimers(entry);
-  adapterEntries.length = 0;
-  pipelineEntries.length = 0;
-  sourceToReadKey = new Map();
-  if (pruneTimer) {
-    clearInterval(pruneTimer);
-    pruneTimer = null;
-  }
+  state.reset(clearScheduledTimers);
 }

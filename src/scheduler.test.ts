@@ -11,6 +11,7 @@ import {
   startScheduler,
   stopScheduler,
   refreshSources,
+  createSchedulerState,
   PIPELINE_INITIAL_DELAY_MS,
   DEFAULT_REFRESH_INTERVAL_MIN,
 } from "./scheduler";
@@ -123,6 +124,33 @@ describe("scheduler", () => {
     } finally {
       pruneSpy.mockRestore();
     }
+  });
+
+  test("SchedulerState reset clears entries, maps, and prune timer", () => {
+    const schedulerState = createSchedulerState();
+    const pruneTimer = setInterval(() => {}, 60_000);
+    schedulerState.adapterEntries.push({
+      name: "a",
+      panelIds: ["p"],
+      adapterConfig: { type: "test" },
+      adapter: makeMockAdapter([]),
+      intervalMs: 1000,
+      timer: setInterval(() => {}, 1000),
+      running: false,
+    });
+    schedulerState.sourceToReadKey.set("src", "panel");
+    schedulerState.transformCtx = { llmModel: null, llmConfig: undefined };
+    schedulerState.pruneTimer = pruneTimer;
+
+    schedulerState.reset((entry) => {
+      if (entry.timer) clearInterval(entry.timer);
+    });
+
+    expect(schedulerState.isStarted()).toBe(false);
+    expect(schedulerState.adapterEntries).toHaveLength(0);
+    expect(schedulerState.sourceToReadKey.size).toBe(0);
+    expect(schedulerState.transformCtx).toEqual({ llmModel: null });
+    expect(schedulerState.pruneTimer).toBeNull();
   });
 
   test("stopScheduler clears timers and allows restart", async () => {
