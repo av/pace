@@ -1,6 +1,14 @@
 import { normalizeOptionalString } from "../utils";
-import { buildGitHubApiHeaders, fetchJson, tryOptionalFetch } from "./fetch";
+import {
+  buildGitHubApiHeaders,
+  fetchJson,
+  jsonObjectOrNull,
+  tryOptionalFetch,
+} from "./fetch";
 
+interface GitHubRepoMeta {
+  description?: string | null;
+}
 
 export async function fetchRepoTagline(
   repo: string,
@@ -10,13 +18,15 @@ export async function fetchRepoTagline(
   const authToken = normalizeOptionalString(token);
   const url = `https://api.github.com/repos/${repo}`;
 
-  const data = await tryOptionalFetch(
+  const raw = await tryOptionalFetch(
     adapterName,
     `error fetching repo meta for ${repo}`,
     () =>
-      fetchJson<{ description?: string | null }>(adapterName, url, repo, {
+      fetchJson<unknown>(adapterName, url, repo, {
         headers: buildGitHubApiHeaders(authToken),
       }),
   );
+  if (raw == null) return "";
+  const data = jsonObjectOrNull<GitHubRepoMeta>(adapterName, raw, repo);
   return (data?.description ?? "").trim();
 }

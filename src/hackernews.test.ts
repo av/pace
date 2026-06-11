@@ -330,6 +330,46 @@ describe("hackernews", () => {
     );
   });
 
+  test("skips null item responses without shape warn (deleted/missing items)", async () => {
+    const ids = [1, 2, 3];
+    mocks.fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes("topstories.json")) return makeJsonResponse(ids);
+      if (url.includes("/item/2.json")) return makeJsonResponse(null);
+      const match = url.match(/item\/(\d+)\.json/);
+      if (match) return makeJsonResponse(makeHNItem(parseInt(match[1], 10)));
+      return makeJsonResponse(null);
+    });
+
+    const results = await hackernewsAdapter.fetch(hnCfg({ limit: 10 }));
+
+    expect(results).toHaveLength(2);
+    expect(results.map((r) => r.id)).toEqual(["hn:1", "hn:3"]);
+    expect(mocks.warnSpy).not.toHaveBeenCalled();
+  });
+
+  test("warns and skips malformed item payloads (non-object or missing id)", async () => {
+    const ids = [1, 2, 3];
+    mocks.fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes("topstories.json")) return makeJsonResponse(ids);
+      if (url.includes("/item/1.json")) return makeJsonResponse(["broken"]);
+      if (url.includes("/item/2.json")) return makeJsonResponse({ title: "no id" });
+      const match = url.match(/item\/(\d+)\.json/);
+      if (match) return makeJsonResponse(makeHNItem(parseInt(match[1], 10)));
+      return makeJsonResponse(null);
+    });
+
+    const results = await hackernewsAdapter.fetch(hnCfg({ limit: 10 }));
+
+    expect(results).toHaveLength(1);
+    expect(results[0].id).toBe("hn:3");
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "hackernews: expected JSON object for item/1.json (got array), treating as null",
+    );
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "hackernews: expected JSON object for item/2.json (missing required field(s): id), treating as null",
+    );
+  });
+
   test("filters non-numeric story IDs and fetches valid items only", async () => {
     const ids = [1, "bad", null, 2, 3.5, 3];
     const items = [1, 2, 3].map((id) => makeHNItem(id, { score: 10 + id }));

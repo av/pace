@@ -296,6 +296,29 @@ describe("github", () => {
     expect(items[0].body).not.toContain("docs.example.com");
   });
 
+  test("warns and omits tagline when repo meta response is not a JSON object", async () => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).includes("releases.atom")) {
+        return makeTextResponse(githubReleasesAtomFeedFixture());
+      }
+      if (String(url).includes("api.github.com/repos/")) {
+        return makeJsonResponse(["unexpected", "array"]);
+      }
+      throw new Error("unexpected url in test");
+    });
+
+    const items = await adapter.fetch(
+      githubCfg({ mode: "releases", repos: ["facebook/react"], limit: 10 }),
+    );
+
+    expect(items.length).toBe(2);
+    expect(items[0].title).toContain("facebook/react: v19.0.0");
+    expect(items[0].title).not.toContain("The library");
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "github: expected JSON object for facebook/react (got array), treating as null",
+    );
+  });
+
   test("releases without repo meta still return items when api.github.com fails", async () => {
     mocks.fetchMock.mockImplementation(async (url: string) => {
       if (String(url).includes("releases.atom")) {

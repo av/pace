@@ -11,6 +11,7 @@ import {
   fetchJson,
   HN_ITEM_FETCH_TIMEOUT_MS,
   jsonNumericArrayOrEmpty,
+  jsonObjectOrNull,
   tryOptionalFetch,
 } from "./fetch";
 import { aggregateBatchedItems } from "./merge";
@@ -73,11 +74,13 @@ export const resolveHnFeedType = createAliasedResolver<FeedType>({
 
 async function fetchItem(id: number): Promise<HNItem | null> {
   const subpath = `item/${id}.json`;
-  return tryOptionalFetch("hackernews", `failed to fetch item ${id}`, () =>
-    fetchJson<HNItem>("hackernews", `${HN_API}/${subpath}`, subpath, {
+  const raw = await tryOptionalFetch("hackernews", `failed to fetch item ${id}`, () =>
+    fetchJson<unknown>("hackernews", `${HN_API}/${subpath}`, subpath, {
       timeoutMs: HN_ITEM_FETCH_TIMEOUT_MS,
     }),
   );
+  if (raw == null) return null;
+  return jsonObjectOrNull<HNItem>("hackernews", raw, subpath, ["id"]);
 }
 
 function buildBody(item: HNItem): string {
