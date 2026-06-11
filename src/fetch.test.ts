@@ -9,6 +9,7 @@ import {
   arrayFieldOrEmpty,
   jsonArrayOrEmpty,
   jsonNumericArrayOrEmpty,
+  jsonObjectArrayOrEmpty,
   jsonObjectOrNull,
   optionalArrayFieldOrEmpty,
   fetchAtomFeed,
@@ -558,6 +559,47 @@ describe("jsonNumericArrayOrEmpty", () => {
       expect(jsonNumericArrayOrEmpty("hackernews", { ids: [1] }, "topstories")).toEqual([]);
       expect(warn).toHaveBeenCalledWith(
         "hackernews: expected JSON array for topstories (got object), treating as empty",
+      );
+    });
+  });
+});
+
+describe("jsonObjectArrayOrEmpty", () => {
+  const required = ["id", "created_at"] as const;
+
+  test("returns valid object elements unchanged, including empty arrays", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      const statuses = [
+        { id: "1", created_at: "2024-01-01T00:00:00Z", account: {} },
+        { id: "2", created_at: "2024-01-02T00:00:00Z", account: {} },
+      ];
+      expect(
+        jsonObjectArrayOrEmpty("mastodon", statuses, "public timeline from ex.com", required),
+      ).toEqual(statuses);
+      expect(warn).not.toHaveBeenCalled();
+    });
+  });
+
+  test("filters invalid elements and warns", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      const valid = { id: "1", created_at: "2024-01-01T00:00:00Z" };
+      const payload = [valid, null, { created_at: "2024-01-02T00:00:00Z" }, "bad", { id: "" }];
+      expect(
+        jsonObjectArrayOrEmpty("mastodon", payload, "hashtag #rust from ex.com", required),
+      ).toEqual([valid]);
+      expect(warn).toHaveBeenCalledWith(
+        "mastodon: skipped 4 invalid element(s) in hashtag #rust from ex.com (5 total; required: id, created_at)",
+      );
+    });
+  });
+
+  test("warns and returns [] when payload is not an array", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      expect(
+        jsonObjectArrayOrEmpty("mastodon", { error: true }, "public timeline from ex.com", required),
+      ).toEqual([]);
+      expect(warn).toHaveBeenCalledWith(
+        "mastodon: expected JSON array for public timeline from ex.com (got object), treating as empty",
       );
     });
   });

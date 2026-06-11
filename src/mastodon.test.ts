@@ -393,6 +393,78 @@ describe("mastodon", () => {
     );
   });
 
+  test("filters invalid status elements from public timeline and warns", async () => {
+    const valid = makeStatus("10", "<p>hello</p>", "2024-05-01T00:00:00Z");
+    mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const urlStr = typeof input === "string" ? input : input.toString();
+      if (urlStr.includes("/timelines/public")) {
+        return makeJsonResponse([
+          valid,
+          { created_at: "2024-05-02T00:00:00Z", account: valid.account },
+          null,
+        ]);
+      }
+      return makeErrorResponse(404);
+    });
+
+    const items = await adapter.fetch(mastodonCfg({ instance: "ex.com", limit: 5 }));
+
+    expect(items).toHaveLength(1);
+    expect(items[0].id).toBe("mastodon:ex.com:10");
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "mastodon: skipped 2 invalid element(s) in public timeline from ex.com (3 total; required: id, created_at, account)",
+    );
+  });
+
+  test("filters invalid status elements from hashtag timeline and warns", async () => {
+    const valid = makeStatus("1", "<p>post one</p>", "2024-01-01T10:00:00Z");
+    mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const urlStr = typeof input === "string" ? input : input.toString();
+      if (urlStr.includes("/timelines/tag/foo")) {
+        return makeJsonResponse([valid, { id: "bad" }]);
+      }
+      return makeErrorResponse(404);
+    });
+
+    const items = await adapter.fetch(mastodonCfg({ instance: "ex.com", hashtags: ["foo"], limit: 5 }));
+
+    expect(items).toHaveLength(1);
+    expect(items[0].id).toBe("mastodon:ex.com:1");
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "mastodon: skipped 1 invalid element(s) in hashtag #foo from ex.com (2 total; required: id, created_at, account)",
+    );
+  });
+
+  test("filters invalid status elements from account timeline and warns", async () => {
+    const valid = makeStatus("10", "<p>hello</p>", "2024-05-01T00:00:00Z");
+    mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const urlStr = typeof input === "string" ? input : input.toString();
+      if (urlStr.includes("/accounts/lookup")) {
+        return makeJsonResponse({
+          id: "acct42",
+          username: "test",
+          acct: "test",
+          display_name: "Test",
+          url: "https://ex.com/@test",
+        });
+      }
+      if (urlStr.includes("/statuses")) {
+        return makeJsonResponse([valid, ["not", "a", "status"]]);
+      }
+      return makeErrorResponse(404);
+    });
+
+    const items = await adapter.fetch(
+      mastodonCfg({ instance: "ex.com", accounts: ["test@ex.com"], limit: 5 }),
+    );
+
+    expect(items).toHaveLength(1);
+    expect(items[0].id).toBe("mastodon:ex.com:10");
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "mastodon: skipped 1 invalid element(s) in account acct42 statuses from ex.com (2 total; required: id, created_at, account)",
+    );
+  });
+
   test("warns and returns [] when account lookup response lacks required id field", async () => {
     mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
       const urlStr = typeof input === "string" ? input : input.toString();

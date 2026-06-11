@@ -14,6 +14,7 @@ import {
   warnMalformedJsonObject,
   warnMalformedFeedField,
   warnOptionalFetchFailure,
+  warnSkippedInvalidArrayElements,
   warnSkippedNonNumericArrayElements,
 } from "./adapters/empty-config";
 
@@ -121,6 +122,18 @@ describe("adapter warn utilities", () => {
     warnSkippedNonNumericArrayElements("hackernews", "topstories", 2, 5);
     expect(warnSpy).toHaveBeenCalledWith(
       "hackernews: skipped 2 non-numeric element(s) in topstories (5 total)",
+    );
+  });
+
+  test("warnSkippedInvalidArrayElements describes filtered object elements", () => {
+    warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+
+    warnSkippedInvalidArrayElements("mastodon", "public timeline from ex.com", 2, 5, [
+      "id",
+      "created_at",
+    ]);
+    expect(warnSpy).toHaveBeenCalledWith(
+      "mastodon: skipped 2 invalid element(s) in public timeline from ex.com (5 total; required: id, created_at)",
     );
   });
 

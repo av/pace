@@ -11,7 +11,7 @@ import { warnInvalidInput } from "./empty-config";
 import {
   fetchJson,
   HN_ITEM_FETCH_TIMEOUT_MS,
-  jsonArrayOrEmpty,
+  jsonObjectArrayOrEmpty,
   jsonObjectOrNull,
   tryOptionalFetch,
 } from "./fetch";
@@ -72,6 +72,8 @@ interface MastodonAccount {
 }
 
 type MastodonMode = "public" | "hashtag" | "account";
+
+const MASTODON_STATUS_REQUIRED_FIELDS = ["id", "created_at", "account"] as const;
 
 /** Pick timeline mode from configured accounts/hashtags (accounts take precedence). */
 export function resolveMastodonMode(
@@ -150,7 +152,12 @@ async function fetchPublicTimeline(
   );
   const context = `public timeline from ${instance}`;
   const json = await fetchJson<unknown>("mastodon", url, context);
-  return jsonArrayOrEmpty<MastodonStatus>("mastodon", json, context);
+  return jsonObjectArrayOrEmpty<MastodonStatus>(
+    "mastodon",
+    json,
+    context,
+    MASTODON_STATUS_REQUIRED_FIELDS,
+  );
 }
 
 async function fetchHashtagTimeline(
@@ -166,7 +173,12 @@ async function fetchHashtagTimeline(
   );
   const context = `hashtag #${tag} from ${instance}`;
   const json = await fetchJson<unknown>("mastodon", url, context);
-  return jsonArrayOrEmpty<MastodonStatus>("mastodon", json, context);
+  return jsonObjectArrayOrEmpty<MastodonStatus>(
+    "mastodon",
+    json,
+    context,
+    MASTODON_STATUS_REQUIRED_FIELDS,
+  );
 }
 
 async function fetchAccountStatuses(
@@ -181,7 +193,12 @@ async function fetchAccountStatuses(
   );
   const context = `account ${accountId} statuses from ${instance}`;
   const json = await fetchJson<unknown>("mastodon", url, context);
-  return jsonArrayOrEmpty<MastodonStatus>("mastodon", json, context);
+  return jsonObjectArrayOrEmpty<MastodonStatus>(
+    "mastodon",
+    json,
+    context,
+    MASTODON_STATUS_REQUIRED_FIELDS,
+  );
 }
 
 function parseAccountHandle(handle: string): { username: string; instance: string } | null {

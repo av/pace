@@ -16,6 +16,7 @@ import {
   warnMalformedJsonArray,
   warnMalformedJsonObject,
   warnOptionalFetchFailure,
+  warnSkippedInvalidArrayElements,
   warnSkippedNonNumericArrayElements,
 } from "./empty-config";
 
@@ -203,6 +204,17 @@ function missingRequiredJsonObjectFields(
   });
 }
 
+function isValidJsonObjectElement(
+  element: unknown,
+  requiredFields: readonly string[],
+): element is Record<string, unknown> {
+  if (element == null || typeof element !== "object" || Array.isArray(element)) {
+    return false;
+  }
+  const record = element as Record<string, unknown>;
+  return missingRequiredJsonObjectFields(record, requiredFields).length === 0;
+}
+
 /**
  * Validate a top-level JSON object response (e.g. Mastodon account lookup).
  * Returns null and warns when the payload is not an object or required fields are absent.
@@ -240,6 +252,34 @@ export function jsonObjectOrNull<T extends Record<string, unknown>>(
     return null;
   }
   return value as T;
+}
+
+/**
+ * Validate a top-level JSON array of objects with required fields (e.g. Mastodon statuses).
+ * Non-array payloads warn via jsonArrayOrEmpty; invalid elements are filtered with a warn.
+ */
+export function jsonObjectArrayOrEmpty<T extends Record<string, unknown>>(
+  prefix: string,
+  value: unknown,
+  context: string,
+  requiredFields: readonly string[],
+): T[] {
+  const raw = jsonArrayOrEmpty<unknown>(prefix, value, context);
+  if (raw.length === 0) return [];
+
+  const valid: T[] = [];
+  let skipped = 0;
+  for (const element of raw) {
+    if (isValidJsonObjectElement(element, requiredFields)) {
+      valid.push(element as T);
+    } else {
+      skipped++;
+    }
+  }
+  if (skipped > 0) {
+    warnSkippedInvalidArrayElements(prefix, context, skipped, raw.length, requiredFields);
+  }
+  return valid;
 }
 
 /**

@@ -112,6 +112,22 @@ export function warnSkippedNonNumericArrayElements(
   );
 }
 
+/** Warn when a JSON array contains elements that failed object shape validation. */
+export function warnSkippedInvalidArrayElements(
+  adapterName: string,
+  context: string,
+  skipped: number,
+  total: number,
+  requiredFields: readonly string[],
+): void {
+  const fields =
+    requiredFields.length > 0 ? `; required: ${requiredFields.join(", ")}` : "";
+  warnAdapter(
+    adapterName,
+    `skipped ${skipped} invalid element(s) in ${context} (${total} total${fields})`,
+  );
+}
+
 /** Warn when a feed XML field should be an item/entry list but has wrong shape. */
 export function warnMalformedFeedField(
   adapterName: string,
