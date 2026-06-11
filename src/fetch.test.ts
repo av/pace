@@ -7,6 +7,7 @@ import {
   FEED_FETCH_TIMEOUT_MS,
   FEED_XML_ACCEPT,
   arrayFieldOrEmpty,
+  jsonArrayOrEmpty,
   optionalArrayFieldOrEmpty,
   fetchAtomFeed,
   fetchRssAtomFeed,
@@ -500,6 +501,31 @@ describe("optionalArrayFieldOrEmpty", () => {
       ).toEqual([]);
       expect(warn).toHaveBeenCalledWith(
         'wikipedia: expected array field "news" for featured feed news (got string), treating as empty',
+      );
+    });
+  });
+});
+
+describe("jsonArrayOrEmpty", () => {
+  test("returns array values unchanged, including empty arrays", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      expect(jsonArrayOrEmpty("devto", [{ id: 1 }], 'tag "typescript"')).toEqual([{ id: 1 }]);
+      expect(jsonArrayOrEmpty("devto", [], 'user "alice"')).toEqual([]);
+      expect(warn).not.toHaveBeenCalled();
+    });
+  });
+
+  test("warns and returns [] when payload is not an array", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      expect(jsonArrayOrEmpty("devto", { error: true }, 'tag "typescript"')).toEqual([]);
+      expect(warn).toHaveBeenCalledWith(
+        'devto: expected JSON array for tag "typescript" (got object), treating as empty',
+      );
+
+      warn.mockClear();
+      expect(jsonArrayOrEmpty("devto", undefined, 'user "alice"')).toEqual([]);
+      expect(warn).toHaveBeenCalledWith(
+        'devto: expected JSON array for user "alice" (response is null/undefined), treating as empty',
       );
     });
   });

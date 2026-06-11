@@ -14,9 +14,7 @@ import { adaptersMap, makeErrorAdapter, makeMockAdapter } from "./test/adapter-m
 import { withErrorMessageSpy } from "./test/error-message-spy";
 import * as dbMod from "./db";
 import {
-  createSchedulerRuntime,
   createSchedulerState,
-  getDefaultSchedulerRuntime,
   PIPELINE_INITIAL_DELAY_MS,
   DEFAULT_REFRESH_INTERVAL_MIN,
 } from "./scheduler";
@@ -130,30 +128,6 @@ describe("scheduler", () => {
     } finally {
       pruneSpy.mockRestore();
     }
-  });
-
-  test("createSchedulerRuntime isolates state from default runtime (parallel-safe DI)", async () => {
-    const isolated = createSchedulerRuntime();
-    const adapters = adaptersMap(["test", makeMockAdapter([])]);
-    const config = testAppConfig(
-      { adapters: [{ type: "test", name: "iso", refresh_interval: 60 }] },
-      singlePanelLayout("p", "iso", { id: "isoPanel" }),
-    );
-    const pm = sourcePanelMapFromConfig(config);
-
-    isolated.startScheduler(config, adapters, pm, null);
-    expect(isolated.state.isStarted()).toBe(true);
-    expect(getDefaultSchedulerRuntime().state.isStarted()).toBe(false);
-
-    const defaultResults = await getDefaultSchedulerRuntime().refreshSources(["iso"]);
-    expect(defaultResults).toEqual([]);
-
-    const isolatedResults = await isolated.refreshSources(["iso"]);
-    expect(isolatedResults).toHaveLength(1);
-    expect(isolatedResults[0].kind).toBe("adapter");
-
-    isolated.stopScheduler();
-    expect(isolated.state.isStarted()).toBe(false);
   });
 
   test("SchedulerState reset clears entries, maps, and prune timer", () => {

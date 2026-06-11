@@ -10,7 +10,7 @@ import {
 import { joinTitle } from "./title";
 
 import { warnEmptyConfig } from "./empty-config";
-import { fetchJson } from "./fetch";
+import { fetchJson, jsonArrayOrEmpty } from "./fetch";
 import { decodeNumericFeedTitle } from "./html";
 import {
   normalizeNonNegativeNumber,
@@ -64,9 +64,10 @@ async function fetchDevToArticles(
   }
   const url = `${DEVTO_API}?${params.toString()}`;
 
-  return fetchJson<DevToArticle[]>("devto", url, context, {
+  const json = await fetchJson<unknown>("devto", url, context, {
     accept: "application/json",
   });
+  return jsonArrayOrEmpty<DevToArticle>("devto", json, context);
 }
 
 type DevToPeriod = 1 | 7 | 30 | 365;

@@ -10,6 +10,7 @@ import {
   warnIneffectiveParam,
   warnInvalidInput,
   warnMalformedArrayField,
+  warnMalformedJsonArray,
   warnMalformedFeedField,
   warnOptionalFetchFailure,
 } from "./adapters/empty-config";
@@ -82,6 +83,15 @@ describe("adapter warn utilities", () => {
     warnMalformedArrayField("reddit", "children", "r/test", "got string");
     expect(warnSpy).toHaveBeenCalledWith(
       'reddit: expected array field "children" for r/test (got string), treating as empty',
+    );
+  });
+
+  test("warnMalformedJsonArray describes malformed top-level JSON arrays", () => {
+    warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+
+    warnMalformedJsonArray("devto", 'tag "typescript"', "got string");
+    expect(warnSpy).toHaveBeenCalledWith(
+      'devto: expected JSON array for tag "typescript" (got string), treating as empty',
     );
   });
 

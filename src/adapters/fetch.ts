@@ -13,6 +13,7 @@ import { errorMessage } from "../utils";
 import {
   warnEmptyFeedEntries,
   warnMalformedArrayField,
+  warnMalformedJsonArray,
   warnOptionalFetchFailure,
 } from "./empty-config";
 
@@ -162,6 +163,26 @@ export function arrayFieldOrEmpty<T>(
   }
   if (!Array.isArray(value)) {
     warnMalformedArrayField(prefix, field, context, `got ${typeof value}`);
+    return [];
+  }
+  return value as T[];
+}
+
+/**
+ * Validate a top-level JSON array response (e.g. Dev.to articles list).
+ * Returns [] and warns when the payload is not an array. Empty arrays pass through silently.
+ */
+export function jsonArrayOrEmpty<T>(
+  prefix: string,
+  value: unknown,
+  context: string,
+): T[] {
+  if (!Array.isArray(value)) {
+    warnMalformedJsonArray(
+      prefix,
+      context,
+      value == null ? "response is null/undefined" : `got ${typeof value}`,
+    );
     return [];
   }
   return value as T[];

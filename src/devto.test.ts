@@ -310,4 +310,21 @@ describe("devto", () => {
       { spy: [{ times: 1 }, { message: "HTTP error 403" }] },
     );
   });
+
+  test("warns and returns [] when API response is not a JSON array", async () => {
+    mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("tag=typescript")) {
+        return makeJsonResponse({ error: "unexpected shape" });
+      }
+      return devtoDefaultFetchMock(input);
+    });
+
+    const items = await devtoAdapter.fetch(devtoCfg({ tags: ["typescript"], limit: 5 }));
+
+    expect(items).toEqual([]);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      'devto: expected JSON array for tag "typescript" (got object), treating as empty',
+    );
+  });
 });

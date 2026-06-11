@@ -75,6 +75,18 @@ export function warnMalformedArrayField(
   );
 }
 
+/** Warn when a top-level JSON response should be an array but has wrong shape. */
+export function warnMalformedJsonArray(
+  adapterName: string,
+  context: string,
+  detail: string,
+): void {
+  warnAdapter(
+    adapterName,
+    `expected JSON array for ${context} (${detail}), treating as empty`,
+  );
+}
+
 /** Warn when a feed XML field should be an item/entry list but has wrong shape. */
 export function warnMalformedFeedField(
   adapterName: string,
