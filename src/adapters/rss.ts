@@ -14,9 +14,9 @@ import {
   resolveDecodedFeedRootTitle,
 } from "./feed-entry";
 import { fetchRssAtomFeed } from "./fetch";
-import { aggregateParallelFeeds } from "./merge";
+import { aggregateParallelFeeds, sliceAndMap } from "./merge";
 import { extractHostname } from "../dedupe";
-import { clampAdapterLimit, normalizeParamStringList, simpleHash, sliceToLimit } from "../utils";
+import { clampAdapterLimit, normalizeParamStringList, simpleHash } from "../utils";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 interface RssFeedItem extends FeedItemBodyFields {
@@ -78,7 +78,7 @@ async function fetchFeed(url: string, limit: number): Promise<TaggedRssItem[]> {
     parsed?.feed?.title,
   );
   const source = feedTitle ?? (extractHostname(url, "rss") || url);
-  return sliceToLimit(items, limit).map((raw) => ({
+  return sliceAndMap(items, limit, (raw) => ({
     raw,
     source,
     timestamp: parseFeedEntryTimestamp(raw, FEED_ENTRY_DATE_RSS_ORDER),

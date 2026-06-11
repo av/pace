@@ -15,6 +15,7 @@ import {
   filterItemsByEnrichedScore,
   mapAndConcat,
   finalizeFetchedItems,
+  optionalSliceToLimit,
   perSourceTotalLimit,
   sliceAndMap,
   sliceAndMapDefined,
@@ -379,6 +380,17 @@ describe("compareItemTimestampDesc", () => {
     expect(compareItemTimestampDesc(older, newer)).toBeGreaterThan(0);
     expect(compareItemTimestampDesc(newer, older)).toBeLessThan(0);
     expect(compareItemTimestampDesc(newer, newer)).toBe(0);
+  });
+});
+
+describe("optionalSliceToLimit", () => {
+  test("returns all items when limit is undefined", () => {
+    const items = [1, 2, 3];
+    expect(optionalSliceToLimit(items, undefined)).toBe(items);
+  });
+
+  test("slices when limit is set", () => {
+    expect(optionalSliceToLimit([1, 2, 3, 4], 2)).toEqual([1, 2]);
   });
 });
 

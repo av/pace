@@ -32,3 +32,16 @@ export function sliceMapToContentItems<T>(
 ): ContentItem[] {
   return sliceAndMap(items, limit, (item) => ({ source, ...project(item) }));
 }
+
+/** Map to ContentItems with optional per-feed cap (undefined limit = no slice). */
+export function mapToContentItemsWithLimit<T>(
+  items: readonly T[],
+  limit: number | undefined,
+  source: string,
+  project: (item: T) => ContentItemProjection,
+): ContentItem[] {
+  if (limit === undefined) {
+    return mapToContentItems(items, source, project);
+  }
+  return sliceMapToContentItems(items, limit, source, project);
+}

@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   mapToContentItems,
   mapToContentItemsPerSource,
+  mapToContentItemsWithLimit,
   sliceMapToContentItems,
 } from "./adapters/content-item";
 
@@ -80,6 +81,58 @@ describe("mapToContentItemsPerSource", () => {
         title: "paper-2501.0002",
         url: "https://arxiv.org/abs/2501.0002",
         source: "arxiv:search",
+        timestamp: ts,
+      },
+    ]);
+  });
+});
+
+describe("mapToContentItemsWithLimit", () => {
+  test("maps all items when limit is undefined", () => {
+    const ts = new Date("2024-01-15T12:00:00Z");
+    const items = mapToContentItemsWithLimit(
+      [{ id: "a" }, { id: "b" }],
+      undefined,
+      "wikipedia:most_read",
+      (row) => ({
+        id: `wiki:${row.id}`,
+        title: row.id,
+        url: `https://example.com/${row.id}`,
+        timestamp: ts,
+      }),
+    );
+
+    expect(items).toHaveLength(2);
+    expect(items[0].source).toBe("wikipedia:most_read");
+  });
+
+  test("slices before mapping when limit is set", () => {
+    const ts = new Date("2024-01-15T12:00:00Z");
+    const items = mapToContentItemsWithLimit(
+      [{ id: "a" }, { id: "b" }, { id: "c" }],
+      2,
+      "wikipedia:on_this_day",
+      (row) => ({
+        id: `wiki:${row.id}`,
+        title: row.id,
+        url: `https://example.com/${row.id}`,
+        timestamp: ts,
+      }),
+    );
+
+    expect(items).toEqual([
+      {
+        id: "wiki:a",
+        title: "a",
+        url: "https://example.com/a",
+        source: "wikipedia:on_this_day",
+        timestamp: ts,
+      },
+      {
+        id: "wiki:b",
+        title: "b",
+        url: "https://example.com/b",
+        source: "wikipedia:on_this_day",
         timestamp: ts,
       },
     ]);

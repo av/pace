@@ -4,7 +4,7 @@ import {
 import { joinTitle, truncateText } from "./title";
 
 import { warnEmptySection } from "./empty-config";
-import { mapToContentItems } from "./content-item";
+import { mapToContentItems, mapToContentItemsWithLimit } from "./content-item";
 import { fetchJson, optionalArrayFieldOrEmpty } from "./fetch";
 import { decodeNumericFeedTitle, stripHtml } from "./html";
 import {
@@ -13,9 +13,8 @@ import {
   normalizeParamStringList,
   normalizeStringList,
   createAliasedResolver,
-  sliceToLimit,
 } from "../utils";
-import { aggregateMappedFeeds } from "./merge";
+import { aggregateMappedFeeds, optionalSliceToLimit } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 type Mode = "most_read" | "featured" | "on_this_day" | "news";
@@ -119,9 +118,9 @@ function extractMostRead(data: WikiFeaturedResponse, limit?: number): ContentIte
     "articles",
     "featured feed most_read",
   );
-  const rows = limit === undefined ? articles : sliceToLimit(articles, limit);
-  return mapToContentItems(
-    rows,
+  return mapToContentItemsWithLimit(
+    articles,
+    limit,
     wikipediaSourceLabel("most_read"),
     (article) => ({
       id: `wikipedia:mostread:${article.title}`,
@@ -152,9 +151,9 @@ function extractOnThisDay(data: WikiFeaturedResponse, limit?: number): ContentIt
     "onthisday",
     "featured feed on_this_day",
   );
-  const rows = limit === undefined ? events : sliceToLimit(events, limit);
-  return mapToContentItems(
-    rows,
+  return mapToContentItemsWithLimit(
+    events,
+    limit,
     wikipediaSourceLabel("on_this_day"),
     (event) => {
       const page = event.pages?.[0];
@@ -180,9 +179,8 @@ function extractNews(data: WikiFeaturedResponse, limit?: number): ContentItem[] 
     "news",
     "featured feed news",
   );
-  const rows = limit === undefined ? items : sliceToLimit(items, limit);
   return mapToContentItems(
-    rows.map((item, index) => ({ item, index })),
+    optionalSliceToLimit(items, limit).map((item, index) => ({ item, index })),
     wikipediaSourceLabel("news"),
     ({ item, index }) => {
       const link = item.links?.[0];

@@ -21,9 +21,8 @@ import { FEED_BODY_STRIP_OPTIONS, stripHtml } from "./html";
 import {
   clampAdapterLimit,
   normalizeParamStringList,
-  sliceToLimit,
 } from "../utils";
-import { aggregateParallelFeeds } from "./merge";
+import { aggregateParallelFeeds, sliceAndMap } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 interface YTEntry {
@@ -105,7 +104,7 @@ async function fetchYoutubeFeed(
     parsed.feed?.title,
     "YouTube",
   )!;
-  return sliceToLimit(entries, limit).map((entry) => ({
+  return sliceAndMap(entries, limit, (entry) => ({
     entry,
     channelTitle,
     timestamp: parseFeedEntryTimestamp(entry, FEED_ENTRY_DATE_ATOM_ORDER),

@@ -234,6 +234,14 @@ export function compareItemTimestampDesc<T extends { timestamp: Date }>(a: T, b:
   return b.timestamp.getTime() - a.timestamp.getTime();
 }
 
+/** Slice only when limit is set (multi-mode extractors defer cap to aggregateMappedFeeds). */
+export function optionalSliceToLimit<T>(
+  items: readonly T[],
+  limit: number | undefined,
+): readonly T[] {
+  return limit === undefined ? items : sliceToLimit(items, limit);
+}
+
 /** Limit raw feed rows before mapping (avoids parsing entries dropped by per-feed cap). */
 export function sliceAndMap<T, R>(
   items: readonly T[],

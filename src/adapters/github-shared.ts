@@ -1,7 +1,6 @@
 import {
   normalizeParamString,
   normalizeParamStringList,
-  sliceToLimit,
 } from "../utils";
 import {
   extractAtomLink,
@@ -21,7 +20,7 @@ import { fetchAtomFeed, fetchJson, buildGitHubApiHeaders } from "./fetch";
 import { fetchRepoTagline } from "./github-repo-meta";
 import { decodeNumericFeedTitle } from "./html";
 import { warnEmptyConfig } from "./empty-config";
-import { aggregateParallelFeeds } from "./merge";
+import { aggregateParallelFeeds, sliceAndMap } from "./merge";
 import { capText, joinTitleWithTagline } from "./title";
 import type { ContentItem } from "./types";
 
@@ -190,7 +189,7 @@ async function fetchGitHubAtomReleasesRaw(
   const source = githubAtomFeedSourceLabel(repo, feedTitle);
   const tagline = await fetchRepoTagline(repo, adapterName, token);
 
-  return sliceToLimit(entries, limit).map((entry) => ({
+  return sliceAndMap(entries, limit, (entry) => ({
     entry,
     repo,
     source,

@@ -16,14 +16,13 @@ import {
   clampAdapterLimit,
   normalizeNonNegativeNumber,
   normalizeParamBoolean,
-  sliceToLimit,
 } from "../utils";
 import {
   warnAdapter,
   warnFilterRemovedAll,
   warnIneffectiveParam,
 } from "./empty-config";
-import { aggregateParallelFeeds, enrichAndFilterItemsBatched } from "./merge";
+import { aggregateParallelFeeds, enrichAndFilterItemsBatched, sliceAndMap } from "./merge";
 import {
   fetchAtomFeed,
   fetchText,
@@ -244,7 +243,7 @@ async function fetchProductHuntRaw(limit: number): Promise<TaggedPHEntry[]> {
     "producthunt",
   )!;
 
-  return sliceToLimit(entries, limit).map((entry) => {
+  return sliceAndMap(entries, limit, (entry) => {
     const { tagline, productLink } = extractContent(entry);
     return {
       entry,
