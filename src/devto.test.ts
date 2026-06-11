@@ -327,4 +327,56 @@ describe("devto", () => {
       'devto: expected JSON array for tag "typescript" (got object), treating as empty',
     );
   });
+
+  test("filters invalid article elements from tag response and warns", async () => {
+    const valid = makeDevToArticle(701, {
+      title: "Valid Article",
+      url: "https://dev.to/valid",
+      published_at: "2024-02-01T00:00:00Z",
+      user: { username: "valid", name: "Valid" },
+    });
+    mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("tag=typescript")) {
+        return makeJsonResponse([
+          valid,
+          { title: "Missing id", url: "https://dev.to/missing-id", published_at: "2024-02-02T00:00:00Z", user: { username: "x", name: "X" } },
+          null,
+        ]);
+      }
+      return devtoDefaultFetchMock(input);
+    });
+
+    const items = await devtoAdapter.fetch(devtoCfg({ tags: ["typescript"], limit: 5 }));
+
+    expect(items).toHaveLength(1);
+    expect(items[0].id).toBe("devto:701");
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      'devto: skipped 2 invalid element(s) in tag "typescript" (3 total; required: id, title, url, published_at, user)',
+    );
+  });
+
+  test("filters invalid article elements from username response and warns", async () => {
+    const valid = makeDevToArticle(801, {
+      title: "User Valid",
+      url: "https://dev.to/user-valid",
+      published_at: "2024-03-01T00:00:00Z",
+      user: { username: "alice", name: "Alice" },
+    });
+    mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("username=testuser")) {
+        return makeJsonResponse([valid, { id: 802, published_at: "2024-03-02T00:00:00Z", user: { username: "bob", name: "Bob" } }]);
+      }
+      return devtoDefaultFetchMock(input);
+    });
+
+    const items = await devtoAdapter.fetch(devtoCfg({ username: "testuser", limit: 5 }));
+
+    expect(items).toHaveLength(1);
+    expect(items[0].id).toBe("devto:801");
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      'devto: skipped 1 invalid element(s) in user "testuser" (2 total; required: id, title, url, published_at, user)',
+    );
+  });
 });

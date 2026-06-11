@@ -10,7 +10,7 @@ import {
 import { joinTitle } from "./title";
 
 import { warnEmptyConfig } from "./empty-config";
-import { fetchJson, jsonArrayOrEmpty } from "./fetch";
+import { fetchJson, jsonObjectArrayOrEmpty } from "./fetch";
 import { decodeNumericFeedTitle } from "./html";
 import {
   normalizeNonNegativeNumber,
@@ -24,6 +24,14 @@ import { aggregateSequentialFeeds } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 const DEVTO_API = "https://dev.to/api/articles";
+
+const DEVTO_ARTICLE_REQUIRED_FIELDS = [
+  "id",
+  "title",
+  "url",
+  "published_at",
+  "user",
+] as const;
 
 interface DevToArticle {
   id: number;
@@ -67,7 +75,12 @@ async function fetchDevToArticles(
   const json = await fetchJson<unknown>("devto", url, context, {
     accept: "application/json",
   });
-  return jsonArrayOrEmpty<DevToArticle>("devto", json, context);
+  return jsonObjectArrayOrEmpty<DevToArticle>(
+    "devto",
+    json,
+    context,
+    DEVTO_ARTICLE_REQUIRED_FIELDS,
+  );
 }
 
 type DevToPeriod = 1 | 7 | 30 | 365;
