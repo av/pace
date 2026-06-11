@@ -2,17 +2,20 @@ import { describe, test, expect, spyOn } from "bun:test";
 import { spyConsole, spyMockCallsContaining } from "./test/console-spy";
 import { emptyPanelMap, sourcePanelMapFromConfig } from "./test/panel-map";
 import { installTempDbHooks } from "./test/temp-db";
+import {
+  installSchedulerRuntimeHooks,
+  refreshTestSources,
+  startTestScheduler,
+  stopTestScheduler,
+} from "./test/scheduler-test-harness";
 import type { Adapter } from "./adapters/types";
 import { makeContentItem } from "./test/content-items";
 import { adaptersMap, makeErrorAdapter, makeMockAdapter } from "./test/adapter-mocks";
 import { withErrorMessageSpy } from "./test/error-message-spy";
 import * as dbMod from "./db";
 import {
-  startScheduler,
-  stopScheduler,
-  refreshSources,
-  createSchedulerState,
   createSchedulerRuntime,
+  createSchedulerState,
   getDefaultSchedulerRuntime,
   PIPELINE_INITIAL_DELAY_MS,
   DEFAULT_REFRESH_INTERVAL_MIN,
@@ -33,13 +36,14 @@ const baseConfig = testAppConfig(
 const basePanelMap = sourcePanelMapFromConfig(baseConfig);
 
 describe("scheduler", () => {
-  installTempDbHooks({ prefix: "pace-scheduler-test-", stopSchedulerOnTeardown: true });
+  installTempDbHooks({ prefix: "pace-scheduler-test-" });
+  installSchedulerRuntimeHooks();
 
   test("startScheduler with no adapters/pipelines is safe and refreshSources returns empty", async () => {
     const config = testAppConfig({ adapters: [] });
     const adapters = new Map<string, Adapter>();
-    startScheduler(config, adapters, emptyPanelMap(), null);
-    const results = await refreshSources([]);
+    startTestScheduler(config, adapters, emptyPanelMap(), null);
+    const results = await refreshTestSources([]);
     expect(results).toEqual([]);
   });
 
@@ -47,8 +51,8 @@ describe("scheduler", () => {
     const items = [makeContentItem({ id: "i1", title: "t", url: "u", source: "s" })];
     const adapters = adaptersMap(["test", makeMockAdapter(items)]);
     await spyConsole(["log"], ({ log: logSpy }) => {
-      startScheduler(baseConfig, adapters, basePanelMap, null);
-      startScheduler(baseConfig, adapters, basePanelMap, null); // guard
+      startTestScheduler(baseConfig, adapters, basePanelMap, null);
+      startTestScheduler(baseConfig, adapters, basePanelMap, null); // guard
       expect(spyMockCallsContaining(logSpy, "every 60m")).toHaveLength(1);
     });
   });
@@ -56,7 +60,7 @@ describe("scheduler", () => {
   test("startScheduler throws on missing adapter type with exact prefix", () => {
     const config = testAppConfig({ adapters: [{ type: "missing", refresh_interval: 1 }] });
     const adapters = new Map<string, Adapter>();
-    expect(() => startScheduler(config, adapters, emptyPanelMap(), null)).toThrow(
+    expect(() => startTestScheduler(config, adapters, emptyPanelMap(), null)).toThrow(
       'scheduler: adapter type "missing" is configured but no matching adapter module was discovered'
     );
   });
@@ -69,7 +73,7 @@ describe("scheduler", () => {
       ],
     });
     const adapters = new Map<string, Adapter>();
-    expect(() => startScheduler(config, adapters, emptyPanelMap(), null)).toThrow(
+    expect(() => startTestScheduler(config, adapters, emptyPanelMap(), null)).toThrow(
       'scheduler: adapter types "missing-a", "missing-b" are configured but no matching adapter modules were discovered'
     );
   });
@@ -80,7 +84,7 @@ describe("scheduler", () => {
     ];
     const adapters = adaptersMap(["test", makeMockAdapter(items)]);
     await spyConsole(["log"], async ({ log: logSpy }) => {
-      startScheduler(baseConfig, adapters, basePanelMap, null);
+      startTestScheduler(baseConfig, adapters, basePanelMap, null);
       await waitForAsync();
       const saved = dbMod.getAllItemsByPanel("panel1");
       expect(saved.length).toBe(1);
@@ -97,9 +101,9 @@ describe("scheduler", () => {
     );
     const pm = sourcePanelMapFromConfig(config);
     await spyConsole(["warn"], async ({ warn: warnSpy }) => {
-      startScheduler(config, adapters, pm, null);
+      startTestScheduler(config, adapters, pm, null);
       await waitForAsync();
-      const results = await refreshSources(["errsrc"]);
+      const results = await refreshTestSources(["errsrc"]);
       expect(results.length).toBe(1);
       expect(results[0].status).toBe("failed");
       expect(results[0].error).toContain("simulated fail");
@@ -117,7 +121,7 @@ describe("scheduler", () => {
       await withErrorMessageSpy(async (emSpy) => {
         await spyConsole(["warn"], ({ warn: warnSpy }) => {
           const adapters = adaptersMap(["test", makeMockAdapter([])]);
-          startScheduler(baseConfig, adapters, basePanelMap, null);
+          startTestScheduler(baseConfig, adapters, basePanelMap, null);
           expect(pruneSpy).toHaveBeenCalledWith(30);
           expect(emSpy).toHaveBeenCalled();
           expect(warnSpy).toHaveBeenCalledWith("scheduler: failed to prune: db prune fail");
@@ -141,7 +145,7 @@ describe("scheduler", () => {
     expect(isolated.state.isStarted()).toBe(true);
     expect(getDefaultSchedulerRuntime().state.isStarted()).toBe(false);
 
-    const defaultResults = await refreshSources(["iso"]);
+    const defaultResults = await getDefaultSchedulerRuntime().refreshSources(["iso"]);
     expect(defaultResults).toEqual([]);
 
     const isolatedResults = await isolated.refreshSources(["iso"]);
@@ -182,9 +186,9 @@ describe("scheduler", () => {
   test("stopScheduler clears timers and allows restart", async () => {
     const adapters = adaptersMap(["test", makeMockAdapter([])]);
     await spyConsole(["log"], ({ log: logSpy }) => {
-      startScheduler(baseConfig, adapters, basePanelMap, null);
-      stopScheduler();
-      startScheduler(baseConfig, adapters, basePanelMap, null);
+      startTestScheduler(baseConfig, adapters, basePanelMap, null);
+      stopTestScheduler();
+      startTestScheduler(baseConfig, adapters, basePanelMap, null);
       expect(spyMockCallsContaining(logSpy, "every 60m")).toHaveLength(2);
     });
   });
@@ -232,10 +236,10 @@ describe("scheduler", () => {
       adapterPipelineLayout("srcA", "merge"),
     );
     const pm = sourcePanelMapFromConfig(config);
-    startScheduler(config, adapters, pm, null);
+    startTestScheduler(config, adapters, pm, null);
     await waitForAsync();
     const names = allPanelRefreshSourceNames(["srcA"], config.pipelines);
-    const results = await refreshSources(names);
+    const results = await refreshTestSources(names);
     const kinds = new Set(results.map((r) => `${r.kind}:${r.name}`));
     expect(kinds.has("adapter:srcA")).toBe(true);
     expect(kinds.has("pipeline:merge")).toBe(true);
@@ -244,8 +248,8 @@ describe("scheduler", () => {
 
   test("refreshSources with unknown names returns no results (no crash)", async () => {
     const adapters = adaptersMap(["test", makeMockAdapter([])]);
-    startScheduler(baseConfig, adapters, basePanelMap, null);
-    const results = await refreshSources(["nonexistent"]);
+    startTestScheduler(baseConfig, adapters, basePanelMap, null);
+    const results = await refreshTestSources(["nonexistent"]);
     expect(Array.isArray(results)).toBe(true);
     expect(results.length).toBe(0);
   });
@@ -274,7 +278,7 @@ describe("scheduler", () => {
     );
     const pm = sourcePanelMapFromConfig(config);
     await spyConsole(["log"], async ({ log: logSpy }) => {
-      startScheduler(config, adapters, pm, null);
+      startTestScheduler(config, adapters, pm, null);
       await waitForAsync();
       expect(dbMod.getAllItemsByPanel("panelA").length).toBe(3);
       expect(logSpy).toHaveBeenCalledWith("scheduler: src — transforms: 10 → 3 items");
@@ -309,8 +313,8 @@ describe("scheduler", () => {
       },
     );
     const pm = sourcePanelMapFromConfig(config);
-    startScheduler(config, new Map(), pm, null);
-    await refreshSources(["curated"]);
+    startTestScheduler(config, new Map(), pm, null);
+    await refreshTestSources(["curated"]);
     const out = dbMod.getAllItemsByPanel("out");
     expect(out.map((r) => r.id)).toEqual(["pipeline:curated:h1"]);
   });
@@ -336,8 +340,8 @@ describe("scheduler", () => {
       singlePanelLayout("out", "merge", { id: "outPanel" }),
     );
     const pm = sourcePanelMapFromConfig(config);
-    startScheduler(config, new Map(), pm, null);
-    await refreshSources(["merge"]);
+    startTestScheduler(config, new Map(), pm, null);
+    await refreshTestSources(["merge"]);
     const out = dbMod.getAllItemsByPanel("outPanel");
     expect(out.map((r) => r.id)).toEqual([
       "pipeline:merge:a1",
@@ -365,7 +369,7 @@ describe("scheduler", () => {
     const setIntervalSpy = spyOn(globalThis, "setInterval");
     try {
       await spyConsole(["log"], ({ log: logSpy }) => {
-        startScheduler(config, adapters, pm, null);
+        startTestScheduler(config, adapters, pm, null);
         expect(PIPELINE_INITIAL_DELAY_MS).toBe(5000);
         expect(setTimeoutSpy).toHaveBeenCalledTimes(1);
         expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 5000);
