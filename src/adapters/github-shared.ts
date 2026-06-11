@@ -204,6 +204,62 @@ async function fetchGitHubApiReleasesRaw(
   }));
 }
 
+type GitHubReleasesAggregateOptions<T> = {
+  dedupeKey: (item: T) => unknown;
+  sourceOf: (item: T) => string;
+  project: (item: T) => ContentItemProjection;
+};
+
+type GitHubReleasesRawFetcher<T> = (
+  repo: string,
+  limit: number,
+  adapterName: string,
+  token?: string,
+) => Promise<T[]>;
+
+/** Parallel per-repo fetch → dedupe/sort/cap → map to ContentItems (shared api/atom pipeline). */
+async function aggregateGitHubReleases<T>(
+  repos: string[],
+  limit: number,
+  adapterName: string,
+  token: string | undefined,
+  fetchRaw: GitHubReleasesRawFetcher<T>,
+  options: GitHubReleasesAggregateOptions<T>,
+): Promise<ContentItem[]> {
+  const tagged = await aggregateParallelFeeds(
+    repos,
+    (repo) => fetchRaw(repo, limit, adapterName, token),
+    {
+      perSourceLimit: limit,
+      dedupeKey: options.dedupeKey,
+    },
+  );
+  return mapToContentItemsPerSource(tagged, options.sourceOf, options.project);
+}
+
+const GITHUB_RELEASES_PIPELINES = {
+  api: {
+    fetchRaw: fetchGitHubApiReleasesRaw,
+    dedupeKey: githubApiDedupeKey,
+    sourceOf: (item: TaggedGHApiRelease) => githubRepoSourceLabel(item.repo),
+    project: projectGitHubApiRelease,
+  },
+  atom: {
+    fetchRaw: fetchGitHubAtomReleasesRaw,
+    dedupeKey: githubAtomDedupeKey,
+    sourceOf: (item: TaggedGHAtomEntry) => item.source,
+    project: projectGitHubAtomEntry,
+  },
+} satisfies Record<
+  GitHubReleasesSource,
+  {
+    fetchRaw: GitHubReleasesRawFetcher<unknown>;
+    dedupeKey: (item: unknown) => unknown;
+    sourceOf: (item: unknown) => string;
+    project: (item: unknown) => ContentItemProjection;
+  }
+>;
+
 /** Fetch releases for multiple repos via atom feed or GitHub API. */
 export async function fetchGitHubReposReleases(
   resolved: GitHubReposConfig,
@@ -211,34 +267,18 @@ export async function fetchGitHubReposReleases(
   limit: number,
   adapterName: string,
 ): Promise<ContentItem[]> {
-  if (source === "api") {
-    const tagged = await aggregateParallelFeeds(
-      resolved.repos,
-      (repo) => fetchGitHubApiReleasesRaw(repo, limit, adapterName, resolved.token),
-      {
-        perSourceLimit: limit,
-        dedupeKey: githubApiDedupeKey,
-      },
-    );
-    return mapToContentItemsPerSource(
-      tagged,
-      (item) => githubRepoSourceLabel(item.repo),
-      projectGitHubApiRelease,
-    );
-  }
-
-  const tagged = await aggregateParallelFeeds(
+  const pipeline = GITHUB_RELEASES_PIPELINES[source];
+  return aggregateGitHubReleases(
     resolved.repos,
-    (repo) => fetchGitHubAtomReleasesRaw(repo, limit, adapterName, resolved.token),
+    limit,
+    adapterName,
+    resolved.token,
+    pipeline.fetchRaw,
     {
-      perSourceLimit: limit,
-      dedupeKey: githubAtomDedupeKey,
+      dedupeKey: pipeline.dedupeKey,
+      sourceOf: pipeline.sourceOf,
+      project: pipeline.project,
     },
-  );
-  return mapToContentItemsPerSource(
-    tagged,
-    (item) => item.source,
-    projectGitHubAtomEntry,
   );
 }
 

@@ -180,6 +180,34 @@ describe("github-releases", () => {
     expect(releasesApiUrl()).toContain("per_page=12");
   });
 
+  test("dedupes duplicate release urls when the same repo is listed twice", async () => {
+    mocks.fetchMock.mockImplementation(async (url: string) =>
+      githubReleasesApiFetchMock(url, {
+        releases: [
+          makeGitHubRelease({ id: 1, name: "One" }),
+          makeGitHubRelease({
+            id: 2,
+            tag_name: "v2.0.0",
+            name: "Two",
+            html_url: "https://github.com/o/r/releases/tag/v2.0.0",
+            published_at: "2024-02-01T00:00:00Z",
+          }),
+        ],
+      }),
+    );
+
+    const items = await githubReleasesAdapter.fetch(
+      githubReleasesCfg({ repos: ["o/r", "o/r"], limit: 10 }),
+    );
+
+    expect(githubReleasesFetchCalls().length).toBe(4);
+    expect(items).toHaveLength(2);
+    expect(items.map((item) => item.url)).toEqual([
+      "https://github.com/o/r/releases/tag/v2.0.0",
+      "https://github.com/o/r/releases/tag/v1.0.0",
+    ]);
+  });
+
   test("caps mapped items when API returns more releases than per_page limit", async () => {
     mocks.fetchMock.mockImplementation(async (url: string) =>
       githubReleasesApiFetchMock(url, {
