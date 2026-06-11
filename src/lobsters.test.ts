@@ -314,4 +314,45 @@ describe("lobsters", () => {
       "lobsters: expected JSON array for newest (got object), treating as empty",
     );
   });
+
+  test("filters invalid item elements from standard feed response and warns", async () => {
+    const valid = makeLobstersItem({ short_id: "valid1", title: "Valid Post" });
+    mocks.fetchMock.mockResolvedValue(
+      makeJsonResponse([
+        valid,
+        { title: "Missing short_id", created_at: "2024-05-20T12:00:00Z", score: 1, comment_count: 0, comments_url: "https://lobste.rs/s/x", submitter_user: "bob" },
+        null,
+      ]),
+    );
+
+    const items = await lobstersAdapter.fetch(lobstersCfg({ feed: "hottest", limit: 5 }));
+
+    expect(items).toHaveLength(1);
+    expect(items[0].id).toBe("lobsters:valid1");
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "lobsters: skipped 2 invalid element(s) in hottest (3 total; required: short_id, title, created_at, score, comment_count, comments_url, submitter_user)",
+    );
+  });
+
+  test("filters invalid item elements from tag response and warns", async () => {
+    const valid = makeLobstersItem({ short_id: "tag-valid", title: "Tag Valid" });
+    mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/t/rust.json")) {
+        return makeJsonResponse([
+          valid,
+          { short_id: "bad", score: 5, comment_count: 1, comments_url: "https://lobste.rs/s/bad", submitter_user: "eve" },
+        ]);
+      }
+      return makeJsonResponse([]);
+    });
+
+    const items = await lobstersAdapter.fetch(lobstersCfg({ tags: ["rust"], limit: 5 }));
+
+    expect(items).toHaveLength(1);
+    expect(items[0].id).toBe("lobsters:tag-valid");
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      'lobsters: skipped 1 invalid element(s) in tag rust (2 total; required: short_id, title, created_at, score, comment_count, comments_url, submitter_user)',
+    );
+  });
 });

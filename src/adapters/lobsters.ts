@@ -7,7 +7,7 @@ import {
 } from "./engagement";
 import { joinTitle } from "./title";
 
-import { fetchJson, jsonArrayOrEmpty } from "./fetch";
+import { fetchJson, jsonObjectArrayOrEmpty } from "./fetch";
 import { decodeNumericFeedTitleOptional } from "./html";
 import {
   normalizeNonNegativeNumber,
@@ -24,6 +24,16 @@ import type { Adapter, AdapterConfig, ContentItem } from "./types";
 const LOBSTERS_BASE = "https://lobste.rs";
 
 type FeedType = "hottest" | "newest" | "active";
+
+const LOBSTERS_ITEM_REQUIRED_FIELDS = [
+  "short_id",
+  "title",
+  "created_at",
+  "score",
+  "comment_count",
+  "comments_url",
+  "submitter_user",
+] as const;
 
 /** Build lobsters source label from tags or feed type. */
 export function lobstersSourceLabel(
@@ -109,7 +119,12 @@ const adapter: Adapter = {
         ? `${LOBSTERS_BASE}/t/${encodeURIComponent(key)}.json`
         : `${LOBSTERS_BASE}/${key}.json`;
       const json = await fetchJson<unknown>("lobsters", url, context);
-      return jsonArrayOrEmpty<LobstersItem>("lobsters", json, context);
+      return jsonObjectArrayOrEmpty<LobstersItem>(
+        "lobsters",
+        json,
+        context,
+        LOBSTERS_ITEM_REQUIRED_FIELDS,
+      );
     };
 
     const limited = await aggregateSequentialFeeds(keys, fetchOne, finalizeOptions);
