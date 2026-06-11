@@ -60,6 +60,17 @@ export async function aggregateParallelFeeds<T, K>(
   });
 }
 
+export type AggregateMappedFeedsOptions<T> = FinalizeFetchedItemsOptions<T>;
+
+/** Sync multi-key map with shared dedupe/min-score/sort/limit finalize pipeline. */
+export function aggregateMappedFeeds<T, K>(
+  keys: readonly K[],
+  mapOne: (key: K) => T[],
+  options: AggregateMappedFeedsOptions<T>,
+): T[] {
+  return finalizeFetchedItems(mapAndConcat(keys, mapOne), options);
+}
+
 export type AggregateSequentialFeedsOptions<T> = FinalizeFetchedItemsOptions<T>;
 
 /** Sequential multi-source fetch with shared dedupe/min-score/sort/limit finalize pipeline. */

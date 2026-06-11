@@ -14,7 +14,7 @@ import {
   normalizeStringList,
   createAliasedResolver,
 } from "../utils";
-import { finalizeFetchedItems, mapAndConcat } from "./merge";
+import { aggregateMappedFeeds, finalizeFetchedItems } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 type Mode = "most_read" | "featured" | "on_this_day" | "news";
@@ -254,8 +254,9 @@ const adapter: Adapter = {
       return items;
     }
 
-    return finalizeFetchedItems(
-      mapAndConcat(modes, (mode) => extractForMode(data, mode, limit)),
+    return aggregateMappedFeeds(
+      modes,
+      (mode) => extractForMode(data, mode, limit),
       {
         limit,
         dedupeKey: (item) => item.url,
