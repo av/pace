@@ -5,9 +5,10 @@ import {
   type FeedItemBodyFields,
   type XmlTextField,
 } from "./atom";
+import { mapToContentItemsPerSource, type ContentItemProjection } from "./content-item";
 import {
-  buildFeedContentItem,
   FEED_ENTRY_DATE_ATOM_ORDER,
+  parseFeedEntryTimestamp,
   projectFeedEntryToContentItem,
   resolveDecodedFeedRootTitle,
 } from "./feed-entry";
@@ -22,7 +23,7 @@ import {
   warnFilterRemovedAll,
   warnIneffectiveParam,
 } from "./empty-config";
-import { enrichAndFilterItemsBatched } from "./merge";
+import { aggregateParallelFeeds, enrichAndFilterItemsBatched } from "./merge";
 import {
   fetchAtomFeed,
   fetchText,
@@ -158,41 +159,42 @@ function extractId(entry: PHEntry): string {
   return extractAtomLink(entry.link);
 }
 
-interface ParsedPHEntry {
-  content: ContentItem;
+interface TaggedPHEntry {
+  entry: PHEntry;
+  feedTitle: string;
   tagline: string;
   productLink: string;
   author: string;
+  timestamp: Date;
+  enriched?: EnrichedData | null;
 }
 
-function parseEntry(entry: PHEntry, feedTitle: string): ParsedPHEntry {
-  const { tagline, productLink } = extractContent(entry);
-  const author = entry.author?.name ?? "";
-  const content = projectFeedEntryToContentItem(
+function phItemId(item: TaggedPHEntry): string {
+  return `ph:${extractId(item.entry)}`;
+}
+
+function phDedupeKey(item: TaggedPHEntry): string {
+  return extractId(item.entry);
+}
+
+function projectPHEntry(item: TaggedPHEntry): ContentItemProjection {
+  const base = projectFeedEntryToContentItem(
     "ph",
-    entry,
+    item.entry,
     () => ({
-      idSuffix: extractId(entry),
-      url: extractAtomLink(entry.link),
-      source: feedTitle,
+      idSuffix: extractId(item.entry),
+      url: extractAtomLink(item.entry.link),
+      source: item.feedTitle,
     }),
     FEED_ENTRY_DATE_ATOM_ORDER,
   );
-  return { content, tagline, productLink, author };
-}
-
-function toContentItem(
-  parsed: ParsedPHEntry,
-  enriched: EnrichedData | null,
-): ContentItem {
-  const { content, tagline, productLink, author } = parsed;
-  return buildFeedContentItem(content.id, {
-    title: joinTitleWithTagline(content.title, tagline, 0),
-    url: content.url,
-    source: content.source,
-    timestamp: content.timestamp,
-    body: buildBody(tagline, author, productLink, enriched),
-  });
+  return {
+    id: base.id,
+    title: joinTitleWithTagline(base.title, item.tagline, 0),
+    url: base.url,
+    timestamp: base.timestamp,
+    body: buildBody(item.tagline, item.author, item.productLink, item.enriched ?? null),
+  };
 }
 
 async function enrichProduct(url: string): Promise<EnrichedData | null> {
@@ -230,10 +232,7 @@ function buildBody(
   );
 }
 
-async function fetchProductHuntFeed(limit: number | undefined): Promise<{
-  feedTitle: string;
-  items: ParsedPHEntry[];
-}> {
+async function fetchProductHuntRaw(limit: number): Promise<TaggedPHEntry[]> {
   const { parsed, entries } = await fetchAtomFeed<PHEntry, PHAtomFeedParsed>(
     "producthunt",
     PH_FEED_URL,
@@ -245,19 +244,27 @@ async function fetchProductHuntFeed(limit: number | undefined): Promise<{
     "producthunt",
   )!;
 
-  const limited = limit !== undefined ? sliceToLimit(entries, limit) : entries;
-  const items = limited.map((entry) => parseEntry(entry, feedTitle));
-  return { feedTitle, items };
+  return sliceToLimit(entries, limit).map((entry) => {
+    const { tagline, productLink } = extractContent(entry);
+    return {
+      entry,
+      feedTitle,
+      tagline,
+      productLink,
+      author: entry.author?.name ?? "",
+      timestamp: parseFeedEntryTimestamp(entry, FEED_ENTRY_DATE_ATOM_ORDER),
+    };
+  });
 }
 
 const adapter: Adapter = {
   name: "producthunt",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
     const limitRaw = config.params?.limit;
-    const limit =
+    const perFeedLimit =
       limitRaw !== undefined
         ? clampAdapterLimit(limitRaw, 20, 50)
-        : undefined;
+        : Number.MAX_SAFE_INTEGER;
     const minUpvotes = normalizeNonNegativeNumber(config.params?.min_upvotes);
     const enrich = normalizeParamBoolean(config.params, "enrich");
 
@@ -265,39 +272,46 @@ const adapter: Adapter = {
       warnIneffectiveParam("producthunt", "min_upvotes", "enrich: true");
     }
 
-    const { items } = await fetchProductHuntFeed(limit);
+    let tagged = await aggregateParallelFeeds(
+      [PH_FEED_URL],
+      () => fetchProductHuntRaw(perFeedLimit),
+      {
+        perSourceLimit: perFeedLimit,
+        dedupeKey: phDedupeKey,
+        // Preserve Atom feed order (not newest-first like multi-source merges).
+        sort: () => 0,
+      },
+    );
 
-    let enrichedMap = new Map<string, EnrichedData | null>();
-    let filtered = items;
     if (enrich) {
       warnAdapter(
         "producthunt",
-        `enriching ${items.length} items (this may take a moment)...`,
+        `enriching ${tagged.length} items (this may take a moment)...`,
       );
-      const enriched = await enrichAndFilterItemsBatched(items, {
+      const { enrichedByKey, items } = await enrichAndFilterItemsBatched(tagged, {
         batchSize: ENRICH_BATCH_SIZE,
         delayMs: ENRICH_DELAY_MS,
-        keyOf: (item) => item.content.id,
-        enrich: (item) => enrichProduct(item.content.url),
+        keyOf: phItemId,
+        enrich: (item) => enrichProduct(extractAtomLink(item.entry.link)),
         minScore: minUpvotes,
         scoreOf: (data) => data.upvotes,
       });
-      enrichedMap = enriched.enrichedByKey;
-      filtered = enriched.items;
-      if (minUpvotes > 0 && items.length > 0 && filtered.length === 0) {
+      if (minUpvotes > 0 && tagged.length > 0 && items.length === 0) {
         warnFilterRemovedAll(
           "producthunt",
           "min_upvotes",
           minUpvotes,
-          items.length,
+          tagged.length,
           "enriched item(s)",
         );
       }
+      tagged = items.map((item) => ({
+        ...item,
+        enriched: enrichedByKey.get(phItemId(item)) ?? null,
+      }));
     }
 
-    return filtered.map((parsed) =>
-      toContentItem(parsed, enrichedMap.get(parsed.content.id) ?? null),
-    );
+    return mapToContentItemsPerSource(tagged, (item) => item.feedTitle, projectPHEntry);
   },
 };
 
