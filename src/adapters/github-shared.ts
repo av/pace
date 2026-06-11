@@ -1,4 +1,5 @@
 import {
+  clampAdapterLimit,
   normalizeParamString,
   normalizeParamStringList,
 } from "../utils";
@@ -22,7 +23,7 @@ import { decodeNumericFeedTitle } from "./html";
 import { warnEmptyConfig } from "./empty-config";
 import { aggregateParallelFeeds, sliceAndMap } from "./merge";
 import { capText, joinTitleWithTagline } from "./title";
-import type { ContentItem } from "./types";
+import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 export interface GitHubRelease {
   id: number;
@@ -158,20 +159,6 @@ function projectGitHubApiRelease(item: TaggedGHApiRelease): ContentItemProjectio
   };
 }
 
-export async function fetchGitHubAtomReleases(
-  repo: string,
-  limit: number,
-  adapterName: string,
-  token?: string,
-): Promise<ContentItem[]> {
-  const tagged = await fetchGitHubAtomReleasesRaw(repo, limit, adapterName, token);
-  return mapToContentItemsPerSource(
-    tagged,
-    (item) => item.source,
-    projectGitHubAtomEntry,
-  );
-}
-
 async function fetchGitHubAtomReleasesRaw(
   repo: string,
   limit: number,
@@ -198,20 +185,6 @@ async function fetchGitHubAtomReleasesRaw(
   }));
 }
 
-export async function fetchGitHubApiReleases(
-  repo: string,
-  perPage: number,
-  adapterName: string,
-  token?: string,
-): Promise<ContentItem[]> {
-  const tagged = await fetchGitHubApiReleasesRaw(repo, perPage, adapterName, token);
-  return mapToContentItemsPerSource(
-    tagged,
-    (item) => githubRepoSourceLabel(item.repo),
-    projectGitHubApiRelease,
-  );
-}
-
 async function fetchGitHubApiReleasesRaw(
   repo: string,
   perPage: number,
@@ -223,7 +196,7 @@ async function fetchGitHubApiReleasesRaw(
     headers: buildGitHubApiHeaders(token),
   });
   const tagline = await fetchRepoTagline(repo, adapterName, token);
-  return releases.map((release) => ({
+  return sliceAndMap(releases, perPage, (release) => ({
     release,
     repo,
     tagline,
@@ -268,3 +241,24 @@ export async function fetchGitHubReposReleases(
     projectGitHubAtomEntry,
   );
 }
+
+const GITHUB_RELEASES_ADAPTER_NAME = "github-releases";
+const DEFAULT_RELEASES_PER_PAGE = 5;
+const MAX_RELEASES_PER_PAGE = 30;
+
+/** Dedicated adapter: GitHub API releases (vs github adapter atom/trending modes). */
+export const githubReleasesAdapter: Adapter = {
+  name: GITHUB_RELEASES_ADAPTER_NAME,
+  async fetch(config: AdapterConfig) {
+    const resolved = resolveGitHubRepos(config.params, GITHUB_RELEASES_ADAPTER_NAME);
+    if (!resolved) return [];
+
+    const perPage = clampAdapterLimit(
+      config.params?.limit,
+      DEFAULT_RELEASES_PER_PAGE,
+      MAX_RELEASES_PER_PAGE,
+    );
+
+    return fetchGitHubReposReleases(resolved, "api", perPage, GITHUB_RELEASES_ADAPTER_NAME);
+  },
+};

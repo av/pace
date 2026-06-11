@@ -4,7 +4,7 @@ import type { Adapter } from "./types";
 import arxivAdapter from "./arxiv";
 import devtoAdapter from "./devto";
 import githubAdapter from "./github";
-import githubReleasesAdapter from "./github-releases";
+import { githubReleasesAdapter } from "./github-shared";
 import hackernewsAdapter from "./hackernews";
 import lemmyAdapter from "./lemmy";
 import lobstersAdapter from "./lobsters";

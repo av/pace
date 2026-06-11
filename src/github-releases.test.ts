@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import githubReleasesAdapter from "./adapters/github-releases";
+import { githubReleasesAdapter } from "./adapters/github-shared";
 import { makeErrorResponse } from "./test/fetch-responses";
 import { invalidLimitParams } from "./test/invalid-params";
 import { expectAdapterFetchError, fetchMockCalls, useFetchMockSuite } from "./test/adapter-mocks";
@@ -178,6 +178,39 @@ describe("github-releases", () => {
     );
 
     expect(releasesApiUrl()).toContain("per_page=12");
+  });
+
+  test("caps mapped items when API returns more releases than per_page limit", async () => {
+    mocks.fetchMock.mockImplementation(async (url: string) =>
+      githubReleasesApiFetchMock(url, {
+        releases: [
+          makeGitHubRelease({ id: 1, name: "One" }),
+          makeGitHubRelease({
+            id: 2,
+            tag_name: "v2.0.0",
+            name: "Two",
+            html_url: "https://github.com/o/r/releases/tag/v2.0.0",
+            published_at: "2024-02-01T00:00:00Z",
+          }),
+          makeGitHubRelease({
+            id: 3,
+            tag_name: "v3.0.0",
+            name: "Three",
+            html_url: "https://github.com/o/r/releases/tag/v3.0.0",
+            published_at: "2024-03-01T00:00:00Z",
+          }),
+        ],
+      }),
+    );
+
+    const items = await githubReleasesAdapter.fetch(
+      githubReleasesCfg({ repos: ["o/r"], limit: 2 }),
+    );
+
+    expect(releasesApiUrl()).toContain("per_page=2");
+    expect(items).toHaveLength(2);
+    expect(items.map((item) => item.id).sort()).toEqual(["github:o/r:1", "github:o/r:2"]);
+    expect(items.some((item) => item.id === "github:o/r:3")).toBe(false);
   });
 
   test("caps limit at 30 in per_page query param", async () => {
