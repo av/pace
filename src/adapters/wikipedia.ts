@@ -13,8 +13,9 @@ import {
   normalizeParamStringList,
   normalizeStringList,
   createAliasedResolver,
+  sliceToLimit,
 } from "../utils";
-import { aggregateMappedFeeds, finalizeFetchedItems } from "./merge";
+import { aggregateMappedFeeds } from "./merge";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 type Mode = "most_read" | "featured" | "on_this_day" | "news";
@@ -111,15 +112,16 @@ async function fetchFeaturedFeed(
   return fetchJson<WikiFeaturedResponse>("wikipedia", url, "featured feed");
 }
 
-function extractMostRead(data: WikiFeaturedResponse, limit: number): ContentItem[] {
+function extractMostRead(data: WikiFeaturedResponse, limit?: number): ContentItem[] {
   const articles = optionalArrayFieldOrEmpty<WikiMostReadArticle>(
     "wikipedia",
     data.mostread,
     "articles",
     "featured feed most_read",
   );
+  const rows = limit === undefined ? articles : sliceToLimit(articles, limit);
   return mapToContentItems(
-    finalizeFetchedItems(articles, { limit }),
+    rows,
     wikipediaSourceLabel("most_read"),
     (article) => ({
       id: `wikipedia:mostread:${article.title}`,
@@ -143,15 +145,16 @@ function extractFeatured(data: WikiFeaturedResponse): ContentItem[] {
   }));
 }
 
-function extractOnThisDay(data: WikiFeaturedResponse, limit: number): ContentItem[] {
+function extractOnThisDay(data: WikiFeaturedResponse, limit?: number): ContentItem[] {
   const events = optionalArrayFieldOrEmpty<WikiOnThisDay>(
     "wikipedia",
     data,
     "onthisday",
     "featured feed on_this_day",
   );
+  const rows = limit === undefined ? events : sliceToLimit(events, limit);
   return mapToContentItems(
-    finalizeFetchedItems(events, { limit }),
+    rows,
     wikipediaSourceLabel("on_this_day"),
     (event) => {
       const page = event.pages?.[0];
@@ -170,15 +173,16 @@ function extractOnThisDay(data: WikiFeaturedResponse, limit: number): ContentIte
   );
 }
 
-function extractNews(data: WikiFeaturedResponse, limit: number): ContentItem[] {
+function extractNews(data: WikiFeaturedResponse, limit?: number): ContentItem[] {
   const items = optionalArrayFieldOrEmpty<WikiNewsItem>(
     "wikipedia",
     data,
     "news",
     "featured feed news",
   );
+  const rows = limit === undefined ? items : sliceToLimit(items, limit);
   return mapToContentItems(
-    finalizeFetchedItems(items, { limit }).map((item, index) => ({ item, index })),
+    rows.map((item, index) => ({ item, index })),
     wikipediaSourceLabel("news"),
     ({ item, index }) => {
       const link = item.links?.[0];
@@ -211,7 +215,7 @@ function resolveModes(config: AdapterConfig): Mode[] {
   return resolved.length > 0 ? resolved : ["most_read"];
 }
 
-function extractForMode(data: WikiFeaturedResponse, mode: Mode, limit: number): ContentItem[] {
+function extractForMode(data: WikiFeaturedResponse, mode: Mode, limit?: number): ContentItem[] {
   switch (mode) {
     case "most_read":
       return extractMostRead(data, limit);
@@ -256,7 +260,7 @@ const adapter: Adapter = {
 
     return aggregateMappedFeeds(
       modes,
-      (mode) => extractForMode(data, mode, limit),
+      (mode) => extractForMode(data, mode),
       {
         limit,
         dedupeKey: (item) => item.url,

@@ -270,6 +270,50 @@ describe("wikipedia", () => {
     expect(mocks.fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  test("fills global limit from earlier modes before later modes contribute", async () => {
+    const articles = Array.from({ length: 5 }, (_, i) =>
+      makeMostReadArticle({
+        title: `MostRead_${i}`,
+        views: 10_000 - i,
+        rank: i + 1,
+        content_urls: {
+          desktop: { page: `https://en.wikipedia.org/wiki/MostRead_${i}` },
+        },
+      }),
+    );
+    const newsItems = Array.from({ length: 5 }, (_, i) => ({
+      story: `News story ${i}.`,
+      links: [
+        {
+          title: `News_${i}`,
+          content_urls: { desktop: { page: `https://en.wikipedia.org/wiki/News_${i}` } },
+        },
+      ],
+    }));
+
+    mocks.fetchMock.mockResolvedValue(
+      makeJsonResponse(
+        makeFeaturedResponse({
+          mostread: { articles },
+          news: newsItems,
+        }),
+      ),
+    );
+
+    const items = await wikipediaAdapter.fetch(
+      wikiCfg({ mode: "most_read,news", limit: 4 }),
+    );
+
+    expect(items).toHaveLength(4);
+    expect(items.every((item) => item.source === "wikipedia:most_read")).toBe(true);
+    expect(items.map((item) => item.title)).toEqual([
+      "MostRead 0",
+      "MostRead 1",
+      "MostRead 2",
+      "MostRead 3",
+    ]);
+  });
+
   test("applies global limit after merging multiple modes (not per-mode)", async () => {
     const articles = Array.from({ length: 8 }, (_, i) =>
       makeMostReadArticle({
