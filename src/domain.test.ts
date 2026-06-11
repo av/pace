@@ -1,14 +1,19 @@
 import { describe, it, expect } from "bun:test";
 import { getAllItemsByPanel, saveItems } from "./db";
 import { installTempDbHooks } from "./test/temp-db";
-import { startScheduler, refreshSources } from "./scheduler";
+import {
+  installSchedulerRuntimeHooks,
+  refreshTestSources,
+  startTestScheduler,
+} from "./test/scheduler-test-harness";
 import { isPanel, type PanelConfig } from "./config/types";
 import { DOMAIN_TEST_LAYOUT, testAppConfig } from "./test/app-config";
 import { makeContentItem } from "./test/content-items";
 import { sourcePanelMapFromConfig } from "./test/panel-map";
 
 describe("domain", () => {
-  installTempDbHooks({ prefix: "pace-domain-test-", stopSchedulerOnTeardown: true });
+  installTempDbHooks({ prefix: "pace-domain-test-" });
+  installSchedulerRuntimeHooks();
 
   it("layout panel source all bypass", () => {
     const layout = {
@@ -67,8 +72,8 @@ describe("domain", () => {
       DOMAIN_TEST_LAYOUT,
     );
     const pm = sourcePanelMapFromConfig(config);
-    startScheduler(config, new Map(), pm, null);
-    await refreshSources(["merge"]);
+    startTestScheduler(config, new Map(), pm, null);
+    await refreshTestSources(["merge"]);
     const out = getAllItemsByPanel("outPanel");
     expect(out.map((r) => r.id).sort()).toEqual(["pipeline:merge:b1", "pipeline:merge:b2"]);
     expect(out.find((r) => r.id === "pipeline:merge:b1")?.title).toBe("Dup story (new)");

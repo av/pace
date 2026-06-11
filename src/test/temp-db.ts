@@ -3,7 +3,6 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { closeDb, initDb } from "../db";
-import { stopScheduler } from "../scheduler";
 import { errorMessage } from "../utils";
 
 export type TempDbFixture = {
@@ -16,8 +15,6 @@ export type InstallTempDbHooksOptions = {
   prefix: string;
   /** Call initDb() after closeDb in beforeEach (default: true) */
   init?: boolean;
-  /** Call stopScheduler() in before/afterEach (default: false) */
-  stopSchedulerOnTeardown?: boolean;
   /** Log and swallow rmSync failures instead of rethrowing (default: false) */
   warnOnRmFail?: boolean;
 };
@@ -30,12 +27,10 @@ export function installTempDbHooks(options: InstallTempDbHooksOptions): void {
   const {
     prefix,
     init = true,
-    stopSchedulerOnTeardown = false,
     warnOnRmFail = false,
   } = options;
 
   beforeEach(() => {
-    if (stopSchedulerOnTeardown) stopScheduler();
     origEnv = process.env.PACE_DB_PATH;
     const tempDir = mkdtempSync(join(tmpdir(), prefix));
     const dbPath = join(tempDir, "test.db");
@@ -46,7 +41,6 @@ export function installTempDbHooks(options: InstallTempDbHooksOptions): void {
   });
 
   afterEach(() => {
-    if (stopSchedulerOnTeardown) stopScheduler();
     closeDb();
     if (origEnv === undefined) {
       delete process.env.PACE_DB_PATH;
