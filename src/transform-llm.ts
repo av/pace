@@ -3,14 +3,13 @@ import type { ContentItem } from "./adapters/types";
 import type { LlmConfig, TransformConfig, TransformType } from "./config/types";
 import {
   type ContentItemRow,
-  contentRowToItem,
   contentRowsToItems,
   contentRowMapById,
   filterRowsByItemIds,
   contentItemsToRows,
 } from "./db";
 import { sortByInputOrder } from "./dedupe";
-import { summarizeItem, lensItems, mergeItems, filterItemsByLlm } from "./llm";
+import { summarizeItems, lensItems, mergeItems, filterItemsByLlm } from "./llm";
 
 export interface TransformContext {
   llmModel: Model<Api> | null;
@@ -41,17 +40,34 @@ async function mapRowsThroughLlm(
   return mapBack(llmItems, rows);
 }
 
+function applySummariesToRows(
+  llmItems: ContentItem[],
+  rows: ContentItemRow[],
+): ContentItemRow[] {
+  const summaryById = new Map(
+    llmItems
+      .filter((item): item is ContentItem & { summary: string } => !!item.summary)
+      .map((item) => [item.id, item.summary]),
+  );
+  return rows.map((row) => {
+    const summary = summaryById.get(row.id);
+    return summary ? { ...row, summary } : row;
+  });
+}
+
 async function summarizeRows(model: Model<Api>, items: ContentItemRow[]): Promise<ContentItemRow[]> {
-  const results: ContentItemRow[] = [];
-  for (const item of items) {
-    if (item.summary) {
-      results.push(item);
-      continue;
-    }
-    const summary = await summarizeItem(model, contentRowToItem(item));
-    results.push({ ...item, summary: summary ?? item.summary });
-  }
-  return results;
+  const pending = items.filter((row) => !row.summary);
+  if (pending.length === 0) return items;
+
+  const updated = await mapRowsThroughLlm(
+    model,
+    pending,
+    (m, contentItems) => summarizeItems(m, contentItems),
+    (llmItems, rows) => applySummariesToRows(llmItems, rows),
+  );
+
+  const updatedById = contentRowMapById(updated);
+  return items.map((row) => updatedById.get(row.id) ?? row);
 }
 
 function rowsInItemOrder(rows: ContentItemRow[], orderedItems: { id: string }[]): ContentItemRow[] {

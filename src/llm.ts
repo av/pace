@@ -149,25 +149,35 @@ async function runLlmBatchTransform<T>(
   return applyResult(result, items);
 }
 
+type SummaryEntry = { id: string; summary: string };
+
+function applySummaryEntries(entries: SummaryEntry[], items: ContentItem[]): ContentItem[] {
+  const summaryMap = new Map(entries.map((entry) => [entry.id, entry.summary]));
+  return items.map((item) => {
+    const summary = summaryMap.get(item.id);
+    return summary ? { ...item, summary } : item;
+  });
+}
+
+/** Batch summarize via single LLM JSON call; unchanged items pass through on skip or failure. */
+export async function summarizeItems(
+  model: Model<Api> | null,
+  items: ContentItem[],
+): Promise<ContentItem[]> {
+  const systemPrompt =
+    "You are a concise summarizer. For each content item below, provide a 2-3 sentence summary focusing on key points and why it matters. Return a JSON array of {\"id\": \"...\", \"summary\": \"...\"} objects. Every item ID must appear exactly once. Return ONLY the JSON array.";
+
+  return runLlmBatchTransform(model, items, systemPrompt, applySummaryEntries, { maxBodyLen: 2000 });
+}
+
 /** 2–3 sentence summary, or null on error. */
 export async function summarizeItem(
   model: Model<Api> | null,
   item: ContentItem
 ): Promise<string | null> {
   if (!model) return null;
-  const bodySnippet = item.body ? capText(item.body, 2000) : "";
-  const userContent = bodySnippet
-    ? `Title: ${item.title}\n\n${bodySnippet}`
-    : `Title: ${item.title}`;
-
-  const context: Context = {
-    systemPrompt:
-      "You are a concise summarizer. Provide a 2-3 sentence summary of the given content item. Focus on the key points and why it matters.",
-    messages: [{ role: "user", content: userContent, timestamp: Date.now() }],
-  };
-
-  const text = await safeComplete(model, context);
-  return text;
+  const [result] = await summarizeItems(model, [item]);
+  return result.summary ?? null;
 }
 
 type MergeGroup = { merged_ids: string[]; title: string; summary: string | null };

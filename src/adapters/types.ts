@@ -9,6 +9,8 @@ export interface ContentItemFields {
 export interface ContentItem extends ContentItemFields {
   timestamp: Date;
   body?: string;
+  /** Set by LLM summarize transforms; adapters do not populate this field. */
+  summary?: string;
 }
 
 /** Params passed to `Adapter.fetch` (scheduling fields live on `IngestAdapterConfig` in config.ts). */

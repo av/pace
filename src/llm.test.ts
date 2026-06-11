@@ -5,6 +5,7 @@ import {
   safeComplete,
   createModel,
   summarizeItem,
+  summarizeItems,
   mergeItems,
   filterItemsByLlm,
   lensItems,
@@ -59,6 +60,44 @@ describe("llm", () => {
       const item = makeItem({ title: "Test", body: "Some content" });
       const res = await summarizeItem(fakeThrowingModel, item);
       expect(res).toBe(null);
+    });
+  });
+
+  describe("summarizeItems", () => {
+    test("empty list returns empty", async () => {
+      const res = await summarizeItems(fakeThrowingModel, []);
+      expect(res).toEqual([]);
+    });
+
+    test("passthrough on complete error", async () => {
+      const items = [makeItem({ id: "a" }), makeItem({ id: "b" })];
+      const res = await summarizeItems(fakeThrowingModel, items);
+      expect(res).toEqual(items);
+    });
+
+    test("applies batch JSON summaries", async () => {
+      const completeSpy = spyOn(piAi, "complete").mockResolvedValue({
+        content: [
+          {
+            type: "text",
+            text: '[{"id":"a","summary":"Alpha summary."},{"id":"b","summary":"Beta summary."}]',
+          },
+        ],
+      } as Awaited<ReturnType<typeof piAi.complete>>);
+      try {
+        const items = [
+          makeItem({ id: "a", title: "Alpha" }),
+          makeItem({ id: "b", title: "Beta" }),
+        ];
+        const res = await summarizeItems(fakeThrowingModel, items);
+        expect(res).toEqual([
+          { ...items[0], summary: "Alpha summary." },
+          { ...items[1], summary: "Beta summary." },
+        ]);
+        expect(completeSpy).toHaveBeenCalledTimes(1);
+      } finally {
+        completeSpy.mockRestore();
+      }
     });
   });
 
@@ -254,6 +293,15 @@ describe("llm", () => {
       const completeSpy = spyOn(piAi, "complete");
       const items = [makeItem({ id: "l1" })];
       const res = await lensItems(null, items, ["interest"]);
+      expect(res).toEqual(items);
+      expect(completeSpy).not.toHaveBeenCalled();
+      completeSpy.mockRestore();
+    });
+
+    test("summarizeItems skips complete", async () => {
+      const completeSpy = spyOn(piAi, "complete");
+      const items = [makeItem({ id: "s1" })];
+      const res = await summarizeItems(null, items);
       expect(res).toEqual(items);
       expect(completeSpy).not.toHaveBeenCalled();
       completeSpy.mockRestore();
