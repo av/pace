@@ -19,8 +19,8 @@ describe("transform-llm - llm-summarize", () => {
         llmModel: fakeModel,
       });
       expect(result).toEqual([
-        items[0],
-        { ...items[1], summary: "Fresh summary." },
+        { ...items[0], applied_transforms: '["llm-summarize"]' },
+        { ...items[1], summary: "Fresh summary.", applied_transforms: '["llm-summarize"]' },
       ]);
       expect(completeSpy).toHaveBeenCalledTimes(1);
     } finally {
@@ -28,9 +28,10 @@ describe("transform-llm - llm-summarize", () => {
     }
   });
 
-  test("null model leaves rows unchanged", async () => {
+  test("null model leaves rows unchanged and does not stamp provenance", async () => {
     const items = [makeRow({ id: "a", summary: null })];
     const result = await runPipeline(items, [{ type: "llm-summarize" }], { llmModel: null });
     expect(result).toEqual(items);
+    expect(result[0].applied_transforms).toBeNull();
   });
 });

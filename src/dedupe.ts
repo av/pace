@@ -157,6 +157,19 @@ function collectLosers(
     .map((item) => format(item, winner));
 }
 
+/** Union all origins arrays from a group onto the winner row. */
+export function mergeOrigins(group: ContentItemRow[], winner: ContentItemRow): ContentItemRow {
+  if (group.length <= 1) return winner;
+  const allOrigins = new Set<string>();
+  for (const item of group) {
+    if (item.origins) {
+      for (const o of JSON.parse(item.origins) as string[]) allOrigins.add(o);
+    }
+  }
+  if (allOrigins.size === 0) return winner;
+  return { ...winner, origins: JSON.stringify([...allOrigins]) };
+}
+
 export function sortByInputOrder<T extends { id: string }>(rows: T[], order: T[]): T[] {
   const orderMap = new Map<string, number>();
   order.forEach((item, i) => {
@@ -178,9 +191,10 @@ export function dedupeGroupedByKey(
   const result: ContentItemRow[] = [];
   const removed: string[] = [];
   for (const [, group] of groups) {
-    const winner = pickWinner(group, keep);
+    const rawWinner = pickWinner(group, keep);
+    const winner = mergeOrigins(group, rawWinner);
     result.push(winner);
-    removed.push(...collectLosers(group, winner, formatRemoved));
+    removed.push(...collectLosers(group, rawWinner, formatRemoved));
   }
   return { result: sortByInputOrder(result, items), removed };
 }
@@ -195,15 +209,14 @@ export function dedupeByTitleSimilarity(
   const removed: string[] = [];
   for (const item of items) {
     let isDuplicate = false;
-    for (const existing of kept) {
+    for (let ki = 0; ki < kept.length; ki++) {
+      const existing = kept[ki];
       const similarity = titleSimilarity(item.title, existing.title);
       if (similarity !== null && similarity >= threshold) {
-        const winner = pickWinner([existing, item], keep);
-        const loser = winner === item ? existing : item;
-        if (winner === item) {
-          const idx = kept.indexOf(existing);
-          kept[idx] = item;
-        }
+        const rawWinner = pickWinner([existing, item], keep);
+        const loser = rawWinner === item ? existing : item;
+        const winner = mergeOrigins([existing, item], rawWinner);
+        kept[ki] = winner;
         removed.push(formatRemoved(loser, winner));
         isDuplicate = true;
         break;

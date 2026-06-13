@@ -52,6 +52,14 @@ export const TRANSFORM_RUNNERS = {
   ...llmTransforms,
 } satisfies Record<TransformType, TransformFn>;
 
+function appendAppliedTransform(items: ContentItemRow[], type: string): ContentItemRow[] {
+  return items.map((item) => {
+    const existing: string[] = item.applied_transforms ? JSON.parse(item.applied_transforms) : [];
+    if (existing.includes(type)) return item;
+    return { ...item, applied_transforms: JSON.stringify([...existing, type]) };
+  });
+}
+
 export async function runPipeline(
   items: ContentItemRow[],
   pipeline: TransformConfig[],
@@ -64,7 +72,10 @@ export async function runPipeline(
       warnUnknownTransformType(step.type);
       continue;
     }
-    result = await Promise.resolve(fn(result, step, ctx));
+    // Passthrough paths (null LLM model, skipped/errored LLM batches) return
+    // the input array by reference; do not stamp provenance for those.
+    const next = await Promise.resolve(fn(result, step, ctx));
+    result = next !== result ? appendAppliedTransform(next, step.type) : next;
   }
   return result;
 }

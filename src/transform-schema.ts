@@ -13,7 +13,7 @@ export const TRANSFORM_FIELD_KEYS = {
   "keyword-score": ["keywords", "min_score", "annotate"],
   "time-decay": ["half_life", "engagement_weight", "recency_weight", "decay", "annotate", "min_score"],
   cluster: ["strategy", "min_cluster_size", "max_clusters", "similarity_threshold", "annotate"],
-  "llm-summarize": [],
+  "llm-summarize": ["fetch_content"],
   "llm-filter": ["criteria"],
   "llm-rank": ["interests"],
   "llm-merge": ["prompt"],

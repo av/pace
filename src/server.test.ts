@@ -73,7 +73,7 @@ describe("GET / dashboard", () => {
     expectDashboardPanelHeading(html, "Tech");
     expectDashboardItemTitle(html, "HN Story");
     expect(html).toContain('href="https://news.ycombinator.com/item"');
-    expect(html).toContain('<span class="item-source">hackernews</span>');
+    expect(html).toContain('<span class="item-source src-hn">hackernews</span>');
     expectDashboardRefreshAction(html, "tech-panel");
   });
 

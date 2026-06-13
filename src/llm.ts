@@ -87,9 +87,18 @@ export async function safeComplete(
 }
 
 /** One-line item summary for batch LLM prompts. */
-export function formatContentItemForLlm(item: ContentItem, maxBodyLen = 0): string {
+export function formatContentItemForLlm(
+  item: ContentItem,
+  maxBodyLen = 0,
+  fetchedContent?: string,
+): string {
   const snippet = maxBodyLen > 0 && item.body ? capText(item.body, maxBodyLen) : "";
-  return `- id: "${item.id}" | title: "${item.title}" | source: ${item.source}${snippet ? ` | body: ${snippet}` : ""}`;
+  const contentSnippet = fetchedContent ? capText(fetchedContent, 2000) : "";
+  return (
+    `- id: "${item.id}" | title: "${item.title}" | source: ${item.source}` +
+    (snippet ? ` | body: ${snippet}` : "") +
+    (contentSnippet ? ` | content: ${contentSnippet}` : "")
+  );
 }
 
 function parseLlmJsonResponse<T>(text: string | null): T | null {
@@ -115,9 +124,12 @@ async function queryLlmForJson<T>(
   model: Model<Api>,
   systemPrompt: string,
   items: ContentItem[],
-  maxBodyLen = 0
+  maxBodyLen = 0,
+  fetchedContent?: Map<string, string>,
 ): Promise<T | null> {
-  const itemList = items.map((item) => formatContentItemForLlm(item, maxBodyLen)).join("\n");
+  const itemList = items
+    .map((item) => formatContentItemForLlm(item, maxBodyLen, fetchedContent?.get(item.id)))
+    .join("\n");
 
   const context: Context = {
     systemPrompt,
@@ -134,7 +146,7 @@ async function runLlmBatchTransform<T>(
   items: ContentItem[],
   systemPrompt: string,
   applyResult: (result: T, items: ContentItem[]) => ContentItem[],
-  options?: { maxBodyLen?: number; skip?: boolean },
+  options?: { maxBodyLen?: number; skip?: boolean; fetchedContent?: Map<string, string> },
 ): Promise<ContentItem[]> {
   if (shouldPassthroughLlmBatch(model, items) || options?.skip) return items;
 
@@ -143,6 +155,7 @@ async function runLlmBatchTransform<T>(
     systemPrompt,
     items,
     options?.maxBodyLen ?? 0,
+    options?.fetchedContent,
   );
   if (result == null) return items;
 
@@ -163,11 +176,12 @@ function applySummaryEntries(entries: SummaryEntry[], items: ContentItem[]): Con
 export async function summarizeItems(
   model: Model<Api> | null,
   items: ContentItem[],
+  fetchedContent?: Map<string, string>,
 ): Promise<ContentItem[]> {
   const systemPrompt =
     "You are a concise summarizer. For each content item below, provide a 2-3 sentence summary focusing on key points and why it matters. Return a JSON array of {\"id\": \"...\", \"summary\": \"...\"} objects. Every item ID must appear exactly once. Return ONLY the JSON array.";
 
-  return runLlmBatchTransform(model, items, systemPrompt, applySummaryEntries, { maxBodyLen: 2000 });
+  return runLlmBatchTransform(model, items, systemPrompt, applySummaryEntries, { maxBodyLen: 2000, fetchedContent });
 }
 
 /** 2–3 sentence summary, or null on error. */
@@ -251,15 +265,32 @@ export async function lensItems(
   items: ContentItem[],
   interests: string[]
 ): Promise<ContentItem[]> {
+  const { items: ranked } = await lensItemsWithScores(model, items, interests);
+  return ranked;
+}
+
+type ScoreEntry = { id: string; score: number };
+
+/**
+ * Rank items by LLM relevance and return both the sorted list and the raw score map.
+ * scoreMap is empty on failure or when interests is empty.
+ */
+export async function lensItemsWithScores(
+  model: Model<Api> | null,
+  items: ContentItem[],
+  interests: string[]
+): Promise<{ items: ContentItem[]; scoreMap: Map<string, number> }> {
   const interestList = interests.join(", ");
   const systemPrompt = `Score each item's relevance to these interests: ${interestList}. Return a JSON array of {id, score} objects where score is 0-10. Return ONLY the JSON array, no other text.`;
 
-  return runLlmBatchTransform(
+  let scoreMap = new Map<string, number>();
+
+  const ranked = await runLlmBatchTransform<ScoreEntry[]>(
     model,
     items,
     systemPrompt,
     (scores, sourceItems) => {
-      const scoreMap = new Map(scores.map(({ id, score }) => [id, score]));
+      scoreMap = new Map(scores.map(({ id, score }) => [id, score]));
       return [...sourceItems].sort((a, b) => {
         const sa = scoreMap.get(a.id) ?? -1;
         const sb = scoreMap.get(b.id) ?? -1;
@@ -268,4 +299,6 @@ export async function lensItems(
     },
     { skip: interests.length === 0 },
   );
+
+  return { items: ranked, scoreMap };
 }

@@ -9,7 +9,8 @@ import {
   contentItemsToRows,
 } from "./db";
 import { sortByInputOrder } from "./dedupe";
-import { summarizeItems, lensItems, mergeItems, filterItemsByLlm } from "./llm";
+import { summarizeItems, lensItemsWithScores, mergeItems, filterItemsByLlm } from "./llm";
+import { fetchItemContents } from "./fetch-content";
 
 export interface TransformContext {
   llmModel: Model<Api> | null;
@@ -55,14 +56,25 @@ function applySummariesToRows(
   });
 }
 
-async function summarizeRows(model: Model<Api>, items: ContentItemRow[]): Promise<ContentItemRow[]> {
+async function summarizeRows(
+  model: Model<Api>,
+  items: ContentItemRow[],
+  fetchContent = false,
+): Promise<ContentItemRow[]> {
   const pending = items.filter((row) => !row.summary);
   if (pending.length === 0) return items;
+
+  let fetchedContent: Map<string, string> | undefined;
+  if (fetchContent) {
+    fetchedContent = await fetchItemContents(
+      pending.map((row) => ({ id: row.id, url: row.url })),
+    );
+  }
 
   const updated = await mapRowsThroughLlm(
     model,
     pending,
-    (m, contentItems) => summarizeItems(m, contentItems),
+    (m, contentItems) => summarizeItems(m, contentItems, fetchedContent),
     (llmItems, rows) => applySummariesToRows(llmItems, rows),
   );
 
@@ -97,12 +109,14 @@ async function rankRows(
   items: ContentItemRow[],
   interests: string[]
 ): Promise<ContentItemRow[]> {
-  return mapRowsThroughLlm(
-    model,
-    items,
-    (m, contentItems) => lensItems(m, contentItems, interests),
-    (ranked, rows) => rowsInItemOrder(rows, ranked),
-  );
+  const contentItems = contentRowsToItems(items);
+  const { items: ranked, scoreMap } = await lensItemsWithScores(model, contentItems, interests);
+  const reordered = rowsInItemOrder(items, ranked);
+  if (scoreMap.size === 0) return reordered;
+  return reordered.map((row) => {
+    const score = scoreMap.get(row.id);
+    return score !== undefined ? { ...row, score } : row;
+  });
 }
 
 async function mergeRows(
@@ -122,8 +136,10 @@ async function mergeRows(
 type LlmTransformType = Extract<TransformType, `llm-${string}`>;
 
 export const llmTransforms = {
-  "llm-summarize": (items, _config, ctx) =>
-    withLlmModel(items, ctx, (model, rows) => summarizeRows(model, rows)),
+  "llm-summarize": (items, config, ctx) => {
+    const cfg = config as Extract<TransformConfig, { type: "llm-summarize" }>;
+    return withLlmModel(items, ctx, (model, rows) => summarizeRows(model, rows, cfg.fetch_content ?? false));
+  },
 
   "llm-filter": (items, config, ctx) =>
     withLlmModel(items, ctx, (model, rows) =>

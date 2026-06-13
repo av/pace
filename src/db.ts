@@ -133,6 +133,15 @@ export function initDb(): void {
       db.exec("ALTER TABLE content_items RENAME COLUMN adapter_name TO panel_id");
       db.exec("DROP INDEX IF EXISTS idx_content_items_adapter");
     }
+    if (!cols.some((c) => c.name === "origins")) {
+      db.exec("ALTER TABLE content_items ADD COLUMN origins TEXT");
+    }
+    if (!cols.some((c) => c.name === "applied_transforms")) {
+      db.exec("ALTER TABLE content_items ADD COLUMN applied_transforms TEXT");
+    }
+    if (!cols.some((c) => c.name === "score")) {
+      db.exec("ALTER TABLE content_items ADD COLUMN score REAL");
+    }
 
     db.exec(`
       CREATE INDEX IF NOT EXISTS idx_content_items_panel
@@ -151,8 +160,8 @@ export function initDb(): void {
 export function saveItems(panelId: string, items: ContentItem[]): void {
   const db = getDb();
   const stmt = db.prepare(`
-    INSERT INTO content_items (id, panel_id, title, url, source, body, timestamp, fetched_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    INSERT INTO content_items (id, panel_id, title, url, source, body, timestamp, fetched_at, origins)
+    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)
     ON CONFLICT(id) DO UPDATE SET
       panel_id = excluded.panel_id,
       title = excluded.title,
@@ -160,13 +169,15 @@ export function saveItems(panelId: string, items: ContentItem[]): void {
       source = excluded.source,
       body = excluded.body,
       timestamp = excluded.timestamp,
-      fetched_at = datetime('now')
+      fetched_at = datetime('now'),
+      origins = excluded.origins
   `);
 
   runPanelItemsTx(panelId, items.length, "save", () => {
     for (const item of items) {
       runItemOp(panelId, item, "save", () => {
-        stmt.run(...bindCoreContentItemParams(panelId, item));
+        const origins = JSON.stringify([item.source]);
+        stmt.run(...bindCoreContentItemParams(panelId, item), origins);
       });
     }
   });
@@ -262,8 +273,8 @@ export function replacePanelItems(panelId: string, items: ContentItemRow[]): voi
   runPanelItemsTx(panelId, items.length, "replace", () => {
     db.prepare("DELETE FROM content_items WHERE panel_id = ?").run(panelId);
     const stmt = db.prepare(`
-      INSERT INTO content_items (id, panel_id, title, url, source, body, timestamp, fetched_at, summary)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO content_items (id, panel_id, title, url, source, body, timestamp, fetched_at, summary, origins, applied_transforms, score)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const item of items) {
       runItemOp(panelId, item, "replace", () => {
@@ -271,6 +282,9 @@ export function replacePanelItems(panelId: string, items: ContentItemRow[]): voi
           ...bindCoreContentItemParams(panelId, item),
           item.fetched_at,
           item.summary ?? summaryMap.get(item.id) ?? null,
+          item.origins ?? null,
+          item.applied_transforms ?? null,
+          item.score ?? null,
         );
       });
     }
@@ -301,6 +315,12 @@ export interface ContentItemRow extends ContentItemFields {
   timestamp: string;
   fetched_at: string;
   summary: string | null;
+  /** JSON-encoded string[] of adapter/feed source names that contributed this item. */
+  origins: string | null;
+  /** JSON-encoded string[] of transform type strings applied to this item. */
+  applied_transforms: string | null;
+  /** Relevance score assigned by llm-rank (0-10); null if not ranked. */
+  score: number | null;
 }
 
 export function contentRowToItem(row: ContentItemRow): ContentItem {
@@ -321,6 +341,9 @@ export function contentItemToRow(item: ContentItem, base?: ContentItemRow): Cont
     panel_id: base?.panel_id ?? "merged",
     fetched_at: base?.fetched_at ?? new Date().toISOString(),
     summary: base?.summary ?? (item.body ?? null),
+    origins: base?.origins ?? null,
+    applied_transforms: base?.applied_transforms ?? null,
+    score: base?.score ?? null,
   };
 }
 

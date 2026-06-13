@@ -5,6 +5,7 @@ import { adaptersMap, makeMockAdapter } from "./adapter-mocks";
 import { makeContentItem } from "./content-items";
 import { singlePanelLayout, testAppConfig } from "./app-config";
 import { sourcePanelMapFromConfig } from "./panel-map";
+import { installTempDbHooks } from "./temp-db";
 import {
   installSchedulerRuntimeHooks,
   refreshTestSources,
@@ -23,6 +24,7 @@ describe("scheduler-test-harness contracts", () => {
 });
 
 describe("installSchedulerRuntimeHooks", () => {
+  installTempDbHooks({ prefix: "pace-harness-test-" });
   installSchedulerRuntimeHooks();
 
   let firstRuntime: SchedulerRuntime;
@@ -79,6 +81,8 @@ describe("installSchedulerRuntimeHooks", () => {
 });
 
 describe("withSchedulerRuntime", () => {
+  installTempDbHooks({ prefix: "pace-harness-with-" });
+
   test("provisions short-lived runtime and stops on exit", async () => {
     let captured: SchedulerRuntime | undefined;
     const adapters = adaptersMap(["test", makeMockAdapter([])]);

@@ -125,7 +125,7 @@ export const TRANSFORM_VALIDATORS = {
     validateOptionalUnitNumber(transform.similarity_threshold, `${path}.similarity_threshold`);
     validateOptionalBoolean(transform.annotate, `${path}.annotate`);
   },
-  "llm-summarize": undefined,
+  "llm-summarize": (transform, path) => validateOptionalBoolean(transform.fetch_content, `${path}.fetch_content`),
   "llm-filter": (transform, path) => {
     validateOptionalNonEmptyString(transform.criteria, `${path}.criteria`);
     if (transform.criteria === undefined) {

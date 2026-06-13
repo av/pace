@@ -123,7 +123,7 @@ describe("transforms - runPipeline basics", () => {
         similarity_threshold: 0.8,
         annotate: true,
       },
-      "llm-summarize": { type: "llm-summarize" },
+      "llm-summarize": { type: "llm-summarize", fetch_content: true },
       "llm-filter": { type: "llm-filter", criteria: "relevant" },
       "llm-rank": { type: "llm-rank", interests: ["tech"] },
       "llm-merge": { type: "llm-merge", prompt: "merge" },
