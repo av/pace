@@ -40,6 +40,8 @@ const SOURCE_COLORS: Record<string, string> = {
 function sourceColorClass(source: string): string {
   const s = source.toLowerCase();
   if (SOURCE_COLORS[s]) return SOURCE_COLORS[s];
+  const base = s.split(":")[0];
+  if (base !== s && SOURCE_COLORS[base]) return SOURCE_COLORS[base];
   if (s.startsWith("gh-") || s.startsWith("github")) return "src-github";
   if (s.startsWith("arxiv")) return "src-arxiv";
   if (s.startsWith("reddit") || s.startsWith("r/")) return "src-reddit";
