@@ -1,4 +1,4 @@
-# Pace
+# pace
 
 **Self-hosted news aggregator and personal content dashboard.**
 
@@ -18,27 +18,41 @@ Aggregate Hacker News, Reddit, RSS, GitHub, Mastodon, YouTube, arXiv, and 10 mor
 docker run -d -p 7453:7453 -v pace-data:/app/data ghcr.io/av/pace:latest
 ```
 
-Open http://localhost:7453 — the default config ships with Hacker News, Lobsters, GitHub trending/releases, engineering blogs, and DEV.to. Content populates after the initial adapter fetches (usually within seconds of the "listening" message).
+Open http://localhost:7453 — the default config ships with Hacker News, Lobsters, GitHub trending/releases, engineering blogs, and DEV.to.
 
 ### With a preset
 
-Use the exact Quick start `docker run` command shown above and append a preset flag (See the "## Presets" section below, or `pace --list-presets` locally).
+Presets are bundled configs for common setups. Use `--preset` (or `-P`) to start with one:
 
-Or locally: `pace --preset <name>` (or `pace -P <name>`).
+```bash
+docker run -d -p 7453:7453 -v pace-data:/app/data ghcr.io/av/pace:latest --preset tech-news
+```
+
+Available presets:
+
+| Preset | Focus |
+|--------|-------|
+| `tech-news` | Tech news: HN + Lobsters frontpage, Lemmy communities, news/blogs, releases |
+| `ml-ai` | AI and machine learning: arXiv papers, local-LLM community, releases, curated blogs |
+| `daily-brief` | Morning briefing: world headlines, Wikipedia in-the-news/most-read, big HN stories |
+| `product-launches` | Product launches: Product Hunt, Show HN, trending repos, fresh npm packages |
+| `release-tracker` | Software release tracking |
+| `academic-papers` | Academic papers: arXiv, CS theory Q&A, science journalism |
+| `video-podcast` | Video and podcast content |
+
+Or list them locally: `pace --list-presets`
 
 ### Custom config
 
 ```bash
 curl -O https://raw.githubusercontent.com/av/pace/main/config.example.yaml
 mv config.example.yaml config.yaml
-# edit config.yaml with your feeds
-```
-
-Use the Quick start `docker run` command shown above, inserting a read-only mount for your config file before the image name:
-
+# edit config.yaml
+docker run -d -p 7453:7453 \
+  -v pace-data:/app/data \
   -v ./config.yaml:/app/config.yaml:ro \
-
-(keep the data volume and image from the canonical Quick start command).
+  ghcr.io/av/pace:latest
+```
 
 ### From source
 
@@ -50,47 +64,136 @@ bun install
 bun run dev
 ```
 
-## Built-in content adapters
+## Content adapters
 
-Pace ships with 17 adapters that pull content from public APIs. Each adapter has a `refresh_interval` in minutes (default: 15).
+Pace ships with 17 adapters that pull content from public APIs. Each adapter has a configurable `refresh_interval` (in minutes, default: 15).
 
-See skills/pace-dashboard-configure/SKILL.md for the full adapter table, key params per adapter, and detailed reference.
+| Adapter | Source |
+|---------|--------|
+| `hackernews` | Hacker News (top, new, best, ask, show) |
+| `reddit` | Reddit subreddits |
+| `rss` | Any RSS feed |
+| `atom` | Any Atom feed |
+| `github` | GitHub trending repos + release tracking |
+| `lobsters` | Lobsters (hottest, newest) |
+| `youtube` | YouTube channels |
+| `arxiv` | arXiv papers by category |
+| `mastodon` | Mastodon hashtags/timelines |
+| `npm` | npm package updates |
+| `wikipedia` | Wikipedia featured/most-read/on-this-day |
+| `lemmy` | Lemmy communities |
+| `devto` | DEV.to articles |
+| `stackexchange` | Stack Exchange sites |
+| `producthunt` | Product Hunt |
+| `podcast` | Podcast RSS feeds |
+| `twitter` | Twitter/X |
 
-## Ingest-time transforms
+```bash
+pace adapters list            # list all adapter types
+pace adapters explain <type>  # show params and example
+```
+
+## Transforms
 
 Transforms process content after fetching — filter, deduplicate, rank, or enrich items before they reach the dashboard.
 
-`latest` `filter` `exclude` `sort` `dedupe` `time-decay` `keyword-score` `cluster` `llm-summarize` `llm-filter` `llm-rank` `llm-merge`
+| Transform | What it does |
+|-----------|-------------|
+| `latest` | Keep the N most recent items |
+| `filter` | Include items matching keywords |
+| `exclude` | Remove items matching keywords |
+| `sort` | Sort by field (score, date, title) |
+| `dedupe` | Deduplicate by URL, domain, or title similarity |
+| `time-decay` | Blend engagement with recency using configurable half-life |
+| `keyword-score` | Score items by weighted keyword/regex matches |
+| `cluster` | Group related stories across sources |
+| `llm-summarize` | Summarize items with an LLM (optionally fetches full page content) |
+| `llm-filter` | Keep only items matching interests, scored by LLM |
+| `llm-rank` | Rank items 0–10 by relevance to your interests |
+| `llm-merge` | Merge and deduplicate using LLM understanding |
 
-See skills/pace-dashboard-configure/SKILL.md for full options.
+```bash
+pace transforms list            # list all transform types
+pace transforms explain <type>  # show params and example
+```
 
-## Dashboard layout
+## Pipelines
 
-Arrange panels in a recursive flexbox tree defined in YAML. Each panel displays content from an adapter or pipeline.
+Pipelines merge items from multiple adapters, then apply transforms to the combined feed. Useful for cross-source deduplication and unified ranking.
 
-See skills/pace-dashboard-configure/SKILL.md for the layout reference and example YAML.
+```yaml
+pipelines:
+  - name: curated-feed
+    sources: [hackernews, lobsters, rss]
+    transforms:
+      - type: dedupe
+        strategy: url
+      - type: llm-rank
+        interests: [distributed systems, security, open source]
+      - type: llm-summarize
+        fetch_content: true
+```
+
+## Layout
+
+Arrange panels in a recursive flexbox tree. Each node is either a container (with direction + children) or a leaf panel (with a source).
+
+```yaml
+layout:
+  direction: row
+  children:
+    - panel: main-feed
+      source: curated-feed
+      flex: 2
+    - direction: column
+      flex: 1
+      children:
+        - panel: releases
+          source: gh-releases
+        - panel: papers
+          source: arxiv
+```
 
 Responsive — collapses to a single column on mobile (below 768px).
 
-## LLM-powered content filtering (optional)
+## LLM integration (optional)
 
-Connect any LLM provider via [pi-ai](https://github.com/badlogic/pi-mono) to summarize, filter, rank, or merge content based on your interests. Works with OpenAI, Anthropic, Google, Groq, Mistral, and more. Gracefully degrades when unconfigured — no LLM required to use Pace.
+Connect any LLM provider via [pi-ai](https://github.com/badlogic/pi-mono) to power the `llm-*` transforms. Works with OpenAI, Anthropic, Google, Groq, Mistral, and any OpenAI-compatible endpoint. Gracefully degrades when unconfigured.
 
-See skills/pace-dashboard-configure/SKILL.md for the llm reference and example YAML.
+```yaml
+llm:
+  provider: openai
+  model: gpt-4o-mini
+  api_key: ${OPENAI_API_KEY}
 
-## Presets
+  # or use a local model via any OpenAI-compatible server:
+  # provider: openai
+  # model: llama3
+  # base_url: http://localhost:11434/v1
+```
 
-Presets are bundled in the Docker image and selectable with a single flag (`--preset tech-news` or `-P ml-ai`; see `pace --list-presets`). Ready-to-use configurations for common use cases:
+Define your interests once; all `llm-rank` and `llm-filter` transforms use them by default:
 
-| Preset | Focus |
-|--------|-------|
-| `config.example.yaml` | General software engineering (HN, Lobsters, GitHub, blogs, DEV.to) |
-| `config.tech-news.yaml` | Tech news from multiple sources |
-| `config.ml-ai.yaml` | AI and machine learning research |
-| `config.product-launches.yaml` | Product launches and startup news |
-| `config.release-tracker.yaml` | Software release tracking |
-| `config.academic-papers.yaml` | Academic paper aggregation |
-| `config.video-podcast.yaml` | Video and podcast content |
+```yaml
+llm:
+  interests: [systems programming, self-hosting, security]
+```
+
+## For agents
+
+Pace ships with built-in agent skills for setup and configuration:
+
+```bash
+pace skill                          # list available skills
+pace skill pace-dashboard-setup     # deployment guide
+pace skill pace-dashboard-configure # full configuration reference
+```
+
+Also available from Docker:
+
+```bash
+docker run --rm ghcr.io/av/pace pace skill
+```
 
 ## Tech stack
 
