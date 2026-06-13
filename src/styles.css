@@ -20,6 +20,8 @@
   --hover-bg: #2a2a2a;
   --font-body: system-ui, -apple-system, sans-serif;
   --font-mono: ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
+  --accent: #5a8a9f;
+  --accent-dim: color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
 .footer,
@@ -147,6 +149,19 @@ a:hover {
   border: 1px solid var(--border);
   border-radius: 6px;
   overflow: hidden;
+  position: relative;
+}
+
+.panel::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2.5rem;
+  background: linear-gradient(transparent, var(--bg-surface));
+  pointer-events: none;
+  z-index: 1;
 }
 
 .panel-header {
@@ -236,8 +251,39 @@ a:hover {
   color: var(--text-secondary);
 }
 
+.item-source[class*="src-"] {
+  border-color: transparent;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.item-source.src-hn { background: #2d1800; color: #ff6600; }
+.item-source.src-reddit { background: #2d1200; color: #ff4500; }
+.item-source.src-github { background: #21262d; color: #e6edf3; }
+.item-source.src-lobsters { background: #2d1515; color: #d9433e; }
+.item-source.src-rss { background: #2d1a00; color: #f26522; }
+.item-source.src-arxiv { background: #2a1a1a; color: #b31b1b; }
+.item-source.src-youtube { background: #2d0f0f; color: #ff3333; }
+.item-source.src-npm { background: #2d1212; color: #e06c6c; }
+.item-source.src-wiki { background: #232323; color: #cfc8bc; }
+.item-source.src-lemmy { background: #102d1a; color: #4fcf7a; }
+.item-source.src-ph { background: #2d1a0f; color: #ff8a5c; }
+.item-source.src-pod { background: #241a2d; color: #b07ad9; }
+.item-source.src-se { background: #2d2300; color: #d4a017; }
+.item-source.src-mast { background: #161a2d; color: #7a8cf0; }
+.item-source.src-devto { background: #262626; color: #f0f0f0; }
+
 .item-time {
   color: var(--text-muted);
+}
+
+.item-merged {
+  font-size: 0.65rem;
+  color: var(--accent);
+  background: var(--accent-dim);
+  padding: 0.05rem 0.3rem;
+  border-radius: 3px;
+  font-family: var(--font-mono);
 }
 
 .item-summary {
@@ -245,6 +291,18 @@ a:hover {
   font-size: 0.75rem;
   color: var(--text-secondary);
   line-height: 1.45;
+}
+
+.item-summary-label {
+  display: inline;
+  font-size: 0.65rem;
+  color: var(--accent);
+  background: var(--accent-dim);
+  padding: 0.05rem 0.3rem;
+  border-radius: 3px;
+  margin-right: 0.25rem;
+  vertical-align: baseline;
+  font-family: var(--font-mono);
 }
 
 /* empty state */

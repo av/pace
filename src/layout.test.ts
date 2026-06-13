@@ -35,8 +35,32 @@ describe("renderDashboard", () => {
     expect(html).toContain('target="_blank" rel="noopener noreferrer"');
     expect(html).toContain("just now");
     expect(html).toContain('<span class="item-source">mysrc</span>');
+    expect(html).not.toContain("item-summary-label");
     expect(html).toContain('<form method="POST"');
     expectDashboardRefreshAction(html, resolvePanelId(panelCfg("My Panel", "mysrc")));
+  });
+
+  it("renders merged origins as individual source pills with count badge", () => {
+    const merged = makeItem({ id: "m1", title: "Merged", origins: JSON.stringify(["hn", "lobsters"]) });
+    const single = makeItem({ id: "s1", title: "Single", origins: JSON.stringify(["hn"]) });
+    const layout = panelCfg("P", "s");
+    const panelData = new Map<string, PanelData>([["P", { items: [merged, single] }]]);
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain('<span class="item-source src-hn">hn</span>');
+    expect(html).toContain('<span class="item-source src-lobsters">lobsters</span>');
+    expect(html).toContain('<span class="item-merged">2 sources</span>');
+    expect(html.match(/item-merged/g)?.length).toBe(1);
+  });
+
+  it("renders without item-origins and without throwing on malformed or non-array origins", () => {
+    const malformed = makeItem({ id: "b1", title: "Bad JSON", origins: "not-json{" });
+    const nonArray = makeItem({ id: "b2", title: "Non Array", origins: "{}" });
+    const layout = panelCfg("P", "s");
+    const panelData = new Map<string, PanelData>([["P", { items: [malformed, nonArray] }]]);
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).not.toContain("item-origins");
+    expect(html).toContain("Bad JSON");
+    expect(html).toContain("Non Array");
   });
 
   it("renders item without safe url as plain span (no anchor) for ftp:// and invalid", () => {
@@ -79,7 +103,9 @@ describe("renderDashboard", () => {
     const layout = panelCfg("P", "s");
     const panelData = new Map<string, PanelData>([["P", { items: [withSum, without] }]]);
     const html = renderDashboard({ layout, panelData, updatedAt: "now" });
-    expect(html).toContain('<div class="item-summary">This is the summary text.</div>');
+    expect(html).toContain("item-summary");
+    expect(html).toContain('<span class="item-summary-label">summarized</span>');
+    expect(html).toContain("This is the summary text.");
     expect(html).toContain(">S</a>");
     // second item has no summary (verified by only one .item-summary in output)
   });
