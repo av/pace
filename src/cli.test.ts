@@ -17,8 +17,10 @@ import {
   applyCliPortEnv,
   cliHelpStdout,
   formatCliHelp,
+  formatPresetsUsage,
   isCliFatalStartupError,
   normalizeCliParsedValues,
+  parseSkillFrontmatter,
   resolveCliInfoOutput,
   resolveCliServeErrors,
 } from "./cli-help";
@@ -127,14 +129,134 @@ describe("cli-help", () => {
     expect(cliHelpStdout("1.2.3")).toBe(formatCliHelp("1.2.3") + "\n");
   });
 
-  test("resolveCliServeErrors rejects unknown commands and options", () => {
+  test("formatCliHelp returns exact help text", () => {
+    expect(formatCliHelp("1.0.0")).toBe(
+      `pace v1.0.0 — personal content dashboard
+
+If you're an agent, start here:
+  pace skill                          list agent skills
+  pace skill pace-dashboard-setup     set up / run a dashboard
+  pace skill pace-dashboard-configure create or edit config.yaml
+
+Usage:
+  pace [command] [options]
+
+Commands:
+  serve                    Run the dashboard server (default)
+  skill [name]             List or print agent skills
+  presets list             List bundled preset configs
+  adapters list            List all adapter types
+  adapters explain <type>  Show adapter documentation
+  transforms list          List all transform types
+  transforms explain <type>  Show transform documentation
+  config check [path]      Validate a config file
+
+Options:
+  -c, --config <path>   Path to config file (default: ./config.yaml)
+  -p, --port <number>   Server port (default: 7453, or $PORT)
+  -C, --chdir <dir>     Change to directory (for config/data loads; after bootstrap)
+  -P, --preset <name>   Use a bundled preset (tech-news, ml-ai, etc.)
+      --list-presets    List available bundled presets
+  -h, --help            Show this help
+  -v, --version         Show version
+`,
+    );
+  });
+
+  test("parseSkillFrontmatter extracts name and description from block scalar", () => {
+    const content = `---
+name: pace-dashboard-setup
+description: >
+  Install and run the pace personal dashboard. Covers cloning, dependency install via Bun,
+  Docker and Docker Compose deployment.
+---
+
+# Body
+`;
+    const result = parseSkillFrontmatter(content);
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe("pace-dashboard-setup");
+    expect(result!.description).toContain("Install and run the pace personal dashboard");
+  });
+
+  test("parseSkillFrontmatter extracts name and description from inline scalar", () => {
+    const content = `---
+name: my-skill
+description: A short description of the skill.
+---
+`;
+    const result = parseSkillFrontmatter(content);
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe("my-skill");
+    expect(result!.description).toBe("A short description of the skill");
+  });
+
+  test("parseSkillFrontmatter handles block scalar strip variant >-", () => {
+    const content = `---
+name: my-skill
+description: >-
+  This is the description line.
+  Second line here.
+---
+`;
+    const result = parseSkillFrontmatter(content);
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe("my-skill");
+    expect(result!.description).toContain("This is the description line");
+  });
+
+  test("parseSkillFrontmatter handles block scalar strip variant |-", () => {
+    const content = `---
+name: my-skill
+description: |-
+  Literal block strip description.
+---
+`;
+    const result = parseSkillFrontmatter(content);
+    expect(result).not.toBeNull();
+    expect(result!.description).toContain("Literal block strip description");
+  });
+
+  test("parseSkillFrontmatter handles block scalar keep variant >+", () => {
+    const content = `---
+name: my-skill
+description: >+
+  Keep variant description.
+---
+`;
+    const result = parseSkillFrontmatter(content);
+    expect(result).not.toBeNull();
+    expect(result!.description).toContain("Keep variant description");
+  });
+
+  test("parseSkillFrontmatter strips surrounding double quotes from inline scalar", () => {
+    const content = `---
+name: my-skill
+description: "A quoted description."
+---
+`;
+    const result = parseSkillFrontmatter(content);
+    expect(result).not.toBeNull();
+    expect(result!.description).toBe("A quoted description");
+    expect(result!.description).not.toMatch(/^"/);
+  });
+
+  test("parseSkillFrontmatter strips surrounding single quotes from inline scalar", () => {
+    const content = `---
+name: my-skill
+description: 'Single quoted description.'
+---
+`;
+    const result = parseSkillFrontmatter(content);
+    expect(result).not.toBeNull();
+    expect(result!.description).toBe("Single quoted description");
+    expect(result!.description).not.toMatch(/^'/);
+  });
+
+  test("resolveCliServeErrors rejects unknown options", () => {
     expect(resolveCliServeErrors({}, undefined)).toBeNull();
     expect(resolveCliServeErrors({}, "serve")).toBeNull();
 
-    expect(resolveCliServeErrors({}, "foo")).toEqual({
-      stderr: "Unknown command: foo\n",
-      showHelp: true,
-    });
     expect(resolveCliServeErrors({ badflag: true, prt: true }, "serve")).toEqual({
       stderr: "Unknown option(s): --badflag, --prt\n",
       showHelp: true,
@@ -150,7 +272,7 @@ describe("cli-help", () => {
       expect(process.env.PORT).toBeUndefined();
 
       applyCliPortEnv("8080");
-      expect(process.env.PORT).toBe("8080");
+      expect(process.env.PORT as string | undefined).toBe("8080");
     } finally {
       if (orig === undefined) delete process.env.PORT;
       else process.env.PORT = orig;
@@ -203,6 +325,50 @@ describe("cli", () => {
     expect(res.stdout).toBe(cliHelpStdout());
   });
 
+  test("pace presets list output equals --list-presets output", () => {
+    const listRes = runCli(["--list-presets"]);
+    const subcmdRes = runCli(["presets", "list"]);
+    expect(listRes.status).toBe(0);
+    expect(subcmdRes.status).toBe(0);
+    expect(subcmdRes.stdout).toBe(listRes.stdout);
+    expect(subcmdRes.stderr).toBe("");
+  });
+
+  test("pace presets bogus → exit 1, stderr Unknown subcommand", () => {
+    const res = runCli(["presets", "bogus"]);
+    expect(res.status).toBe(1);
+    expect(res.stderr).toContain("Unknown subcommand: bogus");
+    expect(res.stdout).toContain(formatPresetsUsage().trim());
+  });
+
+  test("pace bogus → exit 1, stderr Unknown command", () => {
+    const res = runCli(["bogus"]);
+    expect(res.status).toBe(1);
+    expect(res.stderr).toContain("Unknown command: bogus");
+    expect(res.stdout).toBe(cliHelpStdout());
+  });
+
+  test("pace presets with no subcommand → exit 1, stderr Unknown subcommand, presets usage", () => {
+    const res = runCli(["presets"]);
+    expect(res.status).toBe(1);
+    expect(res.stderr).toContain("Unknown subcommand");
+    expect(res.stdout).toContain(formatPresetsUsage().trim());
+  });
+
+  test("pace presets list extra → exit 1, stderr Unknown subcommand, presets usage", () => {
+    const res = runCli(["presets", "list", "extra"]);
+    expect(res.status).toBe(1);
+    expect(res.stderr).toContain("Unknown subcommand");
+    expect(res.stdout).toContain(formatPresetsUsage().trim());
+  });
+
+  test("pace presets list rejects serve-only flags like --port", () => {
+    const res = runCli(["presets", "list", "--port", "7777"]);
+    expect(res.status).toBe(1);
+    expect(res.stderr).toContain("--port");
+    expect(res.stdout).toContain(formatPresetsUsage().trim());
+  });
+
   test("invalid --port rejected", () => {
     const res = runCli(["--port", "99999"]);
     expect(res.status).toBe(1);
@@ -250,6 +416,36 @@ describe("cli", () => {
     expect(res.stderr).toContain(badCfg);
   });
 
+  test("pace skill lists skills from skills/ directory", () => {
+    const res = runCli(["skill"]);
+    expect(res.status).toBe(0);
+    expect(res.stdout).toContain("pace-dashboard-setup");
+    expect(res.stdout).toContain("pace-dashboard-configure");
+    expect(res.stdout).toContain("pace skill <name>");
+  });
+
+  test("pace skill pace-dashboard-setup prints full SKILL.md with known heading", () => {
+    const res = runCli(["skill", "pace-dashboard-setup"]);
+    expect(res.status).toBe(0);
+    expect(res.stdout).toContain("# Set up and run pace");
+    expect(res.stdout).toContain("---");
+    expect(res.stdout).toContain("name: pace-dashboard-setup");
+  });
+
+  test("pace skill pace-dashboard-configure prints full SKILL.md", () => {
+    const res = runCli(["skill", "pace-dashboard-configure"]);
+    expect(res.status).toBe(0);
+    expect(res.stdout).toContain("# Configure a pace dashboard");
+  });
+
+  test("pace skill nope → exit 1 with available list", () => {
+    const res = runCli(["skill", "nope"]);
+    expect(res.status).toBe(1);
+    expect(res.stderr).toContain("Unknown skill: nope");
+    expect(res.stderr).toContain("Available:");
+    expect(res.stderr).toContain("pace-dashboard-setup");
+  });
+
   test("--chdir/-C accepted; invalid dir fails with cli: chdir message", () => {
     const bad = join(tmpDir, "nonexistent-chdir-subdir-xyz");
     const resBad = runCli(["--chdir", bad, "--version"]);
@@ -287,8 +483,8 @@ describe("cli serve", () => {
       const styles = await requestCliServeStyles(harness);
       expect(styles.status).toBe(200);
       expect(styles.hd["cache-control"] || "").toContain("max-age=3600");
-      const r502 = await requestCliServeRefresh(harness, "reddit");
-      await expectRefreshPanelFailureOrRedirect(r502, "reddit");
+      const r502 = await requestCliServeRefresh(harness, "fediverse");
+      await expectRefreshPanelFailureOrRedirect(r502, "lemmy");
       const r404 = await requestCliServeRefresh(harness, "unknownpanel-iter6");
       await expectRefreshPanelNotFound(r404, "unknownpanel-iter6");
       expectSecurityHeaders(health.hd);

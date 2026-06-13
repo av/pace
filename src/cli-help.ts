@@ -1,9 +1,18 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
+import yaml from "js-yaml";
 import { writeCliStderr, writeCliStdout } from "./cli-log";
-import { readConfigSource } from "./config";
+import { readConfigSource, resolveConfigPath, tryReadRegularFile as defaultReadFile } from "./config";
+import { DEFAULT_LAYOUT } from "./config/domain";
+import { validateParsedConfig } from "./config-validate";
+import { validateTransforms } from "./transform-validate";
 import { bootstrapServer } from "./server/bootstrap";
+import { ADAPTER_DOCS } from "./adapters/adapter-docs";
+import { ADAPTER_TYPES } from "./adapters/params";
+import { TRANSFORM_DOCS } from "./transform-docs";
+import { TRANSFORM_TYPES } from "./transform-schema";
+import { isRecord } from "./config/types";
 import { errorMessage, normalizeParamBoolean, parseCliPort } from "./utils";
 
 export const CLI_FATAL_ERROR_PREFIXES = ["config:", "scheduler:", "index:"] as const;
@@ -48,6 +57,9 @@ const knownOptionSet = new Set<string>(CLI_KNOWN_OPTIONS);
 export function isCliKnownOption(key: string): boolean {
   return knownOptionSet.has(key);
 }
+
+/** Options that are only valid for the serve command. */
+const SERVE_ONLY_OPTIONS = new Set(["config", "port", "chdir", "preset"]);
 
 export type CliParsedValues = Record<string, unknown> & {
   config?: string;
@@ -126,16 +138,11 @@ export type CliServeValidationError = {
   showHelp: boolean;
 };
 
-/** Validate default serve command and known options only. */
+/** Validate serve options. Only valid when command is "serve" or default (undefined). */
 export function resolveCliServeErrors(
   values: Record<string, unknown>,
   command: string | undefined,
 ): CliServeValidationError | null {
-  const cmd = command ?? "serve";
-  if (cmd !== "serve") {
-    return { stderr: `Unknown command: ${cmd}\n`, showHelp: true };
-  }
-
   const unexpected = Object.keys(values).filter(
     (key) => !isCliKnownOption(key) && values[key] !== undefined,
   );
@@ -230,22 +237,468 @@ export async function bootstrapServeModule(
   }
 }
 
+// ---------------------------------------------------------------------------
+// Command registry
+// ---------------------------------------------------------------------------
+
+export type CliCommandContext = {
+  version: string;
+  help: string;
+  deps: CliRunDeps;
+};
+
+export type CliCommand = {
+  name: string;
+  summary: string;
+  usage: string;
+  run(
+    positionals: string[],
+    values: CliParsedValues,
+    ctx: CliCommandContext,
+  ): Promise<void>;
+};
+
+export function formatPresetsUsage(): string {
+  return `Usage: pace presets <subcommand>
+
+Subcommands:
+  list     List bundled preset configs
+`;
+}
+
+export function formatAdaptersUsage(): string {
+  return `Usage: pace adapters <subcommand>
+
+Subcommands:
+  list          List all adapter types with a one-line summary
+  explain <type>  Show full documentation for an adapter type
+`;
+}
+
+export function formatTransformsUsage(): string {
+  return `Usage: pace transforms <subcommand>
+
+Subcommands:
+  list          List all transform types with a one-line summary
+  explain <type>  Show full documentation for a transform type
+`;
+}
+
+export function formatConfigUsage(): string {
+  return `Usage: pace config <subcommand>
+
+Subcommands:
+  check [path]  Validate a config file (defaults to serve resolution order)
+`;
+}
+
+/** Format a param table row: "  <name>  <type>  <default>  <constraints>  <description>" */
+function formatParamRow(
+  name: string,
+  p: { type: string; required?: true; default?: string; constraints?: string; description: string },
+): string {
+  const parts: string[] = [name, p.type];
+  if (p.required) {
+    parts.push("required");
+  } else if (p.default !== undefined) {
+    parts.push(p.default);
+  } else {
+    parts.push("-");
+  }
+  if (p.constraints) parts.push(p.constraints);
+  parts.push(p.description);
+  return "  " + parts.join("  ");
+}
+
+export function formatAdapterExplain(adapterType: string): string {
+  const doc = ADAPTER_DOCS[adapterType as keyof typeof ADAPTER_DOCS];
+  if (!doc) {
+    const available = ADAPTER_TYPES.join(", ");
+    cliDie(`unknown adapter type "${adapterType}"\nAvailable: ${available}`);
+  }
+  const paramLines = Object.entries(doc.params)
+    .map(([name, p]) => formatParamRow(name, p))
+    .join("\n");
+  return `adapter: ${adapterType}
+summary: ${doc.summary}
+
+example:
+${doc.example.split("\n").map((l) => "  " + l).join("\n")}
+
+params:
+${paramLines}
+
+common to all adapters: name, refresh_interval (minutes, default 15, min 1 clamped at runtime), transforms`;
+}
+
+export function formatTransformExplain(transformType: string): string {
+  const doc = TRANSFORM_DOCS[transformType as keyof typeof TRANSFORM_DOCS];
+  if (!doc) {
+    const available = TRANSFORM_TYPES.join(", ");
+    cliDie(`unknown transform type "${transformType}"\nAvailable: ${available}`);
+  }
+  const paramLines = Object.entries(doc.params)
+    .map(([name, p]) => formatParamRow(name, p))
+    .join("\n");
+  const noteSection = doc.note ? `\nnote: ${doc.note}` : "";
+  const paramsSection = paramLines
+    ? `\nparams:\n${paramLines}`
+    : "\nparams: (none)";
+  return `transform: ${transformType}
+summary: ${doc.summary}
+
+example:
+${doc.example.split("\n").map((l) => "  " + l).join("\n")}${paramsSection}${noteSection}`;
+}
+
+/** Load and validate a config file; returns summary string or throws with config: prefix. */
+export function checkConfig(
+  pathOverride: string | undefined,
+  readFile: (path: string) => string | null = defaultReadFile,
+): string {
+  const resolution = pathOverride
+    ? { path: pathOverride, explicit: true }
+    : resolveConfigPath(process.env.PACE_CONFIG);
+
+  const read = readConfigSource(resolution, readFile);
+  if (read === null) {
+    throw new Error("config: no config file found");
+  }
+
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = yaml.load(read.raw) as Record<string, unknown>;
+  } catch (err) {
+    const reason = errorMessage(err).split("\n")[0];
+    throw new Error(`config: failed to parse YAML from ${read.usedConfigPath}: ${reason}`);
+  }
+
+  if (parsed === undefined || parsed === null) {
+    return "config OK: 0 adapters, 0 pipelines, 0 panels";
+  }
+  if (!isRecord(parsed)) {
+    throw new Error("config: top-level config must be an object");
+  }
+
+  const { adapters, pipelines, layout } = validateParsedConfig(parsed, DEFAULT_LAYOUT);
+
+  // Count panels in layout
+  function countPanels(node: unknown): number {
+    if (!isRecord(node)) return 0;
+    if ("panel" in node) return 1;
+    if ("children" in node && Array.isArray(node.children)) {
+      return (node.children as unknown[]).reduce<number>(
+        (sum, child) => sum + countPanels(child),
+        0,
+      );
+    }
+    return 0;
+  }
+
+  const panelCount = countPanels(layout);
+  const pipelineCount = pipelines?.length ?? 0;
+  return `config OK: ${adapters.length} adapters, ${pipelineCount} pipelines, ${panelCount} panels`;
+}
+
+// ---------------------------------------------------------------------------
+// Skill discovery
+// ---------------------------------------------------------------------------
+
+export type SkillEntry = {
+  name: string;
+  description: string;
+};
+
+/** Parse `name:` and first line of `description:` from SKILL.md YAML frontmatter. */
+export function parseSkillFrontmatter(content: string): { name: string; description: string } | null {
+  const fmMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!fmMatch) return null;
+  const fm = fmMatch[1];
+
+  const nameMatch = fm.match(/^name:\s*(.+)$/m);
+  if (!nameMatch) return null;
+  const name = nameMatch[1].trim();
+
+  // description may be a scalar or a YAML block scalar (>)
+  const descMatch = fm.match(/^description:\s*(.*)$/m);
+  if (!descMatch) return null;
+
+  let description: string;
+  const inline = descMatch[1].trim();
+  if (inline === "" || inline.startsWith(">") || inline.startsWith("|")) {
+    // Block scalar: collect indented lines until next non-indented key
+    const afterDesc = fm.slice(fm.indexOf(descMatch[0]) + descMatch[0].length);
+    const blockLines = afterDesc.split(/\r?\n/).slice(1);
+    const indentedLines: string[] = [];
+    for (const line of blockLines) {
+      if (line.match(/^\s+/) || line === "") {
+        indentedLines.push(line.trim());
+      } else {
+        break;
+      }
+    }
+    description = indentedLines.filter((l) => l !== "").join(" ");
+  } else {
+    description = inline;
+    // Strip surrounding matching quotes
+    if (
+      (description.startsWith('"') && description.endsWith('"')) ||
+      (description.startsWith("'") && description.endsWith("'"))
+    ) {
+      description = description.slice(1, -1);
+    }
+  }
+
+  // Take only first sentence/line
+  description = description.split(/\.\s/)[0].replace(/\.$/, "");
+
+  return { name, description };
+}
+
+/** List all skills with SKILL.md under the skills/ directory relative to cwd. */
+export function listSkills(): SkillEntry[] {
+  const skillsDir = join(process.cwd(), "skills");
+  if (!existsSync(skillsDir)) return [];
+
+  const entries: SkillEntry[] = [];
+  for (const dir of readdirSync(skillsDir, { withFileTypes: true })) {
+    if (!dir.isDirectory()) continue;
+    const skillPath = join(skillsDir, dir.name, "SKILL.md");
+    if (!existsSync(skillPath)) continue;
+    const content = readFileSync(skillPath, "utf-8");
+    const fm = parseSkillFrontmatter(content);
+    if (!fm) continue;
+    entries.push({ name: fm.name, description: fm.description });
+  }
+  return entries;
+}
+
+/** Read full SKILL.md content for a named skill, or null if not found. */
+export function readSkillContent(name: string): string | null {
+  const skillPath = join(process.cwd(), "skills", name, "SKILL.md");
+  if (!existsSync(skillPath)) return null;
+  return readFileSync(skillPath, "utf-8");
+}
+
+export function formatSkillList(skills: SkillEntry[]): string {
+  if (skills.length === 0) return "No skills found.\n";
+  const maxLen = Math.max(...skills.map((s) => s.name.length));
+  const rows = skills.map((s) => `${s.name.padEnd(maxLen)}  ${s.description}`).join("\n");
+  return `${rows}\n\nRun \`pace skill <name>\` to print the full skill.`;
+}
+
+/** Reject serve-only flags when used with info/subcommands. */
+function rejectServeOnlyFlags(
+  values: CliParsedValues,
+  usageBlock: string,
+  exclude?: ReadonlySet<string>,
+): void {
+  const rejected = Object.keys(values).filter(
+    (key) => SERVE_ONLY_OPTIONS.has(key) && values[key] !== undefined && !exclude?.has(key),
+  );
+  if (rejected.length > 0) {
+    cliFailWithHelp(
+      `Unknown option(s) for this command: ${rejected.map((k) => "--" + k).join(", ")}\n`,
+      usageBlock,
+    );
+  }
+}
+
+const CLI_COMMANDS: CliCommand[] = [
+  {
+    name: "serve",
+    summary: "Run the dashboard server (default)",
+    usage: "",
+    async run(_positionals, values, ctx) {
+      await bootstrapServeModule(values, ctx.deps);
+    },
+  },
+  {
+    name: "presets",
+    summary: "Manage bundled preset configs",
+    usage: formatPresetsUsage(),
+    async run(positionals, values, ctx) {
+      const sub = positionals[0];
+      const usage = formatPresetsUsage();
+      rejectServeOnlyFlags(values, usage);
+      if (sub === "list") {
+        if (positionals.length > 1) {
+          cliFailWithHelp(`Unknown subcommand: ${positionals[1]}\n`, usage);
+        }
+        cliExitOk(ctx.deps.listPresets().join("\n"));
+      } else {
+        cliFailWithHelp(
+          sub === undefined ? "Unknown subcommand: (none)\n" : `Unknown subcommand: ${sub}\n`,
+          usage,
+        );
+      }
+    },
+  },
+  {
+    name: "adapters",
+    summary: "List or explain adapter types",
+    usage: formatAdaptersUsage(),
+    async run(positionals, values) {
+      const sub = positionals[0];
+      const usage = formatAdaptersUsage();
+      rejectServeOnlyFlags(values, usage);
+      if (sub === "list") {
+        cliExitOk(
+          ADAPTER_TYPES.map((t) => `${t} — ${ADAPTER_DOCS[t].summary}`).join("\n"),
+        );
+      } else if (sub === "explain") {
+        const type = positionals[1];
+        if (!type) {
+          cliFailWithHelp("Missing adapter type argument\n", usage);
+        }
+        cliExitOk(formatAdapterExplain(type));
+      } else {
+        cliFailWithHelp(
+          sub === undefined ? "Unknown subcommand: (none)\n" : `Unknown subcommand: ${sub}\n`,
+          usage,
+        );
+      }
+    },
+  },
+  {
+    name: "transforms",
+    summary: "List or explain transform types",
+    usage: formatTransformsUsage(),
+    async run(positionals, values) {
+      const sub = positionals[0];
+      const usage = formatTransformsUsage();
+      rejectServeOnlyFlags(values, usage);
+      if (sub === "list") {
+        cliExitOk(
+          TRANSFORM_TYPES.map((t) => `${t} — ${TRANSFORM_DOCS[t].summary}`).join("\n"),
+        );
+      } else if (sub === "explain") {
+        const type = positionals[1];
+        if (!type) {
+          cliFailWithHelp("Missing transform type argument\n", usage);
+        }
+        cliExitOk(formatTransformExplain(type));
+      } else {
+        cliFailWithHelp(
+          sub === undefined ? "Unknown subcommand: (none)\n" : `Unknown subcommand: ${sub}\n`,
+          usage,
+        );
+      }
+    },
+  },
+  {
+    name: "skill",
+    summary: "List or print agent skills",
+    usage: `Usage: pace skill [name]
+
+  pace skill           List all bundled agent skills
+  pace skill <name>    Print the full skill document
+`,
+    async run(positionals, values) {
+      rejectServeOnlyFlags(values, "Usage: pace skill [name]\n");
+      const name = positionals[0];
+      if (name === undefined) {
+        const skills = listSkills();
+        cliExitOk(formatSkillList(skills));
+      } else {
+        const content = readSkillContent(name);
+        if (content === null) {
+          const skills = listSkills();
+          const available = skills.map((s) => s.name).join(", ");
+          writeCliStderr(`Unknown skill: ${name}\nAvailable: ${available}`);
+          process.exit(1);
+        }
+        cliExitOk(content);
+      }
+    },
+  },
+  {
+    name: "config",
+    summary: "Validate config file",
+    usage: formatConfigUsage(),
+    async run(positionals, values) {
+      const usage = formatConfigUsage();
+      // --config is valid for `config check`; exclude it from the serve-only rejection
+      const CONFIG_COMMAND_ALLOWED = new Set(["config"]);
+      rejectServeOnlyFlags(values, usage, CONFIG_COMMAND_ALLOWED);
+      const sub = positionals[0];
+      if (sub === "check") {
+        // Resolution order: positional path > --config > PACE_CONFIG > default
+        const pathOverride = positionals[1] ?? values.config;
+        try {
+          const summary = checkConfig(pathOverride);
+          cliExitOk(summary);
+        } catch (err) {
+          cliDie(errorMessage(err));
+        }
+      } else {
+        cliFailWithHelp(
+          sub === undefined ? "Unknown subcommand: (none)\n" : `Unknown subcommand: ${sub}\n`,
+          usage,
+        );
+      }
+    },
+  },
+];
+
+const CLI_COMMAND_MAP = new Map<string, CliCommand>(CLI_COMMANDS.map((c) => [c.name, c]));
+
+export function getCliCommand(name: string): CliCommand | undefined {
+  return CLI_COMMAND_MAP.get(name);
+}
+
+export function getCliCommands(): CliCommand[] {
+  return CLI_COMMANDS;
+}
+
+// ---------------------------------------------------------------------------
+// Main entry point
+// ---------------------------------------------------------------------------
+
 export async function runCli(argv: string[], deps: CliRunDeps): Promise<void> {
   const version = readPackageVersion();
   const help = formatCliHelp(version);
 
-  const { values, positionals } = parseArgs({
+  const { values: rawValues, positionals } = parseArgs({
     args: argv,
     options: CLI_PARSE_OPTIONS,
     allowPositionals: true,
     strict: false,
   });
+  const values = rawValues as CliParsedValues;
 
   normalizeCliParsedValues(values);
   applyCliChdir(values.chdir);
   runCliInfoExits(values, { version, help, listPresets: deps.listPresets });
-  assertCliServeInvocation(values, positionals[0], help);
-  await bootstrapServeModule(values, deps);
+
+  // --list-presets is an alias for `presets list`
+  // (already handled above via runCliInfoExits)
+
+  const commandName = positionals[0];
+
+  if (commandName === undefined) {
+    // No positional → default serve
+    assertCliServeInvocation(values, undefined, help);
+    await bootstrapServeModule(values, deps);
+    return;
+  }
+
+  const command = getCliCommand(commandName);
+  if (!command) {
+    cliFailWithHelp(`Unknown command: ${commandName}\n`, help);
+  }
+
+  const ctx: CliCommandContext = { version, help, deps };
+
+  if (command.name === "serve") {
+    // serve keeps current isCliKnownOption validation
+    assertCliServeInvocation(values, "serve", help);
+    await command.run(positionals.slice(1), values, ctx);
+    return;
+  }
+
+  // All other commands: pass remaining positionals
+  await command.run(positionals.slice(1), values, ctx);
 }
 
 /** Bytes written to stdout by `cliExitOk(formatCliHelp(version))`. */
@@ -256,11 +709,23 @@ export function cliHelpStdout(version?: string): string {
 export function formatCliHelp(version: string): string {
   return `pace v${version} — personal content dashboard
 
+If you're an agent, start here:
+  pace skill                          list agent skills
+  pace skill pace-dashboard-setup     set up / run a dashboard
+  pace skill pace-dashboard-configure create or edit config.yaml
+
 Usage:
   pace [command] [options]
 
 Commands:
-  serve     Start the dashboard server (default)
+  serve                    Run the dashboard server (default)
+  skill [name]             List or print agent skills
+  presets list             List bundled preset configs
+  adapters list            List all adapter types
+  adapters explain <type>  Show adapter documentation
+  transforms list          List all transform types
+  transforms explain <type>  Show transform documentation
+  config check [path]      Validate a config file
 
 Options:
   -c, --config <path>   Path to config file (default: ./config.yaml)
