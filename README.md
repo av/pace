@@ -2,7 +2,7 @@
 
 **Self-hosted news aggregator and personal content dashboard.**
 
-![Pace — self-hosted news aggregator dashboard showing Hacker News, Reddit, GitHub, RSS feeds, and more in a configurable layout](./assets/splash.png)
+![Pace — self-hosted news aggregator dashboard showing Hacker News, Reddit, GitHub, RSS feeds, and more in a configurable layout](./assets/splash.jpg)
 
 Aggregate Hacker News, Reddit, RSS, GitHub, Mastodon, YouTube, arXiv, and 10 more sources into a single dashboard you own. Filter, deduplicate, score, and optionally use an LLM to summarize and rank what matters to you. Everything runs in a single Docker container with zero client-side JavaScript.
 
