@@ -35,9 +35,28 @@ bun run dev
 
 The server starts at http://localhost:7453 by default.
 
-### CLI flags and environment variable overrides
+### CLI flags and commands
 
-See `pace --help` (the canonical source of truth, defined in the HELP string and parseArgs in src/cli.ts) for the full current list of options/flags (includes -c/--config, -p/--port, -P/--preset, --list-presets, -C/--chdir, -h/--help, -v/--version; `serve` is the default command).
+For the authoritative, version-accurate help text run:
+
+```bash
+pace --help
+```
+
+**Commands overview:**
+
+| Command | Purpose |
+|---|---|
+| `serve` | Run the dashboard server (default when no command given) |
+| `presets list` | List bundled preset configs |
+| `adapters list` | List all adapter types |
+| `adapters explain <type>` | Show full documentation for an adapter |
+| `transforms list` | List all transform types |
+| `transforms explain <type>` | Show full documentation for a transform |
+| `config check [path]` | Validate a config file without starting the server |
+| `skill [name]` | List or print bundled agent skills |
+
+Key options: `-c/--config <path>` (default `./config.yaml`), `-p/--port <number>` (default 7453), `-P/--preset <name>` (use a bundled preset), `-C/--chdir <dir>` (change working directory for config and data loads).
 
 Environment variables `PACE_CONFIG` (config file path) and `PORT` (server port) provide overrides; CLI flags take precedence over environment variables.
 
@@ -83,6 +102,40 @@ The `docker run -d` invocation (including `-p` and volume mounts) is identical t
 
 The `/app/data` volume persists the SQLite database across container restarts.
 
+The Docker image also contains the bundled agent skills. To inspect them without running the server:
+
+```bash
+docker run --rm ghcr.io/av/pace pace skill
+```
+
+## Themed example configs
+
+List the available presets directly:
+
+```bash
+pace presets list
+# example
+# tech-news
+# ml-ai
+# product-launches
+# release-tracker
+# academic-papers
+# video-podcast
+```
+
+Launch with a preset:
+
+```bash
+# Bun:
+pace --preset tech-news
+
+# Docker:
+docker run -d -p 7453:7453 -v pace-data:/app/data ghcr.io/av/pace:latest --preset tech-news
+```
+
+Copy a preset to `config.yaml` and customise it, then restart with your edited file (see
+skills/pace-dashboard-configure/SKILL.md for detailed editing guidance).
+
 ## Verifying it works
 
 1. Open http://localhost:7453 — the dashboard should render with panel headers.
@@ -93,18 +146,13 @@ The `/app/data` volume persists the SQLite database across container restarts.
 curl -X POST http://localhost:7453/refresh/hackernews
 ```
 
-## Themed example configs
-
-See the "Presets" section in README.md for the list of pre-built `config.*.yaml` files and their focuses (themed starter configs for common use cases).
-
-Copy any of these as your starting `config.yaml` (see the `cp` + `bun run dev` steps in the Bun (development) section above).
-
 ## Common issues
 
 | Symptom | Cause | Fix |
 |---|---|---|
 | `config: file not found` | No config.yaml and no PACE_CONFIG set | `cp config.example.yaml config.yaml` |
-| `config: ...` prefixed error | Invalid YAML or schema error in config | Check the error message — it points to the specific field |
-| `scheduler: adapter type "X" is configured but no matching adapter module was discovered` | Typo in adapter type name | Check available types in `src/adapters/` |
+| `config: ...` prefixed error | Invalid YAML or schema error in config | Run `pace config check config.yaml` for fast diagnosis without starting the server |
+| `scheduler: adapter type "X" is configured but no matching adapter module was discovered` | Typo in adapter type name | Run `pace adapters list` to see all valid types |
 | Panels show but no content | Adapters haven't refreshed yet | Wait for refresh_interval or POST to `/refresh/<panel-id>` |
 | Port already in use | Another process on port 7453 | Use `--port 7454` or `PORT=7454` |
+| LLM transforms do nothing / items unchanged | `llm` block missing or misconfigured | LLM transforms silently pass items through without a valid `llm` config — add or fix the `llm` block and restart |

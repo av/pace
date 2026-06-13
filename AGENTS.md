@@ -18,3 +18,13 @@ See the facts skill's "## Agent workflows" section (run `facts skills show facts
 - `facts-discover` — scan the codebase and sync facts to reality (only when explicitly asked)
 - `facts-implement` — implement `@spec` facts in code, verify, tag `@implemented`
 <!-- facts:end -->
+
+## After making changes
+
+Run this to update the globally installed `pace` CLI:
+
+```
+bun install && npm link
+```
+
+The global `pace` binary is a symlink to `./src/cli.ts` (bun runs TS directly), so source changes are live immediately. This command only matters when dependencies or `package.json` bin entries change.

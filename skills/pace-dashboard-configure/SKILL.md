@@ -12,8 +12,19 @@ description: >
 
 Generate a `config.yaml` for pace from a user's description of what they want to track.
 
+> **Source of truth:** The snippets in this skill are illustrative and may lag behind the
+> running version. Always confirm current shapes with:
+> ```
+> pace adapters list
+> pace adapters explain <type>
+> pace transforms list
+> pace transforms explain <type>
+> pace presets list
+> ```
+
 ## Process
 
+0. Check whether a bundled preset already covers the user's request — see "Start from a preset" below.
 1. Ask the user what topics, communities, or content types they care about.
 2. Map those interests to adapters (see reference below).
 3. Choose sensible params and transforms for each adapter.
@@ -21,6 +32,93 @@ Generate a `config.yaml` for pace from a user's description of what they want to
 5. Design a layout that gives more space to primary interests.
 6. If the user wants summaries, filtering by relevance, or interest-based ranking, add LLM config.
 7. Write the final `config.yaml`.
+8. Run `pace config check config.yaml` to validate before handing off to the user.
+
+## Start from a preset
+
+Before building from scratch, check whether a bundled preset already matches the user's theme:
+
+```bash
+pace presets list
+# example      — General software engineering (HN, Lobsters, GitHub, blogs, DEV.to)
+# tech-news    — Tech news from multiple sources
+# ml-ai        — AI and machine learning research
+# product-launches — Product launches and startup news
+# release-tracker  — Software release tracking
+# academic-papers  — Academic paper aggregation
+# video-podcast    — Video and podcast content
+```
+
+To use a preset as the starting point:
+
+```bash
+# Bun:
+pace --preset tech-news
+
+# Docker:
+docker run -d -p 7453:7453 -v pace-data:/app/data ghcr.io/av/pace:latest --preset tech-news
+```
+
+**Guidance:** prefer preset + targeted edits when the user's ask matches a theme. Only build
+from scratch when no preset is close. When using a preset, copy it to `config.yaml`, make the
+minimal changes the user requested, and validate with `pace config check`.
+
+## Modifying an existing config
+
+When the user already has a `config.yaml`:
+
+**Example — "drop YouTube, show only LLM news from HN":**
+
+```yaml
+# BEFORE
+adapters:
+  - type: hackernews
+    params:
+      feed: top
+      limit: 50
+  - type: youtube
+    params:
+      channels: [UCXuqSBlHAE6Xw-yeJA0Tunw]
+      limit: 15
+
+# AFTER — youtube adapter removed; hackernews gains an llm-filter transform
+adapters:
+  - type: hackernews
+    params:
+      feed: top
+      limit: 50
+    transforms:
+      - type: llm-filter
+        criteria: "relevant to LLM or AI research"
+```
+
+1. Read the current file before making any edits.
+2. Make the minimal changes required — remove/replace adapters the user no longer wants, add
+   new ones, adjust params and transforms.
+3. Validate the edited config:
+   ```bash
+   pace config check config.yaml
+   ```
+   This catches schema errors and unknown adapter types without starting the server — fast
+   iteration loop.
+4. **Restart required:** pace reads `config.yaml` once at startup; it does not watch the file
+   for changes. After writing the new config, the server must be restarted to pick it up:
+   ```bash
+   # Bun dev:
+   # Ctrl-C, then: bun run dev
+
+   # Docker Compose:
+   docker compose restart
+
+   # Docker direct:
+   docker stop <container> && docker run ...
+   ```
+5. **Immediate panel refresh** (after restart): trigger a panel to fetch content right away
+   without waiting for `refresh_interval`:
+   ```bash
+   curl -X POST http://localhost:7453/refresh/<panel-id>
+   # e.g.: curl -X POST http://localhost:7453/refresh/hackernews
+   ```
 
 ## Adapter reference
 
@@ -31,9 +129,12 @@ Every adapter has an optional `refresh_interval` (minutes, default 15, minimum 1
 Hacker News stories.
 
 ```yaml
+# Authoritative shape: pace adapters explain hackernews
 - type: hackernews
   params:
-    feed: top          # top, new, best, ask, show, job
+    type: top          # highest-priority alias (type > feed > stories); top, new, best, ask, show, job
+    feed: top          # mid-priority alias; same values. Aliases: newest→new, front→top, askhn→ask, showhn→show, jobs→job
+    stories: top       # lowest-priority alias for feed
     limit: 30          # max 200
     min_score: 0       # drop items below this point threshold
 ```
@@ -43,10 +144,12 @@ Hacker News stories.
 Any RSS or Atom feed.
 
 ```yaml
+# Authoritative shape: pace adapters explain rss
 - type: rss
   params:
     urls:
       - https://example.com/feed.xml
+    limit: 50          # max 200; omit for unlimited (per feed)
 ```
 
 ### reddit
@@ -54,6 +157,7 @@ Any RSS or Atom feed.
 Reddit subreddits.
 
 ```yaml
+# Authoritative shape: pace adapters explain reddit
 - type: reddit
   params:
     subreddits: [programming, selfhosted]
@@ -68,6 +172,7 @@ Reddit subreddits.
 GitHub trending repos or releases from specific repos. Use `mode` to pick.
 
 ```yaml
+# Authoritative shape: pace adapters explain github
 # Trending repos
 - type: github
   params:
@@ -91,6 +196,7 @@ GitHub trending repos or releases from specific repos. Use `mode` to pick.
 Dedicated release tracker (alternative to github mode: releases).
 
 ```yaml
+# Authoritative shape: pace adapters explain github-releases
 - type: github-releases
   params:
     repos: [denoland/deno, oven-sh/bun]
@@ -103,6 +209,7 @@ Dedicated release tracker (alternative to github mode: releases).
 Lobste.rs stories.
 
 ```yaml
+# Authoritative shape: pace adapters explain lobsters
 - type: lobsters
   params:
     feed: hottest      # hottest, newest
@@ -116,12 +223,14 @@ Lobste.rs stories.
 Mastodon posts by hashtag or account.
 
 ```yaml
+# Authoritative shape: pace adapters explain mastodon
 - type: mastodon
   params:
     instance: fosstodon.org    # default: mastodon.social
     hashtags: [rust, opensource]
-    accounts: []               # optional account handles
+    accounts: []               # optional account handles (@user@instance or user@instance)
     limit: 20                  # max 40
+    min_favourites: 0          # minimum favourites count threshold
     only_media: false
 ```
 
@@ -130,6 +239,7 @@ Mastodon posts by hashtag or account.
 YouTube channel or playlist feeds.
 
 ```yaml
+# Authoritative shape: pace adapters explain youtube
 - type: youtube
   params:
     channels:
@@ -143,6 +253,7 @@ YouTube channel or playlist feeds.
 Academic papers from arXiv.
 
 ```yaml
+# Authoritative shape: pace adapters explain arxiv
 - type: arxiv
   params:
     categories: [cs.AI, cs.LG]   # arXiv category codes
@@ -155,6 +266,7 @@ Academic papers from arXiv.
 Questions from Stack Exchange sites.
 
 ```yaml
+# Authoritative shape: pace adapters explain stackexchange
 - type: stackexchange
   params:
     site: stackoverflow        # any SE site slug
@@ -169,13 +281,15 @@ Questions from Stack Exchange sites.
 DEV.to articles.
 
 ```yaml
+# Authoritative shape: pace adapters explain devto
 - type: devto
   params:
     tags: [typescript, webdev]
     username: ""         # optional, filter by author
     limit: 15            # max 30
+    per_page: 20         # items per page; takes precedence over limit when both are set (max 30)
     min_reactions: 0
-    top: 7               # period in days (1, 7, 30, 365, infinity)
+    top: 7               # period in days (1, 7, 30, 365; aliases: day→1, week→7, month→30, year/infinity/all→365)
 ```
 
 ### producthunt
@@ -183,6 +297,7 @@ DEV.to articles.
 Product Hunt launches.
 
 ```yaml
+# Authoritative shape: pace adapters explain producthunt
 - type: producthunt
   params:
     limit: 20            # max 50
@@ -195,6 +310,7 @@ Product Hunt launches.
 Podcast episodes from RSS feeds.
 
 ```yaml
+# Authoritative shape: pace adapters explain podcast
 - type: podcast
   params:
     feeds:
@@ -207,10 +323,59 @@ Podcast episodes from RSS feeds.
 Twitter/X lists and searches (requires authentication).
 
 ```yaml
+# Authoritative shape: pace adapters explain twitter
 - type: twitter
   params:
     lists: []            # list IDs
     searches: []         # search queries
+    bearer_token: ${TWITTER_BEARER_TOKEN}  # required; returns empty without it
+```
+
+### npm
+
+npm registry package search.
+
+```yaml
+# Authoritative shape: pace adapters explain npm
+- type: npm
+  params:
+    keywords: [typescript, cli]   # at least one of keywords or scope is required
+    scope: "my-org"               # optional npm scope (without @)
+    limit: 20                     # max 50
+    sort: optimal                 # optimal, quality, popularity, maintenance
+                                  # (aliases: popular→popularity, maint→maintenance, default→optimal)
+```
+
+### lemmy
+
+Lemmy federated community posts.
+
+```yaml
+# Authoritative shape: pace adapters explain lemmy
+- type: lemmy
+  params:
+    instance: lemmy.ml               # Lemmy instance domain
+    communities: [technology, linux] # list of community names
+    sort: hot                        # hot, new, top, active, mostcomments
+                                     # (aliases: most_comments/comments→MostComments)
+    limit: 25                        # max 50
+    min_score: 0
+```
+
+### wikipedia
+
+Wikipedia featured content.
+
+```yaml
+# Authoritative shape: pace adapters explain wikipedia
+- type: wikipedia
+  params:
+    modes:                 # preferred array form
+      - most_read          # most_read, featured, on_this_day, news
+      - on_this_day        # aliases: mostread/popular→most_read, tfa→featured,
+                           #          onthisday/otd→on_this_day, current_events/currentevents→news
+    language: en           # ISO 639-1 language code
+    limit: 20              # max 50
 ```
 
 ## Transform reference
@@ -218,37 +383,46 @@ Twitter/X lists and searches (requires authentication).
 Transforms run at ingest time on adapter or pipeline results. They apply sequentially in the order listed.
 
 ```yaml
+# Authoritative shape: pace transforms explain latest
 transforms:
   - type: latest
     count: 50
 
+# Authoritative shape: pace transforms explain filter
   # Keep items matching any keyword
   - type: filter
     keywords: [ai, rust]
-    fields: [title, body]   # default: [title, body]
+    fields: [title, body]   # default: all fields (title, body, source)
 
+# Authoritative shape: pace transforms explain exclude
   # Remove items matching any keyword
   - type: exclude
     keywords: [sponsored, hiring]
-    fields: [title, body]
+    fields: [title, body]   # default: all fields (title, body, source)
 
+# Authoritative shape: pace transforms explain sort
   # Sort items
   - type: sort
     field: timestamp        # timestamp, title, source
     direction: desc         # asc, desc
 
+# Authoritative shape: pace transforms explain dedupe
   - type: dedupe
     strategy: url           # url, domain-normalized, title-similarity
     threshold: 0.85         # for title-similarity (0-1)
     keep: highest-score     # highest-score, earliest, latest
 
+# Authoritative shape: pace transforms explain time-decay
   # Rank by engagement + recency
   - type: time-decay
     half_life: "12h"
     engagement_weight: 0.7
     recency_weight: 0.3
     decay: exponential      # exponential, linear
+    min_score: 0.1
+    annotate: false
 
+# Authoritative shape: pace transforms explain keyword-score
   # Score by keyword relevance
   - type: keyword-score
     keywords:
@@ -258,20 +432,32 @@ transforms:
         weight: 15
         regex: true
     min_score: 0
+    annotate: false
 
+# Authoritative shape: pace transforms explain cluster
   - type: cluster
     strategy: auto          # domain, keywords, source, auto
+    min_cluster_size: 2
+    max_clusters: 10
+    similarity_threshold: 0.6
+    annotate: false
 
   # --- LLM transforms (require llm config) ---
   # All LLM transforms gracefully degrade (items pass through unchanged) when no LLM is configured.
 
+# Authoritative shape: pace transforms explain llm-summarize
   - type: llm-summarize
 
+# Authoritative shape: pace transforms explain llm-filter
   - type: llm-filter
     criteria: "relevant to AI research"
 
+# Authoritative shape: pace transforms explain llm-rank
   - type: llm-rank
+    interests:             # optional; falls back to llm.interests in top-level config
+      - open source software
 
+# Authoritative shape: pace transforms explain llm-merge
   # Group and merge related items via LLM
   - type: llm-merge
     prompt: "Group items about the same topic"
@@ -329,15 +515,45 @@ Below 768px the layout collapses to a single column automatically.
 
 ## LLM config (optional)
 
+LLM transforms (`llm-summarize`, `llm-filter`, `llm-rank`, `llm-merge`) pass items through **unchanged** when the `llm` block is absent or misconfigured — they never error out.
+
 ```yaml
+# Two concrete provider examples:
+
+# Anthropic (Claude)
 llm:
-  provider: <provider>     # any provider supported by pi-ai (see pi-ai docs for full list)
-  model: <model-name>
+  provider: anthropic
+  model: claude-sonnet-4-6
   api_key: ${LLM_API_KEY}
   interests:               # used by llm-rank
     - artificial intelligence
     - typescript
+
+# OpenAI
+llm:
+  provider: openai
+  model: gpt-4o
+  api_key: ${LLM_API_KEY}
+  interests:
+    - artificial intelligence
+    - typescript
 ```
+
+**Wiring the API key:**
+
+```bash
+# Bun dev:
+LLM_API_KEY=sk-... bun run dev
+
+# Docker:
+docker run -d -p 7453:7453 \
+  -e LLM_API_KEY=sk-... \
+  -v ./config.yaml:/app/config.yaml:ro \
+  -v pace-data:/app/data \
+  ghcr.io/av/pace:latest
+```
+
+The `provider` value is passed to [pi-ai](https://github.com/badlogic/pi-mono); supported providers include anthropic, openai, google, groq, mistral, and others — see pi-ai docs for the full list.
 
 ## Worked example
 
