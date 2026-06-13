@@ -1,6 +1,7 @@
-# Academic paper tracker across any field.
+# Academic paper tracker across any field, plus accessible science writing.
 # Replace categories and query with your research interests.
 # See https://arxiv.org/category_taxonomy for all ArXiv categories.
+# Note: no reddit adapter here — Reddit blocks unauthenticated API access upstream.
 
 adapters:
   - name: arxiv-categories
@@ -13,6 +14,13 @@ adapters:
       - type: dedupe
         strategy: title-similarity
         threshold: 0.8
+      # Group related papers by shared keywords.
+      - type: cluster
+        strategy: keywords
+        min_cluster_size: 2
+        max_clusters: 6
+        similarity_threshold: 0.3
+        annotate: true
       - type: sort
         field: timestamp
         direction: desc
@@ -32,13 +40,48 @@ adapters:
       - type: latest
         count: 15
 
-  - type: stackexchange
+  - name: stackexchange
+    type: stackexchange
     params:
       site: cstheory
       sort: votes
-      min_score: 3
+      min_score: 2
       limit: 10
     refresh_interval: 120
+    transforms:
+      # Score by research-relevance — weighted keyword matching.
+      - type: keyword-score
+        keywords:
+          - term: "complexity|decidability|computability|NP|PSPACE"
+            weight: 8
+            regex: true
+          - term: "formal.verification|model.checking|proof.assistant"
+            weight: 7
+            regex: true
+          - term: "type.theory|dependent.types|linear.types|lambda"
+            weight: 7
+            regex: true
+          - term: "program.synthesis|program.analysis|abstract.interpretation"
+            weight: 6
+            regex: true
+          - term: "algorithm|approximation|optimization|graph.theory"
+            weight: 5
+            regex: true
+        annotate: true
+      - type: sort
+        field: timestamp
+        direction: desc
+      - type: latest
+        count: 10
+
+  # Long-form science journalism — the readable counterpart to the preprint firehose.
+  - name: science-writing
+    type: rss
+    params:
+      urls:
+        - https://www.quantamagazine.org/feed/
+        - https://nautil.us/feed
+    refresh_interval: 180
     transforms:
       - type: latest
         count: 10
@@ -49,26 +92,75 @@ adapters:
       limit: 50
     refresh_interval: 15
 
-  - type: reddit
+  - type: lobsters
     params:
-      subreddits:
-        - compsci
-        - AskAcademia
-      sort: hot
-      limit: 15
+      feed: hottest
+      limit: 25
     refresh_interval: 30
 
 pipelines:
   - name: discussion
-    sources: [hackernews, reddit]
+    sources: [hackernews, lobsters]
     transforms:
-      - type: filter
-        keywords: [paper, research, study, proof, theorem, published, arxiv, preprint, peer review, survey, journal]
-        fields: [title]
       - type: dedupe
         strategy: domain-normalized
+      - type: filter
+        keywords: [paper, research, study, proof, theorem, published, arxiv, preprint, peer review, survey, journal, pdf]
+        fields: [title]
+      # Score by topic relevance — weighted keyword matching.
+      - type: keyword-score
+        keywords:
+          - term: "formal.verification|proof.assistant|theorem.prover"
+            weight: 8
+            regex: true
+          - term: "type.system|dependent.type|linear.type|effect.system"
+            weight: 7
+            regex: true
+          - term: "program.synthesis|synthesis|SMT|SAT|solver"
+            weight: 7
+            regex: true
+          - term: "PL|programming.language|compiler|static.analysis"
+            weight: 6
+            regex: true
+          - term: "complexity|NP|decidab|undecidab|computab"
+            weight: 5
+            regex: true
+          - term: "machine.learning|neural|deep.learning|LLM|transformer"
+            weight: 4
+            regex: true
+        min_score: 2
+        annotate: false
+      # Blend engagement with recency — surface what's trending now.
+      - type: time-decay
+        half_life: "8h"
+        engagement_weight: 0.6
+        recency_weight: 0.4
+        decay: exponential
+      - type: sort
+        field: timestamp
+        direction: desc
       - type: latest
         count: 15
+
+  - name: arxiv-combined
+    sources: [arxiv-categories, arxiv-search]
+    transforms:
+      # Collapse cross-source duplicates by title similarity.
+      - type: dedupe
+        strategy: title-similarity
+        threshold: 0.8
+      # Cluster related papers by shared keywords.
+      - type: cluster
+        strategy: keywords
+        min_cluster_size: 2
+        max_clusters: 8
+        similarity_threshold: 0.25
+        annotate: true
+      - type: sort
+        field: timestamp
+        direction: desc
+      - type: latest
+        count: 35
 
 layout:
   direction: row
@@ -93,6 +185,11 @@ layout:
           flex: 1
           source: discussion
           limit: 15
+
+        - panel: science-writing
+          flex: 1
+          source: science-writing
+          limit: 10
 
         - panel: questions
           flex: 1

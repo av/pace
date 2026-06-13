@@ -1,42 +1,92 @@
+# AI and machine learning: fresh papers, local-LLM community, releases, and curated blogs.
+# Note: r/MachineLearning and r/LocalLLaMA are gone from this preset — Reddit blocks
+# unauthenticated API access. Lemmy's localllama community covers the same ground.
+
 adapters:
   - type: hackernews
     params:
-      stories: top
+      feed: top
       limit: 50
     refresh_interval: 10
     transforms:
       - type: filter
-        keywords: [ai, llm, gpt, claude, gemini, model, openai, anthropic, neural, transformer, diffusion, machine learning, deep learning]
+        keywords: [ai, llm, gpt, claude, gemini, model, openai, anthropic, neural, transformer, diffusion, machine learning, deep learning, agent, rag, fine-tun, inference]
         fields: [title]
       - type: exclude
         keywords: [hiring]
         fields: [title]
+      # Blend engagement with recency — surface what's trending now.
+      - type: time-decay
+        half_life: 8h
+        engagement_weight: 0.6
+        recency_weight: 0.4
+        decay: exponential
       - type: latest
         count: 50
 
-  - type: rss
+  - name: papers
+    type: arxiv
     params:
-      urls:
-        - https://arxiv.org/rss/cs.AI
-        - https://arxiv.org/rss/cs.LG
-        - https://arxiv.org/rss/cs.CL
-        - https://lilianweng.github.io/index.xml
-        - https://simonwillison.net/atom/everything/
-        - https://www.interconnects.ai/feed
-    refresh_interval: 30
+      categories: [cs.AI, cs.LG, cs.CL]
+      limit: 30
+    refresh_interval: 180
     transforms:
+      - type: dedupe
+        strategy: title-similarity
+        threshold: 0.8
+      # Score by topic relevance — weighted keyword matching.
+      - type: keyword-score
+        keywords:
+          - term: "language.model|LLM|transformer|GPT|attention"
+            weight: 8
+            regex: true
+          - term: "RLHF|DPO|alignment|safety|reward.model"
+            weight: 7
+            regex: true
+          - term: "fine.tun|LoRA|adapter|instruction.tun"
+            weight: 7
+            regex: true
+          - term: "retrieval|RAG|augmented.generation"
+            weight: 6
+            regex: true
+          - term: "benchmark|evaluation|leaderboard"
+            weight: 5
+            regex: true
+          - term: "diffusion|image.generation|video.generation|multimodal"
+            weight: 4
+            regex: true
+        annotate: false
       - type: latest
         count: 20
 
-  - type: reddit
+  - name: blogs
+    type: rss
     params:
-      subreddits:
-        - MachineLearning
-        - LocalLLaMA
-      sort: hot
-      limit: 30
-    refresh_interval: 15
+      urls:
+        - https://lilianweng.github.io/index.xml
+        - https://simonwillison.net/atom/everything/
+        - https://www.interconnects.ai/feed
+        - https://huggingface.co/blog/feed.xml
+    refresh_interval: 30
     transforms:
+      - type: latest
+        count: 15
+
+  - name: localllama
+    type: lemmy
+    params:
+      instance: sh.itjust.works
+      communities: [localllama]
+      sort: hot
+      limit: 25
+    refresh_interval: 20
+    transforms:
+      # Blend engagement with recency — favor active discussions.
+      - type: time-decay
+        half_life: 12h
+        engagement_weight: 0.7
+        recency_weight: 0.3
+        decay: exponential
       - type: latest
         count: 15
 
@@ -47,23 +97,64 @@ adapters:
         - vllm-project/vllm
         - ggml-org/llama.cpp
         - ollama/ollama
-        - lm-sys/FastChat
+        - pytorch/pytorch
         - anthropics/anthropic-sdk-python
     transforms:
       - type: latest
         count: 15
 
+# High-signal cross-source strip: open models, benchmarks, and inference news only.
 pipelines:
   - name: firehose
-    sources: [hackernews, reddit, rss]
+    sources: [hackernews, localllama, blogs]
     transforms:
+      # Collapse cross-posts across sources — keep highest scored.
       - type: dedupe
-        strategy: url
-      - type: filter
-        keywords: [benchmark, sota, open source, weights, fine-tune, context window, inference speed, quantize]
-        fields: [title, body]
+        strategy: domain-normalized
+        keep: highest-score
+      # Score by topic relevance — weighted keyword matching.
+      - type: keyword-score
+        keywords:
+          - term: "benchmark|sota|state.of.the.art|eval|leaderboard"
+            weight: 10
+            regex: true
+          - term: "open.source|open.weights|weights|released|releasing"
+            weight: 8
+            regex: true
+          - term: "fine.tun|finetun|LoRA|QLoRA|RLHF|DPO"
+            weight: 8
+            regex: true
+          - term: "context.window|inference|quantiz|distill|speculative"
+            weight: 6
+            regex: true
+          - term: "vram|throughput|tokens?.per.sec|latency"
+            weight: 5
+            regex: true
+        min_score: 5
+        annotate: false
+      - type: sort
+        field: timestamp
+        direction: desc
       - type: latest
         count: 10
+
+  # Group related stories across sources.
+  - name: cross-talk
+    sources: [hackernews, localllama, blogs, papers]
+    transforms:
+      - type: dedupe
+        strategy: title-similarity
+        threshold: 0.75
+        keep: highest-score
+      # Cluster multi-source stories by shared keywords.
+      - type: cluster
+        strategy: keywords
+        min_cluster_size: 2
+        max_clusters: 5
+        similarity_threshold: 0.25
+        annotate: true
+      - type: latest
+        count: 15
 
 layout:
   direction: column
@@ -73,7 +164,7 @@ layout:
       children:
         - panel: papers
           flex: 1
-          source: rss
+          source: papers
           limit: 20
 
         - direction: column
@@ -84,26 +175,42 @@ layout:
               source: hackernews
               limit: 50
 
-            - panel: community
+            - panel: local-llama
               flex: 1
-              source: reddit
+              source: localllama
               limit: 15
 
-        - panel: releases
+        - direction: column
           flex: 1
-          source: github-releases
-          limit: 15
+          children:
+            - panel: blogs
+              flex: 1
+              source: blogs
+              limit: 15
 
-    - panel: firehose
+            - panel: releases
+              flex: 1
+              source: github-releases
+              limit: 15
+
+    - direction: row
       flex: 1
-      source: firehose
-      limit: 10
+      children:
+        - panel: firehose
+          flex: 1
+          source: firehose
+          limit: 10
+
+        - panel: cross-talk
+          flex: 1
+          source: cross-talk
+          limit: 15
 
 # Uncomment to enable LLM-powered features
 # llm:
-#   provider: openai
-#   model: gpt-4o-mini
-#   api_key: ${OPENAI_API_KEY}
+#   provider: anthropic
+#   model: claude-haiku-4-5-20251001
+#   api_key: ${ANTHROPIC_API_KEY}
 #   interests:
 #     - large language models
 #     - open source AI

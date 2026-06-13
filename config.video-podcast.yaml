@@ -1,16 +1,33 @@
 # Audio and video feed dashboard.
 # Replace feed URLs and channel IDs with your subscriptions.
+# Find a channel ID via the channel page source ("channelId") or its RSS link.
 
 adapters:
   - type: podcast
     params:
       feeds:
         - https://feeds.simplecast.com/54nAGcIl          # The Changelog
-        - https://feeds.buzzsprout.com/2226484.rss         # Latent Space
+        - https://feeds.buzzsprout.com/2226484.rss       # Latent Space
         - https://lexfridman.com/feed/podcast/
       limit: 10
     refresh_interval: 300
     transforms:
+      # Collapse duplicate guest appearances across shows.
+      - type: dedupe
+        strategy: title-similarity
+        threshold: 0.85
+        keep: latest
+      # Score by topic relevance — weighted keyword matching.
+      - type: keyword-score
+        keywords:
+          - term: "interview|conversation|deep dive|episode"
+            weight: 5
+            regex: true
+          - term: "trailer|teaser|promo|bonus|preview|rerun|rebroadcast|best of"
+            weight: -10
+            regex: true
+        min_score: 0
+        annotate: false
       - type: sort
         field: timestamp
         direction: desc
@@ -21,16 +38,23 @@ adapters:
     params:
       channels:
         - UCsBjURrPoezykLs9EqgamOA   # Fireship
-        - UCWN3xxRkmTPmbKwht9FuE5A   # Computerphile
+        - UC9-y-6csu5WGm29I7JiwpnA   # Computerphile
+        - UCYO_jab_esuFRV4b17AJtAw   # 3Blue1Brown
+        - UCHnyfMqiRRG1u-2MsSQLbXA   # Veritasium
       playlists: []
       limit: 10
     refresh_interval: 120
     transforms:
+      # Collapse duplicate topic coverage across channels.
+      - type: dedupe
+        strategy: title-similarity
+        threshold: 0.8
+        keep: latest
       - type: sort
         field: timestamp
         direction: desc
       - type: latest
-        count: 10
+        count: 15
 
   - type: mastodon
     params:
@@ -39,6 +63,33 @@ adapters:
       only_media: true
     refresh_interval: 60
     transforms:
+      # Blend engagement with recency — surface what's trending now.
+      - type: time-decay
+        half_life: "12h"
+        engagement_weight: 0.6
+        recency_weight: 0.4
+        decay: exponential
+        annotate: false
+      - type: latest
+        count: 15
+
+pipelines:
+  # Merge YouTube and Mastodon into a unified video feed.
+  - name: all-video
+    sources:
+      - youtube
+      - mastodon
+    transforms:
+      - type: dedupe
+        strategy: domain-normalized
+        keep: latest
+      - type: dedupe
+        strategy: title-similarity
+        threshold: 0.8
+        keep: latest
+      - type: sort
+        field: timestamp
+        direction: desc
       - type: latest
         count: 15
 
@@ -53,7 +104,7 @@ layout:
     - panel: youtube
       flex: 1
       source: youtube
-      limit: 10
+      limit: 15
 
     - panel: media-feed
       flex: 1

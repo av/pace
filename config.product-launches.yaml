@@ -1,5 +1,6 @@
 # New product launches, demos, and side projects.
-# Combines Product Hunt, Show HN, and builder communities.
+# Product Hunt + Show HN + builder communities + a discovery column of trending repos.
+# Note: no reddit adapter here — Reddit blocks unauthenticated API access upstream.
 
 adapters:
   - type: producthunt
@@ -9,9 +10,12 @@ adapters:
       min_upvotes: 30
     refresh_interval: 300
     transforms:
-      - type: sort
-        field: timestamp
-        direction: desc
+      # Blend engagement with recency — surface what's trending now.
+      - type: time-decay
+        half_life: "6h"
+        engagement_weight: 0.6
+        recency_weight: 0.4
+        decay: exponential
       - type: latest
         count: 15
 
@@ -19,22 +23,17 @@ adapters:
     params:
       feed: show
       limit: 30
-      min_score: 5
+      min_score: 2
     refresh_interval: 15
     transforms:
+      # Blend engagement with recency — surface what's trending now.
+      - type: time-decay
+        half_life: "12h"
+        engagement_weight: 0.7
+        recency_weight: 0.3
+        decay: exponential
       - type: latest
         count: 15
-
-  - type: reddit
-    params:
-      subreddits:
-        - SideProject
-        - startups
-        - indiehackers
-        - InternetIsBeautiful
-      sort: hot
-      limit: 20
-    refresh_interval: 20
 
   - type: devto
     params:
@@ -51,12 +50,41 @@ adapters:
       limit: 10
     refresh_interval: 30
 
+  - name: gh-trending
+    type: github
+    params:
+      mode: trending
+      since: daily
+      limit: 15
+    refresh_interval: 180
+    transforms:
+      # Blend engagement with recency — surface what's trending now.
+      - type: time-decay
+        half_life: "24h"
+        engagement_weight: 0.8
+        recency_weight: 0.2
+        decay: exponential
+      - type: latest
+        count: 15
+
+  # Brand-new packages shipping to the npm registry — early signal for new tools.
+  - name: npm-fresh
+    type: npm
+    params:
+      keywords: [cli, framework]
+      sort: optimal
+      limit: 10
+    refresh_interval: 360
+
 pipelines:
   - name: community
-    sources: [reddit, devto, lobsters]
+    sources: [devto, lobsters]
     transforms:
+      # Fuzzy title matching to catch cross-source duplicates.
       - type: dedupe
-        strategy: domain-normalized
+        strategy: title-similarity
+        threshold: 0.65
+        keep: highest-score
       - type: keyword-score
         keywords:
           - term: "launch|launched|ship|shipped|built|made|created|introducing"
@@ -69,8 +97,20 @@ pipelines:
             weight: -20
             regex: true
         annotate: false
+      # Blend engagement with recency — surface what's trending now.
+      - type: time-decay
+        half_life: "12h"
+        engagement_weight: 0.6
+        recency_weight: 0.4
+        decay: exponential
+      # Group related stories across sources.
+      - type: cluster
+        strategy: keywords
+        min_cluster_size: 2
+        max_clusters: 5
+        similarity_threshold: 0.35
       - type: latest
-        count: 20
+        count: 15
 
 layout:
   direction: row
@@ -85,7 +125,20 @@ layout:
       source: hackernews
       limit: 15
 
-    - panel: community
+    - direction: column
       flex: 1
-      source: community
-      limit: 20
+      children:
+        - panel: community
+          flex: 1
+          source: community
+          limit: 15
+
+        - panel: trending-today
+          flex: 1
+          source: gh-trending
+          limit: 15
+
+        - panel: fresh-on-npm
+          flex: 1
+          source: npm-fresh
+          limit: 10

@@ -33,6 +33,24 @@ adapters:
         - https://jvns.ca/atom.xml
     refresh_interval: 30
     transforms:
+      # Score by topic relevance — weighted keyword matching.
+      - type: keyword-score
+        keywords:
+          - term: "architecture|distributed|scalab"
+            weight: 8
+            regex: true
+          - term: "rust|go|typescript"
+            weight: 6
+            regex: true
+          - term: "performance|latency|throughput"
+            weight: 5
+            regex: true
+          - term: "security|vulnerability|CVE"
+            weight: 7
+            regex: true
+          - term: "open.source|oss"
+            weight: 4
+            regex: true
       - type: latest
         count: 15
 
@@ -63,6 +81,12 @@ adapters:
       limit: 15
     refresh_interval: 30
     transforms:
+      # Blend engagement with recency — 12h half-life for slower cadence.
+      - type: time-decay
+        half_life: 12h
+        engagement_weight: 0.6
+        recency_weight: 0.4
+        decay: exponential
       - type: latest
         count: 15
 
@@ -76,6 +100,20 @@ adapters:
   #     min_score: 50
   #   refresh_interval: 15
   #   Note: public unauth .json now returns 403 (upstream); see facts for reddit adapter status.
+
+  # - type: lemmy            # works without credentials — good reddit replacement
+  #   params:
+  #     instance: programming.dev
+  #     communities: [programming, technology]
+  #     sort: hot
+  #     limit: 20
+  #   refresh_interval: 20
+
+  # - type: wikipedia        # daily featured content: most_read, featured, on_this_day, news
+  #   params:
+  #     modes: [most_read, on_this_day]
+  #     limit: 10
+  #   refresh_interval: 240
 
   # - type: youtube
   #   params:
@@ -126,10 +164,42 @@ pipelines:
   - name: tech-feed
     sources: [hackernews, lobsters]
     transforms:
+      # Two-pass dedupe: domain-normalized then title-similarity.
       - type: dedupe
-        strategy: url
+        strategy: domain-normalized
+        keep: highest-score
+      - type: dedupe
+        strategy: title-similarity
+        threshold: 0.8
+        keep: highest-score
+      # Blend engagement with recency — surface what's trending now.
+      - type: time-decay
+        half_life: 8h
+        engagement_weight: 0.7
+        recency_weight: 0.3
+        decay: exponential
+      # Group related stories across sources.
+      - type: cluster
+        strategy: auto
+        min_cluster_size: 2
+        max_clusters: 8
+        similarity_threshold: 0.3
       - type: latest
         count: 40
+
+  # --- Cross-source dedupe + interest ranking example (uncomment and add llm config to enable) ---
+  #
+  # - name: curated-feed
+  #   sources: [hackernews, lobsters, rss]  # items gathered from all sources before any transform
+  #   transforms:
+  #     - type: dedupe                       # merges duplicate URLs across sources; origins track all sources
+  #       strategy: url
+  #     - type: llm-rank                     # scores 0-10 by relevance; falls back to llm.interests if no local interests
+  #       interests: [distributed systems, compilers, security, open source]
+  #     - type: latest
+  #       count: 20
+  #     - type: llm-summarize               # fetches full page text before summarizing
+  #       fetch_content: true
 
 # Layout: recursive flexbox tree
 # Each node is either a container (direction + children) or a panel (panel + source)

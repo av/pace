@@ -146,7 +146,7 @@ export function tryReadRegularFile(path: string): string | null {
   }
 }
 
-const PRESET_NAMES = ["example", "tech-news", "ml-ai", "product-launches", "release-tracker", "academic-papers", "video-podcast"] as const;
+const PRESET_NAMES = ["example", "daily-brief", "tech-news", "ml-ai", "product-launches", "release-tracker", "academic-papers", "video-podcast"] as const;
 
 export function resolvePreset(name: string): string | null {
   if (!name || name.includes("/") || name.includes("\\")) return null;

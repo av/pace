@@ -1,0 +1,165 @@
+# Morning briefing — not just tech.
+# World headlines, what the internet is reading, today in history, and a tech pulse.
+# All sources work without any credentials.
+
+adapters:
+  # Wikipedia "In the news" — current events with encyclopedic context.
+  - name: wiki-news
+    type: wikipedia
+    params:
+      mode: news
+      limit: 10
+    refresh_interval: 120
+    transforms:
+      # Fade older items — pure recency ranking.
+      - type: time-decay
+        half_life: "12h"
+        engagement_weight: 0
+        recency_weight: 1
+        decay: exponential
+
+  # What everyone looked up yesterday — a barometer of collective attention.
+  - name: wiki-popular
+    type: wikipedia
+    params:
+      mode: most_read
+      limit: 12
+    refresh_interval: 240
+
+  # Today's featured article + on this day in history.
+  - name: wiki-today
+    type: wikipedia
+    params:
+      modes: [featured, on_this_day]
+      limit: 10
+    refresh_interval: 720
+
+  - name: headlines
+    type: rss
+    params:
+      urls:
+        - https://feeds.bbci.co.uk/news/world/rss.xml
+        - https://feeds.arstechnica.com/arstechnica/index
+    refresh_interval: 30
+    transforms:
+      # Remove near-duplicate titles across feeds.
+      - type: dedupe
+        strategy: title-similarity
+        threshold: 0.8
+        keep: earliest
+      # Score by topic relevance — weighted keyword matching.
+      - type: keyword-score
+        keywords:
+          - term: "breaking|urgent|exclusive|developing"
+            weight: 15
+            regex: true
+          - term: "war|conflict|attack|crisis|killed|dead|election|coup|sanctions"
+            weight: 10
+            regex: true
+          - term: "climate|earthquake|hurricane|flood|wildfire"
+            weight: 8
+            regex: true
+          - term: "recipe|lifestyle|celebrity|quiz"
+            weight: -5
+            regex: true
+        annotate: false
+      - type: latest
+        count: 20
+
+  # Only the biggest tech stories — high score threshold keeps this a pulse, not a feed.
+  - type: hackernews
+    params:
+      feed: top
+      limit: 30
+      min_score: 20
+    refresh_interval: 30
+    transforms:
+      - type: exclude
+        keywords: [hiring, "is hiring", "who is hiring"]
+        fields: [title]
+      # Blend engagement with recency — surface what's trending now.
+      - type: time-decay
+        half_life: "6h"
+        engagement_weight: 0.7
+        recency_weight: 0.3
+        decay: exponential
+      - type: latest
+        count: 12
+
+pipelines:
+  - name: briefing-digest
+    sources: [headlines, hackernews, wiki-news]
+    transforms:
+      # Merge near-duplicates across all sources.
+      - type: dedupe
+        strategy: title-similarity
+        threshold: 0.75
+        keep: highest-score
+        log: true
+      # Group related stories across sources.
+      - type: cluster
+        strategy: keywords
+        min_cluster_size: 2
+        max_clusters: 8
+        similarity_threshold: 0.25
+        annotate: true
+      - type: latest
+        count: 20
+
+# --- Cross-source dedupe + interest ranking pipeline (uncomment and add llm config to enable) ---
+#
+# pipelines:
+#   - name: briefing-ranked
+#     sources: [headlines, hackernews, wiki-news]  # gather items from multiple adapters
+#     transforms:
+#       - type: dedupe                              # merge duplicates across sources; origins track all sources
+#         strategy: title-similarity
+#         threshold: 0.8
+#       - type: llm-rank                           # score by interest relevance; uses llm.interests as fallback
+#         interests: [technology, science, politics, world events]
+#       - type: latest
+#         count: 20
+#       - type: llm-summarize                      # fetches full article text before summarizing
+#         fetch_content: true
+
+layout:
+  direction: column
+  children:
+    - panel: briefing-digest
+      flex: 1
+      source: briefing-digest
+      limit: 20
+
+    - direction: row
+      flex: 3
+      children:
+        - direction: column
+          flex: 2
+          children:
+            - panel: headlines
+              flex: 2
+              source: headlines
+              limit: 20
+
+            - panel: tech-pulse
+              flex: 1
+              source: hackernews
+              limit: 12
+
+        - direction: column
+          flex: 1
+          children:
+            - panel: in-the-news
+              flex: 1
+              source: wiki-news
+              limit: 10
+
+            - panel: most-read
+              flex: 1
+              source: wiki-popular
+              limit: 12
+
+        - panel: today-in-history
+          flex: 1
+          source: wiki-today
+          limit: 10
