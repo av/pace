@@ -40,6 +40,7 @@ Available presets:
 | `release-tracker` | Software release tracking |
 | `academic-papers` | Academic papers: arXiv, CS theory Q&A, science journalism |
 | `video-podcast` | Video and podcast content |
+| `ops-dashboard` | Ops dashboard: status feeds, iframe embeds, bookmarks, counters, runbook notes |
 
 Or list them locally: `pace --list-presets`
 

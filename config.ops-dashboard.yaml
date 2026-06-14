@@ -1,0 +1,151 @@
+# Ops Dashboard - infrastructure monitoring, status feeds, and team tooling.
+# Demonstrates widgets (iframe, text, image) alongside adapters (bookmarks, counter, rss).
+# Replace placeholder URLs with your actual Grafana/status pages for a real setup.
+
+adapters:
+  # Status feeds from major providers - know when upstream is having a bad day.
+  - name: status-feeds
+    type: rss
+    params:
+      urls:
+        - https://www.githubstatus.com/history.rss
+        - https://status.cloud.google.com/feed.atom
+        - https://www.cloudflarestatus.com/history.rss
+    refresh_interval: 10
+    transforms:
+      - type: latest
+        count: 20
+
+  # Quick-access bookmarks for common ops tools.
+  - name: ops-tools
+    type: bookmarks
+    params:
+      items:
+        - title: "Grafana"
+          url: "https://grafana.com"
+          tags: ["monitoring"]
+        - title: "PagerDuty"
+          url: "https://www.pagerduty.com"
+          tags: ["on-call"]
+        - title: "Datadog"
+          url: "https://www.datadoghq.com"
+          tags: ["monitoring"]
+        - title: "Sentry"
+          url: "https://sentry.io"
+          tags: ["errors"]
+        - title: "Linear"
+          url: "https://linear.app"
+          tags: ["tracking"]
+        - title: "AWS Console"
+          url: "https://console.aws.amazon.com"
+          tags: ["infra"]
+        - title: "Cloudflare"
+          url: "https://dash.cloudflare.com"
+          tags: ["cdn"]
+
+  # GitHub stars as a live metric - swap this for your own project or internal endpoint.
+  - name: bun-stars
+    type: counter
+    params:
+      url: https://api.github.com/repos/oven-sh/bun
+      json_path: stargazers_count
+      label: "Bun Stars"
+
+  # Open issues as a second metric.
+  - name: bun-issues
+    type: counter
+    params:
+      url: https://api.github.com/repos/oven-sh/bun
+      json_path: open_issues_count
+      label: "Open Issues"
+
+  # Infrastructure news and post-mortems.
+  - name: infra-news
+    type: rss
+    params:
+      urls:
+        - https://aws.amazon.com/blogs/aws/feed/
+        - https://blog.cloudflare.com/rss
+    refresh_interval: 60
+    transforms:
+      - type: latest
+        count: 15
+
+layout:
+  direction: row
+  children:
+    # Left column: embedded dashboards and status.
+    - direction: column
+      flex: 2
+      children:
+        # Iframe widget - replace with your real Grafana or status page.
+        - iframe: https://wttr.in/?0FnT
+          title: Weather (wttr.in)
+          aspect_ratio: "21/9"
+
+        # Status feeds from GitHub, GCP, Cloudflare.
+        - panel: Status Feeds
+          source: status-feeds
+          flex: 2
+          limit: 15
+
+        # Second iframe - an uptime or CI dashboard placeholder.
+        - iframe: https://wttr.in/London?0FnT
+          title: London Weather
+          height: "200px"
+
+    # Center column: metrics, toolbox, and notes.
+    - direction: column
+      flex: 1
+      children:
+        # Counter widgets showing live stats.
+        - panel: Metrics
+          source: bun-stars
+          display: counter
+
+        - panel: Issues
+          source: bun-issues
+          display: counter
+
+        # Bookmarks widget for quick-access ops tools.
+        - panel: Toolbox
+          source: ops-tools
+          flex: 2
+          limit: 10
+
+        # Text widget with team notes in markdown.
+        - text: |
+            ## On-Call Runbook
+
+            **Current on-call:** Check PagerDuty
+
+            ### Escalation
+
+            1. Page the on-call engineer
+            2. If no response in 15 min, page the backup
+            3. For P0: page the engineering lead
+
+            ### Common fixes
+
+            - **High CPU:** Check for runaway queries
+            - **Disk full:** Run log rotation script
+            - **5xx spike:** Check upstream dependencies
+          format: markdown
+          title: Runbook
+
+    # Right column: news and image banner.
+    - direction: column
+      flex: 1
+      children:
+        # Image widget - a status badge or architecture diagram.
+        - image: https://img.shields.io/github/actions/workflow/status/oven-sh/bun/ci.yml
+          alt: "Bun CI status"
+          link: https://github.com/oven-sh/bun/actions
+          object_fit: contain
+          max_height: "40px"
+
+        # Infrastructure news and blog posts.
+        - panel: Infra News
+          source: infra-news
+          flex: 3
+          limit: 15
