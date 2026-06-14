@@ -117,10 +117,12 @@ pace presets list
 # example
 # tech-news
 # ml-ai
+# daily-brief
 # product-launches
 # release-tracker
 # academic-papers
 # video-podcast
+# ops-dashboard
 ```
 
 Launch with a preset:

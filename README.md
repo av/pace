@@ -175,32 +175,33 @@ Responsive - collapses to a single column on mobile (below 768px).
 
 Layout nodes can also be widgets - static content that doesn't come from an adapter.
 
-**Image widget** - display a static image with optional link:
+**Image widget** - display a static image with optional link.
+Options: `image` (URL, required), `alt`, `link`, `object_fit` (cover/contain/fill/none), `max_height`, `flex`.
 
 ```yaml
-- image:
-    url: https://example.com/banner.png
-    alt: Site banner
-    link: https://example.com
-    object_fit: cover
+- image: https://example.com/banner.png
+  alt: Site banner
+  link: https://example.com
+  object_fit: cover
+  max_height: 200px
 ```
 
-**Text widget** - inline text, markdown, or HTML:
+**Text widget** - inline text, markdown, or HTML.
+Options: `text` (content, required), `title`, `format` (plain/markdown/html), `flex`.
 
 ```yaml
-- text:
-    title: Notes
-    format: markdown
-    body: "## Welcome\nDaily reading list."
+- text: "## Welcome\nDaily reading list."
+  title: Notes
+  format: markdown
 ```
 
-**Iframe widget** - embed an external page with sandbox security:
+**Iframe widget** - embed an external page with sandbox security.
+Options: `iframe` (URL, required), `title`, `height`, `aspect_ratio`, `sandbox`, `allow`, `flex`.
 
 ```yaml
-- iframe:
-    url: https://example.com/embed
-    title: Live Dashboard
-    aspect_ratio: "16/9"
+- iframe: https://example.com/embed
+  title: Live Dashboard
+  aspect_ratio: "16/9"
 ```
 
 ### Bookmarks adapter
@@ -220,19 +221,26 @@ Display curated link lists defined directly in config (no network fetch required
 
 ### Counter adapter
 
-Fetch a JSON endpoint and extract a numeric value for stat-card display. Supports trend arrows via a comparison endpoint and env var interpolation in headers:
+Fetch a JSON endpoint and extract a numeric value for stat-card display. Supports trend arrows via a comparison endpoint and env var interpolation in headers.
+Params: `url` (required), `json_path` (required), `label`, `unit`, `compare_url`, `compare_path`, `headers`.
 
 ```yaml
 - name: github-stars
   type: counter
-  display: counter
   params:
     url: https://api.github.com/repos/oven-sh/bun
     json_path: stargazers_count
     label: "Bun Stars"
+    unit: "stars"
 ```
 
-Set `display: counter` on the panel to render stat cards instead of the default list view.
+Set `display: counter` on the **panel** (not the adapter) to render stat cards instead of the default list view:
+
+```yaml
+- panel: stats
+  source: github-stars
+  display: counter
+```
 
 ## LLM integration (optional)
 

@@ -40,13 +40,15 @@ Before building from scratch, check whether a bundled preset already matches the
 
 ```bash
 pace presets list
-# example      -- General software engineering (HN, Lobsters, GitHub, blogs, DEV.to)
-# tech-news    -- Tech news from multiple sources
-# ml-ai        -- AI and machine learning research
+# example          -- General software engineering (HN, Lobsters, GitHub, blogs, DEV.to)
+# tech-news        -- Tech news from multiple sources
+# ml-ai            -- AI and machine learning research
+# daily-brief      -- Morning briefing with headlines and top stories
 # product-launches -- Product launches and startup news
 # release-tracker  -- Software release tracking
 # academic-papers  -- Academic paper aggregation
 # video-podcast    -- Video and podcast content
+# ops-dashboard    -- Ops dashboard with iframes, bookmarks, counters
 ```
 
 To use a preset as the starting point:
