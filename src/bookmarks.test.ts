@@ -90,12 +90,16 @@ describe("bookmarks adapter", () => {
     expect(result[1].id).toBe("bookmarks:another-tool-1");
   });
 
-  test("all items share the same timestamp", async () => {
+  test("items have descending timestamps to preserve config order", async () => {
     const result = await adapter.fetch(makeConfig([
       { title: "A", url: "https://a.com" },
       { title: "B", url: "https://b.com" },
+      { title: "C", url: "https://c.com" },
     ]));
-    expect(result[0].timestamp.getTime()).toBe(result[1].timestamp.getTime());
+    // Each subsequent item has a timestamp 1ms earlier, so ORDER BY timestamp DESC
+    // returns items in the same order as the config.
+    expect(result[0].timestamp.getTime()).toBeGreaterThan(result[1].timestamp.getTime());
+    expect(result[1].timestamp.getTime()).toBeGreaterThan(result[2].timestamp.getTime());
   });
 
   test("filters out items missing title", async () => {

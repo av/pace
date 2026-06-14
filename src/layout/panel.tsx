@@ -76,12 +76,14 @@ const ContentItemCard: FC<{ item: ContentItemRow }> = ({ item }) => {
         {merged && <span class="item-merged">{origins.length} sources</span>}
         <span class="item-time">{relativeTime(item.timestamp)}</span>
       </div>
-      {item.summary && (
+      {item.summary ? (
         <div class="item-summary">
           <span class="item-summary-label">summarized</span>
           {item.summary}
         </div>
-      )}
+      ) : item.body ? (
+        <div class="item-body">{item.body}</div>
+      ) : null}
     </div>
   );
 };

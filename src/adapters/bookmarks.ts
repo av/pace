@@ -73,6 +73,7 @@ const adapter: Adapter = {
       return warnEmptyConfig("bookmarks", "all items were invalid");
     }
 
+    const nowMs = now.getTime();
     return mapToContentItemsPerSource(
       valid,
       (v) => bookmarkSource(v.entry),
@@ -80,7 +81,7 @@ const adapter: Adapter = {
         id: `bookmarks:${slugify(v.entry.title)}-${v.index}`,
         title: v.entry.title,
         url: v.entry.url,
-        timestamp: now,
+        timestamp: new Date(nowMs - v.index),
         body: v.entry.description,
       }),
     );
