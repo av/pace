@@ -56,12 +56,14 @@ function getTrend(current: unknown, previous: unknown): TrendDirection {
   return "flat";
 }
 
+const TREND_TEXT: Record<string, string> = { up: "trending up", down: "trending down", flat: "unchanged" };
+
 const TrendArrow: FC<{ trend: TrendDirection }> = ({ trend }) => {
   if (trend === "up") {
-    return <span class="stat-trend stat-trend-up" title="Increasing">{"↑"}</span>;
+    return <span class="stat-trend stat-trend-up" title="Increasing" aria-hidden="true">{"↑"}</span>;
   }
   if (trend === "down") {
-    return <span class="stat-trend stat-trend-down" title="Decreasing">{"↓"}</span>;
+    return <span class="stat-trend stat-trend-down" title="Decreasing" aria-hidden="true">{"↓"}</span>;
   }
   return null;
 };
@@ -69,9 +71,11 @@ const TrendArrow: FC<{ trend: TrendDirection }> = ({ trend }) => {
 const StatCard: FC<{ label: string; data: CounterBody }> = ({ label, data }) => {
   const trend = getTrend(data.value, data.previous);
   const displayValue = abbreviateNumber(data.value);
+  const trendText = TREND_TEXT[trend] ?? "";
+  const ariaLabel = [label, displayValue, data.unit, trendText].filter(Boolean).join(", ");
 
   return (
-    <div class="stat-card">
+    <div class="stat-card" role="group" aria-label={ariaLabel}>
       <div class="stat-value">
         {displayValue}
         {data.unit && <span class="stat-unit">{data.unit}</span>}

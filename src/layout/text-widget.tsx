@@ -17,7 +17,7 @@ export const TextWidget: FC<{ node: TextWidgetConfig }> = ({ node }) => {
             <h2>{node.title}</h2>
           </div>
         )}
-        <div class="text-widget-body">
+        <div class="text-widget-body" tabindex={0} role="region" aria-label={node.title ?? "Text content"}>
           {format === "plain"
             ? node.text
             : raw(format === "markdown" ? renderMarkdown(node.text) : sanitize(node.text))

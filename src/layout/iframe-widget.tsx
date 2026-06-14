@@ -23,8 +23,11 @@ export const IframeWidget: FC<{ node: IframeWidgetConfig }> = ({ node }) => {
     .filter(Boolean)
     .join(" ");
 
+  const iframeTitle = node.title ?? `Embedded content from ${new URL(node.iframe, "https://localhost").hostname}`;
+
   const iframeAttrs: Record<string, string> = {
     src: node.iframe,
+    title: iframeTitle,
     sandbox,
     referrerpolicy: "no-referrer",
     loading: "lazy",

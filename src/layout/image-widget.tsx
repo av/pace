@@ -26,12 +26,15 @@ export const ImageWidget: FC<{ node: ImageWidgetConfig }> = ({ node }) => {
   );
 
   const href = node.link ? safeLinkUrl(node.link) : null;
+  // When alt is empty (decorative) and a link wraps the image, provide an aria-label
+  // so screen readers can still announce the link destination.
+  const linkLabel = href && !alt ? node.link : undefined;
 
   return (
     <div class="flex-panel" style={containerStyle}>
       <div class="image-widget">
         {href
-          ? <a href={href} target="_blank" rel="noopener noreferrer">{img}</a>
+          ? <a href={href} target="_blank" rel="noopener noreferrer" aria-label={linkLabel}>{img}</a>
           : img
         }
       </div>
