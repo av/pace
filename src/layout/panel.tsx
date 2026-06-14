@@ -102,7 +102,7 @@ export const Panel: FC<{ node: PanelConfig; panelData: Map<string, PanelData> }>
           <div class="panel-actions">
             {lastRefreshedAt && <span class="panel-refreshed">{relativeTime(lastRefreshedAt)}</span>}
             <form method="POST" action={`/refresh/${encodeURIComponent(panelId)}`}>
-              <button type="submit" class="refresh-btn" title="Refresh">↻</button>
+              <button type="submit" class="refresh-btn" title="Refresh" aria-label="Refresh">↻</button>
             </form>
           </div>
         </div>

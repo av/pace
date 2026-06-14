@@ -86,7 +86,7 @@ export function resolveDecodedFeedRootTitle(
 ): string | undefined {
   const raw = extractFeedRootTitle(rssTitle, atomTitle) ?? fallback;
   if (!raw) return undefined;
-  return decodeNumericFeedTitle(raw);
+  return decodeNumericFeedTitle(raw).trim() || undefined;
 }
 
 export function extractFeedEntryStrippedBody(

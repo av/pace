@@ -20,8 +20,13 @@ export const IframeWidget: FC<{ node: IframeWidgetConfig }> = ({ node }) => {
   // height stays on the outer container so the whole widget is that tall.
   // When using aspect-ratio, the outer container must not force height:100%
   // (from .flex-panel CSS), so we override it with height:auto.
+  // When height is set without an explicit flex, use flex:none so the explicit
+  // height takes effect instead of being overridden by the default flex:1
+  // (whose flex-basis:0 would cause the element to ignore the height and
+  // grow proportionally with siblings).
+  const effectiveFlex = node.height && node.flex === undefined ? 0 : node.flex;
   const containerStyle = [
-    flexStyle(node.flex),
+    flexStyle(effectiveFlex),
     node.height ? `height:${node.height}` : undefined,
     aspectRatio ? "height:auto" : undefined,
   ]
