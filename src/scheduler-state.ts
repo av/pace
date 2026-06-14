@@ -32,7 +32,7 @@ export class SchedulerState {
   pruneTimer: ReturnType<typeof setInterval> | null = null;
 
   isStarted(): boolean {
-    return this.adapterEntries.length > 0 || this.pipelineEntries.length > 0;
+    return this.adapterEntries.length > 0 || this.pipelineEntries.length > 0 || this.pruneTimer !== null;
   }
 
   reset(clearTimers: (entry: TimedEntryBase) => void): void {
