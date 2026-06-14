@@ -12,7 +12,7 @@ interface CounterBody {
   previous?: unknown;
 }
 
-function parseCounterBody(body: string | null | undefined): CounterBody | null {
+export function parseCounterBody(body: string | null | undefined): CounterBody | null {
   if (!body) return null;
   try {
     const parsed = JSON.parse(body);

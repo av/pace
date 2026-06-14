@@ -2,7 +2,7 @@ import { describe, test, expect, spyOn, beforeEach, afterEach, mock } from "bun:
 import { resolveJsonPath, parseJsonPath, interpolateEnvVars } from "./adapters/counter";
 import adapter from "./adapters/counter";
 import type { AdapterConfig } from "./adapters/types";
-import { abbreviateNumber } from "./layout/counter-panel";
+import { abbreviateNumber, parseCounterBody } from "./layout/counter-panel";
 
 describe("counter adapter", () => {
   describe("resolveJsonPath", () => {
@@ -1106,5 +1106,106 @@ layout:
 `;
     setConfig(yaml);
     expect(() => loadConfig()).toThrow(/compare_path/);
+  });
+});
+
+describe("parseCounterBody robustness", () => {
+  test("parses valid counter body with value, unit, previous", () => {
+    const result = parseCounterBody('{"value":42,"unit":"%","previous":38}');
+    expect(result).not.toBeNull();
+    expect(result!.value).toBe(42);
+    expect(result!.unit).toBe("%");
+    expect(result!.previous).toBe(38);
+  });
+
+  test("parses body with only value key", () => {
+    const result = parseCounterBody('{"value":100}');
+    expect(result).not.toBeNull();
+    expect(result!.value).toBe(100);
+    expect(result!.unit).toBeUndefined();
+    expect(result!.previous).toBeUndefined();
+  });
+
+  test("returns null for malformed JSON", () => {
+    expect(parseCounterBody("{not valid json}")).toBeNull();
+    expect(parseCounterBody("{{}}")).toBeNull();
+    expect(parseCounterBody("{value: 42}")).toBeNull(); // unquoted key
+  });
+
+  test("returns null when value key is missing", () => {
+    expect(parseCounterBody('{"unit":"%","previous":10}')).toBeNull();
+    expect(parseCounterBody('{"count":42}')).toBeNull();
+    expect(parseCounterBody("{}")).toBeNull();
+  });
+
+  test("returns null for null input", () => {
+    expect(parseCounterBody(null)).toBeNull();
+  });
+
+  test("returns null for undefined input", () => {
+    expect(parseCounterBody(undefined)).toBeNull();
+  });
+
+  test("returns null for empty string", () => {
+    expect(parseCounterBody("")).toBeNull();
+  });
+
+  test("returns null for JSON array", () => {
+    expect(parseCounterBody("[1,2,3]")).toBeNull();
+  });
+
+  test("returns null for JSON primitive string", () => {
+    expect(parseCounterBody('"hello"')).toBeNull();
+  });
+
+  test("returns null for JSON primitive number", () => {
+    expect(parseCounterBody("42")).toBeNull();
+  });
+
+  test("returns null for JSON null literal", () => {
+    expect(parseCounterBody("null")).toBeNull();
+  });
+
+  test("parses body with value=0 (falsy but present)", () => {
+    const result = parseCounterBody('{"value":0}');
+    expect(result).not.toBeNull();
+    expect(result!.value).toBe(0);
+  });
+
+  test("parses body with value=false (falsy but present)", () => {
+    const result = parseCounterBody('{"value":false}');
+    expect(result).not.toBeNull();
+    expect(result!.value).toBe(false);
+  });
+
+  test("parses body with value=null (present but null)", () => {
+    const result = parseCounterBody('{"value":null}');
+    expect(result).not.toBeNull();
+    expect(result!.value).toBeNull();
+  });
+
+  test("parses body with string value", () => {
+    const result = parseCounterBody('{"value":"UP"}');
+    expect(result).not.toBeNull();
+    expect(result!.value).toBe("UP");
+  });
+
+  test("handles very large JSON body", () => {
+    const bigObj = { value: 999, extra: "x".repeat(10000) };
+    const result = parseCounterBody(JSON.stringify(bigObj));
+    expect(result).not.toBeNull();
+    expect(result!.value).toBe(999);
+  });
+
+  test("handles unicode in body", () => {
+    const result = parseCounterBody('{"value":42,"unit":"\\u00b0C"}');
+    expect(result).not.toBeNull();
+    expect(result!.unit).toBe("°C");
+  });
+
+  test("handles nested objects in value", () => {
+    const result = parseCounterBody('{"value":{"nested":true}}');
+    expect(result).not.toBeNull();
+    expect(result!.value).toEqual({ nested: true });
   });
 });

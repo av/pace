@@ -342,7 +342,7 @@ test("replacePanelItems per-item failure uses errorMessage in thrown message", a
   const realPrepare = database.prepare.bind(database);
   const prepareSpy = spyOn(database, "prepare").mockImplementation((sql: unknown) => {
     const stmt = realPrepare(sql as string);
-    if (typeof sql === "string" && sql.includes("INSERT INTO content_items")) {
+    if (typeof sql === "string" && sql.includes("INSERT OR REPLACE INTO content_items")) {
       spyOn(stmt, "run").mockImplementation(() => {
         throw new Error("replace insert fail");
       });
@@ -625,4 +625,293 @@ test("contentItemsToRows inherits base row metadata and split id fallback", () =
   expect(merged[0].panel_id).toBe("panel-z");
   expect(merged[0].summary).toBe("base summary");
   expect(merged[0].title).toBe("Merged");
+});
+
+// --- Bookmarks DB write/read ---
+
+test("bookmarks items with stable IDs can be written and read back", () => {
+  initDb();
+  const b1 = makeItem({
+    id: "bookmarks:my-tool-0",
+    title: "My Tool",
+    url: "https://example.com/tool",
+    source: "bookmarks",
+    body: "A useful dev tool",
+    timestamp: new Date("2025-01-01"),
+  });
+  const b2 = makeItem({
+    id: "bookmarks:another-tool-1",
+    title: "Another Tool",
+    url: "https://example.com/other",
+    source: "bookmarks:devtools",
+    body: undefined,
+    timestamp: new Date("2025-01-02"),
+  });
+  saveItems("bk-panel", [b1, b2]);
+
+  const rows = getItemsByPanel("bk-panel", 10);
+  expect(rows.length).toBe(2);
+  const ids = rows.map((r) => r.id).sort();
+  expect(ids).toEqual(["bookmarks:another-tool-1", "bookmarks:my-tool-0"]);
+
+  const toolRow = rows.find((r) => r.id === "bookmarks:my-tool-0");
+  expect(toolRow?.title).toBe("My Tool");
+  expect(toolRow?.source).toBe("bookmarks");
+  expect(toolRow?.body).toBe("A useful dev tool");
+
+  const otherRow = rows.find((r) => r.id === "bookmarks:another-tool-1");
+  expect(otherRow?.source).toBe("bookmarks:devtools");
+  expect(otherRow?.body).toBeNull();
+});
+
+test("bookmarks ON CONFLICT(id) upserts on re-fetch with same stable IDs", () => {
+  initDb();
+  const first = makeItem({
+    id: "bookmarks:github-0",
+    title: "GitHub",
+    url: "https://github.com",
+    source: "bookmarks",
+    body: "Code hosting",
+    timestamp: new Date("2025-01-01"),
+  });
+  saveItems("bk", [first]);
+
+  // simulate re-fetch with updated description
+  const updated = makeItem({
+    id: "bookmarks:github-0",
+    title: "GitHub",
+    url: "https://github.com",
+    source: "bookmarks",
+    body: "Code hosting platform with CI/CD",
+    timestamp: new Date("2025-01-01"),
+  });
+  saveItems("bk", [updated]);
+
+  const db = getDb();
+  const allRows = db.prepare("SELECT * FROM content_items WHERE id = ?").all("bookmarks:github-0") as ContentItemRow[];
+  // only one row, not duplicated
+  expect(allRows.length).toBe(1);
+  expect(allRows[0].body).toBe("Code hosting platform with CI/CD");
+});
+
+test("bookmarks items are deduplicated properly when URLs differ (different items)", () => {
+  initDb();
+  const items = [
+    makeItem({ id: "bookmarks:a-0", url: "https://a.com", source: "bookmarks", timestamp: new Date("2025-01-01") }),
+    makeItem({ id: "bookmarks:b-1", url: "https://b.com", source: "bookmarks", timestamp: new Date("2025-01-02") }),
+    makeItem({ id: "bookmarks:c-2", url: "https://c.com", source: "bookmarks:tag", timestamp: new Date("2025-01-03") }),
+  ];
+  saveItems("bk-dedup", items);
+
+  const rows = getItemsByPanel("bk-dedup", 10);
+  expect(rows.length).toBe(3);
+});
+
+test("prune job handles bookmarks items correctly", () => {
+  initDb();
+  const bookmark = makeItem({
+    id: "bookmarks:old-link-0",
+    url: "https://old.example.com",
+    source: "bookmarks",
+    timestamp: new Date("2000-01-01"),
+  });
+  saveItems("bk-prune", [bookmark]);
+
+  const db = getDb();
+  // backdate fetched_at so prune picks it up
+  db.prepare("UPDATE content_items SET fetched_at = datetime('now', '-60 days') WHERE id = ?").run("bookmarks:old-link-0");
+
+  const pruned = pruneOldItems(30);
+  expect(pruned).toBe(1);
+  expect(getItemsByPanel("bk-prune", 10).length).toBe(0);
+});
+
+test("bookmarks item with very long body (10000+ chars) survives write/read", () => {
+  initDb();
+  const longBody = "x".repeat(12000);
+  const item = makeItem({
+    id: "bookmarks:longbody-0",
+    url: "https://long.example.com",
+    source: "bookmarks",
+    body: longBody,
+    timestamp: new Date("2025-01-01"),
+  });
+  saveItems("bk-long", [item]);
+
+  const rows = getItemsByPanel("bk-long", 10);
+  expect(rows.length).toBe(1);
+  expect(rows[0].body).toBe(longBody);
+  expect(rows[0].body!.length).toBe(12000);
+});
+
+test("bookmarks source label with special characters survives write/read", () => {
+  initDb();
+  const item = makeItem({
+    id: "bookmarks:special-0",
+    url: "https://special.example.com",
+    source: "bookmarks:dev/ops & infra",
+    timestamp: new Date("2025-01-01"),
+  });
+  saveItems("bk-special", [item]);
+
+  const rows = getItemsByPanel("bk-special", 10);
+  expect(rows.length).toBe(1);
+  expect(rows[0].source).toBe("bookmarks:dev/ops & infra");
+});
+
+// --- Counter DB write/read ---
+
+test("counter items can be written and read back with JSON body", () => {
+  initDb();
+  const counter = makeItem({
+    id: "counter:stars:1700000000000",
+    title: "GitHub Stars",
+    url: "https://api.github.com/repos/example/repo",
+    source: "counter",
+    body: JSON.stringify({ value: 42, unit: "k", previous: 38 }),
+    timestamp: new Date("2025-01-01"),
+  });
+  saveItems("cnt-panel", [counter]);
+
+  const rows = getItemsByPanel("cnt-panel", 10);
+  expect(rows.length).toBe(1);
+  expect(rows[0].id).toBe("counter:stars:1700000000000");
+  expect(rows[0].body).toBe('{"value":42,"unit":"k","previous":38}');
+
+  // verify JSON round-trip
+  const parsed = JSON.parse(rows[0].body!);
+  expect(parsed.value).toBe(42);
+  expect(parsed.unit).toBe("k");
+  expect(parsed.previous).toBe(38);
+});
+
+test("counter items with changing IDs accumulate but dedup collapses them by URL", () => {
+  initDb();
+  // simulate multiple fetches: same URL, different timestamp-based IDs
+  const fetch1 = makeItem({
+    id: "counter:stars:1700000000000",
+    title: "Stars",
+    url: "https://api.github.com/repos/ex/repo",
+    source: "counter",
+    body: JSON.stringify({ value: 100 }),
+    timestamp: new Date("2025-01-01T10:00:00Z"),
+  });
+  const fetch2 = makeItem({
+    id: "counter:stars:1700000001000",
+    title: "Stars",
+    url: "https://api.github.com/repos/ex/repo",
+    source: "counter",
+    body: JSON.stringify({ value: 105 }),
+    timestamp: new Date("2025-01-01T11:00:00Z"),
+  });
+  saveItems("cnt-dedup", [fetch1]);
+  saveItems("cnt-dedup", [fetch2]);
+
+  // raw: both rows exist in DB
+  const db = getDb();
+  const rawCount = db.prepare("SELECT COUNT(*) as n FROM content_items WHERE panel_id = ?").get("cnt-dedup") as { n: number };
+  expect(rawCount.n).toBe(2);
+
+  // deduped: only the latest one (same URL normalizes to same group)
+  const deduped = getItemsByPanel("cnt-dedup", 10);
+  expect(deduped.length).toBe(1);
+  expect(deduped[0].id).toBe("counter:stars:1700000001000");
+  expect(JSON.parse(deduped[0].body!).value).toBe(105);
+});
+
+test("old counter items are pruned correctly", () => {
+  initDb();
+  const oldCounter = makeItem({
+    id: "counter:metric:1600000000000",
+    url: "https://api.example.com/metric",
+    source: "counter",
+    body: JSON.stringify({ value: 50 }),
+    timestamp: new Date("2020-01-01"),
+  });
+  const freshCounter = makeItem({
+    id: "counter:metric:1700000000000",
+    url: "https://api.example.com/metric",
+    source: "counter",
+    body: JSON.stringify({ value: 60 }),
+    timestamp: new Date(),
+  });
+  saveItems("cnt-prune", [oldCounter, freshCounter]);
+
+  const db = getDb();
+  db.prepare("UPDATE content_items SET fetched_at = datetime('now', '-45 days') WHERE id = ?").run("counter:metric:1600000000000");
+
+  const pruned = pruneOldItems(30);
+  expect(pruned).toBe(1);
+
+  const remaining = getItemsByPanel("cnt-prune", 10);
+  expect(remaining.length).toBe(1);
+  expect(remaining[0].id).toBe("counter:metric:1700000000000");
+});
+
+test("counter body with unicode survives write/read", () => {
+  initDb();
+  const item = makeItem({
+    id: "counter:uni:1700000000000",
+    url: "https://api.example.com/data",
+    source: "counter",
+    body: JSON.stringify({ value: 42, unit: "°C", previous: 38 }),
+    timestamp: new Date("2025-01-01"),
+  });
+  saveItems("cnt-unicode", [item]);
+
+  const rows = getItemsByPanel("cnt-unicode", 10);
+  expect(rows.length).toBe(1);
+  const parsed = JSON.parse(rows[0].body!);
+  expect(parsed.unit).toBe("°C");
+  expect(parsed.value).toBe(42);
+});
+
+test("counter body with very large JSON survives write/read", () => {
+  initDb();
+  const largeObj = {
+    value: 999999,
+    unit: "%",
+    previous: 0,
+    metadata: { description: "a".repeat(5000) },
+  };
+  const item = makeItem({
+    id: "counter:large:1700000000000",
+    url: "https://api.example.com/big",
+    source: "counter",
+    body: JSON.stringify(largeObj),
+    timestamp: new Date("2025-01-01"),
+  });
+  saveItems("cnt-large", [item]);
+
+  const rows = getItemsByPanel("cnt-large", 10);
+  expect(rows.length).toBe(1);
+  const parsed = JSON.parse(rows[0].body!);
+  expect(parsed.value).toBe(999999);
+  expect(parsed.metadata.description.length).toBe(5000);
+});
+
+// --- Counter dedup with empty URL edge case ---
+
+test("counter items with empty URL fall back to id-based dedup (no collapse)", () => {
+  initDb();
+  // if counter somehow produces empty URLs, each item should stay separate
+  const c1 = makeItem({
+    id: "counter:a:1700000000000",
+    url: "",
+    source: "counter",
+    body: JSON.stringify({ value: 1 }),
+    timestamp: new Date("2025-01-01"),
+  });
+  const c2 = makeItem({
+    id: "counter:a:1700000001000",
+    url: "",
+    source: "counter",
+    body: JSON.stringify({ value: 2 }),
+    timestamp: new Date("2025-01-02"),
+  });
+  saveItems("cnt-nourl", [c1, c2]);
+
+  // with empty URL, dedup groups by id (CASE expression), so both survive
+  const rows = getItemsByPanel("cnt-nourl", 10);
+  expect(rows.length).toBe(2);
 });
