@@ -27,7 +27,7 @@ bun install
 
 # Create config from the example
 cp config.example.yaml config.yaml
-# Edit config.yaml — see skills/pace-dashboard-configure/SKILL.md for how to build one from scratch
+# Edit config.yaml -- see skills/pace-dashboard-configure/SKILL.md for how to build one from scratch
 
 # Start the dev server
 bun run dev
@@ -138,7 +138,7 @@ skills/pace-dashboard-configure/SKILL.md for detailed editing guidance).
 
 ## Verifying it works
 
-1. Open http://localhost:7453 — the dashboard should render with panel headers.
+1. Open http://localhost:7453 -- the dashboard should render with panel headers.
 2. Content appears after the first adapter refresh cycle (within `refresh_interval` minutes, default 15).
 3. To trigger an immediate refresh for a panel, POST to `/refresh/<panel-id>`.
 
@@ -155,4 +155,4 @@ curl -X POST http://localhost:7453/refresh/hackernews
 | `scheduler: adapter type "X" is configured but no matching adapter module was discovered` | Typo in adapter type name | Run `pace adapters list` to see all valid types |
 | Panels show but no content | Adapters haven't refreshed yet | Wait for refresh_interval or POST to `/refresh/<panel-id>` |
 | Port already in use | Another process on port 7453 | Use `--port 7454` or `PORT=7454` |
-| LLM transforms do nothing / items unchanged | `llm` block missing or misconfigured | LLM transforms silently pass items through without a valid `llm` config — add or fix the `llm` block and restart |
+| LLM transforms do nothing / items unchanged | `llm` block missing or misconfigured | LLM transforms silently pass items through without a valid `llm` config -- add or fix the `llm` block and restart |

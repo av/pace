@@ -24,7 +24,7 @@ Generate a `config.yaml` for pace from a user's description of what they want to
 
 ## Process
 
-0. Check whether a bundled preset already covers the user's request — see "Start from a preset" below.
+0. Check whether a bundled preset already covers the user's request -- see "Start from a preset" below.
 1. Ask the user what topics, communities, or content types they care about.
 2. Map those interests to adapters (see reference below).
 3. Choose sensible params and transforms for each adapter.
@@ -40,13 +40,13 @@ Before building from scratch, check whether a bundled preset already matches the
 
 ```bash
 pace presets list
-# example      — General software engineering (HN, Lobsters, GitHub, blogs, DEV.to)
-# tech-news    — Tech news from multiple sources
-# ml-ai        — AI and machine learning research
-# product-launches — Product launches and startup news
-# release-tracker  — Software release tracking
-# academic-papers  — Academic paper aggregation
-# video-podcast    — Video and podcast content
+# example      -- General software engineering (HN, Lobsters, GitHub, blogs, DEV.to)
+# tech-news    -- Tech news from multiple sources
+# ml-ai        -- AI and machine learning research
+# product-launches -- Product launches and startup news
+# release-tracker  -- Software release tracking
+# academic-papers  -- Academic paper aggregation
+# video-podcast    -- Video and podcast content
 ```
 
 To use a preset as the starting point:
@@ -67,7 +67,7 @@ minimal changes the user requested, and validate with `pace config check`.
 
 When the user already has a `config.yaml`:
 
-**Example — "drop YouTube, show only LLM news from HN":**
+**Example -- "drop YouTube, show only LLM news from HN":**
 
 ```yaml
 # BEFORE
@@ -81,7 +81,7 @@ adapters:
       channels: [UCXuqSBlHAE6Xw-yeJA0Tunw]
       limit: 15
 
-# AFTER — youtube adapter removed; hackernews gains an llm-filter transform
+# AFTER -- youtube adapter removed; hackernews gains an llm-filter transform
 adapters:
   - type: hackernews
     params:
@@ -93,13 +93,13 @@ adapters:
 ```
 
 1. Read the current file before making any edits.
-2. Make the minimal changes required — remove/replace adapters the user no longer wants, add
+2. Make the minimal changes required -- remove/replace adapters the user no longer wants, add
    new ones, adjust params and transforms.
 3. Validate the edited config:
    ```bash
    pace config check config.yaml
    ```
-   This catches schema errors and unknown adapter types without starting the server — fast
+   This catches schema errors and unknown adapter types without starting the server -- fast
    iteration loop.
 4. **Restart required:** pace reads `config.yaml` once at startup; it does not watch the file
    for changes. After writing the new config, the server must be restarted to pick it up:
@@ -520,7 +520,13 @@ A panel references a pipeline by using the pipeline name as its `source`.
 
 ## Layout
 
-Layout is a recursive flexbox tree. Each node is either a container (with `direction` + `children`) or a leaf panel (with `panel` + `source`).
+Layout is a recursive flexbox tree. Each node is one of:
+
+- **Container** (`direction` + `children`): row or column flex wrapper.
+- **Panel** (`panel` + `source`): content feed panel. Optional `display: counter` renders stat cards instead of a content list.
+- **Image widget** (`image`): static image from a URL.
+- **Text widget** (`text`): static text block (plain, markdown, or html).
+- **Iframe widget** (`iframe`): embedded external page in a sandboxed iframe.
 
 ```yaml
 layout:
@@ -546,13 +552,52 @@ layout:
       limit: 20
 ```
 
+### Widget nodes
+
+Widgets are layout leaves that display static content (no adapter source needed).
+
+```yaml
+# Image widget
+- image: https://example.com/banner.png
+  alt: "Dashboard banner"          # optional alt text
+  object_fit: cover                # cover, contain, fill, none (default: contain)
+  max_height: 200px                # optional CSS max-height
+  link: https://example.com        # optional clickable link (https or http://localhost only)
+  flex: 1                          # optional relative size
+
+# Text widget
+- text: "Welcome to the dashboard"
+  format: markdown                 # plain (default), markdown, html
+  title: "Greeting"                # optional header
+  flex: 1
+
+# Iframe widget
+- iframe: https://grafana.example.com/d/abc
+  title: "Grafana"                 # optional header
+  height: 400px                    # CSS length; takes priority over aspect_ratio
+  aspect_ratio: 16/9               # fallback when height is not set (default: 16/9)
+  sandbox: "allow-scripts allow-same-origin"  # optional sandbox tokens
+  allow: "fullscreen"              # optional Permissions-Policy directives
+  flex: 1
+```
+
+### Counter display mode
+
+Panels using the counter adapter should set `display: counter` to render stat cards:
+
+```yaml
+- panel: metrics
+  source: my-counter
+  display: counter                 # renders stat cards instead of content list
+```
+
 The special source `all` shows items from every adapter. If layout is omitted entirely, pace renders a single "all" panel as the default.
 
 Below 768px the layout collapses to a single column automatically.
 
 ## LLM config (optional)
 
-LLM transforms (`llm-summarize`, `llm-filter`, `llm-rank`, `llm-merge`) pass items through **unchanged** when the `llm` block is absent or misconfigured — they never error out.
+LLM transforms (`llm-summarize`, `llm-filter`, `llm-rank`, `llm-merge`) pass items through **unchanged** when the `llm` block is absent or misconfigured -- they never error out.
 
 ```yaml
 # Two concrete provider examples:
@@ -590,7 +635,7 @@ docker run -d -p 7453:7453 \
   ghcr.io/av/pace:latest
 ```
 
-The `provider` value is passed to [pi-ai](https://github.com/badlogic/pi-mono); supported providers include anthropic, openai, google, groq, mistral, and others — see pi-ai docs for the full list.
+The `provider` value is passed to [pi-ai](https://github.com/badlogic/pi-mono); supported providers include anthropic, openai, google, groq, mistral, and others -- see pi-ai docs for the full list.
 
 ## Worked example
 
