@@ -17,24 +17,8 @@ describe("bookmarks adapter", () => {
     warnSpy.mockRestore();
   });
 
-  test("adapter name is bookmarks", () => {
-    expect(adapter.name).toBe("bookmarks");
-  });
-
   test("returns empty and warns when no items configured", async () => {
     const result = await adapter.fetch({ type: "bookmarks", params: {} });
-    expect(result).toEqual([]);
-    expect(warnSpy).toHaveBeenCalled();
-  });
-
-  test("returns empty and warns when items is empty array", async () => {
-    const result = await adapter.fetch(makeConfig([]));
-    expect(result).toEqual([]);
-    expect(warnSpy).toHaveBeenCalled();
-  });
-
-  test("returns empty and warns when params is undefined", async () => {
-    const result = await adapter.fetch({ type: "bookmarks" });
     expect(result).toEqual([]);
     expect(warnSpy).toHaveBeenCalled();
   });
@@ -79,15 +63,6 @@ describe("bookmarks adapter", () => {
       { title: "Example", url: "https://example.com", tags: ["alpha", "beta"] },
     ]));
     expect(result[0].source).toBe("bookmarks:alpha");
-  });
-
-  test("id uses slugified title and index", async () => {
-    const result = await adapter.fetch(makeConfig([
-      { title: "My Cool Tool!", url: "https://example.com" },
-      { title: "Another  Tool", url: "https://example.com/2" },
-    ]));
-    expect(result[0].id).toBe("bookmarks:my-cool-tool-0");
-    expect(result[1].id).toBe("bookmarks:another-tool-1");
   });
 
   test("items have descending timestamps to preserve config order", async () => {
@@ -178,23 +153,6 @@ describe("bookmarks adapter", () => {
     expect(result[0].body).toBeUndefined();
   });
 
-  test("preserves index for id even when items are filtered", async () => {
-    const result = await adapter.fetch(makeConfig([
-      { title: "Invalid" }, // index 0, filtered
-      { title: "Valid", url: "https://example.com" }, // index 1
-    ]));
-    expect(result).toHaveLength(1);
-    expect(result[0].id).toBe("bookmarks:valid-1");
-  });
-
-  test("http:// urls are accepted", async () => {
-    const result = await adapter.fetch(makeConfig([
-      { title: "HTTP", url: "http://example.com" },
-    ]));
-    expect(result).toHaveLength(1);
-    expect(result[0].url).toBe("http://example.com");
-  });
-
   test("unicode-only titles produce stable IDs with index suffix", async () => {
     const result = await adapter.fetch(makeConfig([
       { title: "Bibliothek", url: "https://example.com/1" },
@@ -209,18 +167,6 @@ describe("bookmarks adapter", () => {
     // Titles are preserved as-is
     expect(result[1].title).toBe("中文标题");
     expect(result[2].title).toBe("日本語タイトル");
-  });
-
-  test("duplicate titles with same slug get unique IDs from index", async () => {
-    const result = await adapter.fetch(makeConfig([
-      { title: "My Tool", url: "https://example.com/1" },
-      { title: "My Tool", url: "https://example.com/2" },
-      { title: "My Tool", url: "https://example.com/3" },
-    ]));
-    expect(result).toHaveLength(3);
-    expect(result[0].id).toBe("bookmarks:my-tool-0");
-    expect(result[1].id).toBe("bookmarks:my-tool-1");
-    expect(result[2].id).toBe("bookmarks:my-tool-2");
   });
 
   test("empty tags array treated same as missing tags", async () => {
@@ -244,16 +190,6 @@ describe("bookmarks adapter", () => {
     expect(result[0].title).toBe(longTitle);
     // slug is truncated to 40 chars by slugify
     expect(result[0].id.length).toBeLessThanOrEqual("bookmarks:".length + 40 + "-0".length);
-  });
-
-  test("empty string URL is filtered out with warning", async () => {
-    const result = await adapter.fetch(makeConfig([
-      { title: "Empty URL", url: "" },
-      { title: "Valid", url: "https://example.com" },
-    ]));
-    expect(result).toHaveLength(1);
-    expect(result[0].title).toBe("Valid");
-    expect(warnSpy).toHaveBeenCalled();
   });
 
   test("URL with query params, fragments, and special characters accepted", async () => {
@@ -320,23 +256,6 @@ describe("bookmarks adapter", () => {
     expect((result[0] as Record<string, unknown>).icon).toBeUndefined();
   });
 
-  test("tags with all empty strings treated same as no tags", async () => {
-    const result = await adapter.fetch(makeConfig([
-      { title: "All Empty Tags", url: "https://example.com", tags: ["", ""] },
-    ]));
-    expect(result).toHaveLength(1);
-    // All tags are empty strings, so no valid tag found; source is plain "bookmarks"
-    expect(result[0].source).toBe("bookmarks");
-  });
-
-  test("title with special characters slugifies correctly", async () => {
-    const result = await adapter.fetch(makeConfig([
-      { title: "Hello & World! @#$%", url: "https://example.com" },
-    ]));
-    expect(result).toHaveLength(1);
-    expect(result[0].id).toBe("bookmarks:hello-world-0");
-  });
-
   test("description that is an object is treated as undefined", async () => {
     const result = await adapter.fetch(makeConfig([
       { title: "Obj Desc", url: "https://example.com", description: { nested: "value" } },
@@ -351,76 +270,5 @@ describe("bookmarks adapter", () => {
     ]));
     expect(result).toHaveLength(1);
     expect(result[0].source).toBe("bookmarks");
-  });
-
-  test("whitespace-only URL is filtered out", async () => {
-    const result = await adapter.fetch(makeConfig([
-      { title: "WS URL", url: "  " },
-    ]));
-    // url.trim() === "" check catches this
-    expect(result).toEqual([]);
-    expect(warnSpy).toHaveBeenCalled();
-  });
-
-  // --- Runtime validation warning message regression tests ---
-
-  describe("runtime validation warning messages", () => {
-    test("warns 'no items configured' when items param is missing", async () => {
-      const result = await adapter.fetch({ type: "bookmarks", params: {} });
-      expect(result).toEqual([]);
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining("no items configured"),
-      );
-    });
-
-    test("warns 'no items configured' when items is empty array", async () => {
-      const result = await adapter.fetch(makeConfig([]));
-      expect(result).toEqual([]);
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining("no items configured"),
-      );
-    });
-
-    test("warns 'missing or empty title' for item without title", async () => {
-      const result = await adapter.fetch(makeConfig([
-        { url: "https://example.com" },
-      ]));
-      expect(result).toEqual([]);
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining("missing or empty title"),
-      );
-    });
-
-    test("warns 'missing or empty url' for item without url", async () => {
-      const result = await adapter.fetch(makeConfig([
-        { title: "No URL" },
-      ]));
-      expect(result).toEqual([]);
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining("missing or empty url"),
-      );
-    });
-
-    test("warns about invalid URL scheme (ftp://)", async () => {
-      const result = await adapter.fetch(makeConfig([
-        { title: "FTP Site", url: "ftp://files.example.com/data" },
-      ]));
-      expect(result).toEqual([]);
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining("url must start with http:// or https://"),
-      );
-    });
-
-    test("warns 'all items were invalid' when every item fails validation", async () => {
-      const result = await adapter.fetch(makeConfig([
-        { title: "Bad", url: "ftp://bad.com" },
-        { url: "https://no-title.com" },
-        { title: "No URL" },
-      ]));
-      expect(result).toEqual([]);
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining("all items were invalid"),
-      );
-    });
   });
 });

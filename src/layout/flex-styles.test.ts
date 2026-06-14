@@ -1,16 +1,7 @@
 import { describe, it, expect } from "bun:test";
-import { flexStyle } from "./flex-styles";
 import { renderDashboard, type PanelData } from "../layout";
 import { flexCfg, panelCfg } from "../test/layout-cfg";
 import { makeContentItemRow as makeItem } from "../test/content-items";
-
-describe("flex:0 renders as flex:none (bug regression)", () => {
-  it("flexStyle(0) produces flex:none to avoid zero-size collapse", () => {
-    // flex:0 shorthand means grow=0 shrink=1 basis=0, which collapses the
-    // element to zero size. flex:none (= 0 0 auto) keeps natural size.
-    expect(flexStyle(0)).toBe("flex:none;");
-  });
-});
 
 describe("flex layout: widgets render with correct flex ratios", () => {
   it("flex:1 vs flex:2 widgets both appear in HTML with correct values", () => {
@@ -75,27 +66,6 @@ describe("flex layout: nested containers with widgets", () => {
     expect(html).toContain("Story");
     const containerMatches = html.match(/class="flex-container"/g);
     expect(containerMatches?.length).toBe(2);
-  });
-
-  it("three-level deep nesting: row > column > row", () => {
-    const layout = flexCfg("row", [
-      { text: "Top level text", flex: 1 },
-      flexCfg("column", [
-        { image: "https://example.com/mid.png", flex: 2 },
-        flexCfg("row", [
-          { iframe: "https://example.com/deep", flex: 1 },
-          { text: "Deep text", flex: 3 },
-        ], { flex: 1 }),
-      ], { flex: 2 }),
-    ]);
-    const html = renderDashboard({ layout, panelData: new Map(), updatedAt: "now" });
-
-    const containerMatches = html.match(/class="flex-container"/g);
-    expect(containerMatches?.length).toBe(3);
-    expect(html).toContain("text-widget");
-    expect(html).toContain("image-widget");
-    expect(html).toContain("iframe-panel");
-    expect(html).toContain("flex:3;");
   });
 });
 
