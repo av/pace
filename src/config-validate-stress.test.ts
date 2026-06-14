@@ -290,7 +290,7 @@ describe("config validator stress tests", () => {
           { adapters: [adapter("hackernews")], layout },
           DEFAULT_LAYOUT,
         ),
-      ).toThrow("must be a positive number");
+      ).toThrow("must be a non-negative number");
     });
 
     test("array where object expected in adapter rejects", () => {
@@ -390,7 +390,7 @@ describe("config validator stress tests", () => {
           { adapters: [adapter("hackernews")], layout },
           DEFAULT_LAYOUT,
         ),
-      ).toThrow("must be a positive number");
+      ).toThrow("must be a non-negative number");
     });
 
     test("null llm config rejects (not undefined)", () => {
@@ -593,7 +593,7 @@ describe("config validator stress tests", () => {
           { adapters: [adapter("hackernews")], layout },
           DEFAULT_LAYOUT,
         ),
-      ).toThrow("must be a positive number");
+      ).toThrow("must be a non-negative number");
     });
 
     test("flex: -1 on container rejects", () => {
@@ -607,7 +607,7 @@ describe("config validator stress tests", () => {
           { adapters: [adapter("hackernews")], layout },
           DEFAULT_LAYOUT,
         ),
-      ).toThrow("must be a positive number");
+      ).toThrow("must be a non-negative number");
     });
 
     test("flex: -1 on image widget rejects", () => {
@@ -616,7 +616,7 @@ describe("config validator stress tests", () => {
       ]);
       expect(() =>
         validateParsedConfig({ layout }, DEFAULT_LAYOUT),
-      ).toThrow("must be a positive number");
+      ).toThrow("must be a non-negative number");
     });
 
     test("flex: -1 on text widget rejects", () => {
@@ -625,7 +625,7 @@ describe("config validator stress tests", () => {
       ]);
       expect(() =>
         validateParsedConfig({ layout }, DEFAULT_LAYOUT),
-      ).toThrow("must be a positive number");
+      ).toThrow("must be a non-negative number");
     });
 
     test("flex: -1 on iframe widget rejects", () => {
@@ -634,7 +634,7 @@ describe("config validator stress tests", () => {
       ]);
       expect(() =>
         validateParsedConfig({ layout }, DEFAULT_LAYOUT),
-      ).toThrow("must be a positive number");
+      ).toThrow("must be a non-negative number");
     });
 
     test("refresh_interval: -5 on adapter rejects", () => {
@@ -661,7 +661,7 @@ describe("config validator stress tests", () => {
       ).toThrow("must be a positive integer");
     });
 
-    test("flex: 0 rejects (must be positive, not zero)", () => {
+    test("flex: 0 is accepted (use natural size, no grow)", () => {
       const layout: LayoutNodeConfig = container("row", [
         { panel: "p", source: "all", flex: 0 },
       ]);
@@ -670,7 +670,7 @@ describe("config validator stress tests", () => {
           { adapters: [adapter("hackernews")], layout },
           DEFAULT_LAYOUT,
         ),
-      ).toThrow("must be a positive number");
+      ).not.toThrow();
     });
 
     test("flex: NaN rejects", () => {
@@ -682,7 +682,7 @@ describe("config validator stress tests", () => {
           { adapters: [adapter("hackernews")], layout },
           DEFAULT_LAYOUT,
         ),
-      ).toThrow("must be a positive number");
+      ).toThrow("must be a non-negative number");
     });
 
     test("flex: Infinity rejects", () => {
@@ -694,7 +694,7 @@ describe("config validator stress tests", () => {
           { adapters: [adapter("hackernews")], layout },
           DEFAULT_LAYOUT,
         ),
-      ).toThrow("must be a positive number");
+      ).toThrow("must be a non-negative number");
     });
 
     test("limit: 0 rejects (must be positive integer)", () => {

@@ -19,11 +19,18 @@ export const ImageWidget: FC<{ node: ImageWidgetConfig }> = ({ node }) => {
   // Decorative images (empty alt) get aria-hidden so assistive tech skips them entirely
   const isDecorative = !alt;
 
+  // cover/fill need the element to fill its container so object-fit can crop/stretch;
+  // contain/none only need max constraints so the image never overflows.
+  const fillsContainer = objectFit === "cover" || objectFit === "fill";
+  const sizeStyle = fillsContainer
+    ? "width:100%; height:100%;"
+    : "max-width:100%; max-height:100%;";
+
   const img = (
     <img
       src={node.image}
       alt={alt}
-      style={`object-fit:${objectFit}; max-width:100%; max-height:100%;`}
+      style={`object-fit:${objectFit}; ${sizeStyle}`}
       loading="lazy"
       {...(isDecorative && !node.link ? { "aria-hidden": "true" } : {})}
     />

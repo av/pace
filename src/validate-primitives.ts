@@ -40,6 +40,12 @@ export function validatePositiveInteger(value: unknown, path: string): void {
   }
 }
 
+export function validateNonNegativeNumber(value: unknown, path: string): void {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    throw new Error(`config: ${path} must be a non-negative number`);
+  }
+}
+
 export function validateFiniteNumber(value: unknown, path: string): void {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     throw new Error(`config: ${path} must be a number`);
@@ -76,6 +82,7 @@ function validateUnitNumber(value: unknown, path: string): void {
 }
 
 export const validateOptionalPositiveNumber = optionalValidator(validatePositiveNumber);
+export const validateOptionalNonNegativeNumber = optionalValidator(validateNonNegativeNumber);
 export const validateOptionalPositiveInteger = optionalValidator(validatePositiveInteger);
 export const validateOptionalFiniteNumber = optionalValidator(validateFiniteNumber);
 export const validateOptionalBoolean = optionalValidator(validateBoolean);

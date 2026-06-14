@@ -1955,7 +1955,7 @@ layout:
 `;
       setConfig(yaml);
       expect(() => loadConfig()).toThrow(
-        /config: layout.children\[0\].flex must be a positive number/,
+        /config: layout.children\[0\].flex must be a non-negative number/,
       );
     });
 
@@ -1970,11 +1970,11 @@ layout:
 `;
       setConfig(yaml);
       expect(() => loadConfig()).toThrow(
-        /config: layout.children\[0\].flex must be a positive number/,
+        /config: layout.children\[0\].flex must be a non-negative number/,
       );
     });
 
-    test("rejects text widget with zero flex", () => {
+    test("accepts text widget with zero flex", () => {
       const yaml = `
 layout:
   direction: row
@@ -1983,9 +1983,7 @@ layout:
       flex: 0
 `;
       setConfig(yaml);
-      expect(() => loadConfig()).toThrow(
-        /config: layout.children\[0\].flex must be a positive number/,
-      );
+      expect(() => loadConfig()).not.toThrow();
     });
 
     test("rejects iframe widget with negative flex", () => {
@@ -1998,7 +1996,7 @@ layout:
 `;
       setConfig(yaml);
       expect(() => loadConfig()).toThrow(
-        /config: layout.children\[0\].flex must be a positive number/,
+        /config: layout.children\[0\].flex must be a non-negative number/,
       );
     });
 

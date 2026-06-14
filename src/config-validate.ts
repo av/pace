@@ -23,6 +23,7 @@ import {
   validateOptionalList,
   validateOptionalNonEmptyString,
   validateOptionalPositiveInteger,
+  validateOptionalNonNegativeNumber,
   validateOptionalPositiveNumber,
   validateOptionalStringList,
   validateUniqueStringList,
@@ -164,7 +165,7 @@ function validatePanel(node: Record<string, unknown>, path: string): void {
   }
   validateSource(node.source, `${path}.source`);
   validateOptionalNonEmptyString(node.id, `${path}.id`);
-  validateOptionalPositiveNumber(node.flex, `${path}.flex`);
+  validateOptionalNonNegativeNumber(node.flex, `${path}.flex`);
   validateOptionalPositiveInteger(node.limit, `${path}.limit`);
   validateOptionalEnum(node.display, PANEL_DISPLAY_VALUES, `${path}.display`);
 }
@@ -177,7 +178,7 @@ function validateLayoutContainer(node: Record<string, unknown>, path: string): v
   if (!Array.isArray(node.children)) {
     throw new Error(`config: ${path}.children must be a list`);
   }
-  validateOptionalPositiveNumber(node.flex, `${path}.flex`);
+  validateOptionalNonNegativeNumber(node.flex, `${path}.flex`);
   validateOptionalNonEmptyString(node.gap, `${path}.gap`);
   node.children.forEach((child, index) => validateLayoutNode(child, `${path}.children[${index}]`));
 }
@@ -224,7 +225,7 @@ function validateImageWidget(node: Record<string, unknown>, path: string): void 
     return `${path}.${key} is not a valid image widget field`;
   });
   validateNonEmptyString(node.image, `${path}.image`);
-  validateOptionalPositiveNumber(node.flex, `${path}.flex`);
+  validateOptionalNonNegativeNumber(node.flex, `${path}.flex`);
   validateOptionalNonEmptyString(node.alt, `${path}.alt`);
   validateOptionalEnum(node.object_fit, IMAGE_OBJECT_FIT_VALUES, `${path}.object_fit`);
   validateOptionalNonEmptyString(node.max_height, `${path}.max_height`);
@@ -255,7 +256,7 @@ function validateTextWidget(node: Record<string, unknown>, path: string): void {
   validateNonEmptyString(node.text, `${path}.text`);
   validateOptionalEnum(node.format, TEXT_FORMAT_VALUES, `${path}.format`);
   validateOptionalNonEmptyString(node.title, `${path}.title`);
-  validateOptionalPositiveNumber(node.flex, `${path}.flex`);
+  validateOptionalNonNegativeNumber(node.flex, `${path}.flex`);
 }
 
 const ASPECT_RATIO_RE = /^\d+\/\d+$/;
@@ -310,7 +311,7 @@ function validateIframeWidget(node: Record<string, unknown>, path: string): void
     return `${path}.${key} is not a valid iframe widget field`;
   });
   validateSafeUrl(node.iframe, `${path}.iframe`);
-  validateOptionalPositiveNumber(node.flex, `${path}.flex`);
+  validateOptionalNonNegativeNumber(node.flex, `${path}.flex`);
   validateOptionalNonEmptyString(node.title, `${path}.title`);
   validateOptionalNonEmptyString(node.allow, `${path}.allow`);
 
