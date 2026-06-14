@@ -157,7 +157,7 @@ export function extractRssAtomItems<T>(
 
 /**
  * True when a feed parsed successfully with a feed root but zero extractable items,
- * and the item/entry field is absent or an empty array (not malformed — shape warn covers that).
+ * and the item/entry field is absent or an empty array (not malformed - shape warn covers that).
  */
 export function shouldWarnLegitimatelyEmptyFeed<T>(
   parsed: {

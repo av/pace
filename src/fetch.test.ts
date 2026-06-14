@@ -101,7 +101,7 @@ describe("fetchWithTimeout", () => {
     });
   });
 
-  test("does not check res.ok — returns non-2xx responses", async () => {
+  test("does not check res.ok - returns non-2xx responses", async () => {
     mocks.fetchMock.mockResolvedValue(makeTextResponse("nope", 503));
 
     const res = await fetchWithTimeout("https://example.com/missing");

@@ -1,5 +1,5 @@
 # AI and machine learning: fresh papers, local-LLM community, releases, and curated blogs.
-# Note: r/MachineLearning and r/LocalLLaMA are gone from this preset — Reddit blocks
+# Note: r/MachineLearning and r/LocalLLaMA are gone from this preset - Reddit blocks
 # unauthenticated API access. Lemmy's localllama community covers the same ground.
 
 adapters:
@@ -15,7 +15,7 @@ adapters:
       - type: exclude
         keywords: [hiring]
         fields: [title]
-      # Blend engagement with recency — surface what's trending now.
+      # Blend engagement with recency - surface what's trending now.
       - type: time-decay
         half_life: 8h
         engagement_weight: 0.6
@@ -34,7 +34,7 @@ adapters:
       - type: dedupe
         strategy: title-similarity
         threshold: 0.8
-      # Score by topic relevance — weighted keyword matching.
+      # Score by topic relevance - weighted keyword matching.
       - type: keyword-score
         keywords:
           - term: "language.model|LLM|transformer|GPT|attention"
@@ -81,7 +81,7 @@ adapters:
       limit: 25
     refresh_interval: 20
     transforms:
-      # Blend engagement with recency — favor active discussions.
+      # Blend engagement with recency - favor active discussions.
       - type: time-decay
         half_life: 12h
         engagement_weight: 0.7
@@ -108,11 +108,11 @@ pipelines:
   - name: firehose
     sources: [hackernews, localllama, blogs]
     transforms:
-      # Collapse cross-posts across sources — keep highest scored.
+      # Collapse cross-posts across sources - keep highest scored.
       - type: dedupe
         strategy: domain-normalized
         keep: highest-score
-      # Score by topic relevance — weighted keyword matching.
+      # Score by topic relevance - weighted keyword matching.
       - type: keyword-score
         keywords:
           - term: "benchmark|sota|state.of.the.art|eval|leaderboard"

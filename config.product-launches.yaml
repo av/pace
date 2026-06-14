@@ -1,6 +1,6 @@
 # New product launches, demos, and side projects.
 # Product Hunt + Show HN + builder communities + a discovery column of trending repos.
-# Note: no reddit adapter here — Reddit blocks unauthenticated API access upstream.
+# Note: no reddit adapter here - Reddit blocks unauthenticated API access upstream.
 
 adapters:
   - type: producthunt
@@ -10,7 +10,7 @@ adapters:
       min_upvotes: 30
     refresh_interval: 300
     transforms:
-      # Blend engagement with recency — surface what's trending now.
+      # Blend engagement with recency - surface what's trending now.
       - type: time-decay
         half_life: "6h"
         engagement_weight: 0.6
@@ -26,7 +26,7 @@ adapters:
       min_score: 2
     refresh_interval: 15
     transforms:
-      # Blend engagement with recency — surface what's trending now.
+      # Blend engagement with recency - surface what's trending now.
       - type: time-decay
         half_life: "12h"
         engagement_weight: 0.7
@@ -58,7 +58,7 @@ adapters:
       limit: 15
     refresh_interval: 180
     transforms:
-      # Blend engagement with recency — surface what's trending now.
+      # Blend engagement with recency - surface what's trending now.
       - type: time-decay
         half_life: "24h"
         engagement_weight: 0.8
@@ -67,7 +67,7 @@ adapters:
       - type: latest
         count: 15
 
-  # Brand-new packages shipping to the npm registry — early signal for new tools.
+  # Brand-new packages shipping to the npm registry - early signal for new tools.
   - name: npm-fresh
     type: npm
     params:
@@ -97,7 +97,7 @@ pipelines:
             weight: -20
             regex: true
         annotate: false
-      # Blend engagement with recency — surface what's trending now.
+      # Blend engagement with recency - surface what's trending now.
       - type: time-decay
         half_life: "12h"
         engagement_weight: 0.6

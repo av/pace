@@ -1,7 +1,7 @@
 # Academic paper tracker across any field, plus accessible science writing.
 # Replace categories and query with your research interests.
 # See https://arxiv.org/category_taxonomy for all ArXiv categories.
-# Note: no reddit adapter here — Reddit blocks unauthenticated API access upstream.
+# Note: no reddit adapter here - Reddit blocks unauthenticated API access upstream.
 
 adapters:
   - name: arxiv-categories
@@ -49,7 +49,7 @@ adapters:
       limit: 10
     refresh_interval: 120
     transforms:
-      # Score by research-relevance — weighted keyword matching.
+      # Score by research-relevance - weighted keyword matching.
       - type: keyword-score
         keywords:
           - term: "complexity|decidability|computability|NP|PSPACE"
@@ -74,7 +74,7 @@ adapters:
       - type: latest
         count: 10
 
-  # Long-form science journalism — the readable counterpart to the preprint firehose.
+  # Long-form science journalism - the readable counterpart to the preprint firehose.
   - name: science-writing
     type: rss
     params:
@@ -107,7 +107,7 @@ pipelines:
       - type: filter
         keywords: [paper, research, study, proof, theorem, published, arxiv, preprint, peer review, survey, journal, pdf]
         fields: [title]
-      # Score by topic relevance — weighted keyword matching.
+      # Score by topic relevance - weighted keyword matching.
       - type: keyword-score
         keywords:
           - term: "formal.verification|proof.assistant|theorem.prover"
@@ -130,7 +130,7 @@ pipelines:
             regex: true
         min_score: 2
         annotate: false
-      # Blend engagement with recency — surface what's trending now.
+      # Blend engagement with recency - surface what's trending now.
       - type: time-decay
         half_life: "8h"
         engagement_weight: 0.6

@@ -136,6 +136,22 @@ docker run -d -p 7453:7453 -v pace-data:/app/data ghcr.io/av/pace:latest --prese
 Copy a preset to `config.yaml` and customise it, then restart with your edited file (see
 skills/pace-dashboard-configure/SKILL.md for detailed editing guidance).
 
+## Beyond feeds: widgets, bookmarks, and counters
+
+Layouts can include more than just content-feed panels. Three widget types let you
+embed static content directly into the layout tree without an adapter:
+
+- **Image widget** - logos, banners, status badges (`image:` key)
+- **Text widget** - notes, changelogs, instructions in plain, markdown, or html (`text:` key)
+- **Iframe widget** - embedded external pages like Grafana dashboards (`iframe:` key)
+
+Two special adapters complement these:
+
+- **Bookmarks** - curated link lists defined in config (no network fetch)
+- **Counter** - fetches a JSON endpoint and extracts a numeric value; pair with `display: counter` on the panel for stat-card rendering
+
+See skills/pace-dashboard-configure/SKILL.md for full config reference and examples.
+
 ## Verifying it works
 
 1. Open http://localhost:7453 -- the dashboard should render with panel headers.

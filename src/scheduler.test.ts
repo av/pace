@@ -83,7 +83,7 @@ describe("scheduler", () => {
       const saved = dbMod.getAllItemsByPanel("panel1");
       expect(saved.length).toBe(1);
       expect(saved[0].title).toBe("GitHub Release");
-      expect(logSpy).toHaveBeenCalledWith("scheduler: testsrc — fetched 1 items");
+      expect(logSpy).toHaveBeenCalledWith("scheduler: testsrc - fetched 1 items");
     });
   });
 
@@ -224,7 +224,7 @@ describe("scheduler", () => {
       startTestScheduler(config, adapters, pm, null);
       await waitForAsync();
       expect(dbMod.getAllItemsByPanel("panelA").length).toBe(3);
-      expect(logSpy).toHaveBeenCalledWith("scheduler: src — transforms: 10 → 3 items");
+      expect(logSpy).toHaveBeenCalledWith("scheduler: src - transforms: 10 -> 3 items");
     });
   });
 
@@ -318,9 +318,9 @@ describe("scheduler", () => {
         expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 5000);
         expect(setIntervalSpy).toHaveBeenCalledTimes(2);
         expect(logSpy).toHaveBeenCalledWith(
-          `scheduler: testsrc — every ${DEFAULT_REFRESH_INTERVAL_MIN}m`,
+          `scheduler: testsrc - every ${DEFAULT_REFRESH_INTERVAL_MIN}m`,
         );
-        expect(logSpy).toHaveBeenCalledWith('scheduler: pipeline "p1" — every 1m');
+        expect(logSpy).toHaveBeenCalledWith('scheduler: pipeline "p1" - every 1m');
       });
     } finally {
       setTimeoutSpy.mockRestore();

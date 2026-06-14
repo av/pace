@@ -23,7 +23,7 @@ export interface PipelineEntry extends TimedEntryBase {
   initialTimer: ReturnType<typeof setTimeout> | null;
 }
 
-/** Mutable scheduler runtime — single place for lifecycle and test resets. */
+/** Mutable scheduler runtime - single place for lifecycle and test resets. */
 export class SchedulerState {
   readonly adapterEntries: AdapterEntry[] = [];
   readonly pipelineEntries: PipelineEntry[] = [];

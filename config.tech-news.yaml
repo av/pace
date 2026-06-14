@@ -1,5 +1,5 @@
 # Tech news across communities: Hacker News, Lobsters, the Fediverse, and release feeds.
-# Note: the reddit adapter is intentionally absent — Reddit blocks unauthenticated API
+# Note: the reddit adapter is intentionally absent - Reddit blocks unauthenticated API
 # access upstream, so this preset uses Lemmy communities instead (works out of the box).
 
 adapters:
@@ -81,7 +81,7 @@ pipelines:
       - type: dedupe
         strategy: domain-normalized
         keep: highest-score
-      # Score by topic relevance — weighted keyword matching.
+      # Score by topic relevance - weighted keyword matching.
       - type: keyword-score
         keywords:
           - term: "rust|zig|go|typescript|python|swift"
@@ -100,7 +100,7 @@ pipelines:
             weight: -3
             regex: true
         annotate: false
-      # Blend engagement with recency — surface what's trending now.
+      # Blend engagement with recency - surface what's trending now.
       - type: time-decay
         half_life: "8h"
         engagement_weight: 0.65
@@ -110,7 +110,7 @@ pipelines:
       - type: latest
         count: 30
 
-  # Cross-community trending — cluster related stories from all sources.
+  # Cross-community trending - cluster related stories from all sources.
   - name: cross-community
     sources: [hackernews, lobsters, lemmy]
     transforms:

@@ -75,7 +75,7 @@ describe("arxiv", () => {
   });
 
   test("truncates long abstract in body to 300 characters with ellipsis", async () => {
-    const longAbstract = "word ".repeat(120).trim(); // 599 chars — well over 300
+    const longAbstract = "word ".repeat(120).trim(); // 599 chars - well over 300
     mocks.fetchMock.mockResolvedValue(makeXmlResponse(arxivLongAbstractFeedFixture(longAbstract)));
 
     const items = await arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"] }));

@@ -17,7 +17,7 @@ adapters:
         strategy: title-similarity
         threshold: 0.85
         keep: latest
-      # Score by topic relevance — weighted keyword matching.
+      # Score by topic relevance - weighted keyword matching.
       - type: keyword-score
         keywords:
           - term: "interview|conversation|deep dive|episode"
@@ -63,7 +63,7 @@ adapters:
       only_media: true
     refresh_interval: 60
     transforms:
-      # Blend engagement with recency — surface what's trending now.
+      # Blend engagement with recency - surface what's trending now.
       - type: time-decay
         half_life: "12h"
         engagement_weight: 0.6

@@ -20,7 +20,7 @@ describe("score column", () => {
     expect(names).toContain("score");
   });
 
-  test("migration is idempotent — initDb twice does not throw with score column", () => {
+  test("migration is idempotent - initDb twice does not throw with score column", () => {
     initDb();
     expect(() => initDb()).not.toThrow();
   });

@@ -1,9 +1,9 @@
-# Morning briefing — not just tech.
+# Morning briefing - not just tech.
 # World headlines, what the internet is reading, today in history, and a tech pulse.
 # All sources work without any credentials.
 
 adapters:
-  # Wikipedia "In the news" — current events with encyclopedic context.
+  # Wikipedia "In the news" - current events with encyclopedic context.
   - name: wiki-news
     type: wikipedia
     params:
@@ -11,14 +11,14 @@ adapters:
       limit: 10
     refresh_interval: 120
     transforms:
-      # Fade older items — pure recency ranking.
+      # Fade older items - pure recency ranking.
       - type: time-decay
         half_life: "12h"
         engagement_weight: 0
         recency_weight: 1
         decay: exponential
 
-  # What everyone looked up yesterday — a barometer of collective attention.
+  # What everyone looked up yesterday - a barometer of collective attention.
   - name: wiki-popular
     type: wikipedia
     params:
@@ -47,7 +47,7 @@ adapters:
         strategy: title-similarity
         threshold: 0.8
         keep: earliest
-      # Score by topic relevance — weighted keyword matching.
+      # Score by topic relevance - weighted keyword matching.
       - type: keyword-score
         keywords:
           - term: "breaking|urgent|exclusive|developing"
@@ -66,7 +66,7 @@ adapters:
       - type: latest
         count: 20
 
-  # Only the biggest tech stories — high score threshold keeps this a pulse, not a feed.
+  # Only the biggest tech stories - high score threshold keeps this a pulse, not a feed.
   - type: hackernews
     params:
       feed: top
@@ -77,7 +77,7 @@ adapters:
       - type: exclude
         keywords: [hiring, "is hiring", "who is hiring"]
         fields: [title]
-      # Blend engagement with recency — surface what's trending now.
+      # Blend engagement with recency - surface what's trending now.
       - type: time-decay
         half_life: "6h"
         engagement_weight: 0.7

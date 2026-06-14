@@ -62,7 +62,7 @@ export function useFetchMockSuite(): FetchMockSuite {
   afterEach(() => {
     globalThis.fetch = originalFetch;
     warnSpy.mockRestore();
-    // Do not call mock.restore() here — it clears mock.module() from other files
+    // Do not call mock.restore() here - it clears mock.module() from other files
     // (e.g. discoverAdapters fs mocks) and races with per-test utils.errorMessage spies.
   });
 
@@ -138,7 +138,7 @@ function applyFetchMockSetup(fetchMock: FetchMock, step: AdapterFetchErrorCase):
     fetchMock.mockRejectedValue(step.networkError);
     return;
   }
-  // No explicit setup — use whatever fetch mock is already configured.
+  // No explicit setup - use whatever fetch mock is already configured.
 }
 
 /**

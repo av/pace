@@ -61,7 +61,7 @@ export type FetchWithTimeoutOptions = {
 
 type FetchBodyReader<T> = (res: Response) => Promise<T>;
 
-/** Does not check `res.ok` — use `fetchText` / `fetchJson` for status handling. */
+/** Does not check `res.ok` - use `fetchText` / `fetchJson` for status handling. */
 export async function fetchWithTimeout(
   url: string,
   options: FetchWithTimeoutOptions = {},

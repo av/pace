@@ -48,7 +48,7 @@ describe("errorMessage", () => {
     expect(errorMessage([1, 2, 3])).toBe("1,2,3");
   });
 
-  test("does not include stack or cause details — only top-level message", () => {
+  test("does not include stack or cause details - only top-level message", () => {
     const err = new Error("top level only");
     err.cause = new Error("inner cause");
     expect(errorMessage(err)).toBe("top level only");

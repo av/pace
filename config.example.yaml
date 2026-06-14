@@ -1,4 +1,4 @@
-# pace config — adapters with ingest-time transforms + flexbox layout
+# pace config - adapters with ingest-time transforms + flexbox layout
 
 adapters:
   - type: hackernews
@@ -33,7 +33,7 @@ adapters:
         - https://jvns.ca/atom.xml
     refresh_interval: 30
     transforms:
-      # Score by topic relevance — weighted keyword matching.
+      # Score by topic relevance - weighted keyword matching.
       - type: keyword-score
         keywords:
           - term: "architecture|distributed|scalab"
@@ -81,7 +81,7 @@ adapters:
       limit: 15
     refresh_interval: 30
     transforms:
-      # Blend engagement with recency — 12h half-life for slower cadence.
+      # Blend engagement with recency - 12h half-life for slower cadence.
       - type: time-decay
         half_life: 12h
         engagement_weight: 0.6
@@ -101,7 +101,7 @@ adapters:
   #   refresh_interval: 15
   #   Note: public unauth .json now returns 403 (upstream); see facts for reddit adapter status.
 
-  # - type: lemmy            # works without credentials — good reddit replacement
+  # - type: lemmy            # works without credentials - good reddit replacement
   #   params:
   #     instance: programming.dev
   #     communities: [programming, technology]
@@ -172,7 +172,7 @@ pipelines:
         strategy: title-similarity
         threshold: 0.8
         keep: highest-score
-      # Blend engagement with recency — surface what's trending now.
+      # Blend engagement with recency - surface what's trending now.
       - type: time-decay
         half_life: 8h
         engagement_weight: 0.7
@@ -255,5 +255,48 @@ layout:
 #       source: lobsters
 #     - panel: rss
 #       source: rss
+#
+# Widget examples (embed static content in the layout without an adapter):
+#
+#     # Image widget - logo, banner, or chart image
+#     - image: https://example.com/banner.png
+#       alt: "Dashboard banner"
+#       object_fit: cover
+#       max_height: 120px
+#       link: https://example.com
+#
+#     # Text widget - notes, instructions, or changelogs
+#     - text: "## Welcome\nYour personalized dashboard."
+#       format: markdown
+#       title: "About"
+#
+#     # Iframe widget - embed an external page (Grafana, status page, etc.)
+#     - iframe: https://grafana.example.com/d/abc
+#       title: "Metrics"
+#       height: 400px
+#
+# Bookmarks adapter (curated links, no network fetch):
+#
+#   - type: bookmarks
+#     params:
+#       items:
+#         - title: "Linear"
+#           url: "https://linear.app"
+#           tags: ["work"]
+#         - title: "Figma"
+#           url: "https://figma.com"
+#           tags: ["design"]
+#
+# Counter adapter (JSON endpoint stat card):
+#
+#   - type: counter
+#     params:
+#       url: https://api.github.com/repos/oven-sh/bun
+#       json_path: stargazers_count
+#       label: "Bun Stars"
+#   # Use display: counter on the panel:
+#   # - panel: stars
+#   #   source: counter
+#   #   display: counter
 
 # see skills/pace-dashboard-configure/SKILL.md for the full reference (adapters, transforms, pipelines, layout, LLM config and examples).

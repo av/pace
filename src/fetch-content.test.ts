@@ -88,7 +88,7 @@ describe("fetch_content in llm-summarize", () => {
       { llmModel: fakeModel },
     );
 
-    // Fetch should not have been called — item was already summarized
+    // Fetch should not have been called - item was already summarized
     expect(fetchMock).not.toHaveBeenCalled();
     expect(result[0]?.summary).toBe("Already summarized");
   });

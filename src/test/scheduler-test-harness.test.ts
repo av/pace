@@ -18,7 +18,7 @@ import {
 describe("scheduler-test-harness contracts", () => {
   test("schedulerTestRuntime throws when hooks not installed", () => {
     expect(() => schedulerTestRuntime()).toThrow(
-      "scheduler-test-harness: no runtime — call installSchedulerRuntimeHooks() in describe()",
+      "scheduler-test-harness: no runtime - call installSchedulerRuntimeHooks() in describe()",
     );
   });
 });

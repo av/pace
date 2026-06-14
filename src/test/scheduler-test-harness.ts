@@ -15,7 +15,7 @@ let testRuntime: SchedulerRuntime | undefined;
 export function schedulerTestRuntime(): SchedulerRuntime {
   if (testRuntime === undefined) {
     throw new Error(
-      "scheduler-test-harness: no runtime — call installSchedulerRuntimeHooks() in describe()",
+      "scheduler-test-harness: no runtime - call installSchedulerRuntimeHooks() in describe()",
     );
   }
   return testRuntime;

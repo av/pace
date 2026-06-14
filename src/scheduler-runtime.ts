@@ -74,7 +74,7 @@ function computeRefreshInterval(refreshInterval?: number): { intervalMin: number
 }
 
 function logScheduledRefresh(label: string, intervalMin: number): void {
-  logScheduler(`${label} — every ${intervalMin}m`);
+  logScheduler(`${label} - every ${intervalMin}m`);
 }
 
 function scheduleTimedEntryRefresh<T extends TimedEntryBase>(
@@ -151,7 +151,7 @@ async function runTransformsAndReplaceOnPanels(
   const logMode = options.logMode ?? "when-changed";
   if (logMode === "always" || items.length !== transformed.length) {
     const detail = options.logDetail ? `${options.logDetail} ` : "";
-    logScheduler(`${options.logLabel} — ${detail}${items.length} → ${transformed.length} items`);
+    logScheduler(`${options.logLabel} - ${detail}${items.length} -> ${transformed.length} items`);
   }
 }
 
@@ -175,7 +175,7 @@ async function runAdapter(scheduler: SchedulerState, entry: AdapterEntry): Promi
     const items = await adapter.fetch(adapterConfig);
     if (items.length > 0) {
       saveItemsToPanels(panelIds, items);
-      logScheduler(`${name} — fetched ${items.length} items`);
+      logScheduler(`${name} - fetched ${items.length} items`);
     }
 
     const transforms = adapterConfig.transforms;
@@ -257,7 +257,7 @@ function clearScheduledTimers(entry: TimedEntryBase): void {
   if (entry.initialTimer) clearTimeout(entry.initialTimer);
 }
 
-/** Scheduler operations bound to one mutable state — use for test isolation or custom lifecycles. */
+/** Scheduler operations bound to one mutable state - use for test isolation or custom lifecycles. */
 export function createSchedulerRuntime(state: SchedulerState = createSchedulerState()): SchedulerRuntime {
   return {
     state,

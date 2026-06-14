@@ -21,7 +21,7 @@ test("initDb migration adds origins and applied_transforms columns", () => {
   expect(names).toContain("applied_transforms");
 });
 
-test("migration is idempotent — initDb twice does not throw", () => {
+test("migration is idempotent - initDb twice does not throw", () => {
   initDb();
   expect(() => initDb()).not.toThrow();
 });
