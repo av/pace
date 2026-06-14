@@ -16,6 +16,7 @@ import { getAdapterName } from "./utils";
 import {
   validateAllowedKeys,
   validateEnum,
+  validateOptionalEnum,
   validateNonEmptyArray,
   validateNonEmptyString,
   validateOptionalList,
@@ -104,34 +105,45 @@ export function validateSafeUrl(url: unknown, path: string): void {
   throw new Error(`config: ${path} has disallowed scheme "${parsed.protocol.replace(/:$/, "")}"`);
 }
 
+const IMAGE_OBJECT_FIT_VALUES = ["cover", "contain", "fill", "none"] as const;
+
 function validateImageWidget(node: Record<string, unknown>, path: string): void {
-  validateAllowedKeys(node, ["image", "flex", "alt", "link"], (key) =>
+  validateAllowedKeys(node, ["image", "flex", "alt", "object_fit", "max_height", "link"], (key) =>
     `${path}.${key} is not a valid image widget field`,
   );
   validateNonEmptyString(node.image, `${path}.image`);
   validateOptionalPositiveNumber(node.flex, `${path}.flex`);
   validateOptionalNonEmptyString(node.alt, `${path}.alt`);
+  validateOptionalEnum(node.object_fit, IMAGE_OBJECT_FIT_VALUES, `${path}.object_fit`);
+  validateOptionalNonEmptyString(node.max_height, `${path}.max_height`);
   if (node.link !== undefined) {
     validateSafeUrl(node.link, `${path}.link`);
   }
 }
 
+const TEXT_FORMAT_VALUES = ["plain", "markdown", "html"] as const;
+
 function validateTextWidget(node: Record<string, unknown>, path: string): void {
-  validateAllowedKeys(node, ["text", "flex"], (key) =>
+  validateAllowedKeys(node, ["text", "format", "title", "flex"], (key) =>
     `${path}.${key} is not a valid text widget field`,
   );
   validateNonEmptyString(node.text, `${path}.text`);
+  validateOptionalEnum(node.format, TEXT_FORMAT_VALUES, `${path}.format`);
+  validateOptionalNonEmptyString(node.title, `${path}.title`);
   validateOptionalPositiveNumber(node.flex, `${path}.flex`);
 }
 
 function validateIframeWidget(node: Record<string, unknown>, path: string): void {
-  validateAllowedKeys(node, ["iframe", "flex", "title", "sandbox"], (key) =>
+  validateAllowedKeys(node, ["iframe", "flex", "title", "height", "aspect_ratio", "sandbox", "allow"], (key) =>
     `${path}.${key} is not a valid iframe widget field`,
   );
   validateSafeUrl(node.iframe, `${path}.iframe`);
   validateOptionalPositiveNumber(node.flex, `${path}.flex`);
   validateOptionalNonEmptyString(node.title, `${path}.title`);
+  validateOptionalNonEmptyString(node.height, `${path}.height`);
+  validateOptionalNonEmptyString(node.aspect_ratio, `${path}.aspect_ratio`);
   validateOptionalNonEmptyString(node.sandbox, `${path}.sandbox`);
+  validateOptionalNonEmptyString(node.allow, `${path}.allow`);
 }
 
 const LAYOUT_DISCRIMINATORS = ["panel", "direction", "image", "text", "iframe"] as const;

@@ -20,11 +20,15 @@ export interface ImageWidgetConfig {
   image: string;
   flex?: number;
   alt?: string;
+  object_fit?: "cover" | "contain" | "fill" | "none";
+  max_height?: string;
   link?: string;
 }
 
 export interface TextWidgetConfig {
   text: string;
+  format?: "plain" | "markdown" | "html";
+  title?: string;
   flex?: number;
 }
 
@@ -32,7 +36,10 @@ export interface IframeWidgetConfig {
   iframe: string;
   flex?: number;
   title?: string;
+  height?: string;
+  aspect_ratio?: string;
   sandbox?: string;
+  allow?: string;
 }
 
 export type LayoutNodeConfig =
