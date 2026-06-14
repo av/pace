@@ -12,8 +12,17 @@
 - label: layout panel source objects accept only adapter and params; refresh_interval on layout.source is rejected with config: error directing users to adapters[]
   command: grep -q 'refresh_interval belongs on adapters' src/config.ts && grep -q 'is not a valid source field' src/config-validate.ts && ! grep -q 'not panel source' src/config.ts && ! grep -A5 'export interface SourceConfig' src/config.ts | grep -q 'refresh_interval?:' && grep -q 'rejects refresh_interval on panel source object' src/config.test.ts
   tags: [spec, implemented]
+- label: validateSafeUrl rejects non-http(s) schemes (javascript:, data:, blob:, ftp:), URLs with userinfo-based open-redirect patterns (user@evil.com), and malformed URLs; used at config time for image link, iframe src, and counter url/compare_url
+  command: grep -q 'function validateSafeUrl' src/config-validate.ts && grep -q 'validateSafeUrl' src/config.test.ts
+  tags: [implemented]
 
 # adapters
+- label: bookmarks adapter produces Items from a config-defined list of links (params.items) with no network fetch; each item needs title and url (http/https); items are slugified for stable IDs; source tag is 'bookmarks:<first-tag>' when tags are present
+  command: test -f src/adapters/bookmarks.ts && grep -q 'bookmarks' src/adapters/adapter-registry.ts && grep -q 'bookmarks' src/adapters/params.ts
+  tags: [implemented]
+- label: counter adapter fetches a JSON endpoint (params.url) and extracts a numeric value via params.json_path (dot/bracket notation); supports env var interpolation in headers, optional compare_url for trend calculation; resolveJsonPath uses Object.hasOwn with dangerous-segment blocklist to prevent prototype traversal
+  command: test -f src/adapters/counter.ts && grep -q 'counter' src/adapters/adapter-registry.ts && grep -q 'resolveJsonPath' src/adapters/counter.ts && grep -q 'Object.hasOwn' src/adapters/counter.ts
+  tags: [implemented]
 
 ## contract
 - label: refresh_interval belongs on IngestAdapterConfig (adapters[] ingest YAML), not on AdapterConfig passed to Adapter.fetch
@@ -21,7 +30,7 @@
   tags: [spec, implemented]
 - When a source fails to fetch (network error, bad response, parse error), the log and error message clearly identify which source had the problem
 - mastodon, lobsters, youtube, podcast, stackexchange, and github adapters previously swallowed fetch errors (non-2xx, network, parse) via console.warn + return [] or null; after minimal fixes they now throw Error messages starting with '<name>: ' (e.g. 'mastodon: failed to fetch...') per the Adapter contract documented in src/adapters/types.ts and oz1 @spec @implemented
-- 16 of 17 adapters' fetch methods comply with the contract in types.ts: throw on network/!2xx/parse/auth errors with name: prefix using errorMessage helper (twitter intentionally returns []+log without attempting fetch per its ox1 design; explicit no-sources [] only in configured cases for others) @spec @implemented
+- 18 of 19 adapters' fetch methods comply with the contract in types.ts: throw on network/!2xx/parse/auth errors with name: prefix using errorMessage helper (twitter intentionally returns []+log without attempting fetch per its ox1 design; bookmarks has no network fetch; explicit no-sources [] only in configured cases for others) @spec @implemented
 - The .facts file, relevant adapter source, and their .test.ts were updated (minimal diffs) so that contract-violating swallow behaviors are removed and tests assert the throwing behavior instead; no unrelated changes, no new features (e.g. no reddit OAuth) @spec @implemented
 
 ## reddit
@@ -29,7 +38,7 @@
 - config.example.yaml documents reddit as commented example (with note that it requires credentials due to upstream 403; no functional change to yaml; other presets untouched per smallest-change scope) @spec @implemented
 
 ## out-of-box
-- Of the 17 adapters, the following work out-of-the-box returning real public content with no credentials/secrets (using only basic params from config.example or defaults): hackernews, lobsters, devto, arxiv, rss, wikipedia, stackexchange, npm (keywords), lemmy, producthunt, podcast (public feeds), youtube (public channels), github (trending mode and releases atom mode), mastodon (with hashtags or accounts), github-releases (anon in some envs; caveats per nzg) @spec @implemented
+- Of the 19 adapters, the following work out-of-the-box returning real public content with no credentials/secrets (using only basic params from config.example or defaults): hackernews, lobsters, devto, arxiv, rss, wikipedia, stackexchange, npm (keywords), lemmy, producthunt, podcast (public feeds), youtube (public channels), github (trending mode and releases atom mode), mastodon (with hashtags or accounts), github-releases (anon in some envs; caveats per nzg), bookmarks (config-only, no network) @spec @implemented
 - Live one-by-one re-tests (bun -e imports + fetch with configs from *.test.ts and config.*.yaml) confirm: reddit and twitter cannot work out-of-the-box without credentials; the other 15 (incl. github-releases with anon caveats per nzg) can (with caveats for mastodon some endpoints); reddit root cause is upstream 403 on public .json not solvable without auth @spec @implemented
 
 ## twitter
@@ -52,6 +61,27 @@
 
 # rendering
 - The Dashboard is fully server-rendered HTML with no client-side JavaScript; it works in any browser, including on mobile, and updates require a page reload or explicit refresh
+- label: LayoutNodeConfig is a union of five variants: FlexContainerConfig, PanelConfig, ImageWidgetConfig, TextWidgetConfig, and IframeWidgetConfig; each discriminated by a unique key (direction+children, panel, image, text, iframe)
+  command: grep -q 'FlexContainerConfig\|PanelConfig\|ImageWidgetConfig\|TextWidgetConfig\|IframeWidgetConfig' src/layout/domain.ts && grep -q 'export type LayoutNodeConfig' src/layout/domain.ts
+  tags: [implemented]
+- label: layout/domain.ts exports type guard functions (isPanel, isContainer, isImageWidget, isTextWidget, isIframe) that discriminate LayoutNodeConfig variants by checking for their unique key property
+  command: grep -q 'function isImageWidget' src/layout/domain.ts && grep -q 'function isTextWidget' src/layout/domain.ts && grep -q 'function isIframe' src/layout/domain.ts && grep -q 'function isPanel' src/layout/domain.ts && grep -q 'function isContainer' src/layout/domain.ts
+  tags: [implemented]
+- label: collectPanels recursively walks a LayoutNodeConfig tree and returns only PanelConfig nodes; widget nodes (image, text, iframe) are silently skipped since they have no adapter sources to refresh
+  command: grep -q 'collectPanels' src/layout/domain.ts && grep -q 'collectPanels skips widget nodes' src/config.test.ts
+  tags: [implemented]
+- label: image widget renders a static image in a flex-panel with configurable object_fit, max_height, alt text, and an optional safe link wrapper; discriminated by the 'image' key containing a URL
+  command: test -f src/layout/image-widget.tsx && grep -q 'ImageWidgetConfig' src/layout/domain.ts && grep -q 'image-widget' src/layout/layout-node.tsx
+  tags: [implemented]
+- label: text widget renders plain text, markdown (via marked), or HTML content in a flex-panel; all HTML is sanitized through a strict tag/attribute allowlist (sanitize-html) to prevent XSS; discriminated by the 'text' key
+  command: test -f src/layout/text-widget.tsx && grep -q 'TextWidgetConfig' src/layout/domain.ts && grep -q 'sanitize\|renderMarkdown' src/layout/text-render.ts
+  tags: [implemented]
+- label: iframe widget embeds an external page with security defaults: sandbox restricts capabilities, referrerpolicy is always no-referrer, and sizing uses height > aspect_ratio > 16/9 fallback; discriminated by the 'iframe' key containing a URL
+  command: test -f src/layout/iframe-widget.tsx && grep -q 'IframeWidgetConfig' src/layout/domain.ts && grep -q 'referrerpolicy' src/layout/iframe-widget.tsx
+  tags: [implemented]
+- label: when a PanelConfig has display: 'counter', the panel renders as a stat-card grid (counter-panel.tsx) instead of an item list; shows abbreviated numbers, trend arrows (up/down/neutral), and labels derived from adapter name
+  command: grep -q 'display.*counter' src/layout/domain.ts && test -f src/layout/counter-panel.tsx && grep -q 'abbreviateNumber' src/layout/counter-panel.tsx
+  tags: [implemented]
 
 # packaging
 
@@ -66,11 +96,12 @@
 - an Item is a single piece of content (story, paper, video, release note, etc.) shown in the Dashboard, with title, link, publication time, and optional summary or body
 - a Panel is a section of the Dashboard that shows a curated list of Items from one or more Sources after the user's configured Transforms have been applied
 - a Transform is a processing step (deduplicate, keyword filter/exclude, keep latest N, LLM summarize/rank/filter, time decay scoring, etc.) that the user declares in their Config to control which Items appear and in what order
-- a Config is the single YAML file in which the user declares adapters[] (optional refresh_interval per ingest entry on IngestAdapterConfig; Adapter.fetch contract is type+params only), optional pipelines, Transforms, the recursive flexbox Layout of Panels (panel source objects only adapter and params), and optional LLM provider settings
+- a Config is the single YAML file in which the user declares adapters[] (optional refresh_interval per ingest entry on IngestAdapterConfig; Adapter.fetch contract is type+params only), optional pipelines, Transforms, the recursive flexbox Layout of Panels and Widgets (panel source objects only adapter and params), and optional LLM provider settings
 - a Preset is a ready-to-use Config file (tech-news, ml-ai, academic-papers, product-launches, etc.) that can be selected with --preset or -P so a user can get a working Dashboard instantly without writing YAML
 - a Refresh updates the Items for a Panel (or all Panels) by re-fetching from the underlying Sources, re-applying Transforms, and redrawing the Dashboard; users can trigger it manually via a button or it happens on the schedule defined per adapters[] entry (and per pipeline when configured), not on panel layout source objects
 - LLM-powered Transforms (summarize, filter, rank by interests) are optional; when no LLM is configured or the provider is unreachable, the Dashboard still works normally using only the non-LLM Transforms
 - the entire system runs as a single Docker container (or local Bun process) serving server-rendered HTML with no client-side JavaScript; the Dashboard is responsive and works on phones, tablets, and desktops
+- a Widget is a layout node that displays static content (an image, text/markdown, or embedded iframe) rather than adapter-sourced Items; widgets are not Panels and are skipped by collectPanels @implemented
 
 # content
 
