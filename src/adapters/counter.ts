@@ -146,7 +146,7 @@ const adapter: Adapter = {
       id: `counter:${adapterName}`,
       title: label,
       url: "",
-      source: adapterName,
+      source: `counter:${adapterName}`,
       timestamp: new Date(now),
       body: JSON.stringify(bodyObj),
     };

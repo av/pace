@@ -83,7 +83,7 @@ describe("CSS class presence in rendered HTML", () => {
   });
 
   it("source pill colors: counter source gets src-counter class", () => {
-    const item = makeItem({ title: "Metric", source: "counter" });
+    const item = makeItem({ title: "Metric", source: "counter:bun-stars" });
     const node = panelCfg("Stats", "counter");
     const panelData = new Map<string, PanelData>([["Stats", { items: [item] }]]);
     const html = renderWidget(node, panelData);
@@ -95,12 +95,12 @@ describe("CSS class presence in rendered HTML", () => {
     const upItem = makeItem({
       title: "Going Up",
       body: JSON.stringify({ value: 100, previous: 50 }),
-      source: "counter",
+      source: "counter:metrics",
     });
     const downItem = makeItem({
       title: "Going Down",
       body: JSON.stringify({ value: 30, previous: 80 }),
-      source: "counter",
+      source: "counter:metrics",
     });
     const node = panelCfg("Trends", "counter", { display: "counter" });
     const panelData = new Map<string, PanelData>([["Trends", { items: [upItem, downItem] }]]);
