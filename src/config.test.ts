@@ -2371,4 +2371,509 @@ layout:
       );
     });
   });
+
+  describe("env var expansion in widget configs", () => {
+    let tmpDir: string;
+    let cfgPath: string;
+    let origPaceConfig: string | undefined;
+    let savedEnv: Record<string, string | undefined>;
+
+    function setConfig(yamlContent: string) {
+      fs.writeFileSync(cfgPath, yamlContent, "utf-8");
+      process.env.PACE_CONFIG = cfgPath;
+    }
+
+    beforeEach(() => {
+      origPaceConfig = process.env.PACE_CONFIG;
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pace-envvar-test-"));
+      cfgPath = path.join(tmpDir, "config.yaml");
+      savedEnv = {
+        PACE_TEST_HOME: process.env.PACE_TEST_HOME,
+        PACE_TEST_TOKEN: process.env.PACE_TEST_TOKEN,
+        PACE_TEST_VAR: process.env.PACE_TEST_VAR,
+        PACE_TEST_URL: process.env.PACE_TEST_URL,
+      };
+      process.env.PACE_TEST_HOME = "/home/testuser";
+      process.env.PACE_TEST_TOKEN = "secret123";
+      process.env.PACE_TEST_VAR = "resolved-value";
+      process.env.PACE_TEST_URL = "https://embed.example.com";
+    });
+
+    afterEach(() => {
+      process.env.PACE_CONFIG = origPaceConfig;
+      for (const [k, v] of Object.entries(savedEnv)) {
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+      }
+      if (fs.existsSync(cfgPath)) fs.unlinkSync(cfgPath);
+      if (tmpDir && fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    test("image URL with env var gets expanded", () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - image: "\${PACE_TEST_HOME}/logo.png"
+`;
+      setConfig(yaml);
+      const cfg = loadConfig();
+      const child = cfg.layout.children[0] as { image: string };
+      expect(child.image).toBe("/home/testuser/logo.png");
+    });
+
+    test("image link with env var gets expanded", () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - image: "https://example.com/img.png"
+      link: "\${PACE_TEST_URL}/details"
+`;
+      setConfig(yaml);
+      const cfg = loadConfig();
+      const child = cfg.layout.children[0] as { image: string; link: string };
+      expect(child.link).toBe("https://embed.example.com/details");
+    });
+
+    test("text widget content with env var gets expanded", () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - text: "Welcome to \${PACE_TEST_VAR}"
+`;
+      setConfig(yaml);
+      const cfg = loadConfig();
+      const child = cfg.layout.children[0] as { text: string };
+      expect(child.text).toBe("Welcome to resolved-value");
+    });
+
+    test("iframe URL with env var gets expanded", () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - iframe: "\${PACE_TEST_URL}/embed"
+`;
+      setConfig(yaml);
+      const cfg = loadConfig();
+      const child = cfg.layout.children[0] as { iframe: string };
+      expect(child.iframe).toBe("https://embed.example.com/embed");
+    });
+
+    test("counter URL with env var gets expanded at config level", () => {
+      const yaml = `
+adapters:
+  - type: counter
+    params:
+      url: "\${PACE_TEST_URL}/api/count"
+      json_path: data.count
+layout:
+  direction: row
+  children:
+    - panel: stats
+      source: counter
+      display: counter
+`;
+      setConfig(yaml);
+      const cfg = loadConfig();
+      const adapter = cfg.adapters[0];
+      expect((adapter.params as Record<string, unknown>).url).toBe(
+        "https://embed.example.com/api/count",
+      );
+    });
+
+    test("counter headers with env var get expanded at config level", () => {
+      const yaml = `
+adapters:
+  - type: counter
+    params:
+      url: https://api.example.com/count
+      json_path: data.count
+      headers:
+        Authorization: "Bearer \${PACE_TEST_TOKEN}"
+layout:
+  direction: row
+  children:
+    - panel: stats
+      source: counter
+      display: counter
+`;
+      setConfig(yaml);
+      const cfg = loadConfig();
+      const headers = (cfg.adapters[0].params as Record<string, unknown>)
+        .headers as Record<string, string>;
+      expect(headers.Authorization).toBe("Bearer secret123");
+    });
+
+    test("nonexistent env var expands to empty string with warning", async () => {
+      await spyConsole(["warn"], async ({ warn }) => {
+        const yaml = `
+layout:
+  direction: row
+  children:
+    - text: "prefix-\${PACE_NONEXISTENT_TEST_XYZ}-suffix"
+`;
+        setConfig(yaml);
+        const cfg = loadConfig();
+        const child = cfg.layout.children[0] as { text: string };
+        expect(child.text).toBe("prefix--suffix");
+        const warnCalls = warn.mock.calls.map((c) => String(c[0]));
+        expect(
+          warnCalls.some((w) =>
+            w.includes("PACE_NONEXISTENT_TEST_XYZ") && w.includes("unset"),
+          ),
+        ).toBe(true);
+      });
+    });
+
+    test("multiple env vars in one string all expand", () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - text: "\${PACE_TEST_HOME}/\${PACE_TEST_VAR}/\${PACE_TEST_TOKEN}"
+`;
+      setConfig(yaml);
+      const cfg = loadConfig();
+      const child = cfg.layout.children[0] as { text: string };
+      expect(child.text).toBe("/home/testuser/resolved-value/secret123");
+    });
+
+    test("real PATH env var resolves in counter headers at config level", () => {
+      const realPath = process.env.PATH;
+      expect(realPath).toBeTruthy(); // PATH should always be set
+      const yaml = `
+adapters:
+  - type: counter
+    params:
+      url: https://api.example.com/count
+      json_path: data.count
+      headers:
+        X-Path: "\${PATH}"
+layout:
+  direction: row
+  children:
+    - panel: stats
+      source: counter
+      display: counter
+`;
+      setConfig(yaml);
+      const cfg = loadConfig();
+      const headers = (cfg.adapters[0].params as Record<string, unknown>)
+        .headers as Record<string, string>;
+      expect(headers["X-Path"]).toBe(realPath);
+    });
+
+    test("env var expansion does not happen on non-string values", () => {
+      // flex is a number, should not be treated as string for env expansion
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - image: "https://example.com/img.png"
+      flex: 2
+`;
+      setConfig(yaml);
+      const cfg = loadConfig();
+      const child = cfg.layout.children[0] as { image: string; flex: number };
+      expect(child.flex).toBe(2);
+      expect(typeof child.flex).toBe("number");
+    });
+  });
+
+  describe("YAML edge cases in widget configs", () => {
+    let tmpDir: string;
+    let cfgPath: string;
+    let origPaceConfig: string | undefined;
+
+    function setConfig(yamlContent: string) {
+      fs.writeFileSync(cfgPath, yamlContent, "utf-8");
+      process.env.PACE_CONFIG = cfgPath;
+    }
+
+    beforeEach(() => {
+      origPaceConfig = process.env.PACE_CONFIG;
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pace-yaml-test-"));
+      cfgPath = path.join(tmpDir, "config.yaml");
+    });
+
+    afterEach(() => {
+      process.env.PACE_CONFIG = origPaceConfig;
+      if (fs.existsSync(cfgPath)) fs.unlinkSync(cfgPath);
+      if (tmpDir && fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    test("multi-line text with YAML block scalar (|)", () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - text: |
+        Line one
+        Line two
+        Line three
+`;
+      setConfig(yaml);
+      const cfg = loadConfig();
+      const child = cfg.layout.children[0] as { text: string };
+      expect(child.text).toContain("Line one");
+      expect(child.text).toContain("Line two");
+      expect(child.text).toContain("Line three");
+      // Block scalar preserves newlines
+      expect(child.text).toMatch(/Line one\nLine two\nLine three/);
+    });
+
+    test("multi-line text with YAML folded scalar (>)", () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - text: >
+        This is a
+        long paragraph
+        that folds.
+`;
+      setConfig(yaml);
+      const cfg = loadConfig();
+      const child = cfg.layout.children[0] as { text: string };
+      // Folded scalar joins lines with spaces
+      expect(child.text).toMatch(/This is a long paragraph that folds\./);
+    });
+
+    test("text with YAML special characters (colon, hash, at)", () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - text: "Status: OK # not a comment @ here"
+`;
+      setConfig(yaml);
+      const cfg = loadConfig();
+      const child = cfg.layout.children[0] as { text: string };
+      expect(child.text).toBe("Status: OK # not a comment @ here");
+    });
+
+    test("image URL with query params (needs YAML quoting)", () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - image: "https://example.com/img.png?width=400&height=300"
+`;
+      setConfig(yaml);
+      const cfg = loadConfig();
+      const child = cfg.layout.children[0] as { image: string };
+      expect(child.image).toBe("https://example.com/img.png?width=400&height=300");
+    });
+
+    test("empty string alt on image widget is rejected", () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - image: "https://example.com/img.png"
+      alt: ""
+`;
+      setConfig(yaml);
+      expect(() => loadConfig()).toThrow(/alt must be a non-empty string/);
+    });
+
+    test("omitting optional alt is fine", () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - image: "https://example.com/img.png"
+`;
+      setConfig(yaml);
+      const cfg = loadConfig();
+      const child = cfg.layout.children[0] as { image: string; alt?: string };
+      expect(child.image).toBe("https://example.com/img.png");
+      expect(child.alt).toBeUndefined();
+    });
+
+    test("iframe URL with fragment and query", () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - iframe: "https://example.com/embed?theme=dark&lang=en#section"
+`;
+      setConfig(yaml);
+      const cfg = loadConfig();
+      const child = cfg.layout.children[0] as { iframe: string };
+      expect(child.iframe).toBe("https://example.com/embed?theme=dark&lang=en#section");
+    });
+
+    test("text with unicode and emoji characters", () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - text: "Hello World"
+`;
+      setConfig(yaml);
+      const cfg = loadConfig();
+      const child = cfg.layout.children[0] as { text: string };
+      expect(child.text).toBe("Hello World");
+    });
+
+    test("text with unquoted colon requires careful YAML", () => {
+      // In YAML, bare "key: value" is a mapping. Inside a sequence value
+      // that's already a string context, colons after space can be tricky.
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - text: "http://example.com:8080/path"
+`;
+      setConfig(yaml);
+      const cfg = loadConfig();
+      const child = cfg.layout.children[0] as { text: string };
+      expect(child.text).toBe("http://example.com:8080/path");
+    });
+
+    test("deeply nested widget in multi-level containers", () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - direction: column
+      children:
+        - direction: row
+          children:
+            - text: "Deep nesting works"
+`;
+      setConfig(yaml);
+      const cfg = loadConfig();
+      const outer = cfg.layout.children[0] as { direction: string; children: unknown[] };
+      const inner = outer.children[0] as { direction: string; children: unknown[] };
+      const widget = inner.children[0] as { text: string };
+      expect(widget.text).toBe("Deep nesting works");
+    });
+
+    test("widgets with explicit flex values parse as numbers", () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - image: "https://example.com/a.png"
+      flex: 2
+    - text: "Hello"
+      flex: 0.5
+    - iframe: "https://example.com"
+      flex: 3
+`;
+      setConfig(yaml);
+      const cfg = loadConfig();
+      const children = cfg.layout.children as Array<{ flex?: number }>;
+      expect(children[0].flex).toBe(2);
+      expect(children[1].flex).toBe(0.5);
+      expect(children[2].flex).toBe(3);
+    });
+
+    test("YAML anchors rejected at top level (strict key validation)", () => {
+      // YAML anchors produce extra top-level keys which the config validator rejects
+      const yaml = `
+common_headers: &common
+  Accept: application/json
+
+adapters:
+  - type: counter
+    params:
+      url: https://api.example.com/count
+      json_path: data.count
+layout:
+  direction: row
+  children:
+    - panel: stats
+      source: counter
+      display: counter
+`;
+      setConfig(yaml);
+      expect(() => loadConfig()).toThrow(/common_headers is not a valid top-level field/);
+    });
+  });
+
+  describe("config reload behavior", () => {
+    let tmpDir: string;
+    let cfgPath: string;
+    let origPaceConfig: string | undefined;
+
+    function setConfig(yamlContent: string) {
+      fs.writeFileSync(cfgPath, yamlContent, "utf-8");
+      process.env.PACE_CONFIG = cfgPath;
+    }
+
+    beforeEach(() => {
+      origPaceConfig = process.env.PACE_CONFIG;
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pace-reload-test-"));
+      cfgPath = path.join(tmpDir, "config.yaml");
+    });
+
+    afterEach(() => {
+      process.env.PACE_CONFIG = origPaceConfig;
+      if (fs.existsSync(cfgPath)) fs.unlinkSync(cfgPath);
+      if (tmpDir && fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    test("loadConfig reads from disk each time (no caching)", () => {
+      const yaml1 = `
+layout:
+  direction: row
+  children:
+    - text: "Version 1"
+`;
+      setConfig(yaml1);
+      const cfg1 = loadConfig();
+      expect((cfg1.layout.children[0] as { text: string }).text).toBe("Version 1");
+
+      const yaml2 = `
+layout:
+  direction: row
+  children:
+    - text: "Version 2"
+`;
+      setConfig(yaml2);
+      const cfg2 = loadConfig();
+      expect((cfg2.layout.children[0] as { text: string }).text).toBe("Version 2");
+    });
+
+    test("loadConfig picks up new adapters on re-read", () => {
+      const yaml1 = `
+adapters:
+  - type: hackernews
+layout:
+  direction: row
+  children:
+    - panel: news
+      source: hackernews
+`;
+      setConfig(yaml1);
+      const cfg1 = loadConfig();
+      expect(cfg1.adapters).toHaveLength(1);
+
+      const yaml2 = `
+adapters:
+  - type: hackernews
+  - type: lobsters
+layout:
+  direction: row
+  children:
+    - panel: news
+      source: all
+`;
+      setConfig(yaml2);
+      const cfg2 = loadConfig();
+      expect(cfg2.adapters).toHaveLength(2);
+    });
+  });
 });
