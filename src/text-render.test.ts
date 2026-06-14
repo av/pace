@@ -265,4 +265,214 @@ describe("text-render", () => {
       expect(result).toContain("Level 3");
     });
   });
+
+  describe("advanced XSS bypass vectors", () => {
+    test("CSS-based javascript URL in style (background:url)", () => {
+      const input = '<div style="background:url(javascript:alert(1))">test</div>';
+      const result = sanitize(input);
+      // div is not in allowlist, so the tag is discarded
+      expect(result).not.toContain("javascript:");
+      expect(result).not.toContain("background");
+      expect(result).toContain("test");
+    });
+
+    test("SVG with foreignObject and embedded script", () => {
+      const input = '<svg><foreignObject><body><script>alert(1)</script></body></foreignObject></svg>';
+      const result = sanitize(input);
+      expect(result).not.toContain("<svg");
+      expect(result).not.toContain("<foreignObject");
+      expect(result).not.toContain("<script");
+      expect(result).not.toContain("alert");
+    });
+
+    test("MathML with embedded style tag", () => {
+      const input = '<math><mtext><table><mglyph><style>img{background:url(evil.com)}</style></mglyph></table></mtext></math>';
+      const result = sanitize(input);
+      expect(result).not.toContain("<math");
+      expect(result).not.toContain("<style");
+      expect(result).not.toContain("background");
+    });
+
+    test("null bytes in attribute values", () => {
+      const input = '<a href="java\x00script:alert(1)">click</a>';
+      const result = sanitize(input);
+      expect(result).not.toContain("javascript:");
+      // href should be stripped or safe
+      if (result.includes("href")) {
+        expect(result).not.toMatch(/href\s*=\s*["']?java/i);
+      }
+    });
+
+    test("double-encoded content is treated as text", () => {
+      const input = "%253Cscript%253Ealert(1)%253C/script%253E";
+      const result = sanitize(input);
+      // Double-encoded strings should pass through as harmless text
+      expect(result).not.toContain("<script");
+      // The percent-encoded text stays as literal text
+      expect(result).toContain("%253C");
+    });
+
+    test("comment-based script bypass", () => {
+      const input = '<!--><script>alert(1)-->';
+      const result = sanitize(input);
+      expect(result).not.toContain("<script");
+      expect(result).not.toContain("alert");
+      expect(result).not.toContain("<!--");
+    });
+
+    test("CDATA section with script", () => {
+      const input = '<![CDATA[<script>alert(1)</script>]]>';
+      const result = sanitize(input);
+      expect(result).not.toContain("<script");
+      expect(result).not.toContain("alert(1)");
+    });
+
+    test("template tag with script", () => {
+      const input = '<template><script>alert(1)</script></template>';
+      const result = sanitize(input);
+      expect(result).not.toContain("<template");
+      expect(result).not.toContain("<script");
+      expect(result).not.toContain("alert");
+    });
+
+    test("noscript tag with script", () => {
+      const input = '<noscript><script>alert(1)</script></noscript>';
+      const result = sanitize(input);
+      expect(result).not.toContain("<noscript");
+      expect(result).not.toContain("<script");
+      expect(result).not.toContain("alert");
+    });
+
+    test("mixed-case tag bypass attempt", () => {
+      const input = '<ScRiPt>alert(1)</ScRiPt>';
+      const result = sanitize(input);
+      expect(result).not.toContain("<script");
+      expect(result).not.toContain("<ScRiPt");
+      expect(result).not.toContain("alert");
+    });
+
+    test("SVG onload event handler", () => {
+      const input = '<svg onload="alert(1)"><circle r="10"/></svg>';
+      const result = sanitize(input);
+      expect(result).not.toContain("<svg");
+      expect(result).not.toContain("onload");
+      expect(result).not.toContain("alert");
+    });
+
+    test("object tag with data attribute", () => {
+      const input = '<object data="data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==">test</object>';
+      const result = sanitize(input);
+      expect(result).not.toContain("<object");
+      expect(result).not.toContain("data:");
+    });
+
+    test("embed tag", () => {
+      const input = '<embed src="https://evil.com/xss.swf">';
+      const result = sanitize(input);
+      expect(result).not.toContain("<embed");
+    });
+
+    test("base tag to hijack relative URLs", () => {
+      const input = '<base href="https://evil.com/"><a href="/path">link</a>';
+      const result = sanitize(input);
+      expect(result).not.toContain("<base");
+      expect(result).not.toContain("evil.com");
+    });
+
+    test("form tag with action", () => {
+      const input = '<form action="https://evil.com"><input type="submit"></form>';
+      const result = sanitize(input);
+      expect(result).not.toContain("<form");
+      expect(result).not.toContain("<input");
+      expect(result).not.toContain("evil.com");
+    });
+
+    test("meta refresh redirect", () => {
+      const input = '<meta http-equiv="refresh" content="0;url=https://evil.com">';
+      const result = sanitize(input);
+      expect(result).not.toContain("<meta");
+      expect(result).not.toContain("evil.com");
+    });
+
+    test("style attribute on allowed tag (p)", () => {
+      // Even on allowed tags, style attribute is not in the allowlist
+      const input = '<p style="background:url(javascript:alert(1))">text</p>';
+      const result = sanitize(input);
+      expect(result).not.toContain("style");
+      expect(result).not.toContain("javascript:");
+      expect(result).toContain("<p>text</p>");
+    });
+
+    test("data attributes on allowed tags", () => {
+      const input = '<p data-exploit="alert(1)">text</p>';
+      const result = sanitize(input);
+      expect(result).not.toContain("data-exploit");
+      expect(result).toContain("<p>text</p>");
+    });
+
+    test("vbscript scheme in href", () => {
+      const input = '<a href="vbscript:MsgBox(1)">click</a>';
+      const result = sanitize(input);
+      expect(result).not.toContain("vbscript:");
+    });
+
+    test("tab and newline in javascript URI", () => {
+      const input = '<a href="java\tscri\npt:alert(1)">click</a>';
+      const result = sanitize(input);
+      expect(result).not.toContain("javascript:");
+      // The href should not contain any variant of javascript
+      if (result.includes("href")) {
+        expect(result).not.toMatch(/java.*script/i);
+      }
+    });
+
+    test("HTML entities in script tag name", () => {
+      const input = '&lt;script&gt;alert(1)&lt;/script&gt;';
+      const result = sanitize(input);
+      // These are entity-encoded so they should appear as text, not as tags
+      expect(result).not.toContain("<script");
+      // The text content is safe (displayed as literal angle brackets)
+      expect(result).toContain("&lt;script&gt;");
+    });
+
+    test("multiple chained vectors in one payload", () => {
+      const input = [
+        '<p>safe</p>',
+        '<script>alert(1)</script>',
+        '<img src=x onerror=alert(2)>',
+        '<svg onload=alert(3)>',
+        '<a href="javascript:alert(4)">click</a>',
+        '<style>*{background:url(evil)}</style>',
+        '<p>also safe</p>',
+      ].join("");
+      const result = sanitize(input);
+      expect(result).toContain("<p>safe</p>");
+      expect(result).toContain("<p>also safe</p>");
+      expect(result).not.toContain("<script");
+      expect(result).not.toContain("onerror");
+      expect(result).not.toContain("<svg");
+      expect(result).not.toContain("javascript:");
+      expect(result).not.toContain("<style");
+    });
+
+    test("markdown rendering of XSS via image with onerror", () => {
+      // Malformed image markdown is not parsed as an img tag by marked;
+      // it becomes plain text inside a <p>. The literal "onerror" appears
+      // in text content only, never as an attribute on any element.
+      const md = '![alt](x" onerror="alert(1))';
+      const result = renderMarkdown(md);
+      // No img tag should be generated from this malformed syntax
+      expect(result).not.toContain("<img");
+      // The content is safely rendered as text in a <p>
+      expect(result).toContain("<p>");
+    });
+
+    test("markdown rendering of XSS via link title", () => {
+      const md = '[link](https://ok.com "onmouseover=alert(1)")';
+      const result = renderMarkdown(md);
+      expect(result).not.toContain("onmouseover");
+      // title attribute is not in the allowlist for a tags
+      expect(result).not.toContain("alert");
+    });
+  });
 });
