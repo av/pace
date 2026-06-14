@@ -273,6 +273,7 @@ a:hover {
 .item-source.src-mast { background: #161a2d; color: #7a8cf0; }
 .item-source.src-devto { background: #262626; color: #f0f0f0; }
 .item-source.src-bookmarks { background: #1a2d2a; color: #6fcfb0; }
+.item-source.src-counter { background: #1a1a2d; color: #8f9fd9; }
 
 .item-time {
   color: var(--text-muted);

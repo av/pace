@@ -65,6 +65,22 @@ describe("counter adapter", () => {
       const obj = { active: true };
       expect(resolveJsonPath(obj, "active")).toBe(true);
     });
+
+    test("blocks __proto__ traversal via prototype chain", () => {
+      const obj = { foo: "bar" };
+      expect(() => resolveJsonPath(obj, "__proto__")).toThrow(/does not exist/);
+    });
+
+    test("blocks constructor traversal via prototype chain", () => {
+      const obj = { foo: "bar" };
+      expect(() => resolveJsonPath(obj, "constructor")).toThrow(/does not exist/);
+    });
+
+    test("allows __proto__ when it is an own property of the data", () => {
+      const obj = Object.create(null);
+      obj.__proto__ = { secret: 42 };
+      expect(resolveJsonPath(obj, "__proto__.secret")).toBe(42);
+    });
   });
 
   describe("parseJsonPath", () => {
@@ -170,7 +186,7 @@ describe("counter adapter", () => {
       expect(body.unit).toBe("k");
     });
 
-    test("uses adapter name for label fallback", async () => {
+    test("uses adapter type for label fallback when unnamed", async () => {
       fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
         new Response(JSON.stringify({ value: 10 }), { status: 200 }),
       );
@@ -185,6 +201,24 @@ describe("counter adapter", () => {
 
       const result = await adapter.fetch(config);
       expect(result[0].title).toBe("counter");
+    });
+
+    test("uses adapter name for label fallback when named", async () => {
+      fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
+        new Response(JSON.stringify({ value: 10 }), { status: 200 }),
+      );
+
+      const config: AdapterConfig & { name?: string } = {
+        type: "counter",
+        name: "bun-stars",
+        params: {
+          url: "https://example.com/api",
+          json_path: "value",
+        },
+      };
+
+      const result = await adapter.fetch(config);
+      expect(result[0].title).toBe("bun-stars");
     });
 
     test("includes previous value from compare_url", async () => {
@@ -548,6 +582,38 @@ layout:
 `;
     setConfig(yaml);
     expect(() => loadConfig()).toThrow(/valid dot-notation path/);
+  });
+
+  test("rejects counter adapter with __proto__ in json_path", () => {
+    const yaml = `
+adapters:
+  - type: counter
+    params:
+      url: https://example.com/api
+      json_path: "__proto__"
+layout:
+  panel: Stats
+  source:
+    - adapter: counter
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(/disallowed segment/);
+  });
+
+  test("rejects counter adapter with constructor in json_path", () => {
+    const yaml = `
+adapters:
+  - type: counter
+    params:
+      url: https://example.com/api
+      json_path: "data.constructor"
+layout:
+  panel: Stats
+  source:
+    - adapter: counter
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(/disallowed segment/);
   });
 
   test("rejects counter adapter with non-object headers", () => {

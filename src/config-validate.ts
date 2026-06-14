@@ -30,6 +30,12 @@ import {
 } from "./validate-primitives";
 
 const JSON_PATH_RE = /^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*|\[\d+\])*$/;
+const DANGEROUS_PATH_SEGMENTS = new Set(["__proto__", "constructor", "prototype"]);
+
+function containsDangerousSegment(jsonPath: string): boolean {
+  const segments = jsonPath.split(/[.\[]/);
+  return segments.some((s) => DANGEROUS_PATH_SEGMENTS.has(s.replace("]", "")));
+}
 
 function validateCounterParams(params: Record<string, unknown>, path: string): void {
   if (!params.url) {
@@ -43,6 +49,9 @@ function validateCounterParams(params: Record<string, unknown>, path: string): v
   validateNonEmptyString(params.json_path, `${path}.params.json_path`);
   if (typeof params.json_path === "string" && !JSON_PATH_RE.test(params.json_path)) {
     throw new Error(`config: ${path}.params.json_path must be a valid dot-notation path`);
+  }
+  if (typeof params.json_path === "string" && containsDangerousSegment(params.json_path)) {
+    throw new Error(`config: ${path}.params.json_path contains a disallowed segment`);
   }
 
   if (params.compare_url !== undefined) {

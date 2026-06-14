@@ -27,7 +27,7 @@ export function resolveJsonPath(obj: unknown, path: string): unknown {
       current = current[segment];
     } else {
       const rec = current as Record<string, unknown>;
-      if (!(segment in rec)) {
+      if (!Object.hasOwn(rec, segment)) {
         throw new Error(`path "${path}" not found: key "${segment}" does not exist`);
       }
       current = rec[segment];
@@ -105,7 +105,8 @@ const adapter: Adapter = {
     const params = config.params ?? {};
     const url = params.url as string;
     const jsonPath = params.json_path as string;
-    const label = (params.label as string) || config.type;
+    const adapterName = (config as { name?: string }).name ?? config.type;
+    const label = (params.label as string) || adapterName;
     const unit = (params.unit as string) || undefined;
     const compareUrl = params.compare_url as string | undefined;
     const comparePath = (params.compare_path as string) || jsonPath;
@@ -140,8 +141,6 @@ const adapter: Adapter = {
     const bodyObj: Record<string, unknown> = { value };
     if (unit) bodyObj.unit = unit;
     if (previous !== undefined) bodyObj.previous = previous;
-
-    const adapterName = (config as { name?: string }).name ?? config.type;
 
     const item: ContentItem = {
       id: `counter:${adapterName}:${now}`,
