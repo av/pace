@@ -280,14 +280,13 @@ describe("bookmarks adapter", () => {
     expect(warnSpy).toHaveBeenCalled();
   });
 
-  test("tags array with empty strings filters them out", async () => {
+  test("tags array with empty strings skips them for source", async () => {
     const result = await adapter.fetch(makeConfig([
       { title: "Mixed", url: "https://example.com", tags: ["", "valid", ""] },
     ]));
-    // Empty strings pass typeof === "string" but source uses first tag
+    // Empty strings are skipped; first non-empty tag is used
     expect(result).toHaveLength(1);
-    // First tag is "" which is technically a string
-    expect(result[0].source).toBe("bookmarks:");
+    expect(result[0].source).toBe("bookmarks:valid");
   });
 
   test("url that is a number is filtered out with warning", async () => {
@@ -321,13 +320,13 @@ describe("bookmarks adapter", () => {
     expect((result[0] as Record<string, unknown>).icon).toBeUndefined();
   });
 
-  test("tags with all empty strings uses first (empty) tag as source suffix", async () => {
+  test("tags with all empty strings treated same as no tags", async () => {
     const result = await adapter.fetch(makeConfig([
       { title: "All Empty Tags", url: "https://example.com", tags: ["", ""] },
     ]));
     expect(result).toHaveLength(1);
-    // tags.length > 0 is true, so source is "bookmarks:" with empty first tag
-    expect(result[0].source).toBe("bookmarks:");
+    // All tags are empty strings, so no valid tag found; source is plain "bookmarks"
+    expect(result[0].source).toBe("bookmarks");
   });
 
   test("title with special characters slugifies correctly", async () => {

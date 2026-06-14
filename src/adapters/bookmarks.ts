@@ -22,8 +22,9 @@ function isValidUrl(url: string): boolean {
 }
 
 function bookmarkSource(entry: BookmarkEntry): string {
-  if (entry.tags && entry.tags.length > 0) {
-    return `bookmarks:${entry.tags[0]}`;
+  const firstTag = entry.tags?.find((t) => t.trim() !== "");
+  if (firstTag !== undefined) {
+    return `bookmarks:${firstTag}`;
   }
   return "bookmarks";
 }
