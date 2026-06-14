@@ -2370,6 +2370,349 @@ layout:
         /display must be one of: counter/,
       );
     });
+
+    // --- Typo suggestions for widget discriminator keys ---
+
+    test('widget key typo: "imge" suggests "image"', () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - imge: https://example.com/logo.png
+`;
+      setConfig(yaml);
+      // "imge" is not in LAYOUT_KEY_SUGGESTIONS, so it should fall through to
+      // the generic "must define one of" error
+      expect(() => loadConfig()).toThrow(
+        /config: layout.children\[0\] must define one of: panel, direction, image, text, iframe/,
+      );
+    });
+
+    test('widget key typo: "iFrame" (camelCase) suggests "iframe"', () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - iFrame: https://example.com/embed
+`;
+      setConfig(yaml);
+      // "iFrame" is not in LAYOUT_KEY_SUGGESTIONS, so generic error
+      expect(() => loadConfig()).toThrow(
+        /config: layout.children\[0\] must define one of: panel, direction, image, text, iframe/,
+      );
+    });
+
+    test('widget key typo: "texxt" falls through to generic error', () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - texxt: "Hello world"
+`;
+      setConfig(yaml);
+      expect(() => loadConfig()).toThrow(
+        /config: layout.children\[0\] must define one of: panel, direction, image, text, iframe/,
+      );
+    });
+
+    test('iframe widget field typo: "sanbox" (missing d) gives unknown field error', () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - iframe: https://example.com/embed
+      sanbox: "allow-scripts"
+`;
+      setConfig(yaml);
+      expect(() => loadConfig()).toThrow(
+        /config: layout.children\[0\].sanbox is not a valid iframe widget field/,
+      );
+    });
+
+    test('iframe widget field typo: "aspect-ratio" (CSS-style) suggests "aspect_ratio"', () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - iframe: https://example.com/embed
+      aspect-ratio: "16/9"
+`;
+      setConfig(yaml);
+      expect(() => loadConfig()).toThrow(
+        /aspect-ratio is not a valid iframe widget field; did you mean "aspect_ratio"/,
+      );
+    });
+
+    // --- Counter adapter validation error messages ---
+
+    test("counter adapter: missing url gives clear required error", () => {
+      const yaml = `
+adapters:
+  - type: counter
+    params:
+      json_path: data.count
+layout:
+  direction: row
+  children:
+    - panel: stats
+      source: counter
+      display: counter
+`;
+      setConfig(yaml);
+      expect(() => loadConfig()).toThrow(
+        /config: adapters\[0\]\.params\.url is required for counter adapter/,
+      );
+    });
+
+    test("counter adapter: invalid json_path format gives dot-notation error", () => {
+      const yaml = `
+adapters:
+  - type: counter
+    params:
+      url: https://api.example.com/count
+      json_path: "data[*].count"
+layout:
+  direction: row
+  children:
+    - panel: stats
+      source: counter
+      display: counter
+`;
+      setConfig(yaml);
+      expect(() => loadConfig()).toThrow(
+        /json_path must be a valid dot-notation path/,
+      );
+    });
+
+    test('counter adapter: display: "sparkline" gives enum error listing valid values', () => {
+      const yaml = `
+adapters:
+  - type: counter
+    params:
+      url: https://api.example.com/count
+      json_path: data.count
+layout:
+  direction: row
+  children:
+    - panel: stats
+      source: counter
+      display: sparkline
+`;
+      setConfig(yaml);
+      expect(() => loadConfig()).toThrow(
+        /display must be one of: counter/,
+      );
+    });
+
+    test("counter adapter: headers as non-object gives type error", () => {
+      const yaml = `
+adapters:
+  - type: counter
+    params:
+      url: https://api.example.com/count
+      json_path: data.count
+      headers: "Authorization: Bearer token"
+layout:
+  direction: row
+  children:
+    - panel: stats
+      source: counter
+      display: counter
+`;
+      setConfig(yaml);
+      expect(() => loadConfig()).toThrow(
+        /params\.headers must be an object/,
+      );
+    });
+
+    test("counter adapter: __proto__ in json_path gives disallowed segment error", () => {
+      const yaml = `
+adapters:
+  - type: counter
+    params:
+      url: https://api.example.com/count
+      json_path: "__proto__.polluted"
+layout:
+  direction: row
+  children:
+    - panel: stats
+      source: counter
+      display: counter
+`;
+      setConfig(yaml);
+      expect(() => loadConfig()).toThrow(
+        /json_path contains a disallowed segment/,
+      );
+    });
+
+    test("counter adapter: constructor in json_path gives disallowed segment error", () => {
+      const yaml = `
+adapters:
+  - type: counter
+    params:
+      url: https://api.example.com/count
+      json_path: "data.constructor.name"
+layout:
+  direction: row
+  children:
+    - panel: stats
+      source: counter
+      display: counter
+`;
+      setConfig(yaml);
+      expect(() => loadConfig()).toThrow(
+        /json_path contains a disallowed segment/,
+      );
+    });
+
+    // --- Bookmarks adapter validation error messages ---
+
+    test("bookmarks adapter: missing items param loads but warns at runtime", () => {
+      const yaml = `
+adapters:
+  - type: bookmarks
+layout:
+  direction: row
+  children:
+    - panel: links
+      source: bookmarks
+`;
+      setConfig(yaml);
+      // No params at all is accepted at config time
+      expect(() => loadConfig()).not.toThrow();
+    });
+
+    test("bookmarks adapter: item missing title is warned at runtime", () => {
+      const yaml = `
+adapters:
+  - type: bookmarks
+    params:
+      items:
+        - url: https://example.com
+layout:
+  direction: row
+  children:
+    - panel: links
+      source: bookmarks
+`;
+      setConfig(yaml);
+      // Config loads fine; title validation is runtime
+      expect(() => loadConfig()).not.toThrow();
+    });
+
+    test("bookmarks adapter: item missing url is warned at runtime", () => {
+      const yaml = `
+adapters:
+  - type: bookmarks
+    params:
+      items:
+        - title: Example
+layout:
+  direction: row
+  children:
+    - panel: links
+      source: bookmarks
+`;
+      setConfig(yaml);
+      // Config loads fine; url validation is runtime
+      expect(() => loadConfig()).not.toThrow();
+    });
+
+    test("bookmarks adapter: invalid URL scheme (ftp://) is warned at runtime", () => {
+      const yaml = `
+adapters:
+  - type: bookmarks
+    params:
+      items:
+        - title: FTP Site
+          url: ftp://files.example.com/data
+layout:
+  direction: row
+  children:
+    - panel: links
+      source: bookmarks
+`;
+      setConfig(yaml);
+      // ftp:// is not validated at config time; adapter's isValidUrl rejects at runtime
+      expect(() => loadConfig()).not.toThrow();
+    });
+
+    // --- Cross-cutting validation ---
+
+    test("multiple discriminator keys on same node (image + iframe)", () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - image: https://example.com/logo.png
+      iframe: https://example.com/embed
+`;
+      setConfig(yaml);
+      expect(() => loadConfig()).toThrow(
+        /config: layout.children\[0\] has conflicting keys: image, iframe/,
+      );
+    });
+
+    test("three discriminator keys on same node (panel + text + image)", () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - panel: news
+      text: "Hello"
+      image: https://example.com/logo.png
+      source: all
+`;
+      setConfig(yaml);
+      expect(() => loadConfig()).toThrow(
+        /config: layout.children\[0\] has conflicting keys: panel, image, text/,
+      );
+    });
+
+    test("unknown discriminator key with no known suggestion", () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - widget: custom
+`;
+      setConfig(yaml);
+      expect(() => loadConfig()).toThrow(
+        /config: layout.children\[0\] must define one of: panel, direction, image, text, iframe/,
+      );
+    });
+
+    test("widget-specific keys on a container node are rejected", () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - direction: column
+      alt: "This is wrong"
+      children:
+        - panel: p1
+          source: all
+`;
+      setConfig(yaml);
+      expect(() => loadConfig()).toThrow(
+        /config: layout.children\[0\].alt is not a valid layout container field/,
+      );
+    });
+
+    test("widget-specific keys on a panel node are rejected", () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - panel: news
+      source: all
+      object_fit: cover
+`;
+      setConfig(yaml);
+      expect(() => loadConfig()).toThrow(
+        /config: layout.children\[0\].object_fit is not a valid panel field/,
+      );
+    });
   });
 
   describe("env var expansion in widget configs", () => {

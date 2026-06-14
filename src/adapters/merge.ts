@@ -137,7 +137,7 @@ export async function aggregateBatchedFeeds<T, K>(
   });
 }
 
-/** Batched per-key fetch (0–1 item each); drops nulls, then shared dedupe/min-score/sort/limit finalize pipeline. */
+/** Batched per-key fetch (0-1 item each); drops nulls, then shared dedupe/min-score/sort/limit finalize pipeline. */
 export async function aggregateBatchedItems<T, K>(
   keys: readonly K[],
   batchSize: number,

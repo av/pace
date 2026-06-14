@@ -124,7 +124,7 @@ Transforms process content after fetching - filter, deduplicate, rank, or enrich
 | `cluster` | Group related stories across sources |
 | `llm-summarize` | Summarize items with an LLM (optionally fetches full page content) |
 | `llm-filter` | Keep only items matching interests, scored by LLM |
-| `llm-rank` | Rank items 0–10 by relevance to your interests |
+| `llm-rank` | Rank items 0-10 by relevance to your interests |
 | `llm-merge` | Merge and deduplicate using LLM understanding |
 
 ```bash

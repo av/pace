@@ -184,7 +184,7 @@ export async function summarizeItems(
   return runLlmBatchTransform(model, items, systemPrompt, applySummaryEntries, { maxBodyLen: 2000, fetchedContent });
 }
 
-/** 2–3 sentence summary, or null on error. */
+/** 2-3 sentence summary, or null on error. */
 export async function summarizeItem(
   model: Model<Api> | null,
   item: ContentItem

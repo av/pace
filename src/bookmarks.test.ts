@@ -358,4 +358,66 @@ describe("bookmarks adapter", () => {
     expect(result).toEqual([]);
     expect(warnSpy).toHaveBeenCalled();
   });
+
+  // --- Runtime validation warning message regression tests ---
+
+  describe("runtime validation warning messages", () => {
+    test("warns 'no items configured' when items param is missing", async () => {
+      const result = await adapter.fetch({ type: "bookmarks", params: {} });
+      expect(result).toEqual([]);
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("no items configured"),
+      );
+    });
+
+    test("warns 'no items configured' when items is empty array", async () => {
+      const result = await adapter.fetch(makeConfig([]));
+      expect(result).toEqual([]);
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("no items configured"),
+      );
+    });
+
+    test("warns 'missing or empty title' for item without title", async () => {
+      const result = await adapter.fetch(makeConfig([
+        { url: "https://example.com" },
+      ]));
+      expect(result).toEqual([]);
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("missing or empty title"),
+      );
+    });
+
+    test("warns 'missing or empty url' for item without url", async () => {
+      const result = await adapter.fetch(makeConfig([
+        { title: "No URL" },
+      ]));
+      expect(result).toEqual([]);
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("missing or empty url"),
+      );
+    });
+
+    test("warns about invalid URL scheme (ftp://)", async () => {
+      const result = await adapter.fetch(makeConfig([
+        { title: "FTP Site", url: "ftp://files.example.com/data" },
+      ]));
+      expect(result).toEqual([]);
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("url must start with http:// or https://"),
+      );
+    });
+
+    test("warns 'all items were invalid' when every item fails validation", async () => {
+      const result = await adapter.fetch(makeConfig([
+        { title: "Bad", url: "ftp://bad.com" },
+        { url: "https://no-title.com" },
+        { title: "No URL" },
+      ]));
+      expect(result).toEqual([]);
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("all items were invalid"),
+      );
+    });
+  });
 });
