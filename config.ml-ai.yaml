@@ -103,6 +103,32 @@ adapters:
       - type: latest
         count: 15
 
+  # Key ML/AI resources for quick access.
+  - name: ml-resources
+    type: bookmarks
+    params:
+      items:
+        - title: "Hugging Face"
+          url: "https://huggingface.co"
+          description: "Models, datasets, and spaces"
+          tags: ["models"]
+        - title: "Papers With Code"
+          url: "https://paperswithcode.com"
+          description: "ML papers with implementations"
+          tags: ["papers"]
+        - title: "LMSYS Chatbot Arena"
+          url: "https://chat.lmsys.org"
+          description: "LLM benchmark leaderboard"
+          tags: ["benchmarks"]
+        - title: "Ollama"
+          url: "https://ollama.com"
+          description: "Run LLMs locally"
+          tags: ["tools"]
+        - title: "arXiv cs.AI"
+          url: "https://arxiv.org/list/cs.AI/recent"
+          description: "Latest AI papers"
+          tags: ["papers"]
+
 # High-signal cross-source strip: open models, benchmarks, and inference news only.
 pipelines:
   - name: firehose
@@ -205,6 +231,23 @@ layout:
           flex: 1
           source: cross-talk
           limit: 15
+
+        - direction: column
+          flex: 1
+          children:
+            - panel: ml-resources
+              flex: 1
+              source: ml-resources
+              limit: 5
+
+            - text: |
+                **arXiv categories:** cs.AI, cs.LG, cs.CL.
+                **Keyword scoring:** LLMs, alignment, fine-tuning,
+                RAG, benchmarks, diffusion models.
+                **Firehose filter:** min score 5, favoring benchmarks,
+                open weights, and inference optimization.
+              format: markdown
+              title: Category Reference
 
 # Uncomment to enable LLM-powered features
 # llm:

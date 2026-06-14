@@ -73,6 +73,31 @@ adapters:
       - type: latest
         count: 15
 
+  # Podcast tools and players for quick access.
+  - name: podcast-tools
+    type: bookmarks
+    params:
+      items:
+        - title: "Pocket Casts"
+          url: "https://pocketcasts.com"
+          description: "Cross-platform podcast player"
+          tags: ["player"]
+        - title: "Overcast"
+          url: "https://overcast.fm"
+          description: "iOS podcast player with Smart Speed"
+          tags: ["player"]
+        - title: "YouTube"
+          url: "https://youtube.com"
+          tags: ["video"]
+        - title: "Listen Notes"
+          url: "https://www.listennotes.com"
+          description: "Podcast search engine"
+          tags: ["discovery"]
+        - title: "Podchaser"
+          url: "https://www.podchaser.com"
+          description: "Podcast database and reviews"
+          tags: ["discovery"]
+
 pipelines:
   # Merge YouTube and Mastodon into a unified video feed.
   - name: all-video
@@ -106,7 +131,24 @@ layout:
       source: youtube
       limit: 15
 
-    - panel: media-feed
+    - direction: column
       flex: 1
-      source: mastodon
-      limit: 15
+      children:
+        - panel: media-feed
+          flex: 3
+          source: mastodon
+          limit: 15
+
+        - panel: podcast-tools
+          flex: 1
+          source: podcast-tools
+          limit: 5
+
+        - text: |
+            **Feeds:** Changelog, Latent Space, Lex Fridman.
+            **Channels:** Fireship, Computerphile, 3Blue1Brown,
+            Veritasium. Fosstodon media posts round out the
+            video column. Podcasts dedupe guest cross-appearances;
+            YouTube dedupes topic overlap across channels.
+          format: markdown
+          title: Listening Notes

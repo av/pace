@@ -76,6 +76,25 @@ adapters:
       limit: 10
     refresh_interval: 360
 
+  # Launch platforms and communities for quick access.
+  - name: launch-sites
+    type: bookmarks
+    params:
+      items:
+        - title: "Product Hunt"
+          url: "https://www.producthunt.com"
+          tags: ["launches"]
+        - title: "Hacker News - Show HN"
+          url: "https://news.ycombinator.com/show"
+          tags: ["launches"]
+        - title: "Indie Hackers"
+          url: "https://www.indiehackers.com"
+          tags: ["community"]
+        - title: "BetaList"
+          url: "https://betalist.com"
+          description: "Early-stage startup discovery"
+          tags: ["launches"]
+
 pipelines:
   - name: community
     sources: [devto, lobsters]
@@ -142,3 +161,16 @@ layout:
           flex: 1
           source: npm-fresh
           limit: 10
+
+        - panel: launch-sites
+          flex: 1
+          source: launch-sites
+          limit: 4
+
+        - text: |
+            **Product Hunt** shows featured products (30+ upvotes).
+            **Show HN** uses time-decay scoring to surface trending
+            launches. **Community** merges DEV.to #showdev + Lobsters
+            show tag, deduped and keyword-boosted for launch signals.
+          format: markdown
+          title: Tracking Criteria
