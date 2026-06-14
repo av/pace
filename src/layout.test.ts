@@ -1,7 +1,7 @@
 import { describe, it, expect } from "bun:test";
 import { spyConsole } from "./test/console-spy";
 import { formatDashboardUpdatedAt, renderDashboard, type PanelData } from "./layout";
-import { resolvePanelId } from "./layout/types";
+import { collectPanels, resolvePanelId } from "./layout/types";
 import { makeContentItemRow as makeItem } from "./test/content-items";
 import { flexCfg, panelCfg } from "./test/layout-cfg";
 import { expectDashboardRefreshAction } from "./test/server-harness";
@@ -380,6 +380,285 @@ describe("renderDashboard", () => {
     // Nested flex container present
     const containerMatches = html.match(/flex-container/g);
     expect(containerMatches?.length).toBeGreaterThanOrEqual(2); // root + nested
+  });
+  // -- Image widget: max_height and object_fit variants --
+
+  it("renders image widget with max_height applied as container style", () => {
+    const layout = flexCfg("row", [
+      { image: "https://example.com/tall.png", max_height: "200px" },
+    ]);
+    const panelData = new Map<string, PanelData>();
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain("max-height:200px");
+    expect(html).toContain('src="https://example.com/tall.png"');
+  });
+
+  it("renders image widget with object_fit: cover when specified", () => {
+    const layout = flexCfg("row", [
+      { image: "https://example.com/bg.jpg", object_fit: "cover" },
+    ]);
+    const panelData = new Map<string, PanelData>();
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain("object-fit:cover");
+    expect(html).not.toContain("object-fit:contain");
+  });
+
+  it("renders image widget with empty alt attribute when alt is omitted", () => {
+    const layout = flexCfg("row", [
+      { image: "https://example.com/decorative.png" },
+    ]);
+    const panelData = new Map<string, PanelData>();
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain('alt=""');
+  });
+
+  it("renders image widget link with unsafe URL as no-link (no wrapping anchor)", () => {
+    const layout = flexCfg("row", [
+      { image: "https://example.com/img.png", link: "javascript:alert(1)" },
+    ]);
+    const panelData = new Map<string, PanelData>();
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    // The image-widget should not wrap the img in an anchor
+    expect(html).toContain('class="image-widget"><img');
+    expect(html).not.toContain('href="javascript:');
+  });
+
+  // -- Text widget: title presence/absence --
+
+  it("renders text widget without title header when title is omitted", () => {
+    const layout = flexCfg("row", [
+      { text: "Just some plain text" },
+    ]);
+    const panelData = new Map<string, PanelData>();
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain('class="text-widget-body"');
+    expect(html).toContain("Just some plain text");
+    expect(html).not.toContain("panel-header");
+    expect(html).not.toContain("<h2>");
+  });
+
+  it("renders text widget with special chars escaped in plain mode", () => {
+    const layout = flexCfg("row", [
+      { text: '<script>alert("xss")</script> & "quotes"' },
+    ]);
+    const panelData = new Map<string, PanelData>();
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).not.toContain("<script>");
+    expect(html).toContain("&lt;script&gt;");
+    expect(html).toContain("&amp;");
+    expect(html).toContain("&quot;quotes&quot;");
+  });
+
+  it("renders text widget markdown with inline code", () => {
+    const layout = flexCfg("row", [
+      { text: "Run `npm install` to start", format: "markdown" as const },
+    ]);
+    const panelData = new Map<string, PanelData>();
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain("<code>npm install</code>");
+  });
+
+  it("renders text widget html format stripping event handlers", () => {
+    const layout = flexCfg("row", [
+      { text: '<p onmouseover="alert(1)">hover me</p>', format: "html" as const },
+    ]);
+    const panelData = new Map<string, PanelData>();
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain("<p>hover me</p>");
+    expect(html).not.toContain("onmouseover");
+  });
+
+  // -- Iframe widget: custom sandbox, allow, aspect_ratio variants --
+
+  it("renders iframe widget with custom sandbox tokens", () => {
+    const layout = flexCfg("row", [
+      { iframe: "https://example.com", sandbox: "allow-scripts allow-popups" },
+    ]);
+    const panelData = new Map<string, PanelData>();
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain('sandbox="allow-scripts allow-popups"');
+  });
+
+  it("renders iframe widget with allow attribute when set", () => {
+    const layout = flexCfg("row", [
+      { iframe: "https://example.com", allow: "fullscreen; autoplay" },
+    ]);
+    const panelData = new Map<string, PanelData>();
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain('allow="fullscreen; autoplay"');
+  });
+
+  it("renders iframe widget with custom aspect_ratio", () => {
+    const layout = flexCfg("row", [
+      { iframe: "https://example.com", aspect_ratio: "4/3" },
+    ]);
+    const panelData = new Map<string, PanelData>();
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain("aspect-ratio:4/3");
+    expect(html).not.toContain("aspect-ratio:16/9");
+  });
+
+  it("renders iframe widget without title header when title is omitted", () => {
+    const layout = flexCfg("row", [
+      { iframe: "https://example.com" },
+    ]);
+    const panelData = new Map<string, PanelData>();
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).not.toContain("panel-header");
+    expect(html).not.toContain("<h2>");
+    expect(html).toContain('class="iframe-panel"');
+  });
+
+  // -- Counter panel: trend direction variants and number abbreviation --
+
+  it("renders counter panel with down trend arrow when value decreased", () => {
+    const counterItem = makeItem({
+      title: "Errors",
+      body: JSON.stringify({ value: 50, previous: 200 }),
+    });
+    const layout = flexCfg("row", [
+      panelCfg("Down Trend", "counter", { display: "counter" }),
+    ]);
+    const panelData = new Map<string, PanelData>([
+      ["Down Trend", { items: [counterItem] }],
+    ]);
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain('class="stat-trend stat-trend-down"');
+    expect(html).toContain("title=\"Decreasing\"");
+  });
+
+  it("renders counter panel without trend arrow when no previous value", () => {
+    const counterItem = makeItem({
+      title: "Active Users",
+      body: JSON.stringify({ value: 42 }),
+    });
+    const layout = flexCfg("row", [
+      panelCfg("No Trend", "counter", { display: "counter" }),
+    ]);
+    const panelData = new Map<string, PanelData>([
+      ["No Trend", { items: [counterItem] }],
+    ]);
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain('class="stat-card"');
+    expect(html).toContain("42");
+    expect(html).not.toContain("stat-trend");
+  });
+
+  it("renders counter panel with millions abbreviated (M suffix)", () => {
+    const counterItem = makeItem({
+      title: "Downloads",
+      body: JSON.stringify({ value: 2500000 }),
+    });
+    const layout = flexCfg("row", [
+      panelCfg("Millions", "counter", { display: "counter" }),
+    ]);
+    const panelData = new Map<string, PanelData>([
+      ["Millions", { items: [counterItem] }],
+    ]);
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain("2.5M");
+  });
+
+  it("renders counter panel with multiple stat cards", () => {
+    const items = [
+      makeItem({ id: "c1", title: "CPU", body: JSON.stringify({ value: 45, unit: "%" }) }),
+      makeItem({ id: "c2", title: "Memory", body: JSON.stringify({ value: 78, unit: "%" }) }),
+      makeItem({ id: "c3", title: "Disk", body: JSON.stringify({ value: 60, unit: "%" }) }),
+    ];
+    const layout = flexCfg("row", [
+      panelCfg("System", "counter", { display: "counter" }),
+    ]);
+    const panelData = new Map<string, PanelData>([
+      ["System", { items }],
+    ]);
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    const cardMatches = html.match(/stat-card/g);
+    expect(cardMatches?.length).toBe(3);
+    expect(html).toContain("CPU");
+    expect(html).toContain("Memory");
+    expect(html).toContain("Disk");
+  });
+
+  it("renders counter panel empty state when no panel data exists", () => {
+    const layout = flexCfg("row", [
+      panelCfg("Missing Data", "counter", { display: "counter" }),
+    ]);
+    const panelData = new Map<string, PanelData>();
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain("No data yet");
+    expect(html).not.toContain("stat-card");
+  });
+
+  // -- collectPanels: widget exclusion --
+
+  it("collectPanels excludes widget nodes from result", () => {
+    const layout = flexCfg("row", [
+      panelCfg("Feed", "rss"),
+      { image: "https://example.com/logo.png" },
+      { text: "Hello world" },
+      { iframe: "https://example.com" },
+      flexCfg("column", [
+        panelCfg("Tech", "hackernews"),
+        { image: "https://example.com/banner.png" },
+      ]),
+    ]);
+    const panels = collectPanels(layout);
+    expect(panels.length).toBe(2);
+    expect(panels[0]!.panel).toBe("Feed");
+    expect(panels[1]!.panel).toBe("Tech");
+  });
+
+  // -- Full pipeline integration: all widget types through LayoutNode dispatch --
+
+  it("renders complete dashboard with all widget types through LayoutNode dispatch", () => {
+    const layout = flexCfg("row", [
+      flexCfg("column", [
+        { image: "https://example.com/header.png", alt: "Header", max_height: "100px", link: "https://example.com" },
+        { text: "# Welcome\nThis is a **dashboard**.", format: "markdown" as const, title: "Info" },
+      ]),
+      flexCfg("column", [
+        { iframe: "https://grafana.example.com/d/overview", title: "Grafana", height: "300px" },
+        panelCfg("Stats", "counter", { display: "counter" }),
+        panelCfg("News", "rss"),
+      ]),
+    ]);
+    const panelData = new Map<string, PanelData>([
+      ["Stats", { items: [makeItem({ title: "Stars", body: JSON.stringify({ value: 1500000, unit: "stars", previous: 1400000 }) })] }],
+      ["News", { items: [makeItem({ title: "Breaking News" })] }],
+    ]);
+    const html = renderDashboard({ layout, panelData, updatedAt: "2026-06-14 12:00" });
+
+    // Image widget fully rendered
+    expect(html).toContain('src="https://example.com/header.png"');
+    expect(html).toContain('alt="Header"');
+    expect(html).toContain("max-height:100px");
+    expect(html).toContain('href="https://example.com"');
+    expect(html).toContain('loading="lazy"');
+
+    // Text widget with markdown rendered
+    expect(html).toContain("<h1");
+    expect(html).toContain("<strong>dashboard</strong>");
+    expect(html).toContain("<h2>Info</h2>");
+    expect(html).toContain('class="panel-header"');
+
+    // Iframe widget rendered
+    expect(html).toContain('src="https://grafana.example.com/d/overview"');
+    expect(html).toContain("<h2>Grafana</h2>");
+    expect(html).toContain("height:300px");
+    expect(html).toContain('sandbox="allow-scripts allow-same-origin"');
+    expect(html).toContain('referrerpolicy="no-referrer"');
+
+    // Counter panel rendered
+    expect(html).toContain("1.5M");
+    expect(html).toContain('class="stat-unit">stars</span>');
+    expect(html).toContain("stat-trend-up");
+
+    // Regular panel rendered
+    expect(html).toContain("Breaking News");
+
+    // Page structure
+    expect(html).toContain("<!DOCTYPE html>");
+    expect(html).toContain("2026-06-14 12:00 UTC");
   });
 });
 
