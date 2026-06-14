@@ -1519,6 +1519,133 @@ layout:
     setConfig(yaml);
     expect(() => loadConfig()).not.toThrow();
   });
+
+  // Text widget validation
+  test("accepts valid text widget with all fields", () => {
+    const yaml = `
+adapters:
+  - type: hackernews
+layout:
+  direction: row
+  children:
+    - text: "Hello world"
+      format: markdown
+      title: Notes
+      flex: 2
+    - panel: news
+      source: hackernews
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).not.toThrow();
+  });
+
+  test("accepts minimal text widget (text only)", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - text: "Just some text"
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).not.toThrow();
+  });
+
+  test("accepts text widget with format: plain", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - text: "Plain text"
+      format: plain
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).not.toThrow();
+  });
+
+  test("accepts text widget with format: html", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - text: "<em>Hello</em>"
+      format: html
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).not.toThrow();
+  });
+
+  test("rejects text widget with empty text", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - text: ""
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: layout.children\[0\].text must be a non-empty string/,
+    );
+  });
+
+  test("rejects text widget with invalid format", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - text: "Hello"
+      format: rtf
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: layout.children\[0\].format must be one of/,
+    );
+  });
+
+  test("rejects text widget with unknown field", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - text: "Hello"
+      bogus: true
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: layout.children\[0\].bogus is not a valid text widget field/,
+    );
+  });
+
+  test("rejects text widget with empty title", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - text: "Hello"
+      title: ""
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: layout.children\[0\].title must be a non-empty string/,
+    );
+  });
+
+  test("text widget alongside panels and other widgets", () => {
+    const yaml = `
+adapters:
+  - type: hackernews
+layout:
+  direction: row
+  children:
+    - text: "Welcome note"
+      title: About
+    - panel: news
+      source: hackernews
+    - text: "## Changelog"
+      format: markdown
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).not.toThrow();
+  });
 });
 
   describe("sanitizeSandboxTokens", () => {

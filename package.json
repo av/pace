@@ -12,10 +12,13 @@
     "@mariozechner/pi-ai": "^0.73.0",
     "fast-xml-parser": "^5.8.0",
     "hono": "^4.7.0",
-    "js-yaml": "^4.1.0"
+    "js-yaml": "^4.1.0",
+    "marked": "^18.0.5",
+    "sanitize-html": "^2.17.5"
   },
   "devDependencies": {
+    "@types/bun": "latest",
     "@types/js-yaml": "^4.0.9",
-    "@types/bun": "latest"
+    "@types/sanitize-html": "^2.16.1"
   }
 }

@@ -1,22 +1,17 @@
 /** @jsx jsx */
 import { jsx } from "hono/jsx";
 import type { FC } from "hono/jsx";
-import type { TextWidgetConfig, LayoutNodeConfig, PanelData } from "./types";
+import type { LayoutNodeConfig, PanelData } from "./types";
 import { isImageWidget, isTextWidget, isIframe, isPanel, isContainer } from "./types";
 import { flexContainerStyle } from "./flex-styles";
 import { Panel } from "./panel";
 import { ImageWidget } from "./image-widget";
 import { IframeWidget } from "./iframe-widget";
-
-const flexStyle = (flex?: number) => (flex ? `flex:${flex}` : undefined);
-
-const TextWidgetPlaceholder: FC<{ node: TextWidgetConfig }> = ({ node }) => (
-  <div class="text-widget" style={flexStyle(node.flex)} />
-);
+import { TextWidget } from "./text-widget";
 
 export const LayoutNode: FC<{ node: LayoutNodeConfig; panelData: Map<string, PanelData> }> = ({ node, panelData }) => {
   if (isImageWidget(node)) return <ImageWidget node={node} />;
-  if (isTextWidget(node)) return <TextWidgetPlaceholder node={node} />;
+  if (isTextWidget(node)) return <TextWidget node={node} />;
   if (isIframe(node)) return <IframeWidget node={node} />;
 
   if (isPanel(node)) {
