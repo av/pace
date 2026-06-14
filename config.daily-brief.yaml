@@ -66,6 +66,27 @@ adapters:
       - type: latest
         count: 20
 
+  # Quick-access links for the morning routine.
+  - name: my-tools
+    type: bookmarks
+    params:
+      items:
+        - title: "Gmail"
+          url: "https://mail.google.com"
+          tags: ["comms"]
+        - title: "Google Calendar"
+          url: "https://calendar.google.com"
+          tags: ["comms"]
+        - title: "Weather"
+          url: "https://weather.gov"
+          tags: ["info"]
+        - title: "Hacker News"
+          url: "https://news.ycombinator.com"
+          tags: ["tech"]
+        - title: "Wikipedia"
+          url: "https://en.wikipedia.org"
+          tags: ["info"]
+
   # Only the biggest tech stories - high score threshold keeps this a pulse, not a feed.
   - type: hackernews
     params:
@@ -159,7 +180,22 @@ layout:
               source: wiki-popular
               limit: 12
 
-        - panel: today-in-history
+        - direction: column
           flex: 1
-          source: wiki-today
-          limit: 10
+          children:
+            - panel: today-in-history
+              flex: 2
+              source: wiki-today
+              limit: 10
+
+            - panel: my-tools
+              flex: 1
+              source: my-tools
+              limit: 5
+
+            - text: |
+                **Sources:** BBC World, Ars Technica, Hacker News,
+                Wikipedia (news, most-read, featured, on this day).
+                Feeds refresh every 15-120 min depending on source.
+              format: markdown
+              title: About This Briefing

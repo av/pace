@@ -76,7 +76,28 @@ layout:
           source: release-chatter
           limit: 10
 
-    - panel: trending
+    - direction: column
       flex: 1
-      source: gh-trending
-      limit: 20
+      children:
+        - image: https://img.shields.io/github/actions/workflow/status/vercel/next.js/build_and_test.yml
+          alt: "Next.js CI status"
+          link: https://github.com/vercel/next.js/actions
+          object_fit: contain
+          max_height: "32px"
+
+        - panel: trending
+          flex: 3
+          source: gh-trending
+          limit: 20
+
+        - text: |
+            ### Tracking Your Deps
+
+            Edit the `repos` list under `gh-releases` to
+            add your own dependencies. Use the format
+            `owner/repo` (e.g. `pallets/flask`).
+
+            The **release-chatter** panel filters Hacker News
+            and Lobsters for release-related discussion.
+          format: markdown
+          title: How to Use

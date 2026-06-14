@@ -56,6 +56,27 @@ adapters:
       - type: latest
         count: 20
 
+  # Reference docs for quick access.
+  - name: reference
+    type: bookmarks
+    params:
+      items:
+        - title: "MDN Web Docs"
+          url: "https://developer.mozilla.org"
+          tags: ["docs"]
+        - title: "TypeScript Handbook"
+          url: "https://www.typescriptlang.org/docs/handbook/"
+          tags: ["docs"]
+        - title: "Node.js Docs"
+          url: "https://nodejs.org/docs/latest/api/"
+          tags: ["docs"]
+        - title: "Rust Book"
+          url: "https://doc.rust-lang.org/book/"
+          tags: ["docs"]
+        - title: "Go by Example"
+          url: "https://gobyexample.com"
+          tags: ["docs"]
+
   - type: github-releases
     params:
       repos:
@@ -156,7 +177,23 @@ layout:
           source: github-releases
           limit: 10
 
-    - panel: news-and-blogs
+    - direction: column
       flex: 1
-      source: rss
-      limit: 20
+      children:
+        - panel: news-and-blogs
+          flex: 3
+          source: rss
+          limit: 20
+
+        - panel: reference
+          flex: 1
+          source: reference
+          limit: 5
+
+        - text: |
+            **Frontpage** merges Hacker News + Lobsters,
+            deduped by normalized URL and ranked by
+            engagement x recency. **Cross-community**
+            adds Lemmy and clusters related stories.
+          format: markdown
+          title: Pipeline Legend

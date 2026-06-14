@@ -10,7 +10,7 @@
 
 ## validation
 - label: layout panel source objects accept only adapter and params; refresh_interval on layout.source is rejected with config: error directing users to adapters[]
-  command: grep -q 'refresh_interval belongs on adapters' src/config.ts && grep -q 'is not a valid source field' src/config-validate.ts && ! grep -q 'not panel source' src/config.ts && ! grep -A5 'export interface SourceConfig' src/config.ts | grep -q 'refresh_interval?:' && grep -q 'rejects refresh_interval on panel source object' src/config.test.ts
+  command: grep -q 'refresh_interval belongs on adapters' src/layout/domain.ts && grep -q 'is not a valid source field' src/config-validate.ts && ! grep -q 'not panel source' src/config.ts && ! grep -A5 'export interface SourceConfig' src/config.ts | grep -q 'refresh_interval?:' && grep -q 'rejects refresh_interval on panel source object' src/config.test.ts
   tags: [spec, implemented]
 - label: validateSafeUrl rejects non-http(s) schemes (javascript:, data:, blob:, ftp:), URLs with userinfo-based open-redirect patterns (user@evil.com), and malformed URLs; used at config time for image link, iframe src, and counter url/compare_url
   command: grep -q 'function validateSafeUrl' src/config-validate.ts && grep -q 'validateSafeUrl' src/config.test.ts
@@ -26,7 +26,7 @@
 
 ## contract
 - label: refresh_interval belongs on IngestAdapterConfig (adapters[] ingest YAML), not on AdapterConfig passed to Adapter.fetch
-  command: ! grep -A5 'export interface AdapterConfig {' src/adapters/types.ts | grep -q refresh_interval && grep -A10 'export interface IngestAdapterConfig' src/config.ts | grep -q 'refresh_interval?:' && grep -q 'refresh_interval is ingest-only (IngestAdapterConfig), not on fetch contract' src/types.test.ts
+  command: ! grep -A5 'export interface AdapterConfig {' src/adapters/types.ts | grep -q refresh_interval && grep -A10 'export interface IngestAdapterConfig' src/config/domain.ts | grep -q 'refresh_interval?:' && grep -q 'refresh_interval is ingest-only (IngestAdapterConfig), not on fetch contract' src/types.test.ts
   tags: [spec, implemented]
 - When a source fails to fetch (network error, bad response, parse error), the log and error message clearly identify which source had the problem
 - mastodon, lobsters, youtube, podcast, stackexchange, and github adapters previously swallowed fetch errors (non-2xx, network, parse) via console.warn + return [] or null; after minimal fixes they now throw Error messages starting with '<name>: ' (e.g. 'mastodon: failed to fetch...') per the Adapter contract documented in src/adapters/types.ts and oz1 @spec @implemented

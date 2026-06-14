@@ -195,3 +195,25 @@ layout:
           flex: 1
           source: stackexchange
           limit: 10
+
+        - text: |
+            ### ArXiv Category Codes
+
+            | Code    | Area                          |
+            |---------|-------------------------------|
+            | cs.AI   | Artificial Intelligence       |
+            | cs.CL   | Computation and Language      |
+            | cs.CV   | Computer Vision               |
+            | cs.LG   | Machine Learning              |
+            | cs.PL   | Programming Languages         |
+            | cs.SE   | Software Engineering          |
+            | cs.CR   | Cryptography and Security     |
+            | cs.DS   | Data Structures / Algorithms  |
+            | cs.DB   | Databases                     |
+            | cs.DC   | Distributed Computing         |
+
+            Edit `categories` in the adapters section to
+            track different fields. Full taxonomy at
+            [arxiv.org/category_taxonomy](https://arxiv.org/category_taxonomy).
+          format: markdown
+          title: Category Reference
