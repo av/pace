@@ -13,7 +13,8 @@ export function resolveJsonPath(obj: unknown, path: string): unknown {
 
   for (const segment of segments) {
     if (current == null || typeof current !== "object") {
-      throw new Error(`path "${path}" not found: cannot traverse into ${typeof current}`);
+      const typeLabel = current === null ? "null" : typeof current;
+      throw new Error(`path "${path}" not found: cannot traverse into ${typeLabel}`);
     }
 
     if (typeof segment === "number") {
