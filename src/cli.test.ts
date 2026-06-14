@@ -131,7 +131,7 @@ describe("cli-help", () => {
 
   test("formatCliHelp returns exact help text", () => {
     expect(formatCliHelp("1.0.0")).toBe(
-      `pace v1.0.0 — personal content dashboard
+      `pace v1.0.0 - personal content dashboard
 
 If you're an agent, start here:
   pace skill                          list agent skills

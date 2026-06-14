@@ -15,12 +15,12 @@ describe("pace adapters list", () => {
     }
   });
 
-  test("each line has a — separator", () => {
+  test("each line has a - separator", () => {
     const result = runCli(["adapters", "list"]);
     expect(result.status).toBe(0);
     const lines = result.stdout.trim().split("\n");
     for (const line of lines) {
-      expect(line).toContain(" — ");
+      expect(line).toContain(" - ");
     }
   });
 });

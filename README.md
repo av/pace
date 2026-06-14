@@ -2,15 +2,16 @@
 
 **Self-hosted news aggregator and personal content dashboard.**
 
-![Pace — self-hosted news aggregator dashboard showing Hacker News, Reddit, GitHub, RSS feeds, and more in a configurable layout](./assets/splash.jpg)
+![Pace - self-hosted news aggregator dashboard showing Hacker News, Reddit, GitHub, RSS feeds, and more in a configurable layout](./assets/splash.jpg)
 
 Aggregate Hacker News, Reddit, RSS, GitHub, Mastodon, YouTube, arXiv, and 10 more sources into a single dashboard you own. Filter, deduplicate, score, and optionally use an LLM to summarize and rank what matters to you. Everything runs in a single Docker container with zero client-side JavaScript.
 
-- **17 built-in sources** — Hacker News, Reddit, RSS/Atom, GitHub, Mastodon, YouTube, arXiv, npm, Wikipedia, Lemmy, and more
-- **Configurable in YAML** — adapters, transforms, layout, and LLM settings in one file
-- **Self-hosted in one command** — `docker run` and you're done, SQLite for persistence
-- **Optional AI-powered filtering** — LLM summarization, ranking, and filtering via any OpenAI/Anthropic/Google/Groq provider
-- **No client-side JavaScript** — server-rendered HTML, fast on any device
+- **19 built-in sources** - Hacker News, Reddit, RSS/Atom, GitHub, Mastodon, YouTube, arXiv, npm, Wikipedia, Lemmy, and more
+- **Configurable in YAML** - adapters, transforms, layout, and LLM settings in one file
+- **Self-hosted in one command** - `docker run` and you're done, SQLite for persistence
+- **Optional AI-powered filtering** - LLM summarization, ranking, and filtering via any OpenAI/Anthropic/Google/Groq provider
+- **No client-side JavaScript** - server-rendered HTML, fast on any device
+- **Layout widgets** - embed images, text/markdown, and iframes directly in your dashboard layout
 
 ## Quick start
 
@@ -18,7 +19,7 @@ Aggregate Hacker News, Reddit, RSS, GitHub, Mastodon, YouTube, arXiv, and 10 mor
 docker run -d -p 7453:7453 -v pace-data:/app/data ghcr.io/av/pace:latest
 ```
 
-Open http://localhost:7453 — the default config ships with Hacker News, Lobsters, GitHub trending/releases, engineering blogs, and DEV.to.
+Open http://localhost:7453 - the default config ships with Hacker News, Lobsters, GitHub trending/releases, engineering blogs, and DEV.to.
 
 ### With a preset
 
@@ -41,6 +42,17 @@ Available presets:
 | `video-podcast` | Video and podcast content |
 
 Or list them locally: `pace --list-presets`
+
+#### Preset showcase
+
+| | |
+|---|---|
+| | |
+|---|---|
+| ![Tech News preset](./assets/preset-tech-news.png) | **`tech-news`** Hacker News frontpage, Lobsters, Lemmy tech communities, Feedbin RSS, and GitHub releases in a multi-column layout. The default starting point for software engineers. |
+| **`ml-ai`** arXiv papers, Hacker News AI, Local Llama, curated ML blogs, and release tracking. Built for researchers and practitioners following the fast-moving AI/ML space. | ![ML & AI preset](./assets/preset-ml-ai.png) |
+| ![Daily Brief preset](./assets/preset-daily-brief.png) | **`daily-brief`** Breaking news digest, Wikipedia in-the-news and most-read, today-in-history, and top Hacker News stories. A morning briefing you can scan in two minutes. |
+| **`product-launches`** Product Hunt, Show HN, GitHub trending repos, npm new packages, and community discussions. Stay on top of what's shipping across the indie and open-source ecosystem. | ![Product Launches preset](./assets/preset-product-launches.png) |
 
 ### Custom config
 
@@ -66,7 +78,7 @@ bun run dev
 
 ## Content adapters
 
-Pace ships with 17 adapters that pull content from public APIs. Each adapter has a configurable `refresh_interval` (in minutes, default: 15).
+Pace ships with 19 adapters that pull content from public APIs and local config. Each adapter has a configurable `refresh_interval` (in minutes, default: 15).
 
 | Adapter | Source |
 |---------|--------|
@@ -87,6 +99,8 @@ Pace ships with 17 adapters that pull content from public APIs. Each adapter has
 | `producthunt` | Product Hunt |
 | `podcast` | Podcast RSS feeds |
 | `twitter` | Twitter/X |
+| `bookmarks` | Curated link lists from config (no network fetch) |
+| `counter` | JSON endpoint metrics with stat-card display |
 
 ```bash
 pace adapters list            # list all adapter types
@@ -95,7 +109,7 @@ pace adapters explain <type>  # show params and example
 
 ## Transforms
 
-Transforms process content after fetching — filter, deduplicate, rank, or enrich items before they reach the dashboard.
+Transforms process content after fetching - filter, deduplicate, rank, or enrich items before they reach the dashboard.
 
 | Transform | What it does |
 |-----------|-------------|
@@ -154,7 +168,70 @@ layout:
           source: arxiv
 ```
 
-Responsive — collapses to a single column on mobile (below 768px).
+Responsive - collapses to a single column on mobile (below 768px).
+
+### Widgets
+
+Layout nodes can also be widgets - static content that doesn't come from an adapter.
+
+**Image widget** - display a static image with optional link:
+
+```yaml
+- image:
+    url: https://example.com/banner.png
+    alt: Site banner
+    link: https://example.com
+    object_fit: cover
+```
+
+**Text widget** - inline text, markdown, or HTML:
+
+```yaml
+- text:
+    title: Notes
+    format: markdown
+    body: "## Welcome\nDaily reading list."
+```
+
+**Iframe widget** - embed an external page with sandbox security:
+
+```yaml
+- iframe:
+    url: https://example.com/embed
+    title: Live Dashboard
+    aspect_ratio: "16/9"
+```
+
+### Bookmarks adapter
+
+Display curated link lists defined directly in config (no network fetch required):
+
+```yaml
+- name: tools
+  type: bookmarks
+  params:
+    items:
+      - title: Linear
+        url: https://linear.app
+        description: Issue tracker
+        tags: [work]
+```
+
+### Counter adapter
+
+Fetch a JSON endpoint and extract a numeric value for stat-card display. Supports trend arrows via a comparison endpoint and env var interpolation in headers:
+
+```yaml
+- name: github-stars
+  type: counter
+  display: counter
+  params:
+    url: https://api.github.com/repos/oven-sh/bun
+    json_path: stargazers_count
+    label: "Bun Stars"
+```
+
+Set `display: counter` on the panel to render stat cards instead of the default list view.
 
 ## LLM integration (optional)
 

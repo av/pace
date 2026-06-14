@@ -544,7 +544,7 @@ const CLI_COMMANDS: CliCommand[] = [
       rejectServeOnlyFlags(values, usage);
       if (sub === "list") {
         cliExitOk(
-          ADAPTER_TYPES.map((t) => `${t} — ${ADAPTER_DOCS[t].summary}`).join("\n"),
+          ADAPTER_TYPES.map((t) => `${t} - ${ADAPTER_DOCS[t].summary}`).join("\n"),
         );
       } else if (sub === "explain") {
         const type = positionals[1];
@@ -570,7 +570,7 @@ const CLI_COMMANDS: CliCommand[] = [
       rejectServeOnlyFlags(values, usage);
       if (sub === "list") {
         cliExitOk(
-          TRANSFORM_TYPES.map((t) => `${t} — ${TRANSFORM_DOCS[t].summary}`).join("\n"),
+          TRANSFORM_TYPES.map((t) => `${t} - ${TRANSFORM_DOCS[t].summary}`).join("\n"),
         );
       } else if (sub === "explain") {
         const type = positionals[1];
@@ -707,7 +707,7 @@ export function cliHelpStdout(version?: string): string {
 }
 
 export function formatCliHelp(version: string): string {
-  return `pace v${version} — personal content dashboard
+  return `pace v${version} - personal content dashboard
 
 If you're an agent, start here:
   pace skill                          list agent skills
