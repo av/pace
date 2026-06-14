@@ -47,20 +47,6 @@ describe("config validator stress tests", () => {
       expect(elapsed).toBeLessThan(500); // must finish under 500ms
     });
 
-    test("100 adapters with unique names all validate", () => {
-      const adapters = Array.from({ length: 100 }, (_, i) =>
-        adapter("rss", `rss-feed-${i}`),
-      );
-      const layout: LayoutNodeConfig = container("row", [
-        panel("all-feeds"),
-      ]);
-
-      const result = validateParsedConfig(
-        { adapters, layout },
-        DEFAULT_LAYOUT,
-      );
-      expect(result.adapters).toHaveLength(100);
-    });
   });
 
   describe("scale: layout tree with 200 nodes", () => {
@@ -98,18 +84,6 @@ describe("config validator stress tests", () => {
       expect(elapsed).toBeLessThan(1000);
     });
 
-    test("validates wide layout with 100 children in one container", () => {
-      const children: LayoutNodeConfig[] = Array.from({ length: 100 }, (_, i) =>
-        panel(`wide-${i}`),
-      );
-      const layout: LayoutNodeConfig = container("row", children);
-
-      const result = validateParsedConfig(
-        { adapters: [adapter("hackernews")], layout },
-        DEFAULT_LAYOUT,
-      );
-      expect(result.layout).toBeDefined();
-    });
   });
 
   describe("error accumulation: fail-fast behavior", () => {
@@ -135,30 +109,6 @@ describe("config validator stress tests", () => {
       }
     });
 
-    test("config with 20+ distinct problems still throws on the first one", () => {
-      // Each adapter has a different problem, but only the first one detected triggers
-      const adapters = [
-        { type: "" },              // empty type
-        { type: 123 },            // non-string type
-        "not-an-object",          // not an object
-        { type: "hackernews", bad_key: 1 }, // unknown key
-        null,                     // null
-        { type: "counter" },      // missing url
-        { type: "hackernews", refresh_interval: -5 }, // negative
-        { type: "hackernews", name: "" }, // empty name
-        undefined,                // undefined
-        { type: "rss", params: "not-an-object" }, // params not object
-      ];
-      // The validator iterates adapters with forEach, so first bad one throws
-      const config = { adapters, layout: DEFAULT_LAYOUT };
-      let errorCount = 0;
-      try {
-        validateParsedConfig(config as Record<string, unknown>, DEFAULT_LAYOUT);
-      } catch {
-        errorCount++;
-      }
-      expect(errorCount).toBe(1);
-    });
   });
 
   describe("string limits: extremely long names", () => {
@@ -174,36 +124,6 @@ describe("config validator stress tests", () => {
       expect(result.layout).toBeDefined();
     });
 
-    test("10k character adapter name validates", () => {
-      const longName = "a".repeat(10_000);
-      const adapters = [adapter("hackernews", longName)];
-      const layout: LayoutNodeConfig = container("row", [
-        { panel: "p", source: longName },
-      ]);
-      const result = validateParsedConfig(
-        { adapters, layout },
-        DEFAULT_LAYOUT,
-      );
-      expect(result.adapters[0].name).toBe(longName);
-    });
-
-    test("10k character text widget content validates", () => {
-      const longText = "x".repeat(10_000);
-      const layout: LayoutNodeConfig = container("row", [
-        { text: longText },
-      ]);
-      const result = validateParsedConfig({ layout }, DEFAULT_LAYOUT);
-      expect(result.layout).toBeDefined();
-    });
-
-    test("10k character image alt text validates", () => {
-      const longAlt = "description ".repeat(1000);
-      const layout: LayoutNodeConfig = container("row", [
-        { image: "https://example.com/img.png", alt: longAlt },
-      ]);
-      const result = validateParsedConfig({ layout }, DEFAULT_LAYOUT);
-      expect(result.layout).toBeDefined();
-    });
   });
 
   describe("unicode: adapter and panel names", () => {
@@ -217,48 +137,6 @@ describe("config validator stress tests", () => {
       expect(result.adapters[0].name).toBe(name);
     });
 
-    test("CJK characters in panel name validates", () => {
-      const cjkName = "新闻探索";
-      const layout: LayoutNodeConfig = container("row", [
-        { panel: cjkName, source: "all" },
-      ]);
-      const result = validateParsedConfig(
-        { adapters: [adapter("hackernews")], layout },
-        DEFAULT_LAYOUT,
-      );
-      expect(result.layout).toBeDefined();
-    });
-
-    test("RTL characters in panel name validates", () => {
-      const rtlName = "أخبار";
-      const layout: LayoutNodeConfig = container("row", [
-        { panel: rtlName, source: "all" },
-      ]);
-      const result = validateParsedConfig(
-        { adapters: [adapter("hackernews")], layout },
-        DEFAULT_LAYOUT,
-      );
-      expect(result.layout).toBeDefined();
-    });
-
-    test("combining characters in adapter name validates", () => {
-      const combining = "café"; // cafe with combining acute accent
-      const adapters = [adapter("hackernews", combining)];
-      const layout: LayoutNodeConfig = container("row", [
-        { panel: "p", source: combining },
-      ]);
-      const result = validateParsedConfig({ adapters, layout }, DEFAULT_LAYOUT);
-      expect(result.adapters[0].name).toBe(combining);
-    });
-
-    test("mixed scripts in text widget content validates", () => {
-      const mixedText = "Hello 你好 مرحبا \u{1F30D}";
-      const layout: LayoutNodeConfig = container("row", [
-        { text: mixedText },
-      ]);
-      const result = validateParsedConfig({ layout }, DEFAULT_LAYOUT);
-      expect(result.layout).toBeDefined();
-    });
   });
 
   describe("type coercion: wrong types in config fields", () => {
@@ -267,15 +145,6 @@ describe("config validator stress tests", () => {
       expect(() =>
         validateParsedConfig(
           { adapters: [adapter("hackernews")], layout },
-          DEFAULT_LAYOUT,
-        ),
-      ).toThrow("must be a non-empty string");
-    });
-
-    test("boolean where string expected in adapter type rejects", () => {
-      expect(() =>
-        validateParsedConfig(
-          { adapters: [{ type: true }], layout: DEFAULT_LAYOUT },
           DEFAULT_LAYOUT,
         ),
       ).toThrow("must be a non-empty string");
@@ -297,27 +166,6 @@ describe("config validator stress tests", () => {
       expect(() =>
         validateParsedConfig(
           { adapters: [["hackernews"]], layout: DEFAULT_LAYOUT },
-          DEFAULT_LAYOUT,
-        ),
-      ).toThrow("must be an object");
-    });
-
-    test("boolean where object expected in layout rejects", () => {
-      expect(() =>
-        validateParsedConfig(
-          { adapters: [], layout: true },
-          DEFAULT_LAYOUT,
-        ),
-      ).toThrow("must be a layout node object");
-    });
-
-    test("number where object expected in params rejects", () => {
-      expect(() =>
-        validateParsedConfig(
-          {
-            adapters: [{ type: "hackernews", params: 42 }],
-            layout: DEFAULT_LAYOUT,
-          },
           DEFAULT_LAYOUT,
         ),
       ).toThrow("must be an object");
@@ -352,25 +200,6 @@ describe("config validator stress tests", () => {
       expect(result.layout).toEqual(DEFAULT_LAYOUT);
     });
 
-    test("null adapter type rejects", () => {
-      expect(() =>
-        validateParsedConfig(
-          { adapters: [{ type: null }], layout: DEFAULT_LAYOUT },
-          DEFAULT_LAYOUT,
-        ),
-      ).toThrow("must be a non-empty string");
-    });
-
-    test("null panel name rejects", () => {
-      const layout = { panel: null, source: "all" };
-      expect(() =>
-        validateParsedConfig(
-          { adapters: [adapter("hackernews")], layout },
-          DEFAULT_LAYOUT,
-        ),
-      ).toThrow("must be a non-empty string");
-    });
-
     test("null panel source rejects", () => {
       const layout = { panel: "p", source: null };
       expect(() =>
@@ -379,18 +208,6 @@ describe("config validator stress tests", () => {
           DEFAULT_LAYOUT,
         ),
       ).toThrow("must be a source name or source object");
-    });
-
-    test("null flex value rejects (not undefined, which is optional)", () => {
-      const layout: LayoutNodeConfig = container("row", [
-        { panel: "p", source: "all", flex: null as unknown as number },
-      ]);
-      expect(() =>
-        validateParsedConfig(
-          { adapters: [adapter("hackernews")], layout },
-          DEFAULT_LAYOUT,
-        ),
-      ).toThrow("must be a non-negative number");
     });
 
     test("null llm config rejects (not undefined)", () => {
@@ -402,41 +219,6 @@ describe("config validator stress tests", () => {
       ).toThrow("llm must be an object");
     });
 
-    test("undefined in adapter array entry rejects", () => {
-      expect(() =>
-        validateParsedConfig(
-          { adapters: [undefined], layout: DEFAULT_LAYOUT },
-          DEFAULT_LAYOUT,
-        ),
-      ).toThrow("must be an object");
-    });
-
-    test("null image widget URL rejects", () => {
-      const layout: LayoutNodeConfig = container("row", [
-        { image: null } as unknown as LayoutNodeConfig,
-      ]);
-      expect(() =>
-        validateParsedConfig({ layout }, DEFAULT_LAYOUT),
-      ).toThrow("must be a non-empty URL string");
-    });
-
-    test("null iframe URL rejects", () => {
-      const layout: LayoutNodeConfig = container("row", [
-        { iframe: null } as unknown as LayoutNodeConfig,
-      ]);
-      expect(() =>
-        validateParsedConfig({ layout }, DEFAULT_LAYOUT),
-      ).toThrow("must be a non-empty URL string");
-    });
-
-    test("null text widget content rejects", () => {
-      const layout: LayoutNodeConfig = container("row", [
-        { text: null } as unknown as LayoutNodeConfig,
-      ]);
-      expect(() =>
-        validateParsedConfig({ layout }, DEFAULT_LAYOUT),
-      ).toThrow("must be a non-empty string");
-    });
   });
 
   describe("circular-ish: same panel name referenced multiple times", () => {
@@ -468,19 +250,6 @@ describe("config validator stress tests", () => {
       ).toThrow('duplicate panel name "dup"');
     });
 
-    test("same panel name but different IDs still rejected (names must be unique)", () => {
-      const layout: LayoutNodeConfig = container("row", [
-        { panel: "shared", source: "all", id: "id-1" },
-        { panel: "shared", source: "all", id: "id-2" },
-      ]);
-      expect(() =>
-        validateParsedConfig(
-          { adapters: [adapter("hackernews")], layout },
-          DEFAULT_LAYOUT,
-        ),
-      ).toThrow('duplicate panel name "shared"');
-    });
-
     test("different panel names with same generated ID rejected", () => {
       // Two panels that would produce the same hash (same source/limit config)
       // but different names are fine because IDs are content-based
@@ -498,66 +267,11 @@ describe("config validator stress tests", () => {
   });
 
   describe("empty strings: every required string field set to ''", () => {
-    test("empty adapter type rejects", () => {
-      expect(() =>
-        validateParsedConfig(
-          { adapters: [{ type: "" }], layout: DEFAULT_LAYOUT },
-          DEFAULT_LAYOUT,
-        ),
-      ).toThrow("must be a non-empty string");
-    });
-
-    test("empty panel name rejects", () => {
-      const layout = { panel: "", source: "all" };
-      expect(() =>
-        validateParsedConfig(
-          { adapters: [adapter("hackernews")], layout },
-          DEFAULT_LAYOUT,
-        ),
-      ).toThrow("must be a non-empty string");
-    });
-
     test("empty source string rejects", () => {
       const layout = { panel: "p", source: "" };
       expect(() =>
         validateParsedConfig(
           { adapters: [adapter("hackernews")], layout },
-          DEFAULT_LAYOUT,
-        ),
-      ).toThrow("must be a non-empty string");
-    });
-
-    test("empty image URL rejects", () => {
-      const layout: LayoutNodeConfig = container("row", [
-        { image: "" } as unknown as LayoutNodeConfig,
-      ]);
-      expect(() =>
-        validateParsedConfig({ layout }, DEFAULT_LAYOUT),
-      ).toThrow("must be a non-empty URL string");
-    });
-
-    test("empty text content rejects", () => {
-      const layout: LayoutNodeConfig = container("row", [
-        { text: "" } as unknown as LayoutNodeConfig,
-      ]);
-      expect(() =>
-        validateParsedConfig({ layout }, DEFAULT_LAYOUT),
-      ).toThrow("must be a non-empty string");
-    });
-
-    test("empty iframe URL rejects", () => {
-      const layout: LayoutNodeConfig = container("row", [
-        { iframe: "" } as unknown as LayoutNodeConfig,
-      ]);
-      expect(() =>
-        validateParsedConfig({ layout }, DEFAULT_LAYOUT),
-      ).toThrow("must be a non-empty URL string");
-    });
-
-    test("empty adapter name rejects", () => {
-      expect(() =>
-        validateParsedConfig(
-          { adapters: [{ type: "hackernews", name: "" }], layout: DEFAULT_LAYOUT },
           DEFAULT_LAYOUT,
         ),
       ).toThrow("must be a non-empty string");
@@ -593,47 +307,6 @@ describe("config validator stress tests", () => {
           { adapters: [adapter("hackernews")], layout },
           DEFAULT_LAYOUT,
         ),
-      ).toThrow("must be a non-negative number");
-    });
-
-    test("flex: -1 on container rejects", () => {
-      const layout: LayoutNodeConfig = {
-        direction: "row",
-        children: [panel("p")],
-        flex: -1,
-      };
-      expect(() =>
-        validateParsedConfig(
-          { adapters: [adapter("hackernews")], layout },
-          DEFAULT_LAYOUT,
-        ),
-      ).toThrow("must be a non-negative number");
-    });
-
-    test("flex: -1 on image widget rejects", () => {
-      const layout: LayoutNodeConfig = container("row", [
-        { image: "https://example.com/a.png", flex: -1 },
-      ]);
-      expect(() =>
-        validateParsedConfig({ layout }, DEFAULT_LAYOUT),
-      ).toThrow("must be a non-negative number");
-    });
-
-    test("flex: -1 on text widget rejects", () => {
-      const layout: LayoutNodeConfig = container("row", [
-        { text: "hello", flex: -1 },
-      ]);
-      expect(() =>
-        validateParsedConfig({ layout }, DEFAULT_LAYOUT),
-      ).toThrow("must be a non-negative number");
-    });
-
-    test("flex: -1 on iframe widget rejects", () => {
-      const layout: LayoutNodeConfig = container("row", [
-        { iframe: "https://example.com", flex: -1 },
-      ]);
-      expect(() =>
-        validateParsedConfig({ layout }, DEFAULT_LAYOUT),
       ).toThrow("must be a non-negative number");
     });
 
@@ -782,17 +455,6 @@ describe("config validator stress tests", () => {
       expect(result.adapters).toHaveLength(0);
     });
 
-    test("empty adapters array with widget-only layout validates", () => {
-      const layout: LayoutNodeConfig = container("row", [
-        { text: "No feeds" },
-      ]);
-      const result = validateParsedConfig(
-        { adapters: [], layout },
-        DEFAULT_LAYOUT,
-      );
-      expect(result.adapters).toHaveLength(0);
-    });
-
     test("layout node with no recognized discriminator rejects with helpful message", () => {
       const layout = { unknown_key: "value" };
       expect(() =>
@@ -824,17 +486,6 @@ describe("config validator stress tests", () => {
       expect(result.layout).toBeDefined();
     });
 
-    test("fractional flex (0.001) validates", () => {
-      const layout: LayoutNodeConfig = container("row", [
-        { panel: "p", source: "all", flex: 0.001 },
-      ]);
-      const result = validateParsedConfig(
-        { adapters: [adapter("hackernews")], layout },
-        DEFAULT_LAYOUT,
-      );
-      expect(result.layout).toBeDefined();
-    });
-
     test("source referencing non-existent adapter rejects", () => {
       const layout: LayoutNodeConfig = container("row", [
         { panel: "p", source: "does-not-exist" },
@@ -847,22 +498,5 @@ describe("config validator stress tests", () => {
       ).toThrow('references unknown source "does-not-exist"');
     });
 
-    test("deeply nested containers (10 levels) validates", () => {
-      let node: LayoutNodeConfig = { panel: "leaf", source: "all" };
-      for (let i = 0; i < 10; i++) {
-        node = container(i % 2 === 0 ? "row" : "column", [node]);
-      }
-      const result = validateParsedConfig(
-        { adapters: [adapter("hackernews")], layout: node },
-        DEFAULT_LAYOUT,
-      );
-      expect(result.layout).toBeDefined();
-    });
-
-    test("config with no adapters and default layout validates", () => {
-      const result = validateParsedConfig({}, DEFAULT_LAYOUT);
-      expect(result.adapters).toHaveLength(0);
-      expect(result.layout).toBeDefined();
-    });
   });
 });

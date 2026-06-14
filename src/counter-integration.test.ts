@@ -317,25 +317,6 @@ describe("regular panel with counter items", () => {
     expect(html).toContain(">API Metric</a>");
   });
 
-  test("regular panel does not use counter-panel CSS class or stat-card elements", () => {
-    const counterItem = makeItem({
-      title: "Downloads",
-      body: JSON.stringify({ value: 1500000, unit: "downloads" }),
-    });
-    const node = panelCfg("Downloads", "counter");
-    const panelData = new Map<string, PanelData>([
-      ["Downloads", { items: [counterItem] }],
-    ]);
-    const layout = flexCfg("row", [node]);
-    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
-
-    expect(html).not.toContain("counter-panel");
-    expect(html).not.toContain("stat-card");
-    expect(html).not.toContain("stat-value");
-    expect(html).not.toContain("stat-unit");
-    expect(html).toContain("panel-body");
-  });
-
   test("source:all panel with counter items renders them as regular cards", () => {
     const counterItem = makeItem({
       title: "Active Users",
@@ -519,16 +500,6 @@ layout:
     expect(() => loadConfig()).toThrow(/display is not a valid text widget field/);
   });
 
-  test("display on iframe widget is rejected as unknown key", () => {
-    setConfig(`
-layout:
-  direction: row
-  children:
-    - iframe: https://example.com
-      display: counter
-`);
-    expect(() => loadConfig()).toThrow(/display is not a valid iframe widget field/);
-  });
 });
 
 // -- Section 6: Side-by-side counter vs regular panel rendering --

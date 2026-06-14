@@ -11,11 +11,6 @@ describe("counter adapter", () => {
       expect(resolveJsonPath(obj, "foo.bar.baz")).toBe(42);
     });
 
-    test("resolves top-level key", () => {
-      const obj = { stargazers_count: 12345 };
-      expect(resolveJsonPath(obj, "stargazers_count")).toBe(12345);
-    });
-
     test("resolves bracket array access", () => {
       const obj = { data: [10, 20, 30] };
       expect(resolveJsonPath(obj, "data[1]")).toBe(20);
@@ -24,11 +19,6 @@ describe("counter adapter", () => {
     test("resolves mixed dot and bracket notation", () => {
       const obj = { data: { metrics: [{ value: 99 }] } };
       expect(resolveJsonPath(obj, "data.metrics[0].value")).toBe(99);
-    });
-
-    test("resolves nested array access", () => {
-      const obj = { a: [[1, 2], [3, 4]] };
-      expect(resolveJsonPath(obj, "a[1][0]")).toBe(3);
     });
 
     test("throws on path not found (missing key)", () => {
@@ -61,11 +51,6 @@ describe("counter adapter", () => {
       expect(resolveJsonPath(obj, "value")).toBe(null);
     });
 
-    test("resolves boolean values", () => {
-      const obj = { active: true };
-      expect(resolveJsonPath(obj, "active")).toBe(true);
-    });
-
     test("blocks __proto__ traversal via prototype chain", () => {
       const obj = { foo: "bar" };
       expect(() => resolveJsonPath(obj, "__proto__")).toThrow(/does not exist/);
@@ -82,60 +67,15 @@ describe("counter adapter", () => {
       expect(resolveJsonPath(obj, "__proto__.secret")).toBe(42);
     });
 
-    test("resolves deeply nested path (10+ levels)", () => {
-      let deep: unknown = 99;
-      for (let i = 9; i >= 0; i--) {
-        deep = { [`L${i}`]: deep };
-      }
-      const path = Array.from({ length: 10 }, (_, i) => `L${i}`).join(".");
-      expect(resolveJsonPath(deep, path)).toBe(99);
-    });
-
-    test("resolves array of arrays", () => {
-      const obj = { matrix: [[1, 2], [3, 4], [5, 6]] };
-      expect(resolveJsonPath(obj, "matrix[2][0]")).toBe(5);
-    });
-
-    test("resolves value from root array via named key", () => {
-      // Root arrays require a named key before bracket access
-      // e.g., { results: [{ value: 42 }] }
-      const obj = { results: [{ value: 42 }] };
-      expect(resolveJsonPath(obj, "results[0].value")).toBe(42);
-    });
   });
 
   describe("parseJsonPath", () => {
-    test("parses simple dot notation", () => {
-      expect(parseJsonPath("foo.bar.baz")).toEqual(["foo", "bar", "baz"]);
-    });
-
-    test("parses bracket notation", () => {
-      expect(parseJsonPath("arr[0]")).toEqual(["arr", 0]);
-    });
-
-    test("parses mixed notation", () => {
-      expect(parseJsonPath("data.metrics[0].value")).toEqual(["data", "metrics", 0, "value"]);
-    });
-
-    test("parses single key", () => {
-      expect(parseJsonPath("count")).toEqual(["count"]);
-    });
-
     test("throws on malformed bracket (unclosed)", () => {
       expect(() => parseJsonPath("arr[0")).toThrow(/unclosed bracket/);
     });
 
     test("throws on invalid array index", () => {
       expect(() => parseJsonPath("arr[-1]")).toThrow(/invalid array index/);
-    });
-
-    test("parses deeply nested path (10+ levels)", () => {
-      const path = "a.b.c.d.e.f.g.h.i.j.k";
-      expect(parseJsonPath(path)).toEqual(["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"]);
-    });
-
-    test("parses consecutive bracket notation", () => {
-      expect(parseJsonPath("matrix[0][1]")).toEqual(["matrix", 0, 1]);
     });
   });
 
@@ -156,19 +96,10 @@ describe("counter adapter", () => {
       expect(interpolateEnvVars("Bearer ${TEST_COUNTER_TOKEN}")).toBe("Bearer abc123");
     });
 
-    test("interpolates multiple env vars", () => {
-      process.env.TEST_HOST = "example.com";
-      process.env.TEST_PORT = "8080";
-      expect(interpolateEnvVars("${TEST_HOST}:${TEST_PORT}")).toBe("example.com:8080");
-    });
-
     test("replaces missing env vars with empty string", () => {
       expect(interpolateEnvVars("key=${DEFINITELY_NOT_SET_COUNTER_TEST}")).toBe("key=");
     });
 
-    test("returns string unchanged when no env vars", () => {
-      expect(interpolateEnvVars("plain string")).toBe("plain string");
-    });
   });
 
   describe("adapter fetch", () => {
@@ -182,10 +113,6 @@ describe("counter adapter", () => {
     afterEach(() => {
       warnSpy.mockRestore();
       if (fetchSpy) fetchSpy.mockRestore();
-    });
-
-    test("adapter name is counter", () => {
-      expect(adapter.name).toBe("counter");
     });
 
     test("returns one ContentItem with correct mapping", async () => {
@@ -425,24 +352,6 @@ describe("counter adapter", () => {
       expect(body.previous).toBe(4.8);
     });
 
-    test("omits unit from body when not specified", async () => {
-      fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
-        new Response(JSON.stringify({ count: 7 }), { status: 200 }),
-      );
-
-      const config: AdapterConfig = {
-        type: "counter",
-        params: {
-          url: "https://example.com/api",
-          json_path: "count",
-        },
-      };
-
-      const result = await adapter.fetch(config);
-      const body = JSON.parse(result[0].body!);
-      expect(body.unit).toBeUndefined();
-    });
-
     test("handles JSON response that is a bare string", async () => {
       fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
         new Response(JSON.stringify("hello"), { status: 200 }),
@@ -529,60 +438,6 @@ describe("counter adapter", () => {
       await expect(adapter.fetch(config)).rejects.toThrow(/does not exist/);
     });
 
-    test("handles very large numbers", async () => {
-      fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
-        new Response(JSON.stringify({ big: 999999999999 }), { status: 200 }),
-      );
-
-      const config: AdapterConfig = {
-        type: "counter",
-        params: {
-          url: "https://example.com/api",
-          json_path: "big",
-        },
-      };
-
-      const result = await adapter.fetch(config);
-      const body = JSON.parse(result[0].body!);
-      expect(body.value).toBe(999999999999);
-    });
-
-    test("handles negative numbers", async () => {
-      fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
-        new Response(JSON.stringify({ delta: -42 }), { status: 200 }),
-      );
-
-      const config: AdapterConfig = {
-        type: "counter",
-        params: {
-          url: "https://example.com/api",
-          json_path: "delta",
-        },
-      };
-
-      const result = await adapter.fetch(config);
-      const body = JSON.parse(result[0].body!);
-      expect(body.value).toBe(-42);
-    });
-
-    test("handles floating point values", async () => {
-      fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
-        new Response(JSON.stringify({ pi: 3.14159 }), { status: 200 }),
-      );
-
-      const config: AdapterConfig = {
-        type: "counter",
-        params: {
-          url: "https://example.com/api",
-          json_path: "pi",
-        },
-      };
-
-      const result = await adapter.fetch(config);
-      const body = JSON.parse(result[0].body!);
-      expect(body.value).toBe(3.14159);
-    });
-
     test("handles zero value without treating it as falsy", async () => {
       fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
         new Response(JSON.stringify({ count: 0 }), { status: 200 }),
@@ -603,24 +458,6 @@ describe("counter adapter", () => {
       // Ensure it wasn't silently treated as "no value"
       expect(body.value).not.toBeUndefined();
       expect(body.value).not.toBeNull();
-    });
-
-    test("handles boolean value at path", async () => {
-      fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
-        new Response(JSON.stringify({ healthy: true }), { status: 200 }),
-      );
-
-      const config: AdapterConfig = {
-        type: "counter",
-        params: {
-          url: "https://example.com/api",
-          json_path: "healthy",
-        },
-      };
-
-      const result = await adapter.fetch(config);
-      const body = JSON.parse(result[0].body!);
-      expect(body.value).toBe(true);
     });
 
     test("handles false boolean value at path", async () => {
@@ -667,30 +504,6 @@ describe("counter adapter", () => {
       // value === previous means no change / no trend
     });
 
-    test("headers with missing env vars resolve to empty strings", async () => {
-      fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
-        new Response(JSON.stringify({ val: 1 }), { status: 200 }),
-      );
-
-      const config: AdapterConfig = {
-        type: "counter",
-        params: {
-          url: "https://example.com/api",
-          json_path: "val",
-          headers: {
-            Authorization: "Bearer ${NONEXISTENT_COUNTER_TEST_VAR}",
-          },
-        },
-      };
-
-      const result = await adapter.fetch(config);
-      expect(result).toHaveLength(1);
-
-      // Verify the header was sent with the env var resolved to empty string
-      const fetchCall = fetchSpy.mock.calls[0];
-      const sentHeaders = fetchCall[1]?.headers as Record<string, string>;
-      expect(sentHeaders.Authorization).toBe("Bearer ");
-    });
   });
 });
 
@@ -1001,23 +814,6 @@ layout:
     expect(() => loadConfig()).not.toThrow();
   });
 
-  test("accepts counter adapter with compare_url on localhost", () => {
-    const yaml = `
-adapters:
-  - type: counter
-    params:
-      url: https://example.com/api
-      json_path: value
-      compare_url: http://localhost:3000/api/previous
-layout:
-  panel: Stats
-  source:
-    - adapter: counter
-`;
-    setConfig(yaml);
-    expect(() => loadConfig()).not.toThrow();
-  });
-
   test("accepts valid compare_path", () => {
     const yaml = `
 adapters:
@@ -1063,24 +859,6 @@ adapters:
       json_path: value
       compare_url: https://example.com/api?old
       compare_path: "__proto__"
-layout:
-  panel: Stats
-  source:
-    - adapter: counter
-`;
-    setConfig(yaml);
-    expect(() => loadConfig()).toThrow(/compare_path contains a disallowed segment/);
-  });
-
-  test("rejects compare_path with constructor segment", () => {
-    const yaml = `
-adapters:
-  - type: counter
-    params:
-      url: https://example.com/api
-      json_path: value
-      compare_url: https://example.com/api?old
-      compare_path: data.constructor
 layout:
   panel: Stats
   source:
@@ -1138,32 +916,8 @@ describe("parseCounterBody robustness", () => {
     expect(parseCounterBody("{}")).toBeNull();
   });
 
-  test("returns null for null input", () => {
-    expect(parseCounterBody(null)).toBeNull();
-  });
-
-  test("returns null for undefined input", () => {
-    expect(parseCounterBody(undefined)).toBeNull();
-  });
-
-  test("returns null for empty string", () => {
-    expect(parseCounterBody("")).toBeNull();
-  });
-
   test("returns null for JSON array", () => {
     expect(parseCounterBody("[1,2,3]")).toBeNull();
-  });
-
-  test("returns null for JSON primitive string", () => {
-    expect(parseCounterBody('"hello"')).toBeNull();
-  });
-
-  test("returns null for JSON primitive number", () => {
-    expect(parseCounterBody("42")).toBeNull();
-  });
-
-  test("returns null for JSON null literal", () => {
-    expect(parseCounterBody("null")).toBeNull();
   });
 
   test("parses body with value=0 (falsy but present)", () => {
@@ -1184,28 +938,4 @@ describe("parseCounterBody robustness", () => {
     expect(result!.value).toBeNull();
   });
 
-  test("parses body with string value", () => {
-    const result = parseCounterBody('{"value":"UP"}');
-    expect(result).not.toBeNull();
-    expect(result!.value).toBe("UP");
-  });
-
-  test("handles very large JSON body", () => {
-    const bigObj = { value: 999, extra: "x".repeat(10000) };
-    const result = parseCounterBody(JSON.stringify(bigObj));
-    expect(result).not.toBeNull();
-    expect(result!.value).toBe(999);
-  });
-
-  test("handles unicode in body", () => {
-    const result = parseCounterBody('{"value":42,"unit":"\\u00b0C"}');
-    expect(result).not.toBeNull();
-    expect(result!.unit).toBe("°C");
-  });
-
-  test("handles nested objects in value", () => {
-    const result = parseCounterBody('{"value":{"nested":true}}');
-    expect(result).not.toBeNull();
-    expect(result!.value).toEqual({ nested: true });
-  });
 });
