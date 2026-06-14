@@ -44,7 +44,7 @@ export const IframeWidget: FC<{ node: IframeWidgetConfig }> = ({ node }) => {
           <h2>{node.title}</h2>
         </div>
       )}
-      <div class="iframe-panel">
+      <div class="iframe-panel" role="region" aria-label={iframeTitle}>
         <iframe {...iframeAttrs} />
       </div>
     </div>

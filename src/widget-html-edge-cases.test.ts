@@ -657,8 +657,8 @@ describe("CounterPanel HTML edge cases", () => {
       ]);
       const html = renderDashboard({ layout, panelData, updatedAt: "now" });
       expect(html).toContain('role="group"');
-      // aria-label should compose: label, value, unit, trend
-      expect(html).toContain('aria-label="Stars, 93.2k, stars, trending up"');
+      // aria-label should compose: label, raw value (not abbreviated), unit, trend
+      expect(html).toContain('aria-label="Stars, 93200, stars, trending up"');
     });
 
     it("has aria-hidden=true on trend arrows", () => {

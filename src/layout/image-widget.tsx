@@ -16,12 +16,16 @@ export const ImageWidget: FC<{ node: ImageWidgetConfig }> = ({ node }) => {
   const objectFit = node.object_fit ?? "contain";
   const alt = node.alt ?? "";
 
+  // Decorative images (empty alt) get aria-hidden so assistive tech skips them entirely
+  const isDecorative = !alt;
+
   const img = (
     <img
       src={node.image}
       alt={alt}
       style={`object-fit:${objectFit}; max-width:100%; max-height:100%;`}
       loading="lazy"
+      {...(isDecorative && !node.link ? { "aria-hidden": "true" } : {})}
     />
   );
 

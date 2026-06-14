@@ -72,7 +72,9 @@ const StatCard: FC<{ label: string; data: CounterBody }> = ({ label, data }) => 
   const trend = getTrend(data.value, data.previous);
   const displayValue = abbreviateNumber(data.value);
   const trendText = TREND_TEXT[trend] ?? "";
-  const ariaLabel = [label, displayValue, data.unit, trendText].filter(Boolean).join(", ");
+  // Use the raw value (not abbreviated) in aria-label so screen readers convey the full number
+  const fullValue = String(data.value);
+  const ariaLabel = [label, fullValue, data.unit, trendText].filter(Boolean).join(", ");
 
   return (
     <div class="stat-card" role="group" aria-label={ariaLabel}>
@@ -108,11 +110,11 @@ export const CounterPanel: FC<{ node: PanelConfig; panelData: Map<string, PanelD
           <div class="panel-actions">
             {lastRefreshedAt && <span class="panel-refreshed">{relativeTime(lastRefreshedAt)}</span>}
             <form method="POST" action={`/refresh/${encodeURIComponent(panelId)}`}>
-              <button type="submit" class="refresh-btn" title="Refresh">{"↻"}</button>
+              <button type="submit" class="refresh-btn" title="Refresh" aria-label="Refresh">{"↻"}</button>
             </form>
           </div>
         </div>
-        <div class="counter-panel">
+        <div class="counter-panel" aria-live="polite">
           {cards.length > 0
             ? cards.map((card) => <StatCard label={card.label} data={card.data} />)
             : <div class="empty-state">No data yet</div>
