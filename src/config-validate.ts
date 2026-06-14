@@ -87,6 +87,25 @@ function validateCounterParams(params: Record<string, unknown>, path: string): v
   }
 }
 
+function validateBookmarksParams(params: Record<string, unknown>, path: string): void {
+  if (!params.items) {
+    throw new Error(`config: ${path}.params.items is required for bookmarks adapter`);
+  }
+  validateNonEmptyArray(params.items, `${path}.params.items`);
+  for (let i = 0; i < (params.items as unknown[]).length; i++) {
+    const item = (params.items as unknown[])[i];
+    const itemPath = `${path}.params.items[${i}]`;
+    if (!isRecord(item)) {
+      throw new Error(`config: ${itemPath} must be an object with title and url`);
+    }
+    validateNonEmptyString(item.title, `${itemPath}.title`);
+    validateNonEmptyString(item.url, `${itemPath}.url`);
+    if (typeof item.url === "string") {
+      validateSafeUrl(item.url, `${itemPath}.url`);
+    }
+  }
+}
+
 /** Map of common wrong param key names to the correct key, per adapter type. */
 const ADAPTER_PARAM_SUGGESTIONS: Partial<Record<string, Record<string, string>>> = {
   counter: {
@@ -127,6 +146,9 @@ function validateNestedParams(type: string, params: unknown, path: string): void
 
   if (type === "counter") {
     validateCounterParams(params, path);
+  }
+  if (type === "bookmarks") {
+    validateBookmarksParams(params, path);
   }
 }
 
@@ -175,9 +197,7 @@ function validateLayoutContainer(node: Record<string, unknown>, path: string): v
     `${path}.${key} is not a valid layout container field`,
   );
   validateEnum(node.direction, LAYOUT_DIRECTIONS, `${path}.direction`);
-  if (!Array.isArray(node.children)) {
-    throw new Error(`config: ${path}.children must be a list`);
-  }
+  validateNonEmptyArray(node.children, `${path}.children`);
   validateOptionalNonNegativeNumber(node.flex, `${path}.flex`);
   validateOptionalNonEmptyString(node.gap, `${path}.gap`);
   node.children.forEach((child, index) => validateLayoutNode(child, `${path}.children[${index}]`));
@@ -224,7 +244,7 @@ function validateImageWidget(node: Record<string, unknown>, path: string): void 
     }
     return `${path}.${key} is not a valid image widget field`;
   });
-  validateNonEmptyString(node.image, `${path}.image`);
+  validateSafeUrl(node.image, `${path}.image`);
   validateOptionalNonNegativeNumber(node.flex, `${path}.flex`);
   validateOptionalNonEmptyString(node.alt, `${path}.alt`);
   validateOptionalEnum(node.object_fit, IMAGE_OBJECT_FIT_VALUES, `${path}.object_fit`);
@@ -341,6 +361,8 @@ const LAYOUT_DISCRIMINATORS = ["panel", "direction", "image", "text", "iframe"] 
  */
 const LAYOUT_KEY_SUGGESTIONS: Record<string, string> = {
   img: "image",
+  imge: "image",
+  images: "image",
   src: "image",
   picture: "image",
   photo: "image",
@@ -348,12 +370,22 @@ const LAYOUT_KEY_SUGGESTIONS: Record<string, string> = {
   body: "text",
   markdown: "text",
   html: "text",
+  txt: "text",
+  label: "text",
   url: "iframe",
   embed: "iframe",
   frame: "iframe",
+  iframes: "iframe",
   link: "image",
   ratio: "iframe",
   aspect_ratio: "iframe",
+  panels: "panel",
+  source: "panel",
+  dir: "direction",
+  layout: "direction",
+  row: "direction",
+  column: "direction",
+  col: "direction",
 };
 
 function validateLayoutNode(node: unknown, path = "layout"): asserts node is LayoutNodeConfig {

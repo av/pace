@@ -210,7 +210,7 @@ layout:
     }
   });
 
-  test("config check passes image widget with any URL (validation happens at render time)", () => {
+  test("config check rejects image widget with dangerous URL scheme", () => {
     tmpDir = mkdtempSync(join(os.tmpdir(), "pace-cli-widget-"));
     try {
       const cfgPath = makeTmpConfig(`
@@ -221,10 +221,8 @@ layout:
     - image: "javascript:alert(1)"
 `);
       const result = runCli(["config", "check", cfgPath]);
-      // Image URL validation happens at render time via validateSafeUrl, not at config check
-      // Config validation only checks that the image field is a non-empty string
-      expect(result.status).toBe(0);
-      expect(result.stdout).toContain("config OK:");
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('disallowed scheme "javascript"');
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }

@@ -417,7 +417,7 @@ describe("config validator stress tests", () => {
       ]);
       expect(() =>
         validateParsedConfig({ layout }, DEFAULT_LAYOUT),
-      ).toThrow("must be a non-empty string");
+      ).toThrow("must be a non-empty URL string");
     });
 
     test("null iframe URL rejects", () => {
@@ -533,7 +533,7 @@ describe("config validator stress tests", () => {
       ]);
       expect(() =>
         validateParsedConfig({ layout }, DEFAULT_LAYOUT),
-      ).toThrow("must be a non-empty string");
+      ).toThrow("must be a non-empty URL string");
     });
 
     test("empty text content rejects", () => {

@@ -1266,7 +1266,7 @@ layout:
     - image: ""
 `;
     setConfig(yaml);
-    expect(() => loadConfig()).toThrow(/config: layout.children\[0\].image must be a non-empty string/);
+    expect(() => loadConfig()).toThrow(/config: layout.children\[0\].image must be a non-empty URL string/);
   });
 
   test("rejects image widget with unknown field", () => {
@@ -2251,7 +2251,7 @@ layout:
       );
     });
 
-    test("bookmarks adapter: empty items array is accepted (runtime produces warning)", () => {
+    test("bookmarks adapter: empty items array is rejected at config time", () => {
       const yaml = `
 adapters:
   - type: bookmarks
@@ -2264,8 +2264,7 @@ layout:
       source: bookmarks
 `;
       setConfig(yaml);
-      // Empty items is valid at config time (adapter warns at runtime)
-      expect(() => loadConfig()).not.toThrow();
+      expect(() => loadConfig()).toThrow(/params\.items must not be empty/);
     });
 
     // --- Counter adapter common mistakes ---
@@ -2379,10 +2378,8 @@ layout:
     - imge: https://example.com/logo.png
 `;
       setConfig(yaml);
-      // "imge" is not in LAYOUT_KEY_SUGGESTIONS, so it should fall through to
-      // the generic "must define one of" error
       expect(() => loadConfig()).toThrow(
-        /config: layout.children\[0\] must define one of: panel, direction, image, text, iframe/,
+        /config: layout.children\[0\] has unknown key "imge"; did you mean "image"/,
       );
     });
 
@@ -2580,7 +2577,7 @@ layout:
       expect(() => loadConfig()).not.toThrow();
     });
 
-    test("bookmarks adapter: item missing title is warned at runtime", () => {
+    test("bookmarks adapter: item missing title is rejected at config time", () => {
       const yaml = `
 adapters:
   - type: bookmarks
@@ -2594,11 +2591,10 @@ layout:
       source: bookmarks
 `;
       setConfig(yaml);
-      // Config loads fine; title validation is runtime
-      expect(() => loadConfig()).not.toThrow();
+      expect(() => loadConfig()).toThrow(/params\.items\[0\]\.title must be a non-empty string/);
     });
 
-    test("bookmarks adapter: item missing url is warned at runtime", () => {
+    test("bookmarks adapter: item missing url is rejected at config time", () => {
       const yaml = `
 adapters:
   - type: bookmarks
@@ -2612,11 +2608,10 @@ layout:
       source: bookmarks
 `;
       setConfig(yaml);
-      // Config loads fine; url validation is runtime
-      expect(() => loadConfig()).not.toThrow();
+      expect(() => loadConfig()).toThrow(/params\.items\[0\]\.url must be a non-empty string/);
     });
 
-    test("bookmarks adapter: invalid URL scheme (ftp://) is warned at runtime", () => {
+    test("bookmarks adapter: invalid URL scheme (ftp://) is rejected at config time", () => {
       const yaml = `
 adapters:
   - type: bookmarks
@@ -2631,8 +2626,7 @@ layout:
       source: bookmarks
 `;
       setConfig(yaml);
-      // ftp:// is not validated at config time; adapter's isValidUrl rejects at runtime
-      expect(() => loadConfig()).not.toThrow();
+      expect(() => loadConfig()).toThrow(/params\.items\[0\]\.url has disallowed scheme "ftp"/);
     });
 
     // --- Cross-cutting validation ---
@@ -2757,12 +2751,12 @@ layout:
 layout:
   direction: row
   children:
-    - image: "\${PACE_TEST_HOME}/logo.png"
+    - image: "\${PACE_TEST_URL}/logo.png"
 `;
       setConfig(yaml);
       const cfg = loadConfig();
       const child = cfg.layout.children[0] as { image: string };
-      expect(child.image).toBe("/home/testuser/logo.png");
+      expect(child.image).toBe("https://embed.example.com/logo.png");
     });
 
     test("image link with env var gets expanded", () => {
