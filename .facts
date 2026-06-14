@@ -23,8 +23,8 @@
 - label: bookmarks adapter produces Items from a config-defined list of links (params.items) with no network fetch; each item needs title and url (http/https); items are slugified for stable IDs; source tag is 'bookmarks:<first-tag>' when tags are present
   command: test -f src/adapters/bookmarks.ts && grep -q 'bookmarks' src/adapters/adapter-registry.ts && grep -q 'bookmarks' src/adapters/params.ts
   tags: [implemented]
-- label: counter adapter fetches a JSON endpoint (params.url) and extracts a numeric value via params.json_path (dot/bracket notation); supports env var interpolation in headers, optional compare_url for trend calculation; resolveJsonPath uses Object.hasOwn with dangerous-segment blocklist to prevent prototype traversal
-  command: test -f src/adapters/counter.ts && grep -q 'counter' src/adapters/adapter-registry.ts && grep -q 'resolveJsonPath' src/adapters/counter.ts && grep -q 'Object.hasOwn' src/adapters/counter.ts
+- label: counter adapter fetches a JSON endpoint (params.url) and extracts a numeric value via params.json_path (dot/bracket notation); supports env var interpolation in headers (interpolateEnvVars at fetch time), optional compare_url for trend calculation; resolveJsonPath uses Object.hasOwn to prevent prototype traversal at runtime, and config-validate.ts rejects dangerous path segments (__proto__, constructor, prototype) at config time
+  command: test -f src/adapters/counter.ts && grep -q 'counter' src/adapters/adapter-registry.ts && grep -q 'resolveJsonPath' src/adapters/counter.ts && grep -q 'Object.hasOwn' src/adapters/counter.ts && grep -q 'DANGEROUS_PATH_SEGMENTS' src/config-validate.ts
   tags: [implemented]
 - label: counter adapter items are deduped by URL in the DB layer via INSERT OR REPLACE and the dedupWinnerSubquery; since all fetches from the same counter endpoint share the same url field, only the latest value is kept per panel
   command: grep -q 'INSERT OR REPLACE' src/db.ts && grep -q 'url' src/adapters/counter.ts
@@ -88,11 +88,11 @@
 - label: when a PanelConfig has display: 'counter', the panel renders as a stat-card grid (counter-panel.tsx) instead of an item list; shows abbreviated numbers, trend arrows (up/down/neutral), and labels derived from adapter name
   command: grep -q 'display.*counter' src/layout/domain.ts && test -f src/layout/counter-panel.tsx && grep -q 'abbreviateNumber' src/layout/counter-panel.tsx
   tags: [implemented]
-- label: widget components include accessibility attributes: image widget has aria-label on linked images with empty alt, text widget has tabindex/role="region"/aria-label on scrollable body, iframe widget sets title attribute, counter panel has role="group" and composed aria-label on stat cards
-  command: grep -q 'aria-label' src/layout/image-widget.tsx && grep -q 'tabindex' src/layout/text-widget.tsx && grep -q 'role=' src/layout/counter-panel.tsx
+- label: widget components include accessibility attributes: decorative images (empty alt) get aria-hidden="true", counter stat cards use raw numbers (not abbreviated) in aria-labels for screen readers, refresh buttons have aria-label="Refresh", iframe containers have role="region" with aria-label, counter panels have aria-live="polite" for dynamic updates; also image widget has aria-label on linked images with empty alt, text widget has tabindex/role="region"/aria-label on scrollable body, iframe widget sets title attribute, counter panel has role="group" and composed aria-label on stat cards
+  command: grep -q 'aria-hidden' src/layout/image-widget.tsx && grep -q 'aria-label.*Refresh' src/layout/counter-panel.tsx && grep -q 'role="region"' src/layout/iframe-widget.tsx && grep -q 'aria-live' src/layout/counter-panel.tsx && grep -q 'String(data.value)' src/layout/counter-panel.tsx && grep -q 'tabindex' src/layout/text-widget.tsx
   tags: [implemented]
-- label: widget-only configs (layouts containing only image/text/iframe widgets with no panel nodes) work correctly; the scheduler handles zero-adapter configs without errors, and collectPanels returns an empty list so no refresh cycles are scheduled
-  command: grep -q 'collectPanels' src/layout/domain.ts && grep -q 'isPanel' src/layout/domain.ts
+- label: widget-only configs (layouts containing only image/text/iframe widgets with no panel nodes) work correctly; the scheduler handles zero-adapter configs by scheduling only the daily prune timer (no refresh cycles), collectPanels returns an empty list, and isStarted() checks pruneTimer to prevent duplicate timer leaks on repeated startScheduler calls
+  command: grep -q 'collectPanels' src/layout/domain.ts && grep -q 'isPanel' src/layout/domain.ts && grep -q 'pruneTimer' src/scheduler-state.ts
   tags: [implemented]
 
 # packaging
