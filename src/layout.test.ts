@@ -12,6 +12,9 @@ describe("renderDashboard", () => {
     const panelData = new Map<string, PanelData>();
     const html = renderDashboard({ layout, panelData, updatedAt: "2026-05-21 12:34" });
     expect(html.startsWith("<!DOCTYPE html>")).toBe(true);
+    expect(html).toContain('<html lang="en">');
+    expect(html).toContain('<meta charset="utf-8"/>');
+    expect(html).toContain('<meta name="viewport" content="width=device-width, initial-scale=1"/>');
     expect(html).toContain("<title>pace</title>");
     expect(html).toContain('<footer class="footer"><a href="https://github.com/av/pace" target="_blank" rel="noopener noreferrer">Pace</a> / 2026-05-21 12:34 UTC</footer>');
     expect(html).toContain('<link rel="stylesheet" href="/styles.css"/>');
