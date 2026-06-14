@@ -432,3 +432,347 @@ describe("transforms - cluster", () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Bookmarks + Counter items through the transform pipeline
+// ---------------------------------------------------------------------------
+
+describe("transforms - bookmarks items through pipeline", () => {
+  function makeBookmarkRow(
+    overrides: Partial<ContentItemRow> = {},
+  ): ContentItemRow {
+    return makeRow({
+      source: "bookmarks:tools",
+      body: "A curated list of developer tools",
+      ...overrides,
+    });
+  }
+
+  test("filter keeps bookmarks matching keyword in title", async () => {
+    const items = [
+      makeBookmarkRow({ id: "b1", title: "GitHub Desktop Client" }),
+      makeBookmarkRow({ id: "b2", title: "VS Code Extensions" }),
+      makeBookmarkRow({ id: "b3", title: "Terminal Emulators" }),
+    ];
+    const steps = [{ type: "filter", keywords: ["github"] }];
+    const result = await runPipeline(items, steps, ctx);
+    expect(result.map((r) => r.id)).toEqual(["b1"]);
+  });
+
+  test("filter keeps bookmarks matching keyword in body (description)", async () => {
+    const items = [
+      makeBookmarkRow({ id: "b1", title: "Tool A", body: "Great for debugging" }),
+      makeBookmarkRow({ id: "b2", title: "Tool B", body: "Useful for testing" }),
+      makeBookmarkRow({ id: "b3", title: "Tool C", body: null }),
+    ];
+    const steps = [{ type: "filter", keywords: ["debugging"] }];
+    const result = await runPipeline(items, steps, ctx);
+    expect(result.map((r) => r.id)).toEqual(["b1"]);
+  });
+
+  test("filter on source field matches bookmarks source tag", async () => {
+    const items = [
+      makeBookmarkRow({ id: "b1", source: "bookmarks:tools" }),
+      makeBookmarkRow({ id: "b2", source: "bookmarks:docs" }),
+      makeRow({ id: "r1", source: "rss:hackernews" }),
+    ];
+    const steps = [{ type: "filter", keywords: ["bookmarks"], fields: ["source"] }];
+    const result = await runPipeline(items, steps, ctx);
+    expect(result.map((r) => r.id)).toEqual(["b1", "b2"]);
+  });
+
+  test("keyword-score scores bookmarks by title + body matches", async () => {
+    const items = [
+      makeBookmarkRow({ id: "b1", title: "React Testing Library", body: "React component testing" }),
+      makeBookmarkRow({ id: "b2", title: "Vim Cheatsheet", body: "Keyboard shortcuts for vim" }),
+    ];
+    const steps = [{
+      type: "keyword-score",
+      keywords: [{ term: "react", weight: 5 }],
+      annotate: true,
+    }];
+    const result = await runPipeline(items, steps, ctx);
+    // b1 has "react" in title AND body = weight*2 = 10
+    expect(result[0].id).toBe("b1");
+    expect(result[0].body).toContain("[keyword-score: 10]");
+  });
+
+  test("dedupe:url collapses bookmarks with identical URLs", async () => {
+    const items = [
+      makeBookmarkRow({ id: "b1", title: "GitHub", url: "https://github.com" }),
+      makeBookmarkRow({ id: "b2", title: "GitHub Home", url: "https://github.com" }),
+    ];
+    const steps = [{ type: "dedupe", strategy: "url", log: false }];
+    const result = await runPipeline(items, steps, ctx);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("b1"); // first kept
+  });
+
+  test("dedupe:title-similarity collapses bookmarks with near-identical titles", async () => {
+    const items = [
+      makeBookmarkRow({ id: "b1", title: "React Official Documentation", url: "https://reactjs.org/docs" }),
+      makeBookmarkRow({ id: "b2", title: "React Official Documentations", url: "https://react.dev/docs" }),
+      makeBookmarkRow({ id: "b3", title: "Vue.js Guide", url: "https://vuejs.org/guide" }),
+    ];
+    // sim("react official documentation", "react official documentations") ~ 0.96
+    const steps = [{ type: "dedupe", strategy: "title-similarity", threshold: 0.8, log: false }];
+    const result = await runPipeline(items, steps, ctx);
+    expect(result).toHaveLength(2);
+    expect(result.some((r) => r.id === "b3")).toBe(true);
+  });
+
+  test("bookmarks with no description get zero engagement score in time-decay", async () => {
+    const now = Date.now();
+    const items = [
+      makeBookmarkRow({
+        id: "b1",
+        title: "Recent Bookmark",
+        body: null,
+        timestamp: new Date(now - 1 * 3600 * 1000).toISOString(),
+      }),
+      makeBookmarkRow({
+        id: "b2",
+        title: "Old Bookmark",
+        body: null,
+        timestamp: new Date(now - 48 * 3600 * 1000).toISOString(),
+      }),
+    ];
+    const steps = [{
+      type: "time-decay",
+      half_life: "12h",
+      engagement_weight: 0.5,
+      recency_weight: 0.5,
+      decay: "exponential",
+      annotate: true,
+    }];
+    const result = await runPipeline(items, steps, ctx);
+    // Both have 0 engagement; recent one ranks higher on recency alone
+    expect(result[0].id).toBe("b1");
+    expect(result[0].body).toContain("[hot-score:");
+    expect(result[0].body).toContain("engagement=0.000");
+  });
+
+  test("mixed pipeline: filter then latest on bookmarks", async () => {
+    const items = [
+      makeBookmarkRow({ id: "b1", title: "Alpha Tool" }),
+      makeBookmarkRow({ id: "b2", title: "Beta Tool" }),
+      makeBookmarkRow({ id: "b3", title: "Alpha Runner" }),
+      makeBookmarkRow({ id: "b4", title: "Gamma Tool" }),
+    ];
+    const steps = [
+      { type: "filter", keywords: ["alpha"] },
+      { type: "latest", count: 1 },
+    ];
+    const result = await runPipeline(items, steps, ctx);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("b1");
+  });
+});
+
+describe("transforms - counter items through pipeline", () => {
+  function makeCounterRow(
+    overrides: Partial<ContentItemRow> = {},
+  ): ContentItemRow {
+    return makeRow({
+      source: "github-stars",
+      body: JSON.stringify({ value: 42000, unit: "stars" }),
+      url: "https://api.github.com/repos/org/repo",
+      ...overrides,
+    });
+  }
+
+  test("filter matches keyword inside JSON body text", async () => {
+    const items = [
+      makeCounterRow({ id: "c1", title: "GitHub Stars", body: JSON.stringify({ value: 42000, unit: "stars" }) }),
+      makeCounterRow({ id: "c2", title: "Open Issues", body: JSON.stringify({ value: 100, unit: "issues" }) }),
+    ];
+    const steps = [{ type: "filter", keywords: ["stars"] }];
+    const result = await runPipeline(items, steps, ctx);
+    // "stars" appears in title of c1 AND body of c1 (JSON string contains "stars")
+    expect(result.map((r) => r.id)).toEqual(["c1"]);
+  });
+
+  test("filter on title field only avoids matching JSON body content", async () => {
+    const items = [
+      makeCounterRow({ id: "c1", title: "GitHub Stars" }),
+      makeCounterRow({ id: "c2", title: "Open Issues", body: JSON.stringify({ value: 100, unit: "stars" }) }),
+    ];
+    const steps = [{ type: "filter", keywords: ["stars"], fields: ["title"] }];
+    const result = await runPipeline(items, steps, ctx);
+    // Only c1 has "stars" in title; c2 has it in body JSON but we search title only
+    expect(result.map((r) => r.id)).toEqual(["c1"]);
+  });
+
+  test("keyword-score scores counter items by title matches (JSON body has low signal)", async () => {
+    const items = [
+      makeCounterRow({ id: "c1", title: "GitHub Stars Counter", body: JSON.stringify({ value: 93200 }) }),
+      makeCounterRow({ id: "c2", title: "npm Downloads", body: JSON.stringify({ value: 1000000 }) }),
+    ];
+    const steps = [{
+      type: "keyword-score",
+      keywords: [{ term: "github", weight: 10 }],
+    }];
+    const result = await runPipeline(items, steps, ctx);
+    expect(result[0].id).toBe("c1");
+  });
+
+  test("time-decay gives counter items zero engagement (JSON body has no metric patterns)", async () => {
+    const now = Date.now();
+    const items = [
+      makeCounterRow({
+        id: "c1",
+        body: JSON.stringify({ value: 42000, unit: "stars" }),
+        timestamp: new Date(now - 1 * 3600 * 1000).toISOString(),
+      }),
+    ];
+    const steps = [{
+      type: "time-decay",
+      half_life: "12h",
+      engagement_weight: 0.5,
+      recency_weight: 0.5,
+      annotate: true,
+    }];
+    const result = await runPipeline(items, steps, ctx);
+    // JSON body {"value":42000,"unit":"stars"} does NOT match "42000 stars" pattern
+    // because extractEngagementScore regex expects "N stars" with whitespace
+    expect(result[0].body).toContain("engagement=0.000");
+  });
+
+  test("dedupe:url collapses counter items sharing the same API endpoint", async () => {
+    const apiUrl = "https://api.github.com/repos/org/repo";
+    const items = [
+      makeCounterRow({
+        id: "counter:stars:1000",
+        url: apiUrl,
+        timestamp: "2024-01-01T00:00:00Z",
+      }),
+      makeCounterRow({
+        id: "counter:stars:2000",
+        url: apiUrl,
+        timestamp: "2024-01-02T00:00:00Z",
+      }),
+    ];
+    const steps = [{ type: "dedupe", strategy: "url", log: false }];
+    const result = await runPipeline(items, steps, ctx);
+    expect(result).toHaveLength(1);
+  });
+
+  test("dedupe:domain-normalized collapses counter items with same normalized URL", async () => {
+    const items = [
+      makeCounterRow({ id: "c1", url: "https://api.github.com/repos/org/repo", timestamp: "2024-01-01T00:00:00Z" }),
+      makeCounterRow({ id: "c2", url: "https://API.GITHUB.COM/repos/org/repo/", timestamp: "2024-01-02T00:00:00Z" }),
+    ];
+    const steps = [{ type: "dedupe", strategy: "domain-normalized", keep: "latest", log: false }];
+    const result = await runPipeline(items, steps, ctx);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("c2"); // latest kept
+  });
+
+  test("exclude removes counter items by source name", async () => {
+    const items = [
+      makeCounterRow({ id: "c1", source: "github-stars" }),
+      makeCounterRow({ id: "c2", source: "npm-downloads" }),
+    ];
+    const steps = [{ type: "exclude", keywords: ["github"], fields: ["source"] }];
+    const result = await runPipeline(items, steps, ctx);
+    expect(result.map((r) => r.id)).toEqual(["c2"]);
+  });
+});
+
+describe("transforms - mixed pipeline (RSS + bookmarks + counter)", () => {
+  test("RSS + bookmarks merged then filtered by keyword", async () => {
+    const items = [
+      makeRow({ id: "rss1", title: "New React Release", source: "rss:reactblog", body: "React 19 details" }),
+      makeRow({ id: "rss2", title: "Vue 4 Announcement", source: "rss:vueblog", body: "Vue framework update" }),
+      makeRow({ id: "bk1", title: "React Documentation", source: "bookmarks:docs", body: "Official React docs" }),
+      makeRow({ id: "bk2", title: "MDN Web Docs", source: "bookmarks:docs", body: "Web reference" }),
+      makeRow({ id: "ct1", title: "React Stars", source: "github-stars", body: JSON.stringify({ value: 200000 }) }),
+    ];
+    const steps = [{ type: "filter", keywords: ["react"] }];
+    const result = await runPipeline(items, steps, ctx);
+    // rss1 (title), bk1 (title+body), ct1 (title)
+    expect(result.map((r) => r.id)).toEqual(["rss1", "bk1", "ct1"]);
+  });
+
+  test("mixed sources through keyword-score + latest pipeline", async () => {
+    const items = [
+      makeRow({ id: "rss1", title: "TypeScript 6.0", body: "typescript typescript typescript", source: "rss:blog" }),
+      makeRow({ id: "bk1", title: "TypeScript Handbook", body: "Learn TypeScript", source: "bookmarks" }),
+      makeRow({ id: "ct1", title: "TypeScript Downloads", body: JSON.stringify({ value: 50000 }), source: "npm-downloads" }),
+      makeRow({ id: "rss2", title: "Rust 2.0", body: "Rust programming", source: "rss:blog" }),
+    ];
+    const steps = [
+      { type: "keyword-score", keywords: [{ term: "typescript", weight: 3 }] },
+      { type: "latest", count: 2 },
+    ];
+    const result = await runPipeline(items, steps, ctx);
+    // keyword-score sorts by score desc: rss1 has 4 matches (title+body*3)=12, bk1 has 2=6, ct1 has 1=3, rss2 has 0
+    expect(result).toHaveLength(2);
+    expect(result[0].id).toBe("rss1");
+    expect(result[1].id).toBe("bk1");
+  });
+
+  test("dedupe across RSS and bookmarks with same URL", async () => {
+    const sharedUrl = "https://react.dev/learn";
+    const items = [
+      makeRow({ id: "rss1", title: "React Learn Page", url: sharedUrl, source: "rss:react" }),
+      makeRow({ id: "bk1", title: "React Tutorial", url: sharedUrl, source: "bookmarks:docs" }),
+    ];
+    const steps = [{ type: "dedupe", strategy: "url", log: false }];
+    const result = await runPipeline(items, steps, ctx);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("rss1"); // first wins
+  });
+
+  test("full pipeline: filter + dedupe + keyword-score + latest", async () => {
+    const items = [
+      makeRow({ id: "r1", title: "AI News Today", url: "https://ai.com/1", body: "Machine learning breakthroughs", source: "rss:ainews" }),
+      makeRow({ id: "r2", title: "AI Weekly Roundup", url: "https://ai.com/1", body: "AI and ML updates", source: "rss:aiweekly" }),
+      makeRow({ id: "b1", title: "AI Research Papers", url: "https://arxiv.org/ai", body: "AI papers collection", source: "bookmarks:research" }),
+      makeRow({ id: "b2", title: "Cooking Recipes", url: "https://food.com", body: "Best pasta recipes", source: "bookmarks:food" }),
+      makeRow({ id: "c1", title: "AI Model Downloads", url: "https://huggingface.co/api", body: JSON.stringify({ value: 1000000 }), source: "hf-downloads" }),
+    ];
+    const steps = [
+      { type: "filter", keywords: ["ai"] },
+      { type: "dedupe", strategy: "url", log: false },
+      { type: "keyword-score", keywords: [{ term: "ai", weight: 2 }, { term: "machine learning", weight: 5 }] },
+      { type: "latest", count: 2 },
+    ];
+    const result = await runPipeline(items, steps, ctx);
+    // After filter: r1, r2, b1, c1 (all mention "ai")
+    // After dedupe:url: r1, b1, c1 (r2 shares URL with r1)
+    // After keyword-score: r1 has ai(title+body=2*2=4)+ML(body=5)=9, b1 has ai(x2=4), c1 has ai(title=2)
+    // After latest:2 -> top 2 by score: r1, b1
+    expect(result).toHaveLength(2);
+    expect(result[0].id).toBe("r1"); // highest score
+    expect(result[1].id).toBe("b1");
+  });
+
+  test("sort transform works on mixed bookmark/counter/rss items", async () => {
+    const items = [
+      makeRow({ id: "bk1", title: "Zebra Tool", source: "bookmarks" }),
+      makeRow({ id: "ct1", title: "Alpha Counter", source: "counter" }),
+      makeRow({ id: "rs1", title: "Middle News", source: "rss" }),
+    ];
+    const steps = [{ type: "sort", field: "title", direction: "asc" }];
+    const result = await runPipeline(items, steps, ctx);
+    expect(result.map((r) => r.id)).toEqual(["ct1", "rs1", "bk1"]);
+  });
+
+  test("cluster groups bookmarks and RSS items sharing a domain", async () => {
+    await spyConsole(["log"], async ({ log: logSpy }) => {
+      const items = [
+        makeRow({ id: "bk1", url: "https://github.com/org/repo", title: "GitHub Repo Bookmark", source: "bookmarks" }),
+        makeRow({ id: "rs1", url: "https://github.com/org/other", title: "GitHub Release Feed", source: "rss:github" }),
+        makeRow({ id: "bk2", url: "https://docs.python.org/3", title: "Python Docs", source: "bookmarks:docs" }),
+      ];
+      const steps = [{ type: "cluster", min_cluster_size: 2, annotate: true }];
+      const result = await runPipeline(items, steps, ctx);
+      expect(result).toHaveLength(3);
+      // bk1 and rs1 share github.com domain -> clustered
+      const githubItems = result.filter((r) => r.id === "bk1" || r.id === "rs1");
+      expect(githubItems.every((r) => (r.body ?? "").includes("[GitHub"))).toBe(true);
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("1 cluster(s)"));
+    });
+  });
+});
