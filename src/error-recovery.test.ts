@@ -1,0 +1,568 @@
+import { describe, test, expect, spyOn, beforeEach, afterEach } from "bun:test";
+import adapter from "./adapters/counter";
+import bookmarksAdapter from "./adapters/bookmarks";
+import type { AdapterConfig } from "./adapters/types";
+import { CounterPanel, parseCounterBody, abbreviateNumber } from "./layout/counter-panel";
+import { TextWidget } from "./layout/text-widget";
+import { sanitize, renderMarkdown } from "./layout/text-render";
+
+// ---------------------------------------------------------------------------
+// 1. Counter adapter error recovery
+// ---------------------------------------------------------------------------
+
+describe("counter adapter error recovery", () => {
+  let warnSpy: ReturnType<typeof spyOn>;
+  let fetchSpy: ReturnType<typeof spyOn>;
+
+  const baseConfig: AdapterConfig = {
+    type: "counter",
+    params: {
+      url: "https://api.example.com/data",
+      json_path: "value",
+    },
+  };
+
+  beforeEach(() => {
+    warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    warnSpy.mockRestore();
+    if (fetchSpy) fetchSpy.mockRestore();
+  });
+
+  test("network timeout during fetch throws with 'error fetching'", async () => {
+    // AbortSignal.timeout triggers a DOMException with name "TimeoutError"
+    const timeoutErr = new DOMException("The operation was aborted", "TimeoutError");
+    fetchSpy = spyOn(globalThis, "fetch").mockRejectedValueOnce(timeoutErr);
+
+    await expect(adapter.fetch(baseConfig)).rejects.toThrow(/error fetching/);
+  });
+
+  test("DNS resolution failure throws with 'error fetching'", async () => {
+    fetchSpy = spyOn(globalThis, "fetch").mockRejectedValueOnce(
+      new TypeError("getaddrinfo ENOTFOUND api.example.com"),
+    );
+
+    await expect(adapter.fetch(baseConfig)).rejects.toThrow(/error fetching/);
+  });
+
+  test("HTTP 500 response throws with 'failed to fetch'", async () => {
+    fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response("Internal Server Error", { status: 500 }),
+    );
+
+    await expect(adapter.fetch(baseConfig)).rejects.toThrow(/failed to fetch/);
+  });
+
+  test("HTTP 429 (rate limited) response throws with 'failed to fetch'", async () => {
+    fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response("Too Many Requests", { status: 429 }),
+    );
+
+    const err = adapter.fetch(baseConfig);
+    await expect(err).rejects.toThrow(/failed to fetch/);
+    // Error message should contain the status code
+    await expect(adapter.fetch(baseConfig).catch((e) => e.message)).resolves.toBeUndefined;
+  });
+
+  test("HTTP 429 error message includes status code", async () => {
+    fetchSpy = spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response("Too Many Requests", { status: 429 }));
+
+    try {
+      await adapter.fetch(baseConfig);
+      expect(true).toBe(false); // Should not reach here
+    } catch (err: unknown) {
+      expect((err as Error).message).toContain("429");
+    }
+  });
+
+  test("valid JSON but empty object (path not found) throws with descriptive error", async () => {
+    fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({}), { status: 200 }),
+    );
+
+    await expect(adapter.fetch(baseConfig)).rejects.toThrow(/does not exist/);
+  });
+
+  test("valid JSON but deeply nested null at path end returns null as value", async () => {
+    // When the path resolves but the final value is null, it should be included as-is
+    fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ deeply: { nested: { value: null } } }), { status: 200 }),
+    );
+
+    const config: AdapterConfig = {
+      type: "counter",
+      params: {
+        url: "https://api.example.com/data",
+        json_path: "deeply.nested.value",
+      },
+    };
+
+    const result = await adapter.fetch(config);
+    expect(result).toHaveLength(1);
+    const body = JSON.parse(result[0].body!);
+    expect(body.value).toBeNull();
+  });
+
+  test("deeply nested path with null intermediate throws", async () => {
+    // When an intermediate node is null, path traversal should fail
+    fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ deeply: { nested: null } }), { status: 200 }),
+    );
+
+    const config: AdapterConfig = {
+      type: "counter",
+      params: {
+        url: "https://api.example.com/data",
+        json_path: "deeply.nested.value",
+      },
+    };
+
+    await expect(adapter.fetch(config)).rejects.toThrow(/cannot traverse/);
+  });
+
+  test("compare_url fails but main url succeeds: continues with warning", async () => {
+    fetchSpy = spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ value: 42 }), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response("Internal Server Error", { status: 500 }),
+      );
+
+    const config: AdapterConfig = {
+      type: "counter",
+      params: {
+        url: "https://api.example.com/data",
+        json_path: "value",
+        compare_url: "https://api.example.com/old-data",
+      },
+    };
+
+    const result = await adapter.fetch(config);
+    expect(result).toHaveLength(1);
+    const body = JSON.parse(result[0].body!);
+    expect(body.value).toBe(42);
+    expect(body.previous).toBeUndefined();
+    // Should have issued a warning about the compare_url failure
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  test("compare_url network timeout: continues with warning", async () => {
+    const timeoutErr = new DOMException("The operation was aborted", "TimeoutError");
+    fetchSpy = spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ value: 42 }), { status: 200 }),
+      )
+      .mockRejectedValueOnce(timeoutErr);
+
+    const config: AdapterConfig = {
+      type: "counter",
+      params: {
+        url: "https://api.example.com/data",
+        json_path: "value",
+        compare_url: "https://api.example.com/old-data",
+      },
+    };
+
+    const result = await adapter.fetch(config);
+    expect(result).toHaveLength(1);
+    const body = JSON.parse(result[0].body!);
+    expect(body.value).toBe(42);
+    expect(body.previous).toBeUndefined();
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  test("both url and compare_url fail: throws from url (not compare_url)", async () => {
+    fetchSpy = spyOn(globalThis, "fetch")
+      .mockRejectedValueOnce(new Error("connection refused"));
+
+    const config: AdapterConfig = {
+      type: "counter",
+      params: {
+        url: "https://api.example.com/data",
+        json_path: "value",
+        compare_url: "https://api.example.com/old-data",
+      },
+    };
+
+    // The main url fails first, so it should throw before ever reaching compare_url
+    await expect(adapter.fetch(config)).rejects.toThrow(/error fetching/);
+    // fetch should only have been called once (no compare_url attempt)
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  test("compare_url returns valid JSON but compare_path not found: continues with warning", async () => {
+    fetchSpy = spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ value: 100 }), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ other_field: 50 }), { status: 200 }),
+      );
+
+    const config: AdapterConfig = {
+      type: "counter",
+      params: {
+        url: "https://api.example.com/data",
+        json_path: "value",
+        compare_url: "https://api.example.com/old-data",
+        compare_path: "missing_field",
+      },
+    };
+
+    // compare_path resolution failure is caught by tryOptionalFetch
+    const result = await adapter.fetch(config);
+    expect(result).toHaveLength(1);
+    const body = JSON.parse(result[0].body!);
+    expect(body.value).toBe(100);
+    expect(body.previous).toBeUndefined();
+    expect(warnSpy).toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 2. Counter panel with bad data
+// ---------------------------------------------------------------------------
+
+describe("counter panel with bad data", () => {
+  // Helper: build a minimal PanelConfig and panelData map for CounterPanel
+  function makePanelData(items: Array<{ title: string; body: string | null }>) {
+    const panelData = new Map();
+    panelData.set("Test Panel", {
+      panelId: "test-panel",
+      items: items.map((item, i) => ({
+        id: `test-${i}`,
+        title: item.title,
+        url: "https://example.com",
+        source: "counter",
+        timestamp: new Date(),
+        body: item.body,
+      })),
+      lastRefreshedAt: new Date().toISOString(),
+    });
+    return panelData;
+  }
+
+  const panelNode = {
+    panel: "Test Panel",
+    source: "all" as const,
+  };
+
+  test("all items with unparseable body renders empty state", () => {
+    const panelData = makePanelData([
+      { title: "Bad 1", body: "not json at all" },
+      { title: "Bad 2", body: "{malformed" },
+      { title: "Bad 3", body: "{{double braces}}" },
+    ]);
+
+    const result = CounterPanel({ node: panelNode, panelData });
+    const html = typeof result === "string" ? result : result?.toString() ?? "";
+    // When all bodies are unparseable, parseCounterBody returns null for each,
+    // so cards array is empty, and "No data yet" empty state renders
+    expect(html).toContain("No data yet");
+  });
+
+  test("body has value but no label still renders (uses item.title)", () => {
+    const panelData = makePanelData([
+      { title: "Stars", body: JSON.stringify({ value: 42 }) },
+    ]);
+
+    const result = CounterPanel({ node: panelNode, panelData });
+    const html = typeof result === "string" ? result : result?.toString() ?? "";
+    expect(html).toContain("42");
+    expect(html).toContain("Stars"); // item.title is used as the card label
+  });
+
+  test("value is an extremely long string renders without error", () => {
+    const longValue = "x".repeat(10000);
+    const panelData = makePanelData([
+      { title: "Long Val", body: JSON.stringify({ value: longValue }) },
+    ]);
+
+    const result = CounterPanel({ node: panelNode, panelData });
+    const html = typeof result === "string" ? result : result?.toString() ?? "";
+    // abbreviateNumber calls String() on non-numbers, so the long string passes through
+    expect(html).toContain("stat-card");
+    expect(html).toContain("Long Val");
+    // The value is the full string (abbreviateNumber returns String(value) for non-numbers)
+    expect(html).toContain(longValue);
+  });
+
+  test("100+ counter items all render as stat cards", () => {
+    const items = Array.from({ length: 120 }, (_, i) => ({
+      title: `Counter ${i}`,
+      body: JSON.stringify({ value: i * 100 }),
+    }));
+    const panelData = makePanelData(items);
+
+    const result = CounterPanel({ node: panelNode, panelData });
+    const html = typeof result === "string" ? result : result?.toString() ?? "";
+    // All 120 items should render as stat cards
+    const statCardCount = (html.match(/stat-card/g) || []).length;
+    // Each stat-card class appears in the class attr and the aria-label references it too
+    // We just check a minimum count
+    expect(statCardCount).toBeGreaterThanOrEqual(120);
+    expect(html).toContain("Counter 0");
+    expect(html).toContain("Counter 119");
+  });
+
+  test("mixed valid and invalid bodies: only valid ones render as cards", () => {
+    const panelData = makePanelData([
+      { title: "Good", body: JSON.stringify({ value: 10 }) },
+      { title: "Bad JSON", body: "not json" },
+      { title: "Missing value key", body: JSON.stringify({ count: 5 }) },
+      { title: "Also Good", body: JSON.stringify({ value: 20 }) },
+    ]);
+
+    const result = CounterPanel({ node: panelNode, panelData });
+    const html = typeof result === "string" ? result : result?.toString() ?? "";
+    expect(html).toContain("Good");
+    expect(html).toContain("Also Good");
+    expect(html).not.toContain("No data yet");
+    // The bad items are silently skipped
+  });
+
+  test("empty items array renders empty state", () => {
+    const panelData = makePanelData([]);
+
+    const result = CounterPanel({ node: panelNode, panelData });
+    const html = typeof result === "string" ? result : result?.toString() ?? "";
+    expect(html).toContain("No data yet");
+  });
+
+  test("panel not found in panelData renders empty state", () => {
+    const panelData = new Map(); // empty map, panel key not present
+
+    const result = CounterPanel({ node: panelNode, panelData });
+    const html = typeof result === "string" ? result : result?.toString() ?? "";
+    expect(html).toContain("No data yet");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 3. Bookmarks adapter with edge cases at runtime
+// ---------------------------------------------------------------------------
+
+describe("bookmarks adapter runtime edge cases", () => {
+  let warnSpy: ReturnType<typeof spyOn>;
+
+  beforeEach(() => {
+    warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    warnSpy.mockRestore();
+  });
+
+  test("params.items is a string (not an array) at runtime: returns empty with warning", async () => {
+    const config: AdapterConfig = {
+      type: "bookmarks",
+      params: { items: "not-an-array" as unknown },
+    };
+
+    const result = await bookmarksAdapter.fetch(config);
+    expect(result).toEqual([]);
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  test("params.items is a number at runtime: returns empty with warning", async () => {
+    const config: AdapterConfig = {
+      type: "bookmarks",
+      params: { items: 42 as unknown },
+    };
+
+    const result = await bookmarksAdapter.fetch(config);
+    expect(result).toEqual([]);
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  test("params.items is an object (not array) at runtime: returns empty with warning", async () => {
+    const config: AdapterConfig = {
+      type: "bookmarks",
+      params: { items: { title: "Fake", url: "https://example.com" } as unknown },
+    };
+
+    const result = await bookmarksAdapter.fetch(config);
+    expect(result).toEqual([]);
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  test("params is completely undefined: returns empty with warning", async () => {
+    const config: AdapterConfig = { type: "bookmarks" };
+
+    const result = await bookmarksAdapter.fetch(config);
+    expect(result).toEqual([]);
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  test("params is null: returns empty with warning", async () => {
+    const config = { type: "bookmarks", params: null } as unknown as AdapterConfig;
+
+    const result = await bookmarksAdapter.fetch(config);
+    expect(result).toEqual([]);
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  test("params is an empty object (no items key): returns empty with warning", async () => {
+    const config: AdapterConfig = { type: "bookmarks", params: {} };
+
+    const result = await bookmarksAdapter.fetch(config);
+    expect(result).toEqual([]);
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  test("params.items is boolean true: returns empty with warning", async () => {
+    const config: AdapterConfig = {
+      type: "bookmarks",
+      params: { items: true as unknown },
+    };
+
+    const result = await bookmarksAdapter.fetch(config);
+    expect(result).toEqual([]);
+    expect(warnSpy).toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 4. Text widget with problematic content
+// ---------------------------------------------------------------------------
+
+describe("text widget with problematic content", () => {
+  test("sanitize handles malformed HTML (unclosed tags) gracefully", () => {
+    const input = "<p>Hello <strong>bold text <em>nested italic";
+    const result = sanitize(input);
+    // sanitize-html should auto-close tags rather than crash
+    expect(result).toContain("Hello");
+    expect(result).toContain("bold text");
+    expect(result).toContain("nested italic");
+    // Should not throw
+  });
+
+  test("sanitize handles unclosed anchor tag with href", () => {
+    const input = '<a href="https://example.com">never closed';
+    const result = sanitize(input);
+    expect(result).toContain("never closed");
+    // Should handle gracefully without crashing
+  });
+
+  test("sanitize handles deeply mismatched closing tags", () => {
+    const input = "<p><strong><em>text</p></strong></em>";
+    const result = sanitize(input);
+    expect(result).toContain("text");
+    // No crash, browser-like repair behavior
+  });
+
+  test("very deeply nested HTML tags (100+ levels) does not throw", () => {
+    let nested = "innermost";
+    for (let i = 0; i < 120; i++) {
+      nested = `<p>${nested}</p>`;
+    }
+    // This should not crash or throw due to stack depth
+    const result = sanitize(nested);
+    expect(result).toContain("innermost");
+  });
+
+  test("very deeply nested allowed tags (50+ em/strong) does not throw", () => {
+    let nested = "core";
+    for (let i = 0; i < 60; i++) {
+      nested = i % 2 === 0 ? `<em>${nested}</em>` : `<strong>${nested}</strong>`;
+    }
+    const result = sanitize(nested);
+    expect(result).toContain("core");
+    expect(result).toContain("<em>");
+    expect(result).toContain("<strong>");
+  });
+
+  test("renderMarkdown with empty string returns empty-ish output", () => {
+    const result = renderMarkdown("");
+    // marked might return "\n" or "" for empty input
+    expect(result.trim()).toBe("");
+  });
+
+  test("renderMarkdown with only whitespace", () => {
+    const result = renderMarkdown("   \n\n   ");
+    // Should not crash
+    expect(typeof result).toBe("string");
+  });
+
+  test("sanitize with interleaved allowed and disallowed tags", () => {
+    const input = '<p>safe</p><div>div-content</div><span>span-content</span><p>also safe</p>';
+    const result = sanitize(input);
+    // div and span are not in allowlist, their content should be preserved but tags removed
+    expect(result).toContain("<p>safe</p>");
+    expect(result).toContain("<p>also safe</p>");
+    expect(result).not.toContain("<div");
+    expect(result).not.toContain("<span");
+    expect(result).toContain("div-content");
+    expect(result).toContain("span-content");
+  });
+
+  test("renderMarkdown handles markdown with only HTML (no markdown syntax)", () => {
+    const input = '<p>This is <strong>just HTML</strong></p>';
+    const result = renderMarkdown(input);
+    expect(result).toContain("<strong>just HTML</strong>");
+  });
+
+  test("sanitize handles HTML with many empty tags", () => {
+    const input = "<p></p>".repeat(500) + "<p>content</p>";
+    const result = sanitize(input);
+    expect(result).toContain("<p>content</p>");
+  });
+
+  test("sanitize strips all attributes from tags that have no allowed attributes", () => {
+    const input = '<p id="x" class="y" data-z="w">text</p>';
+    const result = sanitize(input);
+    expect(result).toBe("<p>text</p>");
+  });
+
+  test("renderMarkdown handles extremely long single line", () => {
+    const longLine = "word ".repeat(5000);
+    const result = renderMarkdown(longLine);
+    expect(result).toContain("word");
+    expect(typeof result).toBe("string");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Additional: parseCounterBody edge cases for rendering decisions
+// ---------------------------------------------------------------------------
+
+describe("parseCounterBody rendering edge cases", () => {
+  test("body with value as empty string", () => {
+    const result = parseCounterBody(JSON.stringify({ value: "" }));
+    expect(result).not.toBeNull();
+    expect(result!.value).toBe("");
+  });
+
+  test("body with value as empty array", () => {
+    const result = parseCounterBody(JSON.stringify({ value: [] }));
+    expect(result).not.toBeNull();
+    expect(result!.value).toEqual([]);
+  });
+
+  test("body with value as deeply nested object", () => {
+    let deep: unknown = 42;
+    for (let i = 0; i < 20; i++) {
+      deep = { level: deep };
+    }
+    const result = parseCounterBody(JSON.stringify({ value: deep }));
+    expect(result).not.toBeNull();
+    // abbreviateNumber returns String(value) for non-numbers
+    expect(abbreviateNumber(result!.value)).toBe("[object Object]");
+  });
+
+  test("body with Infinity-like string (not actual Infinity since JSON has no Infinity)", () => {
+    // JSON.parse does not support Infinity, so "Infinity" would be a string
+    const result = parseCounterBody(JSON.stringify({ value: "Infinity" }));
+    expect(result).not.toBeNull();
+    expect(result!.value).toBe("Infinity");
+  });
+
+  test("body with previous but no value key returns null", () => {
+    const result = parseCounterBody(JSON.stringify({ previous: 10, unit: "k" }));
+    expect(result).toBeNull();
+  });
+});
