@@ -442,6 +442,255 @@ describe("counter adapter", () => {
       const body = JSON.parse(result[0].body!);
       expect(body.unit).toBeUndefined();
     });
+
+    test("handles JSON response that is a bare string", async () => {
+      fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
+        new Response(JSON.stringify("hello"), { status: 200 }),
+      );
+
+      const config: AdapterConfig = {
+        type: "counter",
+        params: {
+          url: "https://example.com/api",
+          json_path: "anything",
+        },
+      };
+
+      // A bare string is not an object, so path traversal should fail
+      await expect(adapter.fetch(config)).rejects.toThrow(/cannot traverse into string/);
+    });
+
+    test("handles JSON response that is a bare number", async () => {
+      fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
+        new Response(JSON.stringify(42), { status: 200 }),
+      );
+
+      const config: AdapterConfig = {
+        type: "counter",
+        params: {
+          url: "https://example.com/api",
+          json_path: "anything",
+        },
+      };
+
+      // A bare number is not an object, so path traversal should fail
+      await expect(adapter.fetch(config)).rejects.toThrow(/cannot traverse into number/);
+    });
+
+    test("handles JSON response that is null", async () => {
+      fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
+        new Response("null", { status: 200 }),
+      );
+
+      const config: AdapterConfig = {
+        type: "counter",
+        params: {
+          url: "https://example.com/api",
+          json_path: "value",
+        },
+      };
+
+      // null is not an object, so path traversal should fail
+      await expect(adapter.fetch(config)).rejects.toThrow(/cannot traverse/);
+    });
+
+    test("resolves JSON path through arrays", async () => {
+      const data = { data: [{ metrics: [{ skip: true }, { value: 777 }] }] };
+      fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
+        new Response(JSON.stringify(data), { status: 200 }),
+      );
+
+      const config: AdapterConfig = {
+        type: "counter",
+        params: {
+          url: "https://example.com/api",
+          json_path: "data[0].metrics[1].value",
+        },
+      };
+
+      const result = await adapter.fetch(config);
+      const body = JSON.parse(result[0].body!);
+      expect(body.value).toBe(777);
+    });
+
+    test("throws on empty JSON object with any path", async () => {
+      fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
+        new Response(JSON.stringify({}), { status: 200 }),
+      );
+
+      const config: AdapterConfig = {
+        type: "counter",
+        params: {
+          url: "https://example.com/api",
+          json_path: "missing",
+        },
+      };
+
+      await expect(adapter.fetch(config)).rejects.toThrow(/does not exist/);
+    });
+
+    test("handles very large numbers", async () => {
+      fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
+        new Response(JSON.stringify({ big: 999999999999 }), { status: 200 }),
+      );
+
+      const config: AdapterConfig = {
+        type: "counter",
+        params: {
+          url: "https://example.com/api",
+          json_path: "big",
+        },
+      };
+
+      const result = await adapter.fetch(config);
+      const body = JSON.parse(result[0].body!);
+      expect(body.value).toBe(999999999999);
+    });
+
+    test("handles negative numbers", async () => {
+      fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
+        new Response(JSON.stringify({ delta: -42 }), { status: 200 }),
+      );
+
+      const config: AdapterConfig = {
+        type: "counter",
+        params: {
+          url: "https://example.com/api",
+          json_path: "delta",
+        },
+      };
+
+      const result = await adapter.fetch(config);
+      const body = JSON.parse(result[0].body!);
+      expect(body.value).toBe(-42);
+    });
+
+    test("handles floating point values", async () => {
+      fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
+        new Response(JSON.stringify({ pi: 3.14159 }), { status: 200 }),
+      );
+
+      const config: AdapterConfig = {
+        type: "counter",
+        params: {
+          url: "https://example.com/api",
+          json_path: "pi",
+        },
+      };
+
+      const result = await adapter.fetch(config);
+      const body = JSON.parse(result[0].body!);
+      expect(body.value).toBe(3.14159);
+    });
+
+    test("handles zero value without treating it as falsy", async () => {
+      fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
+        new Response(JSON.stringify({ count: 0 }), { status: 200 }),
+      );
+
+      const config: AdapterConfig = {
+        type: "counter",
+        params: {
+          url: "https://example.com/api",
+          json_path: "count",
+        },
+      };
+
+      const result = await adapter.fetch(config);
+      expect(result).toHaveLength(1);
+      const body = JSON.parse(result[0].body!);
+      expect(body.value).toBe(0);
+      // Ensure it wasn't silently treated as "no value"
+      expect(body.value).not.toBeUndefined();
+      expect(body.value).not.toBeNull();
+    });
+
+    test("handles boolean value at path", async () => {
+      fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
+        new Response(JSON.stringify({ healthy: true }), { status: 200 }),
+      );
+
+      const config: AdapterConfig = {
+        type: "counter",
+        params: {
+          url: "https://example.com/api",
+          json_path: "healthy",
+        },
+      };
+
+      const result = await adapter.fetch(config);
+      const body = JSON.parse(result[0].body!);
+      expect(body.value).toBe(true);
+    });
+
+    test("handles false boolean value at path", async () => {
+      fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
+        new Response(JSON.stringify({ healthy: false }), { status: 200 }),
+      );
+
+      const config: AdapterConfig = {
+        type: "counter",
+        params: {
+          url: "https://example.com/api",
+          json_path: "healthy",
+        },
+      };
+
+      const result = await adapter.fetch(config);
+      const body = JSON.parse(result[0].body!);
+      expect(body.value).toBe(false);
+    });
+
+    test("no trend when compare_url returns same value as url", async () => {
+      fetchSpy = spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ count: 500 }), { status: 200 }),
+        )
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ count: 500 }), { status: 200 }),
+        );
+
+      const config: AdapterConfig = {
+        type: "counter",
+        params: {
+          url: "https://example.com/api",
+          json_path: "count",
+          compare_url: "https://example.com/api?period=previous",
+          compare_path: "count",
+        },
+      };
+
+      const result = await adapter.fetch(config);
+      const body = JSON.parse(result[0].body!);
+      expect(body.value).toBe(500);
+      expect(body.previous).toBe(500);
+      // value === previous means no change / no trend
+    });
+
+    test("headers with missing env vars resolve to empty strings", async () => {
+      fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
+        new Response(JSON.stringify({ val: 1 }), { status: 200 }),
+      );
+
+      const config: AdapterConfig = {
+        type: "counter",
+        params: {
+          url: "https://example.com/api",
+          json_path: "val",
+          headers: {
+            Authorization: "Bearer ${NONEXISTENT_COUNTER_TEST_VAR}",
+          },
+        },
+      };
+
+      const result = await adapter.fetch(config);
+      expect(result).toHaveLength(1);
+
+      // Verify the header was sent with the env var resolved to empty string
+      const fetchCall = fetchSpy.mock.calls[0];
+      const sentHeaders = fetchCall[1]?.headers as Record<string, string>;
+      expect(sentHeaders.Authorization).toBe("Bearer ");
+    });
   });
 });
 
