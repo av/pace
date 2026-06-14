@@ -427,13 +427,13 @@ a:hover {
 }
 
 /* When an iframe has a title header, frame the whole widget like a panel. */
-.flex-panel:has(.iframe-panel) {
+.flex-panel:has(.panel-header):has(.iframe-panel) {
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: 6px;
 }
 
-.flex-panel:has(.iframe-panel) .iframe-panel {
+.flex-panel:has(.panel-header):has(.iframe-panel) .iframe-panel {
   border-radius: 0;
 }
 

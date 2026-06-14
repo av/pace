@@ -15,13 +15,24 @@ export const IframeWidget: FC<{ node: IframeWidgetConfig }> = ({ node }) => {
   // Sizing priority: height > aspect_ratio > default 16/9
   const aspectRatio = node.height ? undefined : (node.aspect_ratio ?? "16/9");
 
+  // aspect-ratio goes on the iframe-panel, not the outer container, so the
+  // ratio controls the content area (not including the title header).
+  // height stays on the outer container so the whole widget is that tall.
+  // When using aspect-ratio, the outer container must not force height:100%
+  // (from .flex-panel CSS), so we override it with height:auto.
   const containerStyle = [
     flexStyle(node.flex),
     node.height ? `height:${node.height}` : undefined,
-    aspectRatio ? `aspect-ratio:${aspectRatio}` : undefined,
+    aspectRatio ? "height:auto" : undefined,
   ]
     .filter(Boolean)
     .join(" ");
+
+  // When using aspect-ratio, the iframe-panel must not flex-grow (which would
+  // override the ratio). flex:none lets it size based on aspect-ratio alone.
+  const iframePanelStyle = aspectRatio
+    ? `aspect-ratio:${aspectRatio}; flex:none`
+    : undefined;
 
   const iframeTitle = node.title ?? `Embedded content from ${new URL(node.iframe, "https://localhost").hostname}`;
 
@@ -44,7 +55,7 @@ export const IframeWidget: FC<{ node: IframeWidgetConfig }> = ({ node }) => {
           <h2>{node.title}</h2>
         </div>
       )}
-      <div class="iframe-panel" role="region" aria-label={iframeTitle}>
+      <div class="iframe-panel" style={iframePanelStyle} role="region" aria-label={iframeTitle}>
         <iframe {...iframeAttrs} />
       </div>
     </div>
