@@ -17,6 +17,7 @@ import rssAdapter from "./rss";
 import stackexchangeAdapter from "./stackexchange";
 import twitterAdapter from "./twitter";
 import wikipediaAdapter from "./wikipedia";
+import bookmarksAdapter from "./bookmarks";
 import youtubeAdapter from "./youtube";
 
 /** Canonical built-in adapter modules keyed by ADAPTER_TYPES (positive registry). */
@@ -37,6 +38,7 @@ export const BUILTIN_ADAPTER_MODULES: Readonly<Record<AdapterType, Adapter>> = {
   stackexchange: stackexchangeAdapter,
   twitter: twitterAdapter,
   wikipedia: wikipediaAdapter,
+  bookmarks: bookmarksAdapter,
   youtube: youtubeAdapter,
 };
 

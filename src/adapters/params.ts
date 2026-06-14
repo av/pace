@@ -17,6 +17,7 @@ export const ADAPTER_PARAM_KEYS = {
   npm: ["keywords", "scope", "limit", "sort"],
   lemmy: ["instance", "communities", "sort", "limit", "min_score"],
   wikipedia: ["modes", "mode", "language", "limit"],
+  bookmarks: ["items"],
 } as const satisfies Readonly<Record<string, readonly string[]>>;
 
 export type AdapterType = keyof typeof ADAPTER_PARAM_KEYS;

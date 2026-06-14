@@ -1,0 +1,193 @@
+import { describe, test, expect, spyOn, beforeEach, afterEach } from "bun:test";
+import adapter from "./adapters/bookmarks";
+import type { AdapterConfig } from "./adapters/types";
+
+function makeConfig(items: unknown[]): AdapterConfig {
+  return { type: "bookmarks", params: { items } };
+}
+
+describe("bookmarks adapter", () => {
+  let warnSpy: ReturnType<typeof spyOn>;
+
+  beforeEach(() => {
+    warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    warnSpy.mockRestore();
+  });
+
+  test("adapter name is bookmarks", () => {
+    expect(adapter.name).toBe("bookmarks");
+  });
+
+  test("returns empty and warns when no items configured", async () => {
+    const result = await adapter.fetch({ type: "bookmarks", params: {} });
+    expect(result).toEqual([]);
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  test("returns empty and warns when items is empty array", async () => {
+    const result = await adapter.fetch(makeConfig([]));
+    expect(result).toEqual([]);
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  test("returns empty and warns when params is undefined", async () => {
+    const result = await adapter.fetch({ type: "bookmarks" });
+    expect(result).toEqual([]);
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  test("maps valid items to ContentItems", async () => {
+    const items = [
+      { title: "Linear", url: "https://linear.app", description: "Issue tracker", tags: ["work", "daily"] },
+      { title: "Figma", url: "https://figma.com", tags: ["design"] },
+      { title: "ArXiv CS.LG", url: "https://arxiv.org/list/cs.LG/recent" },
+    ];
+    const result = await adapter.fetch(makeConfig(items));
+    expect(result).toHaveLength(3);
+
+    // Check first item
+    expect(result[0].id).toBe("bookmarks:linear-0");
+    expect(result[0].title).toBe("Linear");
+    expect(result[0].url).toBe("https://linear.app");
+    expect(result[0].source).toBe("bookmarks:work");
+    expect(result[0].body).toBe("Issue tracker");
+    expect(result[0].timestamp).toBeInstanceOf(Date);
+
+    // Check second item - tagged, no description
+    expect(result[1].id).toBe("bookmarks:figma-1");
+    expect(result[1].source).toBe("bookmarks:design");
+    expect(result[1].body).toBeUndefined();
+
+    // Check third item - no tags, no description
+    expect(result[2].id).toBe("bookmarks:arxiv-cs-lg-2");
+    expect(result[2].source).toBe("bookmarks");
+    expect(result[2].body).toBeUndefined();
+  });
+
+  test("source is 'bookmarks' when no tags", async () => {
+    const result = await adapter.fetch(makeConfig([
+      { title: "Example", url: "https://example.com" },
+    ]));
+    expect(result[0].source).toBe("bookmarks");
+  });
+
+  test("source is 'bookmarks:<first-tag>' when tagged", async () => {
+    const result = await adapter.fetch(makeConfig([
+      { title: "Example", url: "https://example.com", tags: ["alpha", "beta"] },
+    ]));
+    expect(result[0].source).toBe("bookmarks:alpha");
+  });
+
+  test("id uses slugified title and index", async () => {
+    const result = await adapter.fetch(makeConfig([
+      { title: "My Cool Tool!", url: "https://example.com" },
+      { title: "Another  Tool", url: "https://example.com/2" },
+    ]));
+    expect(result[0].id).toBe("bookmarks:my-cool-tool-0");
+    expect(result[1].id).toBe("bookmarks:another-tool-1");
+  });
+
+  test("all items share the same timestamp", async () => {
+    const result = await adapter.fetch(makeConfig([
+      { title: "A", url: "https://a.com" },
+      { title: "B", url: "https://b.com" },
+    ]));
+    expect(result[0].timestamp.getTime()).toBe(result[1].timestamp.getTime());
+  });
+
+  test("filters out items missing title", async () => {
+    const result = await adapter.fetch(makeConfig([
+      { url: "https://example.com" },
+      { title: "", url: "https://example.com" },
+      { title: "Valid", url: "https://example.com" },
+    ]));
+    expect(result).toHaveLength(1);
+    expect(result[0].title).toBe("Valid");
+    expect(warnSpy).toHaveBeenCalledTimes(2);
+  });
+
+  test("filters out items missing url", async () => {
+    const result = await adapter.fetch(makeConfig([
+      { title: "No URL" },
+      { title: "Empty URL", url: "" },
+      { title: "Valid", url: "https://example.com" },
+    ]));
+    expect(result).toHaveLength(1);
+    expect(result[0].title).toBe("Valid");
+    expect(warnSpy).toHaveBeenCalledTimes(2);
+  });
+
+  test("filters out items with non-http(s) urls", async () => {
+    const result = await adapter.fetch(makeConfig([
+      { title: "FTP", url: "ftp://example.com" },
+      { title: "JS", url: "javascript:alert(1)" },
+      { title: "Data", url: "data:text/html,<h1>hi</h1>" },
+      { title: "Valid", url: "http://example.com" },
+    ]));
+    expect(result).toHaveLength(1);
+    expect(result[0].title).toBe("Valid");
+    expect(warnSpy).toHaveBeenCalledTimes(3);
+  });
+
+  test("filters out non-object items", async () => {
+    const result = await adapter.fetch(makeConfig([
+      "not-an-object",
+      42,
+      null,
+      { title: "Valid", url: "https://example.com" },
+    ]));
+    expect(result).toHaveLength(1);
+    expect(warnSpy).toHaveBeenCalledTimes(3);
+  });
+
+  test("returns empty array and warns when all items are invalid", async () => {
+    const result = await adapter.fetch(makeConfig([
+      { title: "No URL" },
+      { url: "https://example.com" },
+    ]));
+    expect(result).toEqual([]);
+    // Two item warnings + one "all items were invalid" warning
+    expect(warnSpy.mock.calls.length).toBeGreaterThanOrEqual(3);
+  });
+
+  test("non-string tags are filtered out", async () => {
+    const result = await adapter.fetch(makeConfig([
+      { title: "Mixed Tags", url: "https://example.com", tags: [42, "valid", null] },
+    ]));
+    expect(result[0].source).toBe("bookmarks:valid");
+  });
+
+  test("description is included as body when present", async () => {
+    const result = await adapter.fetch(makeConfig([
+      { title: "With Desc", url: "https://example.com", description: "A description" },
+    ]));
+    expect(result[0].body).toBe("A description");
+  });
+
+  test("non-string description is ignored", async () => {
+    const result = await adapter.fetch(makeConfig([
+      { title: "Bad Desc", url: "https://example.com", description: 123 },
+    ]));
+    expect(result[0].body).toBeUndefined();
+  });
+
+  test("preserves index for id even when items are filtered", async () => {
+    const result = await adapter.fetch(makeConfig([
+      { title: "Invalid" }, // index 0, filtered
+      { title: "Valid", url: "https://example.com" }, // index 1
+    ]));
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("bookmarks:valid-1");
+  });
+
+  test("http:// urls are accepted", async () => {
+    const result = await adapter.fetch(makeConfig([
+      { title: "HTTP", url: "http://example.com" },
+    ]));
+    expect(result).toHaveLength(1);
+    expect(result[0].url).toBe("http://example.com");
+  });
+});

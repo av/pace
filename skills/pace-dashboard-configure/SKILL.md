@@ -378,6 +378,24 @@ Wikipedia featured content.
     limit: 20              # max 50
 ```
 
+### bookmarks
+
+Curated bookmark links defined directly in config (no network fetch).
+
+```yaml
+# Authoritative shape: pace adapters explain bookmarks
+- type: bookmarks
+  params:
+    items:
+      - title: "Linear"
+        url: "https://linear.app"
+        description: "Issue tracker"
+        tags: ["work", "daily"]
+      - title: "Figma"
+        url: "https://figma.com"
+        tags: ["design"]
+```
+
 ## Transform reference
 
 Transforms run at ingest time on adapter or pipeline results. They apply sequentially in the order listed.

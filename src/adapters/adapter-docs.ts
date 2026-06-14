@@ -534,6 +534,26 @@ params:
     },
   },
 
+  bookmarks: {
+    summary: "Displays curated bookmark links defined in config.",
+    example: `type: bookmarks
+params:
+  items:
+    - title: Linear
+      url: https://linear.app
+      description: Issue tracker
+      tags:
+        - work`,
+    params: {
+      items: {
+        type: "object[]",
+        required: true,
+        description:
+          "List of bookmark entries. Each entry needs title (string) and url (http/https string). Optional: description (string), tags (string[]).",
+      },
+    },
+  },
+
   wikipedia: {
     summary: "Fetches featured content from Wikipedia.",
     example: `type: wikipedia

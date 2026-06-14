@@ -35,6 +35,7 @@ const SOURCE_COLORS: Record<string, string> = {
   mastodon: "src-mast",
   devto: "src-devto",
   "dev.to": "src-devto",
+  bookmarks: "src-bookmarks",
 };
 
 function sourceColorClass(source: string): string {
