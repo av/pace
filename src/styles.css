@@ -319,6 +319,7 @@ a:hover {
 .image-widget {
   overflow: hidden;
   height: 100%;
+  border-radius: 6px;
 }
 
 .image-widget img {
@@ -394,6 +395,7 @@ a:hover {
   overflow: hidden;
   flex: 1;
   position: relative;
+  border-radius: 6px;
   background: repeating-linear-gradient(
     -45deg,
     var(--bg-surface),
@@ -403,6 +405,17 @@ a:hover {
   );
   background-size: 200% 200%;
   animation: iframe-loading 2s linear infinite;
+}
+
+/* When an iframe has a title header, frame the whole widget like a panel. */
+.flex-panel:has(.iframe-panel) {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.flex-panel:has(.iframe-panel) .iframe-panel {
+  border-radius: 0;
 }
 
 @keyframes iframe-loading {
