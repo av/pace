@@ -474,9 +474,10 @@ describe("flex layout integration: display:flex on containers wrapping widgets",
 });
 
 describe("flex layout integration: test gap coverage", () => {
-  it("flexStyle with 0 produces flex:0 (edge case)", () => {
-    // flex:0 means the item will not grow
-    expect(flexStyle(0)).toBe("flex:0;");
+  it("flexStyle with 0 produces flex:none (natural size, no grow)", () => {
+    // flex:0 shorthand means grow=0 shrink=1 basis=0, which collapses the
+    // element to zero size. flex:none (= 0 0 auto) keeps natural size.
+    expect(flexStyle(0)).toBe("flex:none;");
   });
 
   it("flexContainerStyle with zero-gap", () => {

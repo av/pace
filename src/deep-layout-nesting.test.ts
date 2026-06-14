@@ -228,13 +228,13 @@ describe("flex distribution: proportional widgets", () => {
     expect(html).toContain('class="flex-panel" style="flex:1;');
   });
 
-  it("widget with flex:0 renders flex:0 (collapses to content size)", () => {
+  it("widget with flex:0 renders flex:none (natural size, no grow)", () => {
     const layout = flexCfg("row", [
       { text: "Zero flex", flex: 0 },
       { text: "Normal flex" },
     ]);
     const html = renderDashboard({ layout, panelData: new Map(), updatedAt: "now" });
-    expect(html).toContain("flex:0;");
+    expect(html).toContain("flex:none;");
     expect(html).toContain("flex:1;");
     expect(html).toContain("Zero flex");
     expect(html).toContain("Normal flex");
