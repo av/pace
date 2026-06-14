@@ -87,7 +87,8 @@ a:hover {
 .flex-container,
 .flex-panel,
 .flex-panel > .panel,
-.flex-panel > .panel > .panel-body {
+.flex-panel > .panel > .panel-body,
+.flex-panel > .panel > .counter-panel {
   min-height: 0;
 }
 
@@ -119,7 +120,8 @@ a:hover {
   height: 100%;
 }
 
-.flex-panel > .panel > .panel-body {
+.flex-panel > .panel > .panel-body,
+.flex-panel > .panel > .counter-panel {
   flex: 1;
   overflow-y: auto;
 }
@@ -448,11 +450,6 @@ a:hover {
   height: 100%;
   border: none;
   display: block;
-}
-
-/* Counter panels do not scroll; suppress the fade gradient. */
-.panel:has(.counter-panel)::after {
-  display: none;
 }
 
 .counter-panel {

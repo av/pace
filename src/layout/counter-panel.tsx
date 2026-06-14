@@ -25,6 +25,12 @@ export function parseCounterBody(body: string | null | undefined): CounterBody |
   }
 }
 
+/** Format a divided number with at most one decimal, dropping trailing ".0". */
+function formatAbbreviated(n: number): string {
+  const rounded = Math.round(n * 10) / 10;
+  return rounded % 1 === 0 ? rounded.toFixed(0) : rounded.toFixed(1);
+}
+
 /** Abbreviate large numbers: 1234 -> "1.2k", 1500000 -> "1.5M". */
 export function abbreviateNumber(value: unknown): string {
   if (typeof value !== "number" || !Number.isFinite(value)) {
@@ -35,12 +41,15 @@ export function abbreviateNumber(value: unknown): string {
   const sign = value < 0 ? "-" : "";
 
   if (abs >= 1_000_000) {
-    const abbreviated = abs / 1_000_000;
-    return `${sign}${abbreviated % 1 === 0 ? abbreviated.toFixed(0) : abbreviated.toFixed(1)}M`;
+    return `${sign}${formatAbbreviated(abs / 1_000_000)}M`;
   }
   if (abs >= 10_000) {
-    const abbreviated = abs / 1_000;
-    return `${sign}${abbreviated % 1 === 0 ? abbreviated.toFixed(0) : abbreviated.toFixed(1)}k`;
+    // If rounding to 1 decimal in "k" would produce >= 1000k, promote to M
+    const inK = Math.round(abs / 100) / 10;
+    if (inK >= 1000) {
+      return `${sign}${formatAbbreviated(abs / 1_000_000)}M`;
+    }
+    return `${sign}${formatAbbreviated(abs / 1_000)}k`;
   }
 
   return String(value);

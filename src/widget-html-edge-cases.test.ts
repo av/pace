@@ -449,8 +449,8 @@ describe("CounterPanel HTML edge cases", () => {
     });
 
     it("handles 999999 (just below 1M threshold)", () => {
-      // 999999 / 1000 = 999.999, toFixed(1) produces "1000.0k"
-      expect(abbreviateNumber(999999)).toBe("1000.0k");
+      // 999999 rounds to 1000k, which promotes to "1M"
+      expect(abbreviateNumber(999999)).toBe("1M");
     });
 
     it("handles 1000000 (exact 1M threshold)", () => {
