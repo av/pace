@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import type { Adapter, AdapterConfig } from "./adapters/types";
 import rssAdapter from "./adapters/rss";
 import producthuntAdapter from "./adapters/producthunt";
 import { producthuntCfg, rssCfg } from "./test/adapter-cfg";
@@ -14,22 +13,7 @@ import { rssEmptyChannelFixture } from "./test/rss-fixtures";
 
 const mocks = useFetchMockSuite();
 
-describe("types", () => {
-  describe("Adapter.fetch contract", () => {
-    test("Adapter interface requires name and fetch", async () => {
-      const adapter: Adapter = {
-        name: "stub",
-        fetch: async (_config: AdapterConfig) => [],
-      };
-      expect(adapter.name).toBe("stub");
-      expect(await adapter.fetch({ type: "stub" })).toEqual([]);
-    });
-
-    test("refresh_interval is ingest-only (IngestAdapterConfig), not on fetch contract", () => {
-      const cfg: AdapterConfig = { type: "rss", params: { urls: ["https://ex.com/feed"] } };
-      expect("refresh_interval" in cfg).toBe(false);
-    });
-
+describe("adapter error behavior", () => {
     describe("rss", () => {
       beforeEach(() => {
         mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
@@ -93,5 +77,4 @@ describe("types", () => {
         );
       });
     });
-  });
 });

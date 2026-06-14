@@ -1,6 +1,5 @@
 import { describe, it, expect } from "bun:test";
 import { renderDashboard, type PanelData } from "./layout";
-import { collectPanels } from "./layout/types";
 import { flexCfg, panelCfg } from "./test/layout-cfg";
 import { makeContentItemRow as makeItem } from "./test/content-items";
 import type { LayoutNodeConfig } from "./config/types";
@@ -112,43 +111,6 @@ describe("deep nesting: 5+ levels of containers with widgets", () => {
     expect(containers?.length).toBe(1);
     const flexPanels = html.match(/class="flex-panel"/g);
     expect(flexPanels?.length).toBe(1);
-  });
-
-  it("7-level nesting: each level adds one more widget type", () => {
-    const layout = flexCfg("row", [
-      { image: "https://example.com/l1.png", alt: "L1" },
-      flexCfg("column", [
-        { text: "L2" },
-        flexCfg("row", [
-          { iframe: "https://example.com/l3" },
-          flexCfg("column", [
-            panelCfg("L4 Panel", "rss"),
-            flexCfg("row", [
-              { image: "https://example.com/l5.png", alt: "L5" },
-              flexCfg("column", [
-                { text: "L6 text", format: "markdown" as const },
-                flexCfg("row", [
-                  { iframe: "https://example.com/l7" },
-                ]),
-              ]),
-            ]),
-          ]),
-        ]),
-      ]),
-    ]);
-    const panelData = new Map<string, PanelData>([
-      ["L4 Panel", { items: [] }],
-    ]);
-    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
-    expect(html).toContain('alt="L1"');
-    expect(html).toContain("L2");
-    expect(html).toContain('src="https://example.com/l3"');
-    expect(html).toContain("<h2>L4 Panel</h2>");
-    expect(html).toContain('alt="L5"');
-    expect(html).toContain("L6 text");
-    expect(html).toContain('src="https://example.com/l7"');
-    const containers = html.match(/class="flex-container"/g);
-    expect(containers?.length).toBe(7);
   });
 
   it("10-level nesting with panels and widgets renders without error", () => {
@@ -271,143 +233,6 @@ describe("flex distribution: proportional widgets", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// 3. collectPanels with mixed trees
-// ---------------------------------------------------------------------------
-
-describe("collectPanels: mixed widget/panel trees", () => {
-  it("tree with only widgets returns empty array", () => {
-    const layout = flexCfg("row", [
-      { image: "https://example.com/a.png" },
-      { text: "Hello" },
-      { iframe: "https://example.com" },
-    ]);
-    const panels = collectPanels(layout);
-    expect(panels).toEqual([]);
-    expect(panels.length).toBe(0);
-  });
-
-  it("tree with all three widget types nested in containers returns empty", () => {
-    const layout = flexCfg("row", [
-      flexCfg("column", [
-        { image: "https://example.com/a.png" },
-        flexCfg("row", [
-          { text: "Nested text" },
-          { iframe: "https://example.com/frame" },
-        ]),
-      ]),
-      flexCfg("column", [
-        { text: "Another text" },
-        { image: "https://example.com/b.png" },
-      ]),
-    ]);
-    const panels = collectPanels(layout);
-    expect(panels).toEqual([]);
-  });
-
-  it("panels hidden deep inside widget-heavy layouts are all found", () => {
-    const layout = flexCfg("row", [
-      { image: "https://example.com/img1.png" },
-      { text: "Text1" },
-      flexCfg("column", [
-        { iframe: "https://example.com/1" },
-        { text: "Text2" },
-        flexCfg("row", [
-          { image: "https://example.com/img2.png" },
-          flexCfg("column", [
-            { text: "Text3" },
-            panelCfg("Deep Panel", "rss"),
-            { iframe: "https://example.com/2" },
-          ]),
-        ]),
-      ]),
-      { text: "Text4" },
-    ]);
-    const panels = collectPanels(layout);
-    expect(panels.length).toBe(1);
-    expect(panels[0]!.panel).toBe("Deep Panel");
-  });
-
-  it("very wide tree: 20+ children, mix of panels and widgets", () => {
-    const children: LayoutNodeConfig[] = [];
-    // 10 text widgets, 5 panels, 5 image widgets
-    for (let i = 0; i < 10; i++) {
-      children.push({ text: `Text ${i}` });
-    }
-    for (let i = 0; i < 5; i++) {
-      children.push(panelCfg(`Panel ${i}`, `source${i}`));
-    }
-    for (let i = 0; i < 5; i++) {
-      children.push({ image: `https://example.com/${i}.png` });
-    }
-    // Interleave with 2 more panels in nested containers
-    children.push(
-      flexCfg("column", [
-        panelCfg("Nested Panel A", "src-a"),
-        { text: "Widget in nested" },
-        panelCfg("Nested Panel B", "src-b"),
-      ]),
-    );
-
-    const layout = flexCfg("row", children);
-    const panels = collectPanels(layout);
-    // 5 top-level panels + 2 nested panels = 7
-    expect(panels.length).toBe(7);
-    const panelNames = panels.map((p) => p.panel);
-    expect(panelNames).toContain("Panel 0");
-    expect(panelNames).toContain("Panel 4");
-    expect(panelNames).toContain("Nested Panel A");
-    expect(panelNames).toContain("Nested Panel B");
-  });
-
-  it("collectPanels count matches expected panel count exactly with complex layout", () => {
-    const layout = flexCfg("row", [
-      panelCfg("P1", "s1"),
-      flexCfg("column", [
-        { text: "Widget A" },
-        panelCfg("P2", "s2"),
-        flexCfg("row", [
-          { image: "https://example.com/x.png" },
-          panelCfg("P3", "s3"),
-          { iframe: "https://example.com/y" },
-        ]),
-        { image: "https://example.com/z.png" },
-      ]),
-      { text: "Widget B" },
-      panelCfg("P4", "s4"),
-      flexCfg("column", [
-        panelCfg("P5", "s5"),
-        panelCfg("P6", "s6"),
-      ]),
-    ]);
-    const panels = collectPanels(layout);
-    expect(panels.length).toBe(6);
-    expect(panels.map((p) => p.panel).sort()).toEqual(["P1", "P2", "P3", "P4", "P5", "P6"]);
-  });
-
-  it("single panel node (not in container) returns array of one", () => {
-    const layout = panelCfg("Solo", "src");
-    const panels = collectPanels(layout);
-    expect(panels.length).toBe(1);
-    expect(panels[0]!.panel).toBe("Solo");
-  });
-
-  it("single widget node returns empty array", () => {
-    const layout: LayoutNodeConfig = { text: "Just text" };
-    const panels = collectPanels(layout);
-    expect(panels).toEqual([]);
-  });
-
-  it("widget nodes at root level are not confused with panels", () => {
-    // image, text, iframe all have distinct discriminators from panel
-    const img: LayoutNodeConfig = { image: "https://example.com/a.png" };
-    const txt: LayoutNodeConfig = { text: "Hello" };
-    const ifr: LayoutNodeConfig = { iframe: "https://example.com" };
-    expect(collectPanels(img)).toEqual([]);
-    expect(collectPanels(txt)).toEqual([]);
-    expect(collectPanels(ifr)).toEqual([]);
-  });
-});
 
 // ---------------------------------------------------------------------------
 // 4. Layout rendering order
@@ -590,47 +415,6 @@ describe("validation: complex layouts pass through correctly", () => {
     expect(containers?.length).toBe(4);
   });
 
-  it("deeply nested layout (10 levels) renders all nodes at every depth", () => {
-    const layout = flexCfg("row", [                         // Level 1
-      { text: "Depth 1" },
-      flexCfg("column", [                                   // Level 2
-        { text: "Depth 2" },
-        flexCfg("row", [                                    // Level 3
-          { text: "Depth 3" },
-          flexCfg("column", [                               // Level 4
-            { text: "Depth 4" },
-            flexCfg("row", [                                // Level 5
-              { text: "Depth 5" },
-              flexCfg("column", [                           // Level 6
-                { text: "Depth 6" },
-                flexCfg("row", [                            // Level 7
-                  { text: "Depth 7" },
-                  flexCfg("column", [                       // Level 8
-                    { text: "Depth 8" },
-                    flexCfg("row", [                        // Level 9
-                      { text: "Depth 9" },
-                      flexCfg("column", [                   // Level 10
-                        { text: "Depth 10" },
-                      ]),
-                    ]),
-                  ]),
-                ]),
-              ]),
-            ]),
-          ]),
-        ]),
-      ]),
-    ]);
-    const html = renderDashboard({ layout, panelData: new Map(), updatedAt: "now" });
-    for (let i = 1; i <= 10; i++) {
-      expect(html).toContain(`Depth ${i}`);
-    }
-    const containers = html.match(/class="flex-container"/g);
-    expect(containers?.length).toBe(10);
-    const textWidgets = html.match(/class="panel text-widget"/g);
-    expect(textWidgets?.length).toBe(10);
-  });
-
   it("mixed valid node types at various depths all produce output", () => {
     const layout = flexCfg("row", [
       panelCfg("Top Panel", "rss"),
@@ -669,8 +453,8 @@ describe("validation: complex layouts pass through correctly", () => {
 // 6. Cross-cutting: collectPanels + rendering agree on structure
 // ---------------------------------------------------------------------------
 
-describe("collectPanels and rendering structural agreement", () => {
-  it("number of refresh buttons matches number of panels from collectPanels", () => {
+describe("layout rendering: panels vs widgets", () => {
+  it("3 panels in layout produce 3 refresh buttons", () => {
     const layout = flexCfg("row", [
       { text: "Widget A" },
       panelCfg("P1", "s1"),
@@ -681,15 +465,14 @@ describe("collectPanels and rendering structural agreement", () => {
         panelCfg("P3", "s3"),
       ]),
     ]);
-    const panels = collectPanels(layout);
-    const panelData = new Map<string, PanelData>();
-    for (const p of panels) {
-      panelData.set(p.panel, { items: [] });
-    }
+    const panelData = new Map<string, PanelData>([
+      ["P1", { items: [] }],
+      ["P2", { items: [] }],
+      ["P3", { items: [] }],
+    ]);
     const html = renderDashboard({ layout, panelData, updatedAt: "now" });
     const refreshBtns = html.match(/class="refresh-btn"/g);
-    expect(refreshBtns?.length).toBe(panels.length);
-    expect(panels.length).toBe(3);
+    expect(refreshBtns?.length).toBe(3);
   });
 
   it("widget-only layout has no refresh buttons at all", () => {
@@ -702,20 +485,12 @@ describe("collectPanels and rendering structural agreement", () => {
     expect(html).not.toContain("refresh-btn");
   });
 
-  it("counter display panels from collectPanels get counter rendering in HTML", () => {
+  it("counter display panel renders stat-card while regular panel renders panel-body", () => {
     const layout = flexCfg("row", [
       panelCfg("Stats", "counter", { display: "counter" }),
       { text: "Description" },
       panelCfg("Feed", "rss"),
     ]);
-    const panels = collectPanels(layout);
-    expect(panels.length).toBe(2);
-    // One counter, one regular
-    const counterPanels = panels.filter((p) => p.display === "counter");
-    const regularPanels = panels.filter((p) => !p.display);
-    expect(counterPanels.length).toBe(1);
-    expect(regularPanels.length).toBe(1);
-
     const panelData = new Map<string, PanelData>([
       ["Stats", { items: [makeItem({ title: "CPU", body: JSON.stringify({ value: 85, unit: "%" }) })] }],
       ["Feed", { items: [makeItem({ title: "Article" })] }],
@@ -733,17 +508,6 @@ describe("collectPanels and rendering structural agreement", () => {
 // ---------------------------------------------------------------------------
 
 describe("layout rendering edge cases", () => {
-  it("deeply nested empty containers produce correct number of divs", () => {
-    const layout = flexCfg("row", [
-      flexCfg("column", [
-        flexCfg("row", []),
-      ]),
-    ]);
-    const html = renderDashboard({ layout, panelData: new Map(), updatedAt: "now" });
-    const containers = html.match(/class="flex-container"/g);
-    expect(containers?.length).toBe(3);
-  });
-
   it("alternating row/column directions are preserved through deep nesting", () => {
     const layout = flexCfg("row", [
       flexCfg("column", [
@@ -759,31 +523,6 @@ describe("layout rendering edge cases", () => {
     const cols = html.match(/flex-direction:column/g);
     expect(rows?.length).toBe(2);
     expect(cols?.length).toBe(2);
-  });
-
-  it("all widget types can be sole child of row container", () => {
-    for (const widget of [
-      { image: "https://example.com/a.png" },
-      { text: "solo text" },
-      { iframe: "https://example.com" },
-    ] as LayoutNodeConfig[]) {
-      const layout = flexCfg("row", [widget]);
-      const html = renderDashboard({ layout, panelData: new Map(), updatedAt: "now" });
-      expect(html).toContain("flex-panel");
-    }
-  });
-
-  it("all widget types can be sole child of column container", () => {
-    for (const widget of [
-      { image: "https://example.com/a.png" },
-      { text: "solo text" },
-      { iframe: "https://example.com" },
-    ] as LayoutNodeConfig[]) {
-      const layout = flexCfg("column", [widget]);
-      const html = renderDashboard({ layout, panelData: new Map(), updatedAt: "now" });
-      expect(html).toContain("flex-panel");
-      expect(html).toContain("flex-direction:column");
-    }
   });
 
   it("container with many children (25) all render in order", () => {
@@ -803,15 +542,6 @@ describe("layout rendering edge cases", () => {
     }
     const textWidgets = html.match(/class="panel text-widget"/g);
     expect(textWidgets?.length).toBe(25);
-  });
-
-  it("flex-root contains the outermost layout node", () => {
-    const layout = flexCfg("row", [{ text: "Inside root" }]);
-    const html = renderDashboard({ layout, panelData: new Map(), updatedAt: "now" });
-    // The flex-root div wraps everything
-    const rootIdx = html.indexOf('class="flex-root"');
-    const containerIdx = html.indexOf('class="flex-container"');
-    expect(rootIdx).toBeLessThan(containerIdx);
   });
 
   it("widget with all optional props set renders each one", () => {

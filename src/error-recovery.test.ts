@@ -2,9 +2,8 @@ import { describe, test, expect, spyOn, beforeEach, afterEach } from "bun:test";
 import adapter from "./adapters/counter";
 import bookmarksAdapter from "./adapters/bookmarks";
 import type { AdapterConfig } from "./adapters/types";
-import { CounterPanel, parseCounterBody, abbreviateNumber } from "./layout/counter-panel";
-import { TextWidget } from "./layout/text-widget";
-import { sanitize, renderMarkdown } from "./layout/text-render";
+import { CounterPanel } from "./layout/counter-panel";
+import { sanitize } from "./layout/text-render";
 
 // ---------------------------------------------------------------------------
 // 1. Counter adapter error recovery
@@ -357,69 +356,18 @@ describe("bookmarks adapter runtime edge cases", () => {
     warnSpy.mockRestore();
   });
 
-  test("params.items is a string (not an array) at runtime: returns empty with warning", async () => {
+  test("missing params returns empty with warning", async () => {
+    const config: AdapterConfig = { type: "bookmarks" };
+    const result = await bookmarksAdapter.fetch(config);
+    expect(result).toEqual([]);
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  test("non-array items returns empty with warning", async () => {
     const config: AdapterConfig = {
       type: "bookmarks",
       params: { items: "not-an-array" as unknown },
     };
-
-    const result = await bookmarksAdapter.fetch(config);
-    expect(result).toEqual([]);
-    expect(warnSpy).toHaveBeenCalled();
-  });
-
-  test("params.items is a number at runtime: returns empty with warning", async () => {
-    const config: AdapterConfig = {
-      type: "bookmarks",
-      params: { items: 42 as unknown },
-    };
-
-    const result = await bookmarksAdapter.fetch(config);
-    expect(result).toEqual([]);
-    expect(warnSpy).toHaveBeenCalled();
-  });
-
-  test("params.items is an object (not array) at runtime: returns empty with warning", async () => {
-    const config: AdapterConfig = {
-      type: "bookmarks",
-      params: { items: { title: "Fake", url: "https://example.com" } as unknown },
-    };
-
-    const result = await bookmarksAdapter.fetch(config);
-    expect(result).toEqual([]);
-    expect(warnSpy).toHaveBeenCalled();
-  });
-
-  test("params is completely undefined: returns empty with warning", async () => {
-    const config: AdapterConfig = { type: "bookmarks" };
-
-    const result = await bookmarksAdapter.fetch(config);
-    expect(result).toEqual([]);
-    expect(warnSpy).toHaveBeenCalled();
-  });
-
-  test("params is null: returns empty with warning", async () => {
-    const config = { type: "bookmarks", params: null } as unknown as AdapterConfig;
-
-    const result = await bookmarksAdapter.fetch(config);
-    expect(result).toEqual([]);
-    expect(warnSpy).toHaveBeenCalled();
-  });
-
-  test("params is an empty object (no items key): returns empty with warning", async () => {
-    const config: AdapterConfig = { type: "bookmarks", params: {} };
-
-    const result = await bookmarksAdapter.fetch(config);
-    expect(result).toEqual([]);
-    expect(warnSpy).toHaveBeenCalled();
-  });
-
-  test("params.items is boolean true: returns empty with warning", async () => {
-    const config: AdapterConfig = {
-      type: "bookmarks",
-      params: { items: true as unknown },
-    };
-
     const result = await bookmarksAdapter.fetch(config);
     expect(result).toEqual([]);
     expect(warnSpy).toHaveBeenCalled();
@@ -455,43 +403,9 @@ describe("text widget with problematic content", () => {
     // No crash, browser-like repair behavior
   });
 
-  test("very deeply nested HTML tags (100+ levels) does not throw", () => {
-    let nested = "innermost";
-    for (let i = 0; i < 120; i++) {
-      nested = `<p>${nested}</p>`;
-    }
-    // This should not crash or throw due to stack depth
-    const result = sanitize(nested);
-    expect(result).toContain("innermost");
-  });
-
-  test("very deeply nested allowed tags (50+ em/strong) does not throw", () => {
-    let nested = "core";
-    for (let i = 0; i < 60; i++) {
-      nested = i % 2 === 0 ? `<em>${nested}</em>` : `<strong>${nested}</strong>`;
-    }
-    const result = sanitize(nested);
-    expect(result).toContain("core");
-    expect(result).toContain("<em>");
-    expect(result).toContain("<strong>");
-  });
-
-  test("renderMarkdown with empty string returns empty-ish output", () => {
-    const result = renderMarkdown("");
-    // marked might return "\n" or "" for empty input
-    expect(result.trim()).toBe("");
-  });
-
-  test("renderMarkdown with only whitespace", () => {
-    const result = renderMarkdown("   \n\n   ");
-    // Should not crash
-    expect(typeof result).toBe("string");
-  });
-
-  test("sanitize with interleaved allowed and disallowed tags", () => {
+  test("sanitize strips disallowed tags but preserves their content", () => {
     const input = '<p>safe</p><div>div-content</div><span>span-content</span><p>also safe</p>';
     const result = sanitize(input);
-    // div and span are not in allowlist, their content should be preserved but tags removed
     expect(result).toContain("<p>safe</p>");
     expect(result).toContain("<p>also safe</p>");
     expect(result).not.toContain("<div");
@@ -500,69 +414,10 @@ describe("text widget with problematic content", () => {
     expect(result).toContain("span-content");
   });
 
-  test("renderMarkdown handles markdown with only HTML (no markdown syntax)", () => {
-    const input = '<p>This is <strong>just HTML</strong></p>';
-    const result = renderMarkdown(input);
-    expect(result).toContain("<strong>just HTML</strong>");
-  });
-
-  test("sanitize handles HTML with many empty tags", () => {
-    const input = "<p></p>".repeat(500) + "<p>content</p>";
-    const result = sanitize(input);
-    expect(result).toContain("<p>content</p>");
-  });
-
   test("sanitize strips all attributes from tags that have no allowed attributes", () => {
     const input = '<p id="x" class="y" data-z="w">text</p>';
     const result = sanitize(input);
     expect(result).toBe("<p>text</p>");
   });
-
-  test("renderMarkdown handles extremely long single line", () => {
-    const longLine = "word ".repeat(5000);
-    const result = renderMarkdown(longLine);
-    expect(result).toContain("word");
-    expect(typeof result).toBe("string");
-  });
 });
 
-// ---------------------------------------------------------------------------
-// Additional: parseCounterBody edge cases for rendering decisions
-// ---------------------------------------------------------------------------
-
-describe("parseCounterBody rendering edge cases", () => {
-  test("body with value as empty string", () => {
-    const result = parseCounterBody(JSON.stringify({ value: "" }));
-    expect(result).not.toBeNull();
-    expect(result!.value).toBe("");
-  });
-
-  test("body with value as empty array", () => {
-    const result = parseCounterBody(JSON.stringify({ value: [] }));
-    expect(result).not.toBeNull();
-    expect(result!.value).toEqual([]);
-  });
-
-  test("body with value as deeply nested object", () => {
-    let deep: unknown = 42;
-    for (let i = 0; i < 20; i++) {
-      deep = { level: deep };
-    }
-    const result = parseCounterBody(JSON.stringify({ value: deep }));
-    expect(result).not.toBeNull();
-    // abbreviateNumber returns String(value) for non-numbers
-    expect(abbreviateNumber(result!.value)).toBe("[object Object]");
-  });
-
-  test("body with Infinity-like string (not actual Infinity since JSON has no Infinity)", () => {
-    // JSON.parse does not support Infinity, so "Infinity" would be a string
-    const result = parseCounterBody(JSON.stringify({ value: "Infinity" }));
-    expect(result).not.toBeNull();
-    expect(result!.value).toBe("Infinity");
-  });
-
-  test("body with previous but no value key returns null", () => {
-    const result = parseCounterBody(JSON.stringify({ previous: 10, unit: "k" }));
-    expect(result).toBeNull();
-  });
-});

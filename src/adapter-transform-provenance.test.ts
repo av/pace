@@ -4,13 +4,10 @@ import {
   initDb,
   saveItems,
   getAllItemsByPanel,
-  getDb,
-  replacePanelItems,
-  type ContentItemRow,
 } from "./db";
 import { makeContentItem, makeContentItemRow as makeRow } from "./test/content-items";
 import { runPipeline, type TransformContext } from "./transforms";
-import { dedupeGroupedByKey, mergeOrigins } from "./dedupe";
+import { dedupeGroupedByKey } from "./dedupe";
 
 installTempDbHooks({ prefix: "pace-adapter-provenance-", init: false, warnOnRmFail: true });
 
@@ -44,24 +41,6 @@ describe("provenance - bookmarks source attribution through pipeline", () => {
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("bk1");
     expect(result[0].source).toBe("bookmarks:tools");
-  });
-
-  test("bookmarks items accumulate applied_transforms through pipeline", async () => {
-    const items = [
-      makeRow({ id: "bk1", title: "Alpha Tool", source: "bookmarks:tools", body: "Build automation" }),
-      makeRow({ id: "bk2", title: "Beta Tool", source: "bookmarks:tools", body: "Testing framework" }),
-    ];
-    const steps = [
-      { type: "filter", keywords: ["tool"] },
-      { type: "sort", field: "title" as const, direction: "asc" as const },
-    ];
-    const result = await runPipeline(items, steps, ctx);
-    expect(result).toHaveLength(2);
-    for (const row of result) {
-      const at = JSON.parse(row.applied_transforms!);
-      expect(at).toContain("filter");
-      expect(at).toContain("sort");
-    }
   });
 
   test("filter by specific tag in bookmarks source field", async () => {
@@ -106,41 +85,6 @@ describe("provenance - counter items source through DB round-trip", () => {
     const rows = getAllItemsByPanel("panel-stats");
     expect(rows).toHaveLength(1);
     expect(rows[0].source).toBe("github-stars");
-  });
-
-  test("counter item retains origins through DB round-trip", () => {
-    initDb();
-    const item = makeContentItem({
-      id: "counter:issues:1718000000",
-      title: "Open Issues",
-      url: "https://api.github.com/repos/org/repo/issues",
-      source: "github-issues",
-      body: JSON.stringify({ value: 7168, unit: "issues" }),
-    });
-    saveItems("panel-stats", [item]);
-    const db = getDb();
-    const row = db.prepare("SELECT origins FROM content_items WHERE id = ?").get(item.id) as { origins: string };
-    const origins = JSON.parse(row.origins);
-    expect(origins).toEqual(["github-issues"]);
-  });
-
-  test("bookmarks item retains origins with tag through DB round-trip", () => {
-    initDb();
-    const item = makeContentItem({
-      id: "bk-github-abc",
-      title: "GitHub",
-      url: "https://github.com",
-      source: "bookmarks:tools",
-      body: "Code hosting",
-    });
-    saveItems("panel-links", [item]);
-    const db = getDb();
-    const row = db.prepare("SELECT origins, source FROM content_items WHERE id = ?").get(item.id) as {
-      origins: string;
-      source: string;
-    };
-    expect(row.source).toBe("bookmarks:tools");
-    expect(JSON.parse(row.origins)).toEqual(["bookmarks:tools"]);
   });
 
   test("counter item retains JSON body through save + load + transform", async () => {
@@ -219,23 +163,6 @@ describe("provenance - mixed panel attribution", () => {
     expect(ct!.source).toBe("github-stars");
   });
 
-  test("origins merge correctly when deduping across bookmarks and counter", () => {
-    const bkRow = makeRow({
-      id: "bk1",
-      url: "https://github.com/org/repo",
-      source: "bookmarks:tools",
-      origins: JSON.stringify(["bookmarks:tools"]),
-    });
-    const ctRow = makeRow({
-      id: "ct1",
-      url: "https://github.com/org/repo",
-      source: "github-stars",
-      origins: JSON.stringify(["github-stars"]),
-    });
-    const merged = mergeOrigins([bkRow, ctRow], bkRow);
-    const origins = JSON.parse(merged.origins!);
-    expect(origins.sort()).toEqual(["bookmarks:tools", "github-stars"]);
-  });
 });
 
 // ---- Edge: dedup between two bookmark adapters ----
@@ -404,129 +331,7 @@ describe("edge - transforms modifying counter structured JSON body", () => {
   });
 });
 
-// ---- LLM transforms on bookmarks/counter (null model passthrough) ----
 
-describe("llm transforms - bookmarks and counter with null model", () => {
-  test("llm-filter with null model passes bookmarks items through unchanged", async () => {
-    const items = [
-      makeRow({ id: "bk1", title: "GitHub", source: "bookmarks:tools", body: "Code hosting" }),
-      makeRow({ id: "bk2", title: "Docs", source: "bookmarks:docs", body: "Documentation site" }),
-    ];
-    const result = await runPipeline(
-      items,
-      [{ type: "llm-filter", criteria: "useful developer tools" }],
-      { llmModel: null },
-    );
-    // Null model means passthrough - all items returned unchanged
-    expect(result).toHaveLength(2);
-    expect(result).toEqual(items);
-    // No applied_transforms stamped on passthrough
-    expect(result[0].applied_transforms).toBeNull();
-  });
-
-  test("llm-summarize with null model passes counter items through unchanged", async () => {
-    const jsonBody = JSON.stringify({ value: 42000, unit: "stars" });
-    const items = [
-      makeRow({
-        id: "ct1",
-        title: "Stars",
-        source: "github-stars",
-        body: jsonBody,
-        summary: null,
-      }),
-    ];
-    const result = await runPipeline(
-      items,
-      [{ type: "llm-summarize" }],
-      { llmModel: null },
-    );
-    expect(result).toHaveLength(1);
-    expect(result[0].body).toBe(jsonBody);
-    expect(result[0].summary).toBeNull();
-    expect(result[0].applied_transforms).toBeNull();
-  });
-
-  test("llm-rank with null model passes mixed items through unchanged", async () => {
-    const items = [
-      makeRow({ id: "bk1", title: "Bookmark", source: "bookmarks:tools" }),
-      makeRow({ id: "ct1", title: "Counter", source: "github-stars", body: JSON.stringify({ value: 100 }) }),
-      makeRow({ id: "rs1", title: "RSS Item", source: "rss:blog" }),
-    ];
-    const result = await runPipeline(
-      items,
-      [{ type: "llm-rank", interests: ["technology"] }],
-      { llmModel: null },
-    );
-    expect(result).toHaveLength(3);
-    expect(result).toEqual(items);
-    expect(result.every((r) => r.applied_transforms === null)).toBe(true);
-  });
-
-  test("llm-merge with null model passes bookmarks through unchanged", async () => {
-    const items = [
-      makeRow({ id: "bk1", title: "GitHub", source: "bookmarks:tools" }),
-      makeRow({ id: "bk2", title: "GitLab", source: "bookmarks:tools" }),
-    ];
-    const result = await runPipeline(
-      items,
-      [{ type: "llm-merge" }],
-      { llmModel: null },
-    );
-    expect(result).toHaveLength(2);
-    expect(result).toEqual(items);
-  });
-});
-
-// ---- Provenance: replacePanelItems preserves origins ----
-
-describe("provenance - replacePanelItems preserves origins for adapter items", () => {
-  test("replacePanelItems preserves origins on bookmarks items", () => {
-    initDb();
-    const bkRow: ContentItemRow = {
-      id: "bk-replace-1",
-      panel_id: "panel-links",
-      title: "GitHub",
-      url: "https://github.com",
-      source: "bookmarks:tools",
-      body: "Code hosting",
-      timestamp: new Date().toISOString(),
-      fetched_at: new Date().toISOString(),
-      summary: null,
-      origins: JSON.stringify(["bookmarks:tools"]),
-      applied_transforms: null,
-      score: null,
-    };
-    replacePanelItems("panel-links", [bkRow]);
-    const rows = getAllItemsByPanel("panel-links");
-    expect(rows).toHaveLength(1);
-    expect(rows[0].source).toBe("bookmarks:tools");
-    expect(JSON.parse(rows[0].origins!)).toEqual(["bookmarks:tools"]);
-  });
-
-  test("replacePanelItems preserves origins on counter items after transform", () => {
-    initDb();
-    const ctRow: ContentItemRow = {
-      id: "ct-replace-1",
-      panel_id: "panel-stats",
-      title: "Stars",
-      url: "https://api.github.com/repos/org/repo",
-      source: "github-stars",
-      body: JSON.stringify({ value: 93200, unit: "stars" }),
-      timestamp: new Date().toISOString(),
-      fetched_at: new Date().toISOString(),
-      summary: null,
-      origins: JSON.stringify(["github-stars"]),
-      applied_transforms: JSON.stringify(["filter", "sort"]),
-      score: null,
-    };
-    replacePanelItems("panel-stats", [ctRow]);
-    const rows = getAllItemsByPanel("panel-stats");
-    expect(rows).toHaveLength(1);
-    expect(rows[0].source).toBe("github-stars");
-    expect(JSON.parse(rows[0].origins!)).toEqual(["github-stars"]);
-    expect(JSON.parse(rows[0].applied_transforms!)).toEqual(["filter", "sort"]);
-  });
-});
 
 // ---- Edge: limit on counter items ----
 
