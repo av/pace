@@ -16,7 +16,31 @@ export interface PanelConfig {
   limit?: number;
 }
 
-export type LayoutNodeConfig = FlexContainerConfig | PanelConfig;
+export interface ImageWidgetConfig {
+  image: string;
+  flex?: number;
+  alt?: string;
+  link?: string;
+}
+
+export interface TextWidgetConfig {
+  text: string;
+  flex?: number;
+}
+
+export interface IframeWidgetConfig {
+  iframe: string;
+  flex?: number;
+  title?: string;
+  sandbox?: string;
+}
+
+export type LayoutNodeConfig =
+  | FlexContainerConfig
+  | PanelConfig
+  | ImageWidgetConfig
+  | TextWidgetConfig
+  | IframeWidgetConfig;
 
 export type SourceValue = string | string[] | SourceConfig | SourceConfig[];
 
@@ -38,6 +62,18 @@ export function isContainer(node: unknown): node is FlexContainerConfig {
   return isRecord(node) && "direction" in node && "children" in node;
 }
 
+export function isImageWidget(node: unknown): node is ImageWidgetConfig {
+  return isRecord(node) && "image" in node;
+}
+
+export function isTextWidget(node: unknown): node is TextWidgetConfig {
+  return isRecord(node) && "text" in node;
+}
+
+export function isIframe(node: unknown): node is IframeWidgetConfig {
+  return isRecord(node) && "iframe" in node;
+}
+
 export function normalizeSource(source: SourceValue): SourceConfig[] {
   if (typeof source === "string") {
     return [{ adapter: source }];
@@ -53,7 +89,7 @@ export function normalizeSource(source: SourceValue): SourceConfig[] {
 export function collectPanels(node: LayoutNodeConfig): PanelConfig[] {
   if (isPanel(node)) return [node];
   if (isContainer(node)) return node.children.flatMap(collectPanels);
-  throw new Error("config: layout node is invalid");
+  return [];
 }
 
 export function resolvePanelId(panel: PanelConfig): string {

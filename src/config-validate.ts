@@ -87,28 +87,85 @@ function validateLayoutContainer(node: Record<string, unknown>, path: string): v
   node.children.forEach((child, index) => validateLayoutNode(child, `${path}.children[${index}]`));
 }
 
+const LOCALHOST_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+export function validateSafeUrl(url: unknown, path: string): void {
+  if (typeof url !== "string" || url.length === 0) {
+    throw new Error(`config: ${path} must be a non-empty URL string`);
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error(`config: ${path} is not a valid URL`);
+  }
+  if (parsed.protocol === "https:") return;
+  if (parsed.protocol === "http:" && LOCALHOST_HOSTS.has(parsed.hostname)) return;
+  throw new Error(`config: ${path} has disallowed scheme "${parsed.protocol.replace(/:$/, "")}"`);
+}
+
+function validateImageWidget(node: Record<string, unknown>, path: string): void {
+  validateAllowedKeys(node, ["image", "flex", "alt", "link"], (key) =>
+    `${path}.${key} is not a valid image widget field`,
+  );
+  validateNonEmptyString(node.image, `${path}.image`);
+  validateOptionalPositiveNumber(node.flex, `${path}.flex`);
+  validateOptionalNonEmptyString(node.alt, `${path}.alt`);
+  if (node.link !== undefined) {
+    validateSafeUrl(node.link, `${path}.link`);
+  }
+}
+
+function validateTextWidget(node: Record<string, unknown>, path: string): void {
+  validateAllowedKeys(node, ["text", "flex"], (key) =>
+    `${path}.${key} is not a valid text widget field`,
+  );
+  validateNonEmptyString(node.text, `${path}.text`);
+  validateOptionalPositiveNumber(node.flex, `${path}.flex`);
+}
+
+function validateIframeWidget(node: Record<string, unknown>, path: string): void {
+  validateAllowedKeys(node, ["iframe", "flex", "title", "sandbox"], (key) =>
+    `${path}.${key} is not a valid iframe widget field`,
+  );
+  validateSafeUrl(node.iframe, `${path}.iframe`);
+  validateOptionalPositiveNumber(node.flex, `${path}.flex`);
+  validateOptionalNonEmptyString(node.title, `${path}.title`);
+  validateOptionalNonEmptyString(node.sandbox, `${path}.sandbox`);
+}
+
+const LAYOUT_DISCRIMINATORS = ["panel", "direction", "image", "text", "iframe"] as const;
+
 function validateLayoutNode(node: unknown, path = "layout"): asserts node is LayoutNodeConfig {
   if (!isRecord(node)) {
     throw new Error(`config: ${path} must be a layout node object`);
   }
 
-  const hasPanel = "panel" in node;
-  const hasContainer = "direction" in node || "children" in node;
-
-  if (hasPanel && hasContainer) {
-    throw new Error(`config: ${path} cannot be both a panel and a container`);
+  const found = LAYOUT_DISCRIMINATORS.filter((k) => k in node);
+  if (found.length === 0) {
+    throw new Error(`config: ${path} must define one of: panel, direction, image, text, iframe`);
+  }
+  if (found.length > 1) {
+    throw new Error(`config: ${path} has conflicting keys: ${found.join(", ")}`);
   }
 
-  if (hasPanel) {
-    validatePanel(node, path);
-    return;
+  switch (found[0]) {
+    case "panel":
+      validatePanel(node, path);
+      return;
+    case "direction":
+      validateLayoutContainer(node, path);
+      return;
+    case "image":
+      validateImageWidget(node, path);
+      return;
+    case "text":
+      validateTextWidget(node, path);
+      return;
+    case "iframe":
+      validateIframeWidget(node, path);
+      return;
   }
-
-  if (!hasContainer) {
-    throw new Error(`config: ${path} must define either panel or direction/children`);
-  }
-
-  validateLayoutContainer(node, path);
 }
 
 function validatePanelNames(panels: PanelConfig[]): void {

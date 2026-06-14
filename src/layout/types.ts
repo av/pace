@@ -7,12 +7,15 @@ export type { Adapter, AdapterConfig, ContentItem, ContentItemFields } from "../
 export type {
   DashboardPanel,
   FlexContainerConfig,
+  IframeWidgetConfig,
+  ImageWidgetConfig,
   LayoutDirection,
   LayoutNodeConfig,
   LayoutRuntimeMaps,
   PanelConfig,
   SourceConfig,
   SourceValue,
+  TextWidgetConfig,
 } from "./domain";
 
 export {
@@ -21,8 +24,11 @@ export {
   buildLayoutRuntimeMaps,
   collectPanels,
   isContainer,
+  isIframe,
+  isImageWidget,
   isPanel,
   isRecord,
+  isTextWidget,
   normalizeSource,
   resolvePanelId,
   resolvePanelRefreshSourceNames,
