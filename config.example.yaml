@@ -99,7 +99,7 @@ adapters:
   #     limit: 25
   #     min_score: 50
   #   refresh_interval: 15
-  #   Note: public unauth .json now returns 403 (upstream); see facts for reddit adapter status.
+  #   # Note: public unauth .json now returns 403 (upstream); see facts for reddit adapter status.
 
   # - type: lemmy            # works without credentials - good reddit replacement
   #   params:
