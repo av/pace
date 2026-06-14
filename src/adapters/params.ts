@@ -18,6 +18,7 @@ export const ADAPTER_PARAM_KEYS = {
   lemmy: ["instance", "communities", "sort", "limit", "min_score"],
   wikipedia: ["modes", "mode", "language", "limit"],
   bookmarks: ["items"],
+  counter: ["url", "json_path", "label", "unit", "compare_url", "compare_path", "headers"],
 } as const satisfies Readonly<Record<string, readonly string[]>>;
 
 export type AdapterType = keyof typeof ADAPTER_PARAM_KEYS;

@@ -36,6 +36,7 @@ const SOURCE_COLORS: Record<string, string> = {
   devto: "src-devto",
   "dev.to": "src-devto",
   bookmarks: "src-bookmarks",
+  counter: "src-counter",
 };
 
 function sourceColorClass(source: string): string {

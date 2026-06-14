@@ -1,0 +1,675 @@
+import { describe, test, expect, spyOn, beforeEach, afterEach, mock } from "bun:test";
+import { resolveJsonPath, parseJsonPath, interpolateEnvVars } from "./adapters/counter";
+import adapter from "./adapters/counter";
+import type { AdapterConfig } from "./adapters/types";
+import { abbreviateNumber } from "./layout/counter-panel";
+
+describe("counter adapter", () => {
+  describe("resolveJsonPath", () => {
+    test("resolves simple dot notation", () => {
+      const obj = { foo: { bar: { baz: 42 } } };
+      expect(resolveJsonPath(obj, "foo.bar.baz")).toBe(42);
+    });
+
+    test("resolves top-level key", () => {
+      const obj = { stargazers_count: 12345 };
+      expect(resolveJsonPath(obj, "stargazers_count")).toBe(12345);
+    });
+
+    test("resolves bracket array access", () => {
+      const obj = { data: [10, 20, 30] };
+      expect(resolveJsonPath(obj, "data[1]")).toBe(20);
+    });
+
+    test("resolves mixed dot and bracket notation", () => {
+      const obj = { data: { metrics: [{ value: 99 }] } };
+      expect(resolveJsonPath(obj, "data.metrics[0].value")).toBe(99);
+    });
+
+    test("resolves nested array access", () => {
+      const obj = { a: [[1, 2], [3, 4]] };
+      expect(resolveJsonPath(obj, "a[1][0]")).toBe(3);
+    });
+
+    test("throws on path not found (missing key)", () => {
+      const obj = { foo: { bar: 1 } };
+      expect(() => resolveJsonPath(obj, "foo.baz")).toThrow(/path "foo.baz" not found/);
+    });
+
+    test("throws on path not found (traversing non-object)", () => {
+      const obj = { foo: 42 };
+      expect(() => resolveJsonPath(obj, "foo.bar")).toThrow(/cannot traverse/);
+    });
+
+    test("throws on array index out of bounds", () => {
+      const obj = { arr: [1, 2] };
+      expect(() => resolveJsonPath(obj, "arr[5]")).toThrow(/out of bounds/);
+    });
+
+    test("throws when expecting array but got object", () => {
+      const obj = { data: { notArray: true } };
+      expect(() => resolveJsonPath(obj, "data[0]")).toThrow(/expected array/);
+    });
+
+    test("resolves string values", () => {
+      const obj = { status: "UP" };
+      expect(resolveJsonPath(obj, "status")).toBe("UP");
+    });
+
+    test("resolves null values", () => {
+      const obj = { value: null };
+      expect(resolveJsonPath(obj, "value")).toBe(null);
+    });
+
+    test("resolves boolean values", () => {
+      const obj = { active: true };
+      expect(resolveJsonPath(obj, "active")).toBe(true);
+    });
+  });
+
+  describe("parseJsonPath", () => {
+    test("parses simple dot notation", () => {
+      expect(parseJsonPath("foo.bar.baz")).toEqual(["foo", "bar", "baz"]);
+    });
+
+    test("parses bracket notation", () => {
+      expect(parseJsonPath("arr[0]")).toEqual(["arr", 0]);
+    });
+
+    test("parses mixed notation", () => {
+      expect(parseJsonPath("data.metrics[0].value")).toEqual(["data", "metrics", 0, "value"]);
+    });
+
+    test("parses single key", () => {
+      expect(parseJsonPath("count")).toEqual(["count"]);
+    });
+
+    test("throws on malformed bracket (unclosed)", () => {
+      expect(() => parseJsonPath("arr[0")).toThrow(/unclosed bracket/);
+    });
+
+    test("throws on invalid array index", () => {
+      expect(() => parseJsonPath("arr[-1]")).toThrow(/invalid array index/);
+    });
+  });
+
+  describe("interpolateEnvVars", () => {
+    const originalEnv = { ...process.env };
+
+    afterEach(() => {
+      // Restore env
+      for (const key of Object.keys(process.env)) {
+        if (!(key in originalEnv)) {
+          delete process.env[key];
+        }
+      }
+    });
+
+    test("interpolates a single env var", () => {
+      process.env.TEST_COUNTER_TOKEN = "abc123";
+      expect(interpolateEnvVars("Bearer ${TEST_COUNTER_TOKEN}")).toBe("Bearer abc123");
+    });
+
+    test("interpolates multiple env vars", () => {
+      process.env.TEST_HOST = "example.com";
+      process.env.TEST_PORT = "8080";
+      expect(interpolateEnvVars("${TEST_HOST}:${TEST_PORT}")).toBe("example.com:8080");
+    });
+
+    test("replaces missing env vars with empty string", () => {
+      expect(interpolateEnvVars("key=${DEFINITELY_NOT_SET_COUNTER_TEST}")).toBe("key=");
+    });
+
+    test("returns string unchanged when no env vars", () => {
+      expect(interpolateEnvVars("plain string")).toBe("plain string");
+    });
+  });
+
+  describe("adapter fetch", () => {
+    let warnSpy: ReturnType<typeof spyOn>;
+    let fetchSpy: ReturnType<typeof spyOn>;
+
+    beforeEach(() => {
+      warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      warnSpy.mockRestore();
+      if (fetchSpy) fetchSpy.mockRestore();
+    });
+
+    test("adapter name is counter", () => {
+      expect(adapter.name).toBe("counter");
+    });
+
+    test("returns one ContentItem with correct mapping", async () => {
+      fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
+        new Response(JSON.stringify({ stargazers_count: 42000 }), { status: 200 }),
+      );
+
+      const config: AdapterConfig & { name?: string } = {
+        type: "counter",
+        params: {
+          url: "https://api.github.com/repos/test/repo",
+          json_path: "stargazers_count",
+          label: "Stars",
+          unit: "k",
+        },
+      };
+
+      const result = await adapter.fetch(config);
+      expect(result).toHaveLength(1);
+
+      const item = result[0];
+      expect(item.title).toBe("Stars");
+      expect(item.url).toBe("https://api.github.com/repos/test/repo");
+      expect(item.id).toMatch(/^counter:counter:\d+$/);
+
+      const body = JSON.parse(item.body!);
+      expect(body.value).toBe(42000);
+      expect(body.unit).toBe("k");
+    });
+
+    test("uses adapter name for label fallback", async () => {
+      fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
+        new Response(JSON.stringify({ value: 10 }), { status: 200 }),
+      );
+
+      const config: AdapterConfig = {
+        type: "counter",
+        params: {
+          url: "https://example.com/api",
+          json_path: "value",
+        },
+      };
+
+      const result = await adapter.fetch(config);
+      expect(result[0].title).toBe("counter");
+    });
+
+    test("includes previous value from compare_url", async () => {
+      fetchSpy = spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ current: 50 }), { status: 200 }),
+        )
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ current: 38 }), { status: 200 }),
+        );
+
+      const config: AdapterConfig = {
+        type: "counter",
+        params: {
+          url: "https://example.com/api",
+          json_path: "current",
+          compare_url: "https://example.com/api?period=previous",
+          compare_path: "current",
+        },
+      };
+
+      const result = await adapter.fetch(config);
+      const body = JSON.parse(result[0].body!);
+      expect(body.value).toBe(50);
+      expect(body.previous).toBe(38);
+    });
+
+    test("continues without previous when compare_url fails", async () => {
+      fetchSpy = spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ value: 100 }), { status: 200 }),
+        )
+        .mockRejectedValueOnce(new Error("network error"));
+
+      const config: AdapterConfig = {
+        type: "counter",
+        params: {
+          url: "https://example.com/api",
+          json_path: "value",
+          compare_url: "https://example.com/api?old",
+        },
+      };
+
+      const result = await adapter.fetch(config);
+      expect(result).toHaveLength(1);
+      const body = JSON.parse(result[0].body!);
+      expect(body.value).toBe(100);
+      expect(body.previous).toBeUndefined();
+      expect(warnSpy).toHaveBeenCalled();
+    });
+
+    test("throws on missing url param", async () => {
+      const config: AdapterConfig = {
+        type: "counter",
+        params: { json_path: "value" },
+      };
+      await expect(adapter.fetch(config)).rejects.toThrow(/url is required/);
+    });
+
+    test("throws on missing json_path param", async () => {
+      const config: AdapterConfig = {
+        type: "counter",
+        params: { url: "https://example.com/api" },
+      };
+
+      fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
+        new Response(JSON.stringify({ value: 1 }), { status: 200 }),
+      );
+
+      await expect(adapter.fetch(config)).rejects.toThrow(/json_path is required/);
+    });
+
+    test("throws on non-200 status", async () => {
+      fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
+        new Response("Not Found", { status: 404 }),
+      );
+
+      const config: AdapterConfig = {
+        type: "counter",
+        params: {
+          url: "https://example.com/api",
+          json_path: "value",
+        },
+      };
+
+      await expect(adapter.fetch(config)).rejects.toThrow(/failed to fetch/);
+    });
+
+    test("throws on network error", async () => {
+      fetchSpy = spyOn(globalThis, "fetch").mockRejectedValueOnce(new Error("DNS failure"));
+
+      const config: AdapterConfig = {
+        type: "counter",
+        params: {
+          url: "https://example.com/api",
+          json_path: "value",
+        },
+      };
+
+      await expect(adapter.fetch(config)).rejects.toThrow(/error fetching/);
+    });
+
+    test("throws on invalid JSON response", async () => {
+      fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
+        new Response("not json!", { status: 200 }),
+      );
+
+      const config: AdapterConfig = {
+        type: "counter",
+        params: {
+          url: "https://example.com/api",
+          json_path: "value",
+        },
+      };
+
+      await expect(adapter.fetch(config)).rejects.toThrow(/error reading/);
+    });
+
+    test("throws on path not found in response", async () => {
+      fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
+        new Response(JSON.stringify({ other: 1 }), { status: 200 }),
+      );
+
+      const config: AdapterConfig = {
+        type: "counter",
+        params: {
+          url: "https://example.com/api",
+          json_path: "missing.path",
+        },
+      };
+
+      await expect(adapter.fetch(config)).rejects.toThrow(/path "missing.path" not found/);
+    });
+
+    test("stores non-numeric values as-is", async () => {
+      fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
+        new Response(JSON.stringify({ status: "UP" }), { status: 200 }),
+      );
+
+      const config: AdapterConfig = {
+        type: "counter",
+        params: {
+          url: "https://example.com/api",
+          json_path: "status",
+        },
+      };
+
+      const result = await adapter.fetch(config);
+      const body = JSON.parse(result[0].body!);
+      expect(body.value).toBe("UP");
+    });
+
+    test("uses json_path as default compare_path", async () => {
+      fetchSpy = spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ rate: 5.2 }), { status: 200 }),
+        )
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ rate: 4.8 }), { status: 200 }),
+        );
+
+      const config: AdapterConfig = {
+        type: "counter",
+        params: {
+          url: "https://example.com/api",
+          json_path: "rate",
+          compare_url: "https://example.com/api?old",
+          // no compare_path - should default to json_path
+        },
+      };
+
+      const result = await adapter.fetch(config);
+      const body = JSON.parse(result[0].body!);
+      expect(body.previous).toBe(4.8);
+    });
+
+    test("omits unit from body when not specified", async () => {
+      fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
+        new Response(JSON.stringify({ count: 7 }), { status: 200 }),
+      );
+
+      const config: AdapterConfig = {
+        type: "counter",
+        params: {
+          url: "https://example.com/api",
+          json_path: "count",
+        },
+      };
+
+      const result = await adapter.fetch(config);
+      const body = JSON.parse(result[0].body!);
+      expect(body.unit).toBeUndefined();
+    });
+  });
+});
+
+describe("counter panel rendering", () => {
+  describe("abbreviateNumber", () => {
+    test("abbreviates millions", () => {
+      expect(abbreviateNumber(1500000)).toBe("1.5M");
+      expect(abbreviateNumber(2000000)).toBe("2M");
+    });
+
+    test("abbreviates tens of thousands", () => {
+      expect(abbreviateNumber(42000)).toBe("42k");
+      expect(abbreviateNumber(10500)).toBe("10.5k");
+    });
+
+    test("does not abbreviate small numbers", () => {
+      expect(abbreviateNumber(9999)).toBe("9999");
+      expect(abbreviateNumber(100)).toBe("100");
+      expect(abbreviateNumber(0)).toBe("0");
+    });
+
+    test("handles exact boundaries", () => {
+      expect(abbreviateNumber(10000)).toBe("10k");
+      expect(abbreviateNumber(1000000)).toBe("1M");
+    });
+
+    test("handles negative numbers", () => {
+      expect(abbreviateNumber(-15000)).toBe("-15k");
+      expect(abbreviateNumber(-2000000)).toBe("-2M");
+    });
+
+    test("returns string representation for non-numbers", () => {
+      expect(abbreviateNumber("UP")).toBe("UP");
+      expect(abbreviateNumber(true)).toBe("true");
+      expect(abbreviateNumber(null)).toBe("null");
+    });
+
+    test("handles NaN and Infinity", () => {
+      expect(abbreviateNumber(NaN)).toBe("NaN");
+      expect(abbreviateNumber(Infinity)).toBe("Infinity");
+    });
+  });
+});
+
+describe("counter config validation", () => {
+  // These tests use loadConfig to validate counter adapter params and panel display
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const os = require("node:os");
+  const { loadConfig } = require("./config");
+
+  let tmpDir: string;
+  let configPath: string;
+
+  function setConfig(yaml: string): void {
+    fs.writeFileSync(configPath, yaml);
+  }
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pace-counter-"));
+    configPath = path.join(tmpDir, "config.yaml");
+    process.env.PACE_CONFIG = configPath;
+  });
+
+  afterEach(() => {
+    delete process.env.PACE_CONFIG;
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  test("accepts valid counter adapter config", () => {
+    const yaml = `
+adapters:
+  - type: counter
+    params:
+      url: https://api.github.com/repos/oven-sh/bun
+      json_path: stargazers_count
+      label: "Bun Stars"
+layout:
+  panel: Stars
+  display: counter
+  source:
+    - adapter: counter
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).not.toThrow();
+  });
+
+  test("accepts counter adapter with all params", () => {
+    const yaml = `
+adapters:
+  - type: counter
+    params:
+      url: https://api.github.com/repos/oven-sh/bun
+      json_path: stargazers_count
+      label: "Stars"
+      unit: "k"
+      compare_url: https://api.github.com/repos/oven-sh/bun
+      compare_path: forks_count
+      headers:
+        Authorization: "Bearer token"
+layout:
+  panel: Stats
+  display: counter
+  source:
+    - adapter: counter
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).not.toThrow();
+  });
+
+  test("rejects counter adapter without url", () => {
+    const yaml = `
+adapters:
+  - type: counter
+    params:
+      json_path: value
+layout:
+  panel: Stats
+  source:
+    - adapter: counter
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(/url is required for counter adapter/);
+  });
+
+  test("rejects counter adapter without json_path", () => {
+    const yaml = `
+adapters:
+  - type: counter
+    params:
+      url: https://example.com/api
+layout:
+  panel: Stats
+  source:
+    - adapter: counter
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(/json_path is required for counter adapter/);
+  });
+
+  test("rejects counter adapter with invalid url scheme", () => {
+    const yaml = `
+adapters:
+  - type: counter
+    params:
+      url: ftp://example.com/data
+      json_path: value
+layout:
+  panel: Stats
+  source:
+    - adapter: counter
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(/disallowed scheme/);
+  });
+
+  test("rejects counter adapter with invalid json_path format", () => {
+    const yaml = `
+adapters:
+  - type: counter
+    params:
+      url: https://example.com/api
+      json_path: "$.foo.bar"
+layout:
+  panel: Stats
+  source:
+    - adapter: counter
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(/valid dot-notation path/);
+  });
+
+  test("rejects counter adapter with non-object headers", () => {
+    const yaml = `
+adapters:
+  - type: counter
+    params:
+      url: https://example.com/api
+      json_path: value
+      headers: "not an object"
+layout:
+  panel: Stats
+  source:
+    - adapter: counter
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(/headers must be an object/);
+  });
+
+  test("rejects counter adapter with non-string header value", () => {
+    const yaml = `
+adapters:
+  - type: counter
+    params:
+      url: https://example.com/api
+      json_path: value
+      headers:
+        X-Value: 42
+layout:
+  panel: Stats
+  source:
+    - adapter: counter
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(/headers.X-Value must be a string/);
+  });
+
+  test("rejects counter adapter with unknown param", () => {
+    const yaml = `
+adapters:
+  - type: counter
+    params:
+      url: https://example.com/api
+      json_path: value
+      bogus: true
+layout:
+  panel: Stats
+  source:
+    - adapter: counter
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(/not a valid counter param/);
+  });
+
+  test("accepts panel with display: counter", () => {
+    const yaml = `
+adapters:
+  - type: hackernews
+layout:
+  panel: Quick Stats
+  display: counter
+  source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).not.toThrow();
+  });
+
+  test("rejects panel with invalid display value", () => {
+    const yaml = `
+adapters:
+  - type: hackernews
+layout:
+  panel: Quick Stats
+  display: sparkline
+  source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(/display must be one of/);
+  });
+
+  test("accepts panel without display field", () => {
+    const yaml = `
+adapters:
+  - type: hackernews
+layout:
+  panel: News
+  source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).not.toThrow();
+  });
+
+  test("accepts counter adapter with http://localhost url", () => {
+    const yaml = `
+adapters:
+  - type: counter
+    params:
+      url: http://localhost:9090/metrics
+      json_path: data.current
+layout:
+  panel: Stats
+  source:
+    - adapter: counter
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).not.toThrow();
+  });
+
+  test("accepts counter adapter with compare_url on localhost", () => {
+    const yaml = `
+adapters:
+  - type: counter
+    params:
+      url: https://example.com/api
+      json_path: value
+      compare_url: http://localhost:3000/api/previous
+layout:
+  panel: Stats
+  source:
+    - adapter: counter
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).not.toThrow();
+  });
+});

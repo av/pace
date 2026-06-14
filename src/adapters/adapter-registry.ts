@@ -3,6 +3,7 @@ import { ADAPTER_TYPES } from "./params";
 import type { Adapter } from "./types";
 import arxivAdapter from "./arxiv";
 import bookmarksAdapter from "./bookmarks";
+import counterAdapter from "./counter";
 import devtoAdapter from "./devto";
 import githubAdapter from "./github";
 import { githubReleasesAdapter } from "./github-shared";
@@ -24,6 +25,7 @@ import youtubeAdapter from "./youtube";
 export const BUILTIN_ADAPTER_MODULES: Readonly<Record<AdapterType, Adapter>> = {
   arxiv: arxivAdapter,
   bookmarks: bookmarksAdapter,
+  counter: counterAdapter,
   devto: devtoAdapter,
   github: githubAdapter,
   "github-releases": githubReleasesAdapter,

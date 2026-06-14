@@ -554,6 +554,47 @@ params:
     },
   },
 
+  counter: {
+    summary: "Fetches a JSON endpoint and extracts a numeric value for stat-card display.",
+    example: `type: counter
+params:
+  url: https://api.github.com/repos/oven-sh/bun
+  json_path: stargazers_count
+  label: "Bun Stars"`,
+    params: {
+      url: {
+        type: "string",
+        required: true,
+        description: "JSON endpoint URL (https or http://localhost).",
+      },
+      json_path: {
+        type: "string",
+        required: true,
+        description: "Dot-notation path to the value in the JSON response (e.g. data.metrics[0].value).",
+      },
+      label: {
+        type: "string",
+        description: "Display label for the stat card. Defaults to adapter name.",
+      },
+      unit: {
+        type: "string",
+        description: 'Unit suffix shown after the value (e.g. "%", "ms", "k").',
+      },
+      compare_url: {
+        type: "string",
+        description: "Endpoint for previous/comparison value (for trend arrows).",
+      },
+      compare_path: {
+        type: "string",
+        description: "Dot-notation path into comparison response. Defaults to json_path.",
+      },
+      headers: {
+        type: "object",
+        description: 'HTTP headers. Supports ${ENV_VAR} interpolation (e.g. "Bearer ${TOKEN}").',
+      },
+    },
+  },
+
   wikipedia: {
     summary: "Fetches featured content from Wikipedia.",
     example: `type: wikipedia

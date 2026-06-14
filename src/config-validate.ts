@@ -29,6 +29,38 @@ import {
   validateUniqueStrings,
 } from "./validate-primitives";
 
+const JSON_PATH_RE = /^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*|\[\d+\])*$/;
+
+function validateCounterParams(params: Record<string, unknown>, path: string): void {
+  if (!params.url) {
+    throw new Error(`config: ${path}.params.url is required for counter adapter`);
+  }
+  validateSafeUrl(params.url, `${path}.params.url`);
+
+  if (!params.json_path) {
+    throw new Error(`config: ${path}.params.json_path is required for counter adapter`);
+  }
+  validateNonEmptyString(params.json_path, `${path}.params.json_path`);
+  if (typeof params.json_path === "string" && !JSON_PATH_RE.test(params.json_path)) {
+    throw new Error(`config: ${path}.params.json_path must be a valid dot-notation path`);
+  }
+
+  if (params.compare_url !== undefined) {
+    validateSafeUrl(params.compare_url, `${path}.params.compare_url`);
+  }
+
+  if (params.headers !== undefined) {
+    if (!isRecord(params.headers)) {
+      throw new Error(`config: ${path}.params.headers must be an object`);
+    }
+    for (const [key, value] of Object.entries(params.headers)) {
+      if (typeof value !== "string") {
+        throw new Error(`config: ${path}.params.headers.${key} must be a string`);
+      }
+    }
+  }
+}
+
 function validateNestedParams(type: string, params: unknown, path: string): void {
   if (params === undefined) return;
   if (!isRecord(params)) {
@@ -37,6 +69,10 @@ function validateNestedParams(type: string, params: unknown, path: string): void
   if (!isAdapterType(type)) return;
   const allowed = ADAPTER_PARAM_KEYS[type];
   validateAllowedKeys(params, allowed, (key) => `${path}.params.${key} is not a valid ${type} param`);
+
+  if (type === "counter") {
+    validateCounterParams(params, path);
+  }
 }
 
 function validateSource(source: unknown, path: string): void {
@@ -62,8 +98,10 @@ function validateSource(source: unknown, path: string): void {
   );
 }
 
+const PANEL_DISPLAY_VALUES = ["counter"] as const;
+
 function validatePanel(node: Record<string, unknown>, path: string): void {
-  validateAllowedKeys(node, ["panel", "id", "flex", "source", "limit"], (key) =>
+  validateAllowedKeys(node, ["panel", "id", "flex", "source", "limit", "display"], (key) =>
     `${path}.${key} is not a valid panel field`,
   );
   validateNonEmptyString(node.panel, `${path}.panel`);
@@ -74,6 +112,7 @@ function validatePanel(node: Record<string, unknown>, path: string): void {
   validateOptionalNonEmptyString(node.id, `${path}.id`);
   validateOptionalPositiveNumber(node.flex, `${path}.flex`);
   validateOptionalPositiveInteger(node.limit, `${path}.limit`);
+  validateOptionalEnum(node.display, PANEL_DISPLAY_VALUES, `${path}.display`);
 }
 
 function validateLayoutContainer(node: Record<string, unknown>, path: string): void {

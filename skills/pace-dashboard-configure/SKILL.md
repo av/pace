@@ -396,6 +396,25 @@ Curated bookmark links defined directly in config (no network fetch).
         tags: ["design"]
 ```
 
+### counter
+
+Fetches a JSON endpoint and extracts a numeric value for stat-card display. Use with `display: counter` on panels.
+
+```yaml
+# Authoritative shape: pace adapters explain counter
+- type: counter
+  params:
+    url: https://api.github.com/repos/oven-sh/bun
+    json_path: stargazers_count
+    label: "Bun Stars"
+    # Optional:
+    # unit: "%"
+    # compare_url: https://metrics.internal/api/v1/error_rate?period=previous
+    # compare_path: data.current
+    # headers:
+    #   Authorization: "Bearer ${METRICS_TOKEN}"
+```
+
 ## Transform reference
 
 Transforms run at ingest time on adapter or pipeline results. They apply sequentially in the order listed.

@@ -14,6 +14,7 @@ export interface PanelConfig {
   flex?: number;
   source: SourceValue;
   limit?: number;
+  display?: "counter";
 }
 
 export interface ImageWidgetConfig {
