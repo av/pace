@@ -145,7 +145,7 @@ const adapter: Adapter = {
     const item: ContentItem = {
       id: `counter:${adapterName}:${now}`,
       title: label,
-      url: url,
+      url: "",
       source: adapterName,
       timestamp: new Date(now),
       body: JSON.stringify(bodyObj),

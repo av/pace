@@ -382,22 +382,27 @@ export function checkConfig(
 
   const { adapters, pipelines, layout } = validateParsedConfig(parsed, DEFAULT_LAYOUT);
 
-  // Count panels in layout
-  function countPanels(node: unknown): number {
-    if (!isRecord(node)) return 0;
-    if ("panel" in node) return 1;
+  // Count panels and widgets in layout
+  function countLayoutNodes(node: unknown): { panels: number; widgets: number } {
+    if (!isRecord(node)) return { panels: 0, widgets: 0 };
+    if ("panel" in node) return { panels: 1, widgets: 0 };
+    if ("image" in node || "text" in node || "iframe" in node) return { panels: 0, widgets: 1 };
     if ("children" in node && Array.isArray(node.children)) {
-      return (node.children as unknown[]).reduce<number>(
-        (sum, child) => sum + countPanels(child),
-        0,
+      return (node.children as unknown[]).reduce<{ panels: number; widgets: number }>(
+        (acc, child) => {
+          const c = countLayoutNodes(child);
+          return { panels: acc.panels + c.panels, widgets: acc.widgets + c.widgets };
+        },
+        { panels: 0, widgets: 0 },
       );
     }
-    return 0;
+    return { panels: 0, widgets: 0 };
   }
 
-  const panelCount = countPanels(layout);
+  const counts = countLayoutNodes(layout);
   const pipelineCount = pipelines?.length ?? 0;
-  return `config OK: ${adapters.length} adapters, ${pipelineCount} pipelines, ${panelCount} panels`;
+  const widgetSuffix = counts.widgets > 0 ? `, ${counts.widgets} widgets` : "";
+  return `config OK: ${adapters.length} adapters, ${pipelineCount} pipelines, ${counts.panels} panels${widgetSuffix}`;
 }
 
 // ---------------------------------------------------------------------------

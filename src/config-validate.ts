@@ -1,4 +1,4 @@
-import { ADAPTER_PARAM_KEYS, isAdapterType } from "./adapters/params";
+import { ADAPTER_PARAM_KEYS, ADAPTER_TYPES, isAdapterType } from "./adapters/params";
 import {
   collectPanels,
   isRecord,
@@ -29,6 +29,45 @@ import {
   validateUniqueStringList,
   validateUniqueStrings,
 } from "./validate-primitives";
+
+/** Common adapter type misspellings mapped to the correct type. */
+const ADAPTER_TYPE_SUGGESTIONS: Record<string, string> = {
+  bookmark: "bookmarks",
+  book: "bookmarks",
+  links: "bookmarks",
+  count: "counter",
+  counters: "counter",
+  stat: "counter",
+  stats: "counter",
+  hn: "hackernews",
+  "hacker-news": "hackernews",
+  feed: "rss",
+  atom: "rss",
+  gh: "github",
+  "gh-releases": "github-releases",
+  so: "stackexchange",
+  stackoverflow: "stackexchange",
+  stack: "stackexchange",
+  yt: "youtube",
+  video: "youtube",
+  wiki: "wikipedia",
+  ph: "producthunt",
+  "product-hunt": "producthunt",
+  pod: "podcast",
+  podcasts: "podcast",
+};
+
+/** Find the closest known adapter type for a misspelled type string. */
+function findClosestAdapterType(input: string): string | null {
+  const lower = input.toLowerCase();
+  // Check hardcoded suggestions first
+  if (ADAPTER_TYPE_SUGGESTIONS[lower]) return ADAPTER_TYPE_SUGGESTIONS[lower];
+  // Check if input is a substring of any adapter type or vice versa
+  for (const type of ADAPTER_TYPES) {
+    if (type.includes(lower) || lower.includes(type)) return type;
+  }
+  return null;
+}
 
 const JSON_PATH_RE = /^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*|\[\d+\])*$/;
 const DANGEROUS_PATH_SEGMENTS = new Set(["__proto__", "constructor", "prototype"]);
@@ -526,6 +565,11 @@ export function validateAdapterConfig(adapter: unknown, index: number): asserts 
     `${path}.${key} is not a valid adapter field`,
   );
   validateNonEmptyString(adapter.type, `${path}.type`);
+  if (typeof adapter.type === "string" && !isAdapterType(adapter.type)) {
+    const suggestion = findClosestAdapterType(adapter.type);
+    const hint = suggestion ? `; did you mean "${suggestion}"?` : "";
+    warnConfig(`${path}.type "${adapter.type}" is not a known adapter type${hint}`);
+  }
   validateOptionalNonEmptyString(adapter.name, `${path}.name`);
   validateNestedParams(adapter.type as string, adapter.params, path);
   validateOptionalPositiveNumber(adapter.refresh_interval, `${path}.refresh_interval`);

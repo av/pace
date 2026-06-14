@@ -208,7 +208,7 @@ describe("counter adapter", () => {
 
       const item = result[0];
       expect(item.title).toBe("Stars");
-      expect(item.url).toBe("https://api.github.com/repos/test/repo");
+      expect(item.url).toBe("");
       expect(item.id).toMatch(/^counter:counter:\d+$/);
 
       const body = JSON.parse(item.body!);
