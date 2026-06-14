@@ -707,12 +707,14 @@ describe("text-render additional edge cases", () => {
     expect(result).toContain('alt="alt text"');
   });
 
-  it("sanitize strips disallowed tags (div, span, table) but keeps content", () => {
+  it("sanitize strips disallowed tags (div, span) but keeps table and content", () => {
     const input = "<div><span>hello</span></div><table><tr><td>cell</td></tr></table>";
     const result = sanitize(input);
     expect(result).not.toContain("<div");
     expect(result).not.toContain("<span");
-    expect(result).not.toContain("<table");
+    expect(result).toContain("<table");
+    expect(result).toContain("<tr");
+    expect(result).toContain("<td");
     expect(result).toContain("hello");
     expect(result).toContain("cell");
   });

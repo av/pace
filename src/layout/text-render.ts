@@ -7,6 +7,7 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
     "h1", "h2", "h3", "h4", "h5", "h6",
     "pre", "blockquote", "details", "summary", "img",
     "br", "hr",
+    "table", "thead", "tbody", "tr", "th", "td",
   ],
   allowedAttributes: {
     a: ["href", "target", "rel"],
@@ -25,4 +26,19 @@ export function sanitize(html: string): string {
 export function renderMarkdown(text: string): string {
   const raw = marked.parse(text, { gfm: true, async: false }) as string;
   return sanitize(raw);
+}
+
+/** Escape HTML special characters. */
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/** Render plain text as HTML: escape special chars and convert newlines to <br>. */
+export function renderPlain(text: string): string {
+  return escapeHtml(text).replace(/\n/g, "<br>");
 }

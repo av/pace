@@ -6,7 +6,7 @@ import { sanitize, renderMarkdown } from "./layout/text-render";
 // =============================================================================
 describe("complex markdown content", () => {
   describe("GFM tables", () => {
-    test("table tags are stripped but all cell content is preserved", () => {
+    test("table tags are preserved with all cell content", () => {
       const md = [
         "| Name | Age | City |",
         "|------|-----|------|",
@@ -15,13 +15,12 @@ describe("complex markdown content", () => {
         "| Charlie | 35 | CHI |",
       ].join("\n");
       const result = renderMarkdown(md);
-      expect(result).not.toContain("<table");
-      expect(result).not.toContain("<thead");
-      expect(result).not.toContain("<tbody");
-      expect(result).not.toContain("<tr");
-      expect(result).not.toContain("<td");
-      expect(result).not.toContain("<th");
-      // All cell values preserved as text
+      expect(result).toContain("<table");
+      expect(result).toContain("<thead");
+      expect(result).toContain("<tbody");
+      expect(result).toContain("<tr");
+      expect(result).toContain("<td");
+      expect(result).toContain("<th");
       for (const name of ["Alice", "Bob", "Charlie"]) {
         expect(result).toContain(name);
       }

@@ -136,10 +136,11 @@ describe("text-render", () => {
       expect(result).toContain("<code>");
     });
 
-    test("renders GFM tables as text (tables not in allowlist)", () => {
+    test("renders GFM tables with table markup", () => {
       const result = renderMarkdown("| A | B |\n|---|---|\n| 1 | 2 |");
-      // Table tags are stripped by sanitizer, content remains
-      expect(result).not.toContain("<table");
+      expect(result).toContain("<table");
+      expect(result).toContain("<th");
+      expect(result).toContain("<td");
       expect(result).toContain("A");
       expect(result).toContain("B");
     });
@@ -210,16 +211,15 @@ describe("text-render", () => {
       expect(result).toContain("Text");
     });
 
-    test("renderMarkdown handles GFM table (tags stripped, content preserved)", () => {
+    test("renderMarkdown preserves GFM table structure", () => {
       const md = "| Name | Age |\n|------|-----|\n| Alice | 30 |\n| Bob | 25 |";
       const result = renderMarkdown(md);
-      expect(result).not.toContain("<table");
-      expect(result).not.toContain("<thead");
-      expect(result).not.toContain("<tbody");
-      expect(result).not.toContain("<tr");
-      expect(result).not.toContain("<td");
-      expect(result).not.toContain("<th");
-      // Content should still be present as text
+      expect(result).toContain("<table");
+      expect(result).toContain("<thead");
+      expect(result).toContain("<tbody");
+      expect(result).toContain("<tr");
+      expect(result).toContain("<td");
+      expect(result).toContain("<th");
       expect(result).toContain("Alice");
       expect(result).toContain("Bob");
     });

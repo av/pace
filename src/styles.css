@@ -388,6 +388,28 @@ a:hover {
   text-decoration: underline;
 }
 
+.text-widget-body table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.5em 0;
+}
+
+.text-widget-body th,
+.text-widget-body td {
+  border: 1px solid var(--border);
+  padding: 0.4em 0.75em;
+  text-align: left;
+}
+
+.text-widget-body th {
+  background: var(--bg-base);
+  font-weight: 600;
+}
+
+.text-widget-body tr:nth-child(even) {
+  background: var(--bg-base);
+}
+
 .iframe-panel {
   overflow: hidden;
   flex: 1;

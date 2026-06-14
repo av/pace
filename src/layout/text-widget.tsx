@@ -4,7 +4,7 @@ import type { FC } from "hono/jsx";
 import { raw } from "hono/utils/html";
 import type { TextWidgetConfig } from "./types";
 import { flexStyle } from "./flex-styles";
-import { sanitize, renderMarkdown } from "./text-render";
+import { sanitize, renderMarkdown, renderPlain } from "./text-render";
 
 export const TextWidget: FC<{ node: TextWidgetConfig }> = ({ node }) => {
   const format = node.format ?? "plain";
@@ -18,10 +18,13 @@ export const TextWidget: FC<{ node: TextWidgetConfig }> = ({ node }) => {
           </div>
         )}
         <div class="text-widget-body" tabindex={0} role="region" aria-label={node.title ?? "Text content"}>
-          {format === "plain"
-            ? node.text
-            : raw(format === "markdown" ? renderMarkdown(node.text) : sanitize(node.text))
-          }
+          {raw(
+            format === "plain"
+              ? renderPlain(node.text)
+              : format === "markdown"
+                ? renderMarkdown(node.text)
+                : sanitize(node.text)
+          )}
         </div>
       </div>
     </div>
