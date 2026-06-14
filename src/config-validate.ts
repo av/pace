@@ -48,7 +48,10 @@ function validateCounterParams(params: Record<string, unknown>, path: string): v
   }
   validateNonEmptyString(params.json_path, `${path}.params.json_path`);
   if (typeof params.json_path === "string" && !JSON_PATH_RE.test(params.json_path)) {
-    throw new Error(`config: ${path}.params.json_path must be a valid dot-notation path`);
+    const hint = params.json_path.startsWith("$")
+      ? ' (do not use JSONPath "$." prefix; use plain dot notation like "data.count")'
+      : "";
+    throw new Error(`config: ${path}.params.json_path must be a valid dot-notation path${hint}`);
   }
   if (typeof params.json_path === "string" && containsDangerousSegment(params.json_path)) {
     throw new Error(`config: ${path}.params.json_path contains a disallowed segment`);
@@ -61,7 +64,10 @@ function validateCounterParams(params: Record<string, unknown>, path: string): v
   if (params.compare_path !== undefined) {
     validateNonEmptyString(params.compare_path, `${path}.params.compare_path`);
     if (typeof params.compare_path === "string" && !JSON_PATH_RE.test(params.compare_path)) {
-      throw new Error(`config: ${path}.params.compare_path must be a valid dot-notation path`);
+      const hint = (params.compare_path as string).startsWith("$")
+        ? ' (do not use JSONPath "$." prefix; use plain dot notation like "data.count")'
+        : "";
+      throw new Error(`config: ${path}.params.compare_path must be a valid dot-notation path${hint}`);
     }
     if (typeof params.compare_path === "string" && containsDangerousSegment(params.compare_path)) {
       throw new Error(`config: ${path}.params.compare_path contains a disallowed segment`);
@@ -80,6 +86,28 @@ function validateCounterParams(params: Record<string, unknown>, path: string): v
   }
 }
 
+/** Map of common wrong param key names to the correct key, per adapter type. */
+const ADAPTER_PARAM_SUGGESTIONS: Partial<Record<string, Record<string, string>>> = {
+  counter: {
+    path: "json_path",
+    jsonpath: "json_path",
+    json: "json_path",
+    endpoint: "url",
+    api: "url",
+    api_url: "url",
+    name: "label",
+    title: "label",
+    suffix: "unit",
+  },
+  bookmarks: {
+    links: "items",
+    urls: "items",
+    entries: "items",
+    bookmarks: "items",
+    list: "items",
+  },
+};
+
 function validateNestedParams(type: string, params: unknown, path: string): void {
   if (params === undefined) return;
   if (!isRecord(params)) {
@@ -87,7 +115,14 @@ function validateNestedParams(type: string, params: unknown, path: string): void
   }
   if (!isAdapterType(type)) return;
   const allowed = ADAPTER_PARAM_KEYS[type];
-  validateAllowedKeys(params, allowed, (key) => `${path}.params.${key} is not a valid ${type} param`);
+  const suggestions = ADAPTER_PARAM_SUGGESTIONS[type];
+  validateAllowedKeys(params, allowed, (key) => {
+    const suggestion = suggestions?.[key];
+    if (suggestion) {
+      return `${path}.params.${key} is not a valid ${type} param; did you mean "${suggestion}"?`;
+    }
+    return `${path}.params.${key} is not a valid ${type} param`;
+  });
 
   if (type === "counter") {
     validateCounterParams(params, path);
@@ -166,10 +201,28 @@ export function validateSafeUrl(url: unknown, path: string): void {
 
 const IMAGE_OBJECT_FIT_VALUES = ["cover", "contain", "fill", "none"] as const;
 
+const IMAGE_WIDGET_KEY_SUGGESTIONS: Record<string, string> = {
+  "object-fit": "object_fit",
+  objectfit: "object_fit",
+  objectFit: "object_fit",
+  fit: "object_fit",
+  "max-height": "max_height",
+  maxHeight: "max_height",
+  height: "max_height",
+  src: "image",
+  url: "image",
+  href: "link",
+};
+
 function validateImageWidget(node: Record<string, unknown>, path: string): void {
-  validateAllowedKeys(node, ["image", "flex", "alt", "object_fit", "max_height", "link"], (key) =>
-    `${path}.${key} is not a valid image widget field`,
-  );
+  const allowed = ["image", "flex", "alt", "object_fit", "max_height", "link"];
+  validateAllowedKeys(node, allowed, (key) => {
+    const suggestion = IMAGE_WIDGET_KEY_SUGGESTIONS[key];
+    if (suggestion) {
+      return `${path}.${key} is not a valid image widget field; did you mean "${suggestion}"?`;
+    }
+    return `${path}.${key} is not a valid image widget field`;
+  });
   validateNonEmptyString(node.image, `${path}.image`);
   validateOptionalPositiveNumber(node.flex, `${path}.flex`);
   validateOptionalNonEmptyString(node.alt, `${path}.alt`);
@@ -182,10 +235,23 @@ function validateImageWidget(node: Record<string, unknown>, path: string): void 
 
 const TEXT_FORMAT_VALUES = ["plain", "markdown", "html"] as const;
 
+const TEXT_WIDGET_KEY_SUGGESTIONS: Record<string, string> = {
+  content: "text",
+  body: "text",
+  value: "text",
+  markdown: 'format (use format: markdown instead of markdown: true)',
+  html: 'format (use format: html instead of a separate html key)',
+};
+
 function validateTextWidget(node: Record<string, unknown>, path: string): void {
-  validateAllowedKeys(node, ["text", "format", "title", "flex"], (key) =>
-    `${path}.${key} is not a valid text widget field`,
-  );
+  const allowed = ["text", "format", "title", "flex"];
+  validateAllowedKeys(node, allowed, (key) => {
+    const suggestion = TEXT_WIDGET_KEY_SUGGESTIONS[key];
+    if (suggestion) {
+      return `${path}.${key} is not a valid text widget field; did you mean "${suggestion}"?`;
+    }
+    return `${path}.${key} is not a valid text widget field`;
+  });
   validateNonEmptyString(node.text, `${path}.text`);
   validateOptionalEnum(node.format, TEXT_FORMAT_VALUES, `${path}.format`);
   validateOptionalNonEmptyString(node.title, `${path}.title`);
@@ -225,10 +291,24 @@ export function sanitizeSandboxTokens(value: string, path: string): string {
   return valid.join(" ");
 }
 
+const IFRAME_WIDGET_KEY_SUGGESTIONS: Record<string, string> = {
+  ratio: "aspect_ratio",
+  "aspect-ratio": "aspect_ratio",
+  aspectRatio: "aspect_ratio",
+  url: "iframe",
+  src: "iframe",
+  embed: "iframe",
+};
+
 function validateIframeWidget(node: Record<string, unknown>, path: string): void {
-  validateAllowedKeys(node, ["iframe", "flex", "title", "height", "aspect_ratio", "sandbox", "allow"], (key) =>
-    `${path}.${key} is not a valid iframe widget field`,
-  );
+  const allowed = ["iframe", "flex", "title", "height", "aspect_ratio", "sandbox", "allow"];
+  validateAllowedKeys(node, allowed, (key) => {
+    const suggestion = IFRAME_WIDGET_KEY_SUGGESTIONS[key];
+    if (suggestion) {
+      return `${path}.${key} is not a valid iframe widget field; did you mean "${suggestion}"?`;
+    }
+    return `${path}.${key} is not a valid iframe widget field`;
+  });
   validateSafeUrl(node.iframe, `${path}.iframe`);
   validateOptionalPositiveNumber(node.flex, `${path}.flex`);
   validateOptionalNonEmptyString(node.title, `${path}.title`);
@@ -254,6 +334,27 @@ function validateIframeWidget(node: Record<string, unknown>, path: string): void
 
 const LAYOUT_DISCRIMINATORS = ["panel", "direction", "image", "text", "iframe"] as const;
 
+/**
+ * Map of common wrong key names to the correct discriminator key,
+ * so the error message can suggest what the user probably meant.
+ */
+const LAYOUT_KEY_SUGGESTIONS: Record<string, string> = {
+  img: "image",
+  src: "image",
+  picture: "image",
+  photo: "image",
+  content: "text",
+  body: "text",
+  markdown: "text",
+  html: "text",
+  url: "iframe",
+  embed: "iframe",
+  frame: "iframe",
+  link: "image",
+  ratio: "iframe",
+  aspect_ratio: "iframe",
+};
+
 function validateLayoutNode(node: unknown, path = "layout"): asserts node is LayoutNodeConfig {
   if (!isRecord(node)) {
     throw new Error(`config: ${path} must be a layout node object`);
@@ -261,6 +362,17 @@ function validateLayoutNode(node: unknown, path = "layout"): asserts node is Lay
 
   const found = LAYOUT_DISCRIMINATORS.filter((k) => k in node);
   if (found.length === 0) {
+    // Check for common wrong key names and suggest the correct one
+    const nodeKeys = Object.keys(node);
+    for (const key of nodeKeys) {
+      const suggestion = LAYOUT_KEY_SUGGESTIONS[key];
+      if (suggestion) {
+        throw new Error(
+          `config: ${path} has unknown key "${key}"; did you mean "${suggestion}"? ` +
+          `Layout nodes must use one of: panel, direction, image, text, iframe`,
+        );
+      }
+    }
     throw new Error(`config: ${path} must define one of: panel, direction, image, text, iframe`);
   }
   if (found.length > 1) {
