@@ -1786,5 +1786,233 @@ layout:
         /config: test has disallowed scheme "blob"/,
       );
     });
+
+    test("rejects https:// with no host", () => {
+      // "https://" alone is not a valid URL (no host)
+      expect(() => validateSafeUrl("https://", "test")).toThrow(
+        /config: test is not a valid URL/,
+      );
+    });
+
+    test("accepts https:///path (URL constructor treats 'path' as hostname)", () => {
+      // "https:///path" is parsed by URL as hostname="path", which is valid https
+      expect(() => validateSafeUrl("https:///path", "test")).not.toThrow();
+    });
+
+    test("accepts HTTPS://EXAMPLE.COM (uppercase scheme)", () => {
+      // URL constructor normalizes scheme to lowercase
+      expect(() => validateSafeUrl("HTTPS://EXAMPLE.COM", "test")).not.toThrow();
+    });
+
+    test("accepts https with port", () => {
+      expect(() => validateSafeUrl("https://example.com:8080/path", "test")).not.toThrow();
+    });
+
+    test("accepts https with query string and fragment", () => {
+      expect(() => validateSafeUrl("https://example.com/path?key=value&b=2#section", "test")).not.toThrow();
+    });
+  });
+
+  describe("config validation edge cases", () => {
+    let tmpDir: string;
+    let cfgPath: string;
+    let origEnv: string | undefined;
+
+    beforeEach(() => {
+      origEnv = process.env.PACE_CONFIG;
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pace-cfg-edge-"));
+      cfgPath = path.join(tmpDir, "config.yaml");
+    });
+
+    afterEach(() => {
+      process.env.PACE_CONFIG = origEnv;
+      if (fs.existsSync(cfgPath)) fs.unlinkSync(cfgPath);
+      if (tmpDir && fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    function setConfig(yamlContent: string) {
+      fs.writeFileSync(cfgPath, yamlContent, "utf-8");
+      process.env.PACE_CONFIG = cfgPath;
+    }
+
+    test("rejects node with both image and text keys (mixed discriminators)", () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - image: https://example.com/logo.png
+      text: "Hello"
+`;
+      setConfig(yaml);
+      expect(() => loadConfig()).toThrow(/config: layout.children\[0\] has conflicting keys: image, text/);
+    });
+
+    test("rejects node with panel and image keys (mixed discriminators)", () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - panel: news
+      image: https://example.com/logo.png
+      source: all
+`;
+      setConfig(yaml);
+      expect(() => loadConfig()).toThrow(/config: layout.children\[0\] has conflicting keys: panel, image/);
+    });
+
+    test("rejects empty object {} as layout node (no discriminator)", () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - {}
+`;
+      setConfig(yaml);
+      expect(() => loadConfig()).toThrow(
+        /config: layout.children\[0\] must define one of: panel, direction, image, text, iframe/,
+      );
+    });
+
+    test("accepts widgets as children of a container", () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - direction: column
+      children:
+        - image: https://example.com/logo.png
+        - text: "Hello"
+        - iframe: https://example.com/embed
+`;
+      setConfig(yaml);
+      expect(() => loadConfig()).not.toThrow();
+    });
+
+    test("accepts widgets 3+ levels deep in containers", () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - direction: column
+      children:
+        - direction: row
+          children:
+            - direction: column
+              children:
+                - image: https://example.com/deep.png
+                  alt: "Deep image"
+                - text: "Deeply nested text"
+                  format: markdown
+                - iframe: https://example.com/deep-embed
+                  title: "Deep iframe"
+`;
+      setConfig(yaml);
+      expect(() => loadConfig()).not.toThrow();
+    });
+
+    test("counter adapter with empty headers object is valid", () => {
+      const yaml = `
+adapters:
+  - type: counter
+    params:
+      url: https://api.example.com/count
+      json_path: value
+      headers: {}
+layout:
+  direction: row
+  children:
+    - panel: stats
+      source: counter
+      display: counter
+`;
+      setConfig(yaml);
+      expect(() => loadConfig()).not.toThrow();
+    });
+
+    test("iframe with empty sandbox string is rejected", () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - iframe: https://example.com/embed
+      sandbox: ""
+`;
+      setConfig(yaml);
+      expect(() => loadConfig()).toThrow(
+        /config: layout.children\[0\].sandbox must be a non-empty string/,
+      );
+    });
+
+    test("rejects widget with negative flex value", () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - image: https://example.com/logo.png
+      flex: -1
+`;
+      setConfig(yaml);
+      expect(() => loadConfig()).toThrow(
+        /config: layout.children\[0\].flex must be a positive number/,
+      );
+    });
+
+    test("rejects panel with negative flex value", () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - panel: news
+      source: all
+      flex: -1
+`;
+      setConfig(yaml);
+      expect(() => loadConfig()).toThrow(
+        /config: layout.children\[0\].flex must be a positive number/,
+      );
+    });
+
+    test("rejects text widget with zero flex", () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - text: "Hello"
+      flex: 0
+`;
+      setConfig(yaml);
+      expect(() => loadConfig()).toThrow(
+        /config: layout.children\[0\].flex must be a positive number/,
+      );
+    });
+
+    test("rejects iframe widget with negative flex", () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - iframe: https://example.com/embed
+      flex: -0.5
+`;
+      setConfig(yaml);
+      expect(() => loadConfig()).toThrow(
+        /config: layout.children\[0\].flex must be a positive number/,
+      );
+    });
+
+    test("rejects node with direction and iframe keys (mixed discriminators)", () => {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - direction: column
+      iframe: https://example.com/embed
+      children: []
+`;
+      setConfig(yaml);
+      expect(() => loadConfig()).toThrow(/config: layout.children\[0\] has conflicting keys: direction, iframe/);
+    });
   });
 });
