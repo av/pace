@@ -228,4 +228,134 @@ describe("bookmarks adapter", () => {
     expect(result[0].source).toBe("bookmarks");
     expect(result[1].source).toBe("bookmarks");
   });
+
+  // --- Edge case tests ---
+
+  test("extremely long title (1000+ chars) is accepted and slugified", async () => {
+    const longTitle = "A".repeat(1200);
+    const result = await adapter.fetch(makeConfig([
+      { title: longTitle, url: "https://example.com" },
+    ]));
+    expect(result).toHaveLength(1);
+    expect(result[0].title).toBe(longTitle);
+    // slug is truncated to 40 chars by slugify
+    expect(result[0].id.length).toBeLessThanOrEqual("bookmarks:".length + 40 + "-0".length);
+  });
+
+  test("empty string URL is filtered out with warning", async () => {
+    const result = await adapter.fetch(makeConfig([
+      { title: "Empty URL", url: "" },
+      { title: "Valid", url: "https://example.com" },
+    ]));
+    expect(result).toHaveLength(1);
+    expect(result[0].title).toBe("Valid");
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  test("URL with query params, fragments, and special characters accepted", async () => {
+    const result = await adapter.fetch(makeConfig([
+      { title: "Query", url: "https://example.com/search?q=hello+world&lang=en" },
+      { title: "Fragment", url: "https://example.com/page#section-2" },
+      { title: "Both", url: "https://example.com/path?a=1&b=2#top" },
+      { title: "Encoded", url: "https://example.com/path?q=%E4%B8%AD%E6%96%87" },
+    ]));
+    expect(result).toHaveLength(4);
+    expect(result[0].url).toBe("https://example.com/search?q=hello+world&lang=en");
+    expect(result[1].url).toBe("https://example.com/page#section-2");
+    expect(result[2].url).toBe("https://example.com/path?a=1&b=2#top");
+    expect(result[3].url).toBe("https://example.com/path?q=%E4%B8%AD%E6%96%87");
+  });
+
+  test("title with only spaces is filtered out", async () => {
+    const result = await adapter.fetch(makeConfig([
+      { title: "   ", url: "https://example.com" },
+      { title: "Valid", url: "https://example.com/2" },
+    ]));
+    expect(result).toHaveLength(1);
+    expect(result[0].title).toBe("Valid");
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  test("tags array with empty strings filters them out", async () => {
+    const result = await adapter.fetch(makeConfig([
+      { title: "Mixed", url: "https://example.com", tags: ["", "valid", ""] },
+    ]));
+    // Empty strings pass typeof === "string" but source uses first tag
+    expect(result).toHaveLength(1);
+    // First tag is "" which is technically a string
+    expect(result[0].source).toBe("bookmarks:");
+  });
+
+  test("url that is a number is filtered out with warning", async () => {
+    const result = await adapter.fetch(makeConfig([
+      { title: "Bad URL", url: 123 },
+      { title: "Valid", url: "https://example.com" },
+    ]));
+    expect(result).toHaveLength(1);
+    expect(result[0].title).toBe("Valid");
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  test("very long description (10000+ chars) is accepted", async () => {
+    const longDesc = "B".repeat(10000);
+    const result = await adapter.fetch(makeConfig([
+      { title: "Long Desc", url: "https://example.com", description: longDesc },
+    ]));
+    expect(result).toHaveLength(1);
+    expect(result[0].body).toBe(longDesc);
+    expect(result[0].body!.length).toBe(10000);
+  });
+
+  test("items with extra unknown fields are accepted (extra fields ignored)", async () => {
+    const result = await adapter.fetch(makeConfig([
+      { title: "Extra", url: "https://example.com", icon: "star", priority: 1, custom: true },
+    ]));
+    expect(result).toHaveLength(1);
+    expect(result[0].title).toBe("Extra");
+    expect(result[0].url).toBe("https://example.com");
+    // Extra fields are not passed through to ContentItem
+    expect((result[0] as Record<string, unknown>).icon).toBeUndefined();
+  });
+
+  test("tags with all empty strings uses first (empty) tag as source suffix", async () => {
+    const result = await adapter.fetch(makeConfig([
+      { title: "All Empty Tags", url: "https://example.com", tags: ["", ""] },
+    ]));
+    expect(result).toHaveLength(1);
+    // tags.length > 0 is true, so source is "bookmarks:" with empty first tag
+    expect(result[0].source).toBe("bookmarks:");
+  });
+
+  test("title with special characters slugifies correctly", async () => {
+    const result = await adapter.fetch(makeConfig([
+      { title: "Hello & World! @#$%", url: "https://example.com" },
+    ]));
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("bookmarks:hello-world-0");
+  });
+
+  test("description that is an object is treated as undefined", async () => {
+    const result = await adapter.fetch(makeConfig([
+      { title: "Obj Desc", url: "https://example.com", description: { nested: "value" } },
+    ]));
+    expect(result).toHaveLength(1);
+    expect(result[0].body).toBeUndefined();
+  });
+
+  test("tags that is not an array is treated as undefined", async () => {
+    const result = await adapter.fetch(makeConfig([
+      { title: "Bad Tags", url: "https://example.com", tags: "not-array" },
+    ]));
+    expect(result).toHaveLength(1);
+    expect(result[0].source).toBe("bookmarks");
+  });
+
+  test("whitespace-only URL is filtered out", async () => {
+    const result = await adapter.fetch(makeConfig([
+      { title: "WS URL", url: "  " },
+    ]));
+    // url.trim() === "" check catches this
+    expect(result).toEqual([]);
+    expect(warnSpy).toHaveBeenCalled();
+  });
 });
