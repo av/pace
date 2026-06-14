@@ -58,6 +58,16 @@ function validateCounterParams(params: Record<string, unknown>, path: string): v
     validateSafeUrl(params.compare_url, `${path}.params.compare_url`);
   }
 
+  if (params.compare_path !== undefined) {
+    validateNonEmptyString(params.compare_path, `${path}.params.compare_path`);
+    if (typeof params.compare_path === "string" && !JSON_PATH_RE.test(params.compare_path)) {
+      throw new Error(`config: ${path}.params.compare_path must be a valid dot-notation path`);
+    }
+    if (typeof params.compare_path === "string" && containsDangerousSegment(params.compare_path)) {
+      throw new Error(`config: ${path}.params.compare_path contains a disallowed segment`);
+    }
+  }
+
   if (params.headers !== undefined) {
     if (!isRecord(params.headers)) {
       throw new Error(`config: ${path}.params.headers must be an object`);

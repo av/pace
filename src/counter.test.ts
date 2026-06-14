@@ -81,6 +81,27 @@ describe("counter adapter", () => {
       obj.__proto__ = { secret: 42 };
       expect(resolveJsonPath(obj, "__proto__.secret")).toBe(42);
     });
+
+    test("resolves deeply nested path (10+ levels)", () => {
+      let deep: unknown = 99;
+      for (let i = 9; i >= 0; i--) {
+        deep = { [`L${i}`]: deep };
+      }
+      const path = Array.from({ length: 10 }, (_, i) => `L${i}`).join(".");
+      expect(resolveJsonPath(deep, path)).toBe(99);
+    });
+
+    test("resolves array of arrays", () => {
+      const obj = { matrix: [[1, 2], [3, 4], [5, 6]] };
+      expect(resolveJsonPath(obj, "matrix[2][0]")).toBe(5);
+    });
+
+    test("resolves value from root array via named key", () => {
+      // Root arrays require a named key before bracket access
+      // e.g., { results: [{ value: 42 }] }
+      const obj = { results: [{ value: 42 }] };
+      expect(resolveJsonPath(obj, "results[0].value")).toBe(42);
+    });
   });
 
   describe("parseJsonPath", () => {
@@ -106,6 +127,15 @@ describe("counter adapter", () => {
 
     test("throws on invalid array index", () => {
       expect(() => parseJsonPath("arr[-1]")).toThrow(/invalid array index/);
+    });
+
+    test("parses deeply nested path (10+ levels)", () => {
+      const path = "a.b.c.d.e.f.g.h.i.j.k";
+      expect(parseJsonPath(path)).toEqual(["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"]);
+    });
+
+    test("parses consecutive bracket notation", () => {
+      expect(parseJsonPath("matrix[0][1]")).toEqual(["matrix", 0, 1]);
     });
   });
 
@@ -737,5 +767,95 @@ layout:
 `;
     setConfig(yaml);
     expect(() => loadConfig()).not.toThrow();
+  });
+
+  test("accepts valid compare_path", () => {
+    const yaml = `
+adapters:
+  - type: counter
+    params:
+      url: https://example.com/api
+      json_path: data.current
+      compare_url: https://example.com/api?old
+      compare_path: data.previous
+layout:
+  panel: Stats
+  source:
+    - adapter: counter
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).not.toThrow();
+  });
+
+  test("rejects compare_path with invalid format", () => {
+    const yaml = `
+adapters:
+  - type: counter
+    params:
+      url: https://example.com/api
+      json_path: value
+      compare_url: https://example.com/api?old
+      compare_path: "$.invalid.path"
+layout:
+  panel: Stats
+  source:
+    - adapter: counter
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(/compare_path must be a valid dot-notation path/);
+  });
+
+  test("rejects compare_path with __proto__ segment", () => {
+    const yaml = `
+adapters:
+  - type: counter
+    params:
+      url: https://example.com/api
+      json_path: value
+      compare_url: https://example.com/api?old
+      compare_path: "__proto__"
+layout:
+  panel: Stats
+  source:
+    - adapter: counter
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(/compare_path contains a disallowed segment/);
+  });
+
+  test("rejects compare_path with constructor segment", () => {
+    const yaml = `
+adapters:
+  - type: counter
+    params:
+      url: https://example.com/api
+      json_path: value
+      compare_url: https://example.com/api?old
+      compare_path: data.constructor
+layout:
+  panel: Stats
+  source:
+    - adapter: counter
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(/compare_path contains a disallowed segment/);
+  });
+
+  test("rejects empty compare_path", () => {
+    const yaml = `
+adapters:
+  - type: counter
+    params:
+      url: https://example.com/api
+      json_path: value
+      compare_url: https://example.com/api?old
+      compare_path: ""
+layout:
+  panel: Stats
+  source:
+    - adapter: counter
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(/compare_path/);
   });
 });

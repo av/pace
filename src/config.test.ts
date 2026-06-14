@@ -73,6 +73,26 @@ describe("config", () => {
     expect(panels[1].id).toBe("id2");
   });
 
+  test("collectPanels skips widget nodes in nested layouts", () => {
+    const layout: LayoutNodeConfig = {
+      direction: "row" as const,
+      children: [
+        { image: "https://example.com/logo.png" } as LayoutNodeConfig,
+        { panel: "news", source: "hn" },
+        {
+          direction: "column" as const,
+          children: [
+            { text: "Welcome" } as LayoutNodeConfig,
+            { panel: "tech", source: "rss" },
+            { iframe: "https://example.com" } as LayoutNodeConfig,
+          ],
+        },
+      ],
+    };
+    const panels = collectPanels(layout);
+    expect(panels.map((p) => p.panel)).toEqual(["news", "tech"]);
+  });
+
   test("resolvePanelId", () => {
     const withId = { panel: "x", source: "all", id: "myid123" };
     expect(resolvePanelId(withId)).toBe("myid123");
@@ -1742,6 +1762,28 @@ layout:
     test("rejects invalid URL", () => {
       expect(() => validateSafeUrl("not a url", "test")).toThrow(
         /config: test is not a valid URL/,
+      );
+    });
+
+    test("rejects data: URI", () => {
+      expect(() => validateSafeUrl("data:text/html,<h1>hi</h1>", "test")).toThrow(
+        /config: test has disallowed scheme "data"/,
+      );
+    });
+
+    test("rejects http with userinfo targeting non-localhost", () => {
+      expect(() => validateSafeUrl("http://localhost@evil.com/api", "test")).toThrow(
+        /config: test has disallowed scheme "http"/,
+      );
+    });
+
+    test("accepts https with userinfo", () => {
+      expect(() => validateSafeUrl("https://user:pass@example.com/api", "test")).not.toThrow();
+    });
+
+    test("rejects blob: URI", () => {
+      expect(() => validateSafeUrl("blob:https://example.com/uuid", "test")).toThrow(
+        /config: test has disallowed scheme "blob"/,
       );
     });
   });

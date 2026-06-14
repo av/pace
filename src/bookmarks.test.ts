@@ -190,4 +190,42 @@ describe("bookmarks adapter", () => {
     expect(result).toHaveLength(1);
     expect(result[0].url).toBe("http://example.com");
   });
+
+  test("unicode-only titles produce stable IDs with index suffix", async () => {
+    const result = await adapter.fetch(makeConfig([
+      { title: "Bibliothek", url: "https://example.com/1" },
+      { title: "中文标题", url: "https://example.com/2" },
+      { title: "日本語タイトル", url: "https://example.com/3" },
+    ]));
+    expect(result).toHaveLength(3);
+    expect(result[0].id).toBe("bookmarks:bibliothek-0");
+    // Unicode-only titles get empty slugs, index prevents collision
+    expect(result[1].id).toBe("bookmarks:-1");
+    expect(result[2].id).toBe("bookmarks:-2");
+    // Titles are preserved as-is
+    expect(result[1].title).toBe("中文标题");
+    expect(result[2].title).toBe("日本語タイトル");
+  });
+
+  test("duplicate titles with same slug get unique IDs from index", async () => {
+    const result = await adapter.fetch(makeConfig([
+      { title: "My Tool", url: "https://example.com/1" },
+      { title: "My Tool", url: "https://example.com/2" },
+      { title: "My Tool", url: "https://example.com/3" },
+    ]));
+    expect(result).toHaveLength(3);
+    expect(result[0].id).toBe("bookmarks:my-tool-0");
+    expect(result[1].id).toBe("bookmarks:my-tool-1");
+    expect(result[2].id).toBe("bookmarks:my-tool-2");
+  });
+
+  test("empty tags array treated same as missing tags", async () => {
+    const result = await adapter.fetch(makeConfig([
+      { title: "Empty Tags", url: "https://example.com", tags: [] },
+      { title: "No Tags", url: "https://example.com/2" },
+    ]));
+    // Empty array is falsy for tags?.length > 0 check
+    expect(result[0].source).toBe("bookmarks");
+    expect(result[1].source).toBe("bookmarks");
+  });
 });
