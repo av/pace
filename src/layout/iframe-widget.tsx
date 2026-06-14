@@ -21,7 +21,7 @@ export const IframeWidget: FC<{ node: IframeWidgetConfig }> = ({ node }) => {
     aspectRatio ? `aspect-ratio:${aspectRatio}` : undefined,
   ]
     .filter(Boolean)
-    .join("; ");
+    .join(" ");
 
   const iframeAttrs: Record<string, string> = {
     src: node.iframe,
