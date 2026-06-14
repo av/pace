@@ -1,5 +1,4 @@
-import { fetchJson } from "./fetch";
-import { tryOptionalFetch } from "./fetch";
+import { fetchJson, tryOptionalFetch } from "./fetch";
 import { warnAdapter } from "./empty-config";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
