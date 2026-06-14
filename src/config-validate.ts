@@ -11,6 +11,7 @@ import {
   type PanelConfig,
   type PipelineConfig,
 } from "./config/types";
+import { warnConfig } from "./config-warn";
 import { validateTransforms } from "./transform-validate";
 import { getAdapterName } from "./utils";
 import {
@@ -133,6 +134,39 @@ function validateTextWidget(node: Record<string, unknown>, path: string): void {
   validateOptionalPositiveNumber(node.flex, `${path}.flex`);
 }
 
+const ASPECT_RATIO_RE = /^\d+\/\d+$/;
+const CSS_LENGTH_RE = /^\d+(px|rem|em|vh|%)$/;
+
+export const VALID_SANDBOX_TOKENS = new Set([
+  "allow-downloads",
+  "allow-forms",
+  "allow-modals",
+  "allow-orientation-lock",
+  "allow-pointer-lock",
+  "allow-popups",
+  "allow-popups-to-escape-sandbox",
+  "allow-presentation",
+  "allow-same-origin",
+  "allow-scripts",
+  "allow-top-navigation",
+  "allow-top-navigation-by-user-activation",
+  "allow-top-navigation-to-custom-protocols",
+]);
+
+/** Validate sandbox tokens; warns about and strips invalid ones. Returns cleaned string. */
+export function sanitizeSandboxTokens(value: string, path: string): string {
+  const tokens = value.split(/\s+/).filter(Boolean);
+  const valid: string[] = [];
+  for (const token of tokens) {
+    if (VALID_SANDBOX_TOKENS.has(token)) {
+      valid.push(token);
+    } else {
+      warnConfig(`${path} contains invalid sandbox token "${token}" (stripped)`);
+    }
+  }
+  return valid.join(" ");
+}
+
 function validateIframeWidget(node: Record<string, unknown>, path: string): void {
   validateAllowedKeys(node, ["iframe", "flex", "title", "height", "aspect_ratio", "sandbox", "allow"], (key) =>
     `${path}.${key} is not a valid iframe widget field`,
@@ -140,10 +174,24 @@ function validateIframeWidget(node: Record<string, unknown>, path: string): void
   validateSafeUrl(node.iframe, `${path}.iframe`);
   validateOptionalPositiveNumber(node.flex, `${path}.flex`);
   validateOptionalNonEmptyString(node.title, `${path}.title`);
-  validateOptionalNonEmptyString(node.height, `${path}.height`);
-  validateOptionalNonEmptyString(node.aspect_ratio, `${path}.aspect_ratio`);
-  validateOptionalNonEmptyString(node.sandbox, `${path}.sandbox`);
   validateOptionalNonEmptyString(node.allow, `${path}.allow`);
+
+  if (node.height !== undefined) {
+    if (typeof node.height !== "string" || !CSS_LENGTH_RE.test(node.height)) {
+      throw new Error(`config: ${path}.height must be a valid CSS length (e.g. 400px, 20rem, 50vh)`);
+    }
+  }
+
+  if (node.aspect_ratio !== undefined) {
+    if (typeof node.aspect_ratio !== "string" || !ASPECT_RATIO_RE.test(node.aspect_ratio)) {
+      throw new Error(`config: ${path}.aspect_ratio must match the format "N/N" (e.g. 16/9)`);
+    }
+  }
+
+  if (node.sandbox !== undefined) {
+    validateOptionalNonEmptyString(node.sandbox, `${path}.sandbox`);
+    sanitizeSandboxTokens(node.sandbox as string, path);
+  }
 }
 
 const LAYOUT_DISCRIMINATORS = ["panel", "direction", "image", "text", "iframe"] as const;

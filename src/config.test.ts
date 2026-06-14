@@ -20,7 +20,7 @@ import {
   readConfigSource,
   configFileNotFoundError,
 } from "./config";
-import { validateSafeUrl } from "./config-validate";
+import { validateSafeUrl, sanitizeSandboxTokens } from "./config-validate";
 
 describe("config", () => {
   describe("helpers", () => {
@@ -1329,7 +1329,241 @@ layout:
     setConfig(yaml);
     expect(() => loadConfig()).not.toThrow();
   });
+
+  // Iframe widget validation
+  test("accepts valid iframe widget with all fields", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - iframe: https://grafana.local/d/abc
+      title: System Metrics
+      flex: 2
+      aspect_ratio: "16/9"
+      sandbox: "allow-scripts allow-same-origin allow-forms"
+      allow: "fullscreen"
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).not.toThrow();
+  });
+
+  test("accepts minimal iframe widget (iframe only)", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - iframe: https://example.com/embed
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).not.toThrow();
+  });
+
+  test("accepts iframe widget with height", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - iframe: https://example.com/embed
+      height: "400px"
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).not.toThrow();
+  });
+
+  test("accepts iframe widget with http://localhost", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - iframe: http://localhost:3000/dashboard
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).not.toThrow();
+  });
+
+  test("rejects iframe widget with unsafe URL", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - iframe: http://example.com/embed
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: layout.children\[0\].iframe has disallowed scheme "http"/,
+    );
+  });
+
+  test("rejects iframe widget with empty iframe URL", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - iframe: ""
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(/config: layout.children\[0\].iframe must be a non-empty URL string/);
+  });
+
+  test("rejects iframe widget with unknown field", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - iframe: https://example.com/embed
+      typo_field: true
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: layout.children\[0\].typo_field is not a valid iframe widget field/,
+    );
+  });
+
+  test("rejects iframe widget with invalid aspect_ratio format", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - iframe: https://example.com/embed
+      aspect_ratio: "16:9"
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: layout.children\[0\].aspect_ratio must match the format "N\/N"/,
+    );
+  });
+
+  test("rejects iframe widget with non-numeric aspect_ratio", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - iframe: https://example.com/embed
+      aspect_ratio: "wide"
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: layout.children\[0\].aspect_ratio must match the format "N\/N"/,
+    );
+  });
+
+  test("rejects iframe widget with invalid height format", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - iframe: https://example.com/embed
+      height: "400"
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: layout.children\[0\].height must be a valid CSS length/,
+    );
+  });
+
+  test("rejects iframe widget with non-string height", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - iframe: https://example.com/embed
+      height: 400
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: layout.children\[0\].height must be a valid CSS length/,
+    );
+  });
+
+  test("accepts iframe widget with various CSS length units", () => {
+    for (const height of ["400px", "20rem", "15em", "50vh", "100%"]) {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - iframe: https://example.com/embed
+      height: "${height}"
+`;
+      setConfig(yaml);
+      expect(() => loadConfig()).not.toThrow();
+    }
+  });
+
+  test("warns about invalid sandbox tokens", async () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - iframe: https://example.com/embed
+      sandbox: "allow-scripts bogus-token allow-forms"
+`;
+    setConfig(yaml);
+    await spyConsole(["warn"], async ({ warn }) => {
+      expect(() => loadConfig()).not.toThrow();
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining("bogus-token"),
+      );
+    });
+  });
+
+  test("iframe widget alongside panels", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - iframe: https://example.com/embed
+      title: Dashboard
+    - panel: news
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).not.toThrow();
+  });
 });
+
+  describe("sanitizeSandboxTokens", () => {
+    test("passes through valid tokens", () => {
+      expect(sanitizeSandboxTokens("allow-scripts allow-same-origin", "test")).toBe(
+        "allow-scripts allow-same-origin",
+      );
+    });
+
+    test("strips invalid tokens", async () => {
+      await spyConsole(["warn"], async ({ warn }) => {
+        const result = sanitizeSandboxTokens("allow-scripts invalid-token allow-forms", "test");
+        expect(result).toBe("allow-scripts allow-forms");
+        expect(warn).toHaveBeenCalledWith(
+          expect.stringContaining("invalid-token"),
+        );
+      });
+    });
+
+    test("returns empty string when all tokens are invalid", async () => {
+      await spyConsole(["warn"], async ({ warn }) => {
+        const result = sanitizeSandboxTokens("bad-token another-bad", "test");
+        expect(result).toBe("");
+        expect(warn).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    test("handles extra whitespace", () => {
+      expect(sanitizeSandboxTokens("  allow-scripts   allow-forms  ", "test")).toBe(
+        "allow-scripts allow-forms",
+      );
+    });
+
+    test("validates all known sandbox tokens", () => {
+      const allTokens = [
+        "allow-downloads", "allow-forms", "allow-modals",
+        "allow-orientation-lock", "allow-pointer-lock", "allow-popups",
+        "allow-popups-to-escape-sandbox", "allow-presentation",
+        "allow-same-origin", "allow-scripts", "allow-top-navigation",
+        "allow-top-navigation-by-user-activation",
+        "allow-top-navigation-to-custom-protocols",
+      ];
+      expect(sanitizeSandboxTokens(allTokens.join(" "), "test")).toBe(allTokens.join(" "));
+    });
+  });
 
   describe("validateSafeUrl", () => {
     test("accepts https URLs", () => {
