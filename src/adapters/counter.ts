@@ -143,7 +143,7 @@ const adapter: Adapter = {
     if (previous !== undefined) bodyObj.previous = previous;
 
     const item: ContentItem = {
-      id: `counter:${adapterName}:${now}`,
+      id: `counter:${adapterName}`,
       title: label,
       url: "",
       source: adapterName,

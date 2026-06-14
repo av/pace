@@ -104,16 +104,20 @@ function resolveDedupeOptions(cfg: DedupeTransformConfig): DedupeRunOptions {
 
 function applyDedupeUrl(items: ContentItemRow[], shouldLog: boolean): ContentItemRow[] {
   const urlItems = items.filter((item) => item.url);
-  return finalizeDedupeRun(
-    dedupeGroupedByKey(
-      urlItems,
-      (item) => item.url!,
-      "first",
-      (item) => formatTransformDedupeRemovedLine(item),
+  const noUrlItems = items.filter((item) => !item.url);
+  return [
+    ...finalizeDedupeRun(
+      dedupeGroupedByKey(
+        urlItems,
+        (item) => item.url!,
+        "first",
+        (item) => formatTransformDedupeRemovedLine(item),
+      ),
+      "url",
+      shouldLog,
     ),
-    "url",
-    shouldLog,
-  );
+    ...noUrlItems,
+  ];
 }
 
 function applyDedupeDomainNormalized(
@@ -121,16 +125,21 @@ function applyDedupeDomainNormalized(
   keep: DedupeKeep,
   shouldLog: boolean,
 ): ContentItemRow[] {
-  return finalizeDedupeRun(
-    dedupeGroupedByKey(
-      items,
-      (item) => normalizeUrl(item.url),
-      keep,
-      (item, winner) => formatTransformDedupeRemovedLine(item, winner),
+  const urlItems = items.filter((item) => item.url);
+  const noUrlItems = items.filter((item) => !item.url);
+  return [
+    ...finalizeDedupeRun(
+      dedupeGroupedByKey(
+        urlItems,
+        (item) => normalizeUrl(item.url),
+        keep,
+        (item, winner) => formatTransformDedupeRemovedLine(item, winner),
+      ),
+      "domain-normalized",
+      shouldLog,
     ),
-    "domain-normalized",
-    shouldLog,
-  );
+    ...noUrlItems,
+  ];
 }
 
 function applyDedupeTitleSimilarity(

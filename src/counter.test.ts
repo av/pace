@@ -209,7 +209,7 @@ describe("counter adapter", () => {
       const item = result[0];
       expect(item.title).toBe("Stars");
       expect(item.url).toBe("");
-      expect(item.id).toMatch(/^counter:counter:\d+$/);
+      expect(item.id).toBe("counter:counter");
 
       const body = JSON.parse(item.body!);
       expect(body.value).toBe(42000);
