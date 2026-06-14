@@ -183,9 +183,7 @@ describe("complex markdown content", () => {
     test("GFM strikethrough with double tildes", () => {
       const md = "This is ~~deleted~~ text.";
       const result = renderMarkdown(md);
-      // <del> tag is not in allowlist, so it gets stripped
-      // but the text content should remain
-      expect(result).toContain("deleted");
+      expect(result).toContain("<del>deleted</del>");
       expect(result).toContain("text");
     });
 
@@ -194,13 +192,13 @@ describe("complex markdown content", () => {
       const result = renderMarkdown(md);
       expect(result).toContain("<strong>bold</strong>");
       expect(result).toContain("<em>italic</em>");
-      expect(result).toContain("struck");
+      expect(result).toContain("<del>struck</del>");
     });
 
-    test("strikethrough tag (del) is not in allowlist", () => {
+    test("strikethrough tag (del) is preserved", () => {
       const html = "<del>removed</del>";
       const result = sanitize(html);
-      expect(result).not.toContain("<del");
+      expect(result).toContain("<del>");
       expect(result).toContain("removed");
     });
   });
@@ -471,7 +469,7 @@ describe("HTML sanitization with real-world content", () => {
   });
 
   describe("GitHub-style markdown HTML", () => {
-    test("GitHub code block HTML preserves pre/code", () => {
+    test("GitHub code block HTML preserves pre/code with language class", () => {
       const html = [
         '<pre><code class="language-typescript">',
         'const x: number = 42;',
@@ -480,9 +478,8 @@ describe("HTML sanitization with real-world content", () => {
       ].join("\n");
       const result = sanitize(html);
       expect(result).toContain("<pre>");
-      expect(result).toContain("<code>");
-      // class attribute is stripped (not in allowedAttributes for code)
-      expect(result).not.toContain("class=");
+      expect(result).toContain("<code");
+      expect(result).toContain('class="language-typescript"');
       expect(result).toContain("const x: number = 42;");
     });
 
@@ -659,7 +656,7 @@ describe("round-trip tests", () => {
       expect(result).toContain("<strong>bold</strong>");
       expect(result).toContain("<em>italic</em>");
       expect(result).toContain("<code>code</code>");
-      expect(result).toContain("struck"); // del tag stripped, text stays
+      expect(result).toContain("<del>struck</del>");
       expect(result).toContain("https://x.com");
     });
 
