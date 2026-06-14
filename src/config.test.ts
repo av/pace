@@ -20,6 +20,7 @@ import {
   readConfigSource,
   configFileNotFoundError,
 } from "./config";
+import { validateSafeUrl } from "./config-validate";
 
 describe("config", () => {
   describe("helpers", () => {
@@ -1209,5 +1210,178 @@ layout:
       if (fs.existsSync(presetPath)) fs.unlinkSync(presetPath);
     }
   });
+
+  test("accepts valid image widget in layout", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - image: https://example.com/badge.svg
+      alt: "Status badge"
+      object_fit: cover
+      max_height: "200px"
+      link: https://example.com
+      flex: 0.3
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).not.toThrow();
+  });
+
+  test("accepts minimal image widget (image only)", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - image: https://example.com/logo.png
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).not.toThrow();
+  });
+
+  test("rejects image widget with empty image url", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - image: ""
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(/config: layout.children\[0\].image must be a non-empty string/);
+  });
+
+  test("rejects image widget with unknown field", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - image: https://example.com/logo.png
+      typo_field: true
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: layout.children\[0\].typo_field is not a valid image widget field/,
+    );
+  });
+
+  test("rejects image widget with invalid object_fit", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - image: https://example.com/logo.png
+      object_fit: stretch
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: layout.children\[0\].object_fit must be one of: cover, contain, fill, none/,
+    );
+  });
+
+  test("rejects image widget with unsafe link scheme", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - image: https://example.com/logo.png
+      link: "javascript:alert(1)"
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: layout.children\[0\].link has disallowed scheme "javascript"/,
+    );
+  });
+
+  test("accepts image widget with http://localhost link", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - image: https://example.com/logo.png
+      link: "http://localhost:3000/dashboard"
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).not.toThrow();
+  });
+
+  test("rejects image widget with non-localhost http link", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - image: https://example.com/logo.png
+      link: "http://example.com/page"
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: layout.children\[0\].link has disallowed scheme "http"/,
+    );
+  });
+
+  test("image widget does not conflict with panel discriminator", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - image: https://example.com/logo.png
+    - panel: news
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).not.toThrow();
+  });
 });
+
+  describe("validateSafeUrl", () => {
+    test("accepts https URLs", () => {
+      expect(() => validateSafeUrl("https://example.com", "test")).not.toThrow();
+    });
+
+    test("accepts http://localhost", () => {
+      expect(() => validateSafeUrl("http://localhost:3000", "test")).not.toThrow();
+    });
+
+    test("accepts http://127.0.0.1", () => {
+      expect(() => validateSafeUrl("http://127.0.0.1:8080", "test")).not.toThrow();
+    });
+
+    test("accepts http://[::1]", () => {
+      expect(() => validateSafeUrl("http://[::1]:9090", "test")).not.toThrow();
+    });
+
+    test("rejects http to non-localhost", () => {
+      expect(() => validateSafeUrl("http://example.com", "test")).toThrow(
+        /config: test has disallowed scheme "http"/,
+      );
+    });
+
+    test("rejects javascript scheme", () => {
+      expect(() => validateSafeUrl("javascript:alert(1)", "test")).toThrow(
+        /config: test has disallowed scheme "javascript"/,
+      );
+    });
+
+    test("rejects ftp scheme", () => {
+      expect(() => validateSafeUrl("ftp://files.example.com", "test")).toThrow(
+        /config: test has disallowed scheme "ftp"/,
+      );
+    });
+
+    test("rejects non-string input", () => {
+      expect(() => validateSafeUrl(42, "test")).toThrow(
+        /config: test must be a non-empty URL string/,
+      );
+    });
+
+    test("rejects empty string", () => {
+      expect(() => validateSafeUrl("", "test")).toThrow(
+        /config: test must be a non-empty URL string/,
+      );
+    });
+
+    test("rejects invalid URL", () => {
+      expect(() => validateSafeUrl("not a url", "test")).toThrow(
+        /config: test is not a valid URL/,
+      );
+    });
+  });
 });
