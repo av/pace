@@ -78,6 +78,7 @@ a:hover {
 
 
 .flex-root,
+.flex-panel,
 .flex-panel > .panel {
   display: flex;
 }
@@ -415,6 +416,11 @@ a:hover {
   height: 100%;
   border: none;
   display: block;
+}
+
+/* Counter panels do not scroll; suppress the fade gradient. */
+.panel:has(.counter-panel)::after {
+  display: none;
 }
 
 .counter-panel {

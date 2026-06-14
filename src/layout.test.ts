@@ -211,6 +211,176 @@ describe("renderDashboard", () => {
     expect(html).not.toContain("<h1>pace</h1>"); // old header branding removed
     expect(html).toContain('<link rel="stylesheet" href="/styles.css"/>');
   });
+
+  it("renders image widget with flex-panel wrapper, image tag, and lazy loading", () => {
+    const layout = flexCfg("row", [
+      { image: "https://example.com/logo.png", alt: "Logo", flex: 2 },
+    ]);
+    const panelData = new Map<string, PanelData>();
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain('class="flex-panel"');
+    expect(html).toContain('class="image-widget"');
+    expect(html).toContain('src="https://example.com/logo.png"');
+    expect(html).toContain('alt="Logo"');
+    expect(html).toContain('loading="lazy"');
+    expect(html).toContain("flex:2;");
+    expect(html).toContain("object-fit:contain");
+  });
+
+  it("renders image widget with safe link wrapping when link is set", () => {
+    const layout = flexCfg("row", [
+      { image: "https://example.com/img.jpg", link: "https://example.com" },
+    ]);
+    const panelData = new Map<string, PanelData>();
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain('href="https://example.com"');
+    expect(html).toContain('target="_blank"');
+    expect(html).toContain("rel=\"noopener noreferrer\"");
+  });
+
+  it("renders image widget without link when link is omitted", () => {
+    const layout = flexCfg("row", [
+      { image: "https://example.com/img.jpg" },
+    ]);
+    const panelData = new Map<string, PanelData>();
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    // The image should not be wrapped in a link (footer has its own <a>)
+    expect(html).toContain('src="https://example.com/img.jpg"');
+    expect(html).not.toContain('href="https://example.com/img.jpg"');
+    expect(html).toContain('<div class="image-widget"><img');
+  });
+
+  it("renders text widget with plain text (no HTML injection)", () => {
+    const layout = flexCfg("row", [
+      { text: "Hello <b>world</b>", title: "Notes" },
+    ]);
+    const panelData = new Map<string, PanelData>();
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain('class="panel text-widget"');
+    expect(html).toContain("<h2>Notes</h2>");
+    expect(html).toContain('class="text-widget-body"');
+    // plain format escapes HTML tags
+    expect(html).toContain("&lt;b&gt;world&lt;/b&gt;");
+  });
+
+  it("renders text widget with markdown format", () => {
+    const layout = flexCfg("row", [
+      { text: "**bold** text", format: "markdown" as const },
+    ]);
+    const panelData = new Map<string, PanelData>();
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain("<strong>bold</strong>");
+    expect(html).toContain("text");
+  });
+
+  it("renders text widget with html format (sanitized)", () => {
+    const layout = flexCfg("row", [
+      { text: "<p>safe</p><script>alert(1)</script>", format: "html" as const },
+    ]);
+    const panelData = new Map<string, PanelData>();
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain("<p>safe</p>");
+    expect(html).not.toContain("<script>");
+  });
+
+  it("renders iframe widget with sandbox and referrerpolicy defaults", () => {
+    const layout = flexCfg("row", [
+      { iframe: "https://grafana.example.com/d/abc" },
+    ]);
+    const panelData = new Map<string, PanelData>();
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain('class="iframe-panel"');
+    expect(html).toContain('src="https://grafana.example.com/d/abc"');
+    expect(html).toContain('sandbox="allow-scripts allow-same-origin"');
+    expect(html).toContain('referrerpolicy="no-referrer"');
+    expect(html).toContain('loading="lazy"');
+  });
+
+  it("renders iframe widget with title header", () => {
+    const layout = flexCfg("row", [
+      { iframe: "https://example.com", title: "Dashboard" },
+    ]);
+    const panelData = new Map<string, PanelData>();
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain("<h2>Dashboard</h2>");
+    expect(html).toContain('class="panel-header"');
+    // iframe widget title header should not have refresh button
+    expect(html).not.toContain("refresh-btn");
+  });
+
+  it("renders iframe widget with aspect-ratio default 16/9 when no height set", () => {
+    const layout = flexCfg("row", [
+      { iframe: "https://example.com" },
+    ]);
+    const panelData = new Map<string, PanelData>();
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain("aspect-ratio:16/9");
+  });
+
+  it("renders iframe widget with explicit height (no aspect-ratio)", () => {
+    const layout = flexCfg("row", [
+      { iframe: "https://example.com", height: "400px" },
+    ]);
+    const panelData = new Map<string, PanelData>();
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain("height:400px");
+    expect(html).not.toContain("aspect-ratio:");
+  });
+
+  it("renders counter panel with stat cards from panel data", () => {
+    const counterItem = makeItem({
+      title: "Requests",
+      body: JSON.stringify({ value: 12345, unit: "req/s", previous: 10000 }),
+    });
+    const layout = flexCfg("row", [
+      panelCfg("Metrics", "counter", { display: "counter" }),
+    ]);
+    const panelData = new Map<string, PanelData>([
+      ["Metrics", { items: [counterItem] }],
+    ]);
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain('class="counter-panel"');
+    expect(html).toContain('class="stat-card"');
+    expect(html).toContain("12.3k"); // abbreviated
+    expect(html).toContain('class="stat-unit">req/s</span>');
+    expect(html).toContain('class="stat-trend stat-trend-up"'); // 12345 > 10000
+  });
+
+  it("renders counter panel empty state when body is not valid JSON", () => {
+    const badItem = makeItem({ title: "Bad", body: "not-json" });
+    const layout = flexCfg("row", [
+      panelCfg("Bad Counter", "counter", { display: "counter" }),
+    ]);
+    const panelData = new Map<string, PanelData>([
+      ["Bad Counter", { items: [badItem] }],
+    ]);
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain('class="counter-panel"');
+    expect(html).toContain("No data yet");
+  });
+
+  it("renders mixed layout with panels, widgets, and containers together", () => {
+    const layout = flexCfg("row", [
+      panelCfg("Feed", "rss"),
+      flexCfg("column", [
+        { image: "https://example.com/banner.png" },
+        { text: "Welcome to the dashboard", title: "Info" },
+        { iframe: "https://grafana.example.com/d/overview" },
+      ]),
+    ]);
+    const panelData = new Map<string, PanelData>([
+      ["Feed", { items: [makeItem({ title: "News" })] }],
+    ]);
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    // All node types rendered
+    expect(html).toContain("News");
+    expect(html).toContain("image-widget");
+    expect(html).toContain("text-widget");
+    expect(html).toContain("iframe-panel");
+    // Nested flex container present
+    const containerMatches = html.match(/flex-container/g);
+    expect(containerMatches?.length).toBeGreaterThanOrEqual(2); // root + nested
+  });
 });
 
 describe("formatDashboardUpdatedAt", () => {
