@@ -6,7 +6,7 @@ import {
   refreshTestSources,
   startTestScheduler,
 } from "./test/scheduler-test-harness";
-import { isPanel, type PanelConfig } from "./config/types";
+import { isPanel, type LayoutNodeConfig, type PanelConfig } from "./config/types";
 import { DOMAIN_TEST_LAYOUT, testAppConfig } from "./test/app-config";
 import { makeContentItem } from "./test/content-items";
 import { sourcePanelMapFromConfig } from "./test/panel-map";
@@ -22,7 +22,7 @@ describe("domain", () => {
         { panel: "global", source: "all" },
         { panel: "tech", source: "hackernews" },
         { panel: "pipe", source: "my-pipe" },
-      ],
+      ] as LayoutNodeConfig[],
     };
     expect(layout.children.some((c) => isPanel(c) && c.source === "all")).toBe(true);
     const allBypassSources = layout.children

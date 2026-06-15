@@ -224,7 +224,7 @@ type GitHubReleasesRawFetcher<T> = (
 ) => Promise<T[]>;
 
 /** Parallel per-repo fetch → dedupe/sort/cap → map to ContentItems (shared api/atom pipeline). */
-async function aggregateGitHubReleases<T>(
+async function aggregateGitHubReleases<T extends { timestamp: Date }>(
   repos: string[],
   limit: number,
   adapterName: string,
@@ -243,28 +243,30 @@ async function aggregateGitHubReleases<T>(
   return mapToContentItemsPerSource(tagged, options.sourceOf, options.project);
 }
 
-const GITHUB_RELEASES_PIPELINES = {
-  api: {
-    fetchRaw: fetchGitHubApiReleasesRaw,
+/** Build a typed release pipeline entry, capturing `T` so aggregate can call through without losing it. */
+function defineReleasePipeline<T extends { timestamp: Date }>(
+  fetchRaw: GitHubReleasesRawFetcher<T>,
+  options: GitHubReleasesAggregateOptions<T>,
+) {
+  return {
+    aggregate(repos: string[], limit: number, adapterName: string, token: string | undefined) {
+      return aggregateGitHubReleases(repos, limit, adapterName, token, fetchRaw, options);
+    },
+  };
+}
+
+const GITHUB_RELEASES_PIPELINES: Record<GitHubReleasesSource, { aggregate: (repos: string[], limit: number, adapterName: string, token: string | undefined) => Promise<ContentItem[]> }> = {
+  api: defineReleasePipeline(fetchGitHubApiReleasesRaw, {
     dedupeKey: githubApiDedupeKey,
-    sourceOf: (item: TaggedGHApiRelease) => githubRepoSourceLabel(item.repo),
+    sourceOf: (item) => githubRepoSourceLabel(item.repo),
     project: projectGitHubApiRelease,
-  },
-  atom: {
-    fetchRaw: fetchGitHubAtomReleasesRaw,
+  }),
+  atom: defineReleasePipeline(fetchGitHubAtomReleasesRaw, {
     dedupeKey: githubAtomDedupeKey,
-    sourceOf: (item: TaggedGHAtomEntry) => item.source,
+    sourceOf: (item) => item.source,
     project: projectGitHubAtomEntry,
-  },
-} satisfies Record<
-  GitHubReleasesSource,
-  {
-    fetchRaw: GitHubReleasesRawFetcher<unknown>;
-    dedupeKey: (item: unknown) => unknown;
-    sourceOf: (item: unknown) => string;
-    project: (item: unknown) => ContentItemProjection;
-  }
->;
+  }),
+};
 
 /** Fetch releases for multiple repos via atom feed or GitHub API. */
 export async function fetchGitHubReposReleases(
@@ -273,19 +275,7 @@ export async function fetchGitHubReposReleases(
   limit: number,
   adapterName: string,
 ): Promise<ContentItem[]> {
-  const pipeline = GITHUB_RELEASES_PIPELINES[source];
-  return aggregateGitHubReleases(
-    resolved.repos,
-    limit,
-    adapterName,
-    resolved.token,
-    pipeline.fetchRaw,
-    {
-      dedupeKey: pipeline.dedupeKey,
-      sourceOf: pipeline.sourceOf,
-      project: pipeline.project,
-    },
-  );
+  return GITHUB_RELEASES_PIPELINES[source].aggregate(resolved.repos, limit, adapterName, resolved.token);
 }
 
 const GITHUB_RELEASES_ADAPTER_NAME = "github-releases";

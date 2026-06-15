@@ -77,7 +77,7 @@ export type AggregateParallelFeedsOptions<T> = {
 };
 
 /** Parallel multi-source fetch with shared dedupe/sort/limit finalize pipeline. */
-export async function aggregateParallelFeeds<T, K>(
+export async function aggregateParallelFeeds<T extends { timestamp: Date }, K>(
   keys: readonly K[],
   fetchOne: (key: K) => Promise<T[]>,
   options: AggregateParallelFeedsOptions<T>,
@@ -170,7 +170,7 @@ export type AggregateBatchedFeedsOptions<T> = {
 };
 
 /** Batched multi-source fetch with shared dedupe/min-score/sort/per-source total cap finalize pipeline. */
-export async function aggregateBatchedFeeds<T, K>(
+export async function aggregateBatchedFeeds<T extends { timestamp: Date }, K>(
   keys: readonly K[],
   batchSize: number,
   fetchOne: (key: K) => Promise<T[]>,
@@ -280,7 +280,7 @@ export async function enrichAndFilterItemsBatched<T, E>(
 }
 
 /** Compare items newest-first by `timestamp` Date field (for finalizeFetchedItems sort). */
-export function compareItemTimestampDesc<T extends { timestamp: Date }>(a: T, b: T): number {
+export function compareItemTimestampDesc(a: { timestamp: Date }, b: { timestamp: Date }): number {
   return b.timestamp.getTime() - a.timestamp.getTime();
 }
 
