@@ -5,25 +5,12 @@ import type { ContentItemRow, PanelConfig, PanelData } from "./types";
 import { resolvePanelId } from "./types";
 import { relativeTime, safeLinkUrl } from "../utils";
 import { flexStyle } from "./flex-styles";
+import { stripHtml } from "../adapters/html";
 
 const BODY_MAX_LENGTH = 200;
 
-function stripHtmlTags(html: string): string {
-  // Decode &amp; last — all other named entities start with '&', so early
-  // &amp; decoding would double-decode sequences like &amp;lt; into <.
-  return html
-    .replace(/<[^>]*>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&#39;/g, "'")
-    .replace(/&amp;/g, "&");
-}
-
 function truncateBody(body: string): string {
-  const plain = stripHtmlTags(body).trim();
+  const plain = stripHtml(body, { whitespace: "preserve" }).trim();
   if (plain.length <= BODY_MAX_LENGTH) return plain;
   return plain.slice(0, BODY_MAX_LENGTH) + "...";
 }
