@@ -24,11 +24,6 @@ export {
 
 const defaultRuntime = createSchedulerRuntime();
 
-/** Process-wide scheduler used by bootstrap; tests can use createSchedulerRuntime() instead. */
-export function getDefaultSchedulerRuntime(): SchedulerRuntime {
-  return defaultRuntime;
-}
-
 export function startScheduler(
   config: AppConfig,
   adapters: Map<string, Adapter>,

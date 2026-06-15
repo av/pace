@@ -129,7 +129,7 @@ export async function fetchJson<T>(
 }
 
 /** Warn when a feed fetch succeeded but returned no items (absent or empty item/entry list). */
-export function warnEmptyFeedItems(prefix: string, context: string): void {
+function warnEmptyFeedItems(prefix: string, context: string): void {
   warnEmptyFeedEntries(prefix, context);
 }
 
