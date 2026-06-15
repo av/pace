@@ -61,8 +61,6 @@ describe("counter adapter error recovery", () => {
 
     const err = adapter.fetch(baseConfig);
     await expect(err).rejects.toThrow(/failed to fetch/);
-    // Error message should contain the status code
-    await expect(adapter.fetch(baseConfig).catch((e) => e.message)).resolves.toBeUndefined;
   });
 
   test("HTTP 429 error message includes status code", async () => {
