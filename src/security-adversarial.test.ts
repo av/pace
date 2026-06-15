@@ -460,24 +460,6 @@ describe("resolveJsonPath adversarial traversal", () => {
     expect(() => resolveJsonPath(obj, "a.b")).toThrow(/cannot traverse/);
   });
 
-  // -- Config-level validation of dangerous paths --
-  test("config rejects __proto__ in json_path", () => {
-    // This is tested via config validation, verifying the regex + blocklist
-    expect(
-      /^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*|\[\d+\])*$/.test("__proto__"),
-    ).toBe(true);
-    // But the dangerous segment check catches it
-    const segments = "__proto__".split(/[.\[]/);
-    const DANGEROUS = new Set(["__proto__", "constructor", "prototype"]);
-    expect(segments.some((s) => DANGEROUS.has(s.replace("]", "")))).toBe(true);
-  });
-
-  test("config rejects constructor.prototype.polluted", () => {
-    const path = "constructor.prototype.polluted";
-    const segments = path.split(/[.\[]/);
-    const DANGEROUS = new Set(["__proto__", "constructor", "prototype"]);
-    expect(segments.some((s) => DANGEROUS.has(s.replace("]", "")))).toBe(true);
-  });
 });
 
 // ---------------------------------------------------------------------------

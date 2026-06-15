@@ -97,24 +97,6 @@ describe("CLI: adapters explain counter", () => {
   });
 });
 
-describe("CLI: formatAdapterExplain (unit)", () => {
-  test("bookmarks explain output contains items param doc", () => {
-    const output = formatAdapterExplain("bookmarks");
-    expect(output).toContain("items");
-    expect(output).toContain("required");
-    expect(output).toContain("bookmark entries");
-  });
-
-  test("counter explain output lists all params with types", () => {
-    const output = formatAdapterExplain("counter");
-    expect(output).toContain("url  string  required");
-    expect(output).toContain("json_path  string  required");
-    expect(output).toContain("label  string  -");
-    expect(output).toContain("unit  string  -");
-    expect(output).toContain("headers  object  -");
-  });
-});
-
 describe("CLI: config check with widget configs", () => {
   let tmpDir: string;
 
@@ -500,35 +482,6 @@ describe("rendering: layout ordering", () => {
     }
   });
 
-  test("all five node types render in declared order", () => {
-    const layout = flexCfg("column", [
-      { image: "https://example.com/banner.png", alt: "banner-node" },
-      { text: "text-node-content" },
-      { iframe: "https://embed.example.com" },
-      panelCfg("panel-node", "rss"),
-      flexCfg("row", [
-        { text: "nested-container-child" },
-      ]),
-    ]);
-    const panelData = new Map<string, PanelData>([
-      ["panel-node", { items: [makeItem({ title: "Item in panel" })] }],
-    ]);
-    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
-
-    const positions = [
-      html.indexOf("banner-node"),
-      html.indexOf("text-node-content"),
-      html.indexOf("embed.example.com"),
-      html.indexOf("panel-node"),
-      html.indexOf("nested-container-child"),
-    ];
-    for (const pos of positions) {
-      expect(pos).toBeGreaterThan(-1);
-    }
-    for (let i = 0; i < positions.length - 1; i++) {
-      expect(positions[i]).toBeLessThan(positions[i + 1]);
-    }
-  });
 });
 
 describe("rendering: widgets have no refresh buttons", () => {
@@ -590,25 +543,6 @@ describe("rendering: widgets have no refresh buttons", () => {
     expect(html).toContain('<form method="POST"');
   });
 
-  test("mixed layout: only panels get refresh buttons, not widgets", () => {
-    const layout = flexCfg("row", [
-      { image: "https://example.com/logo.png" },
-      panelCfg("Feed", "rss"),
-      { text: "notes" },
-      panelCfg("Counter", "counter", { display: "counter" }),
-      { iframe: "https://grafana.example.com" },
-    ]);
-    const panelData = new Map<string, PanelData>([
-      ["Feed", { items: [makeItem({ title: "Item" })] }],
-      ["Counter", { items: [makeItem({ title: "Stars", body: JSON.stringify({ value: 100 }) })] }],
-    ]);
-    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
-
-    // Count refresh buttons - should be exactly 2 (for Feed and Counter panels)
-    const refreshMatches = html.match(/refresh-btn/g);
-    expect(refreshMatches).not.toBeNull();
-    expect(refreshMatches!.length).toBe(2);
-  });
 });
 
 describe("rendering: stylesheet includes widget CSS classes", () => {

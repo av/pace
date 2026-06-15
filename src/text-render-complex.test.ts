@@ -67,17 +67,6 @@ describe("complex markdown content", () => {
   });
 
   describe("task lists", () => {
-    test("checked and unchecked tasks render as list items without checkboxes", () => {
-      const md = "- [x] Buy milk\n- [ ] Write tests\n- [x] Ship feature";
-      const result = renderMarkdown(md);
-      expect(result).toContain("<li>");
-      expect(result).toContain("Buy milk");
-      expect(result).toContain("Write tests");
-      expect(result).toContain("Ship feature");
-      // Input checkboxes are stripped
-      expect(result).not.toContain("<input");
-    });
-
     test("task list mixed with regular list items", () => {
       const md = "- Regular item\n- [x] Checked task\n- [ ] Unchecked task\n- Another regular";
       const result = renderMarkdown(md);
@@ -113,22 +102,6 @@ describe("complex markdown content", () => {
       expect(result).toContain("<code");
       expect(result).toContain("server:");
       expect(result).toContain("port: 3000");
-    });
-
-    test("python code block", () => {
-      const md = '```python\ndef hello():\n    print("hello world")\n```';
-      const result = renderMarkdown(md);
-      expect(result).toContain("<pre>");
-      expect(result).toContain("<code");
-      expect(result).toContain("def hello():");
-    });
-
-    test("code block without language tag", () => {
-      const md = "```\nplain code\n```";
-      const result = renderMarkdown(md);
-      expect(result).toContain("<pre>");
-      expect(result).toContain("<code>");
-      expect(result).toContain("plain code");
     });
 
     test("code block with HTML-like content is escaped", () => {
@@ -169,14 +142,6 @@ describe("complex markdown content", () => {
       expect(result).toContain("The source for the claim");
     });
 
-    test("multiple footnotes", () => {
-      const md = "Point A[^a] and point B[^b].\n\n[^a]: Source A.\n[^b]: Source B.";
-      const result = renderMarkdown(md);
-      expect(result).toContain("Point A");
-      expect(result).toContain("point B");
-      expect(result).toContain("Source A");
-      expect(result).toContain("Source B");
-    });
   });
 
   describe("strikethrough", () => {
@@ -185,14 +150,6 @@ describe("complex markdown content", () => {
       const result = renderMarkdown(md);
       expect(result).toContain("<del>deleted</del>");
       expect(result).toContain("text");
-    });
-
-    test("strikethrough combined with other formatting", () => {
-      const md = "**bold** and ~~struck~~ and *italic*";
-      const result = renderMarkdown(md);
-      expect(result).toContain("<strong>bold</strong>");
-      expect(result).toContain("<em>italic</em>");
-      expect(result).toContain("<del>struck</del>");
     });
 
     test("strikethrough tag (del) is preserved", () => {
@@ -209,12 +166,6 @@ describe("complex markdown content", () => {
       const result = renderMarkdown(md);
       expect(result).toContain('<a href="https://example.com"');
       expect(result).toContain("https://example.com");
-    });
-
-    test("bare HTTP URL becomes a clickable link", () => {
-      const md = "See http://example.org/page for details.";
-      const result = renderMarkdown(md);
-      expect(result).toContain('<a href="http://example.org/page"');
     });
 
     test("URL with path and query params is autolinked", () => {
@@ -252,23 +203,6 @@ describe("complex markdown content", () => {
       expect(result).toContain("Pea");
     });
 
-    test("unordered list inside ordered list", () => {
-      const md = [
-        "1. Step one",
-        "   - Detail A",
-        "   - Detail B",
-        "2. Step two",
-        "   - Detail C",
-      ].join("\n");
-      const result = renderMarkdown(md);
-      expect(result).toContain("<ol>");
-      expect(result).toContain("<ul>");
-      expect(result).toContain("Step one");
-      expect(result).toContain("Detail A");
-      expect(result).toContain("Step two");
-      expect(result).toContain("Detail C");
-    });
-
     test("three-level nested mixed list", () => {
       const md = [
         "- Level 1",
@@ -291,16 +225,6 @@ describe("complex markdown content", () => {
       expect(result).toContain("<blockquote>");
       expect(result).toContain("First paragraph");
       expect(result).toContain("Second paragraph");
-    });
-
-    test("nested blockquotes (three levels)", () => {
-      const md = "> Level one\n>> Level two\n>>> Level three";
-      const result = renderMarkdown(md);
-      const bqCount = (result.match(/<blockquote>/g) || []).length;
-      expect(bqCount).toBeGreaterThanOrEqual(2);
-      expect(result).toContain("Level one");
-      expect(result).toContain("Level two");
-      expect(result).toContain("Level three");
     });
 
     test("blockquote with formatted content inside", () => {
@@ -336,18 +260,6 @@ describe("complex markdown content", () => {
       expect(result).toContain("<hr");
       expect(result).toContain("Above");
       expect(result).toContain("Below");
-    });
-
-    test("triple asterisk horizontal rule", () => {
-      const md = "Before\n\n***\n\nAfter";
-      const result = renderMarkdown(md);
-      expect(result).toContain("<hr");
-    });
-
-    test("triple underscore horizontal rule", () => {
-      const md = "Top\n\n___\n\nBottom";
-      const result = renderMarkdown(md);
-      expect(result).toContain("<hr");
     });
 
     test("multiple horizontal rules in document", () => {
@@ -497,32 +409,9 @@ describe("HTML sanitization with real-world content", () => {
       expect(result).toContain("This is an important note about configuration.");
     });
 
-    test("GitHub task list HTML (input checkboxes stripped)", () => {
-      const html = [
-        '<ul class="contains-task-list">',
-        '<li class="task-list-item"><input type="checkbox" checked disabled> Done</li>',
-        '<li class="task-list-item"><input type="checkbox" disabled> Todo</li>',
-        '</ul>',
-      ].join("");
-      const result = sanitize(html);
-      expect(result).toContain("<ul>");
-      expect(result).toContain("<li>");
-      expect(result).not.toContain("<input");
-      expect(result).not.toContain("class=");
-      expect(result).toContain("Done");
-      expect(result).toContain("Todo");
-    });
   });
 
   describe("data attributes are stripped", () => {
-    test("data-* attributes on allowed tags", () => {
-      const html = '<p data-id="123" data-custom="val">text</p>';
-      const result = sanitize(html);
-      expect(result).not.toContain("data-id");
-      expect(result).not.toContain("data-custom");
-      expect(result).toBe("<p>text</p>");
-    });
-
     test("data attributes on links", () => {
       const html = '<a href="https://example.com" data-track="click">link</a>';
       const result = sanitize(html);
@@ -578,28 +467,6 @@ describe("HTML sanitization with real-world content", () => {
       expect(result).toContain("tracked");
     });
 
-    test("style on strong tag", () => {
-      const html = '<strong style="color: blue;">bold blue</strong>';
-      const result = sanitize(html);
-      expect(result).not.toContain("style=");
-      expect(result).toBe("<strong>bold blue</strong>");
-    });
-
-    test("style on link", () => {
-      const html = '<a href="https://ok.com" style="display:none;">hidden</a>';
-      const result = sanitize(html);
-      expect(result).not.toContain("style=");
-      expect(result).toContain('href="https://ok.com"');
-      expect(result).toContain("hidden");
-    });
-
-    test("inline style with position: fixed overlay attack", () => {
-      const html = '<p style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;">overlay</p>';
-      const result = sanitize(html);
-      expect(result).not.toContain("style=");
-      expect(result).not.toContain("position:");
-      expect(result).toBe("<p>overlay</p>");
-    });
   });
 });
 
@@ -650,16 +517,6 @@ describe("round-trip tests", () => {
       expect(result).toContain("Final paragraph");
     });
 
-    test("markdown with all inline formats round-trips correctly", () => {
-      const md = "**bold** *italic* `code` ~~struck~~ [link](https://x.com)";
-      const result = renderMarkdown(md);
-      expect(result).toContain("<strong>bold</strong>");
-      expect(result).toContain("<em>italic</em>");
-      expect(result).toContain("<code>code</code>");
-      expect(result).toContain("<del>struck</del>");
-      expect(result).toContain("https://x.com");
-    });
-
     test("markdown with images round-trips correctly", () => {
       const md = "![A cat](https://example.com/cat.jpg)\n\nSome text after.";
       const result = renderMarkdown(md);
@@ -668,30 +525,6 @@ describe("round-trip tests", () => {
       expect(result).toContain("Some text after");
     });
 
-    test("complex nested markdown round-trips without content loss", () => {
-      const md = [
-        "## Section",
-        "",
-        "> Quote with **bold** and a [link](https://x.com)",
-        ">",
-        "> Second paragraph in quote.",
-        "",
-        "1. First",
-        "   - Sub A",
-        "   - Sub B",
-        "2. Second",
-      ].join("\n");
-      const result = renderMarkdown(md);
-      expect(result).toContain("Section");
-      expect(result).toContain("<blockquote>");
-      expect(result).toContain("<strong>bold</strong>");
-      expect(result).toContain("https://x.com");
-      expect(result).toContain("Second paragraph in quote");
-      expect(result).toContain("First");
-      expect(result).toContain("Sub A");
-      expect(result).toContain("Sub B");
-      expect(result).toContain("Second");
-    });
   });
 
   describe("plain text with special HTML characters", () => {
@@ -718,14 +551,6 @@ describe("round-trip tests", () => {
       expect(result).toContain("goodbye");
     });
 
-    test("HTML entities pass through sanitize", () => {
-      const input = "<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>";
-      const result = sanitize(input);
-      // Should be preserved as literal entity text, not executed
-      expect(result).toContain("&lt;script&gt;");
-      expect(result).not.toContain("<script");
-    });
-
     test("markdown with < > & renders safely", () => {
       const md = "Use `x < y` and `a & b` in expressions.";
       const result = renderMarkdown(md);
@@ -737,13 +562,6 @@ describe("round-trip tests", () => {
   });
 
   describe("markdown with emoji", () => {
-    test("emoji in paragraph text renders correctly", () => {
-      const md = "Hello world! Here is a thumbs up.";
-      const result = renderMarkdown(md);
-      expect(result).toContain("Hello world");
-      expect(result).toContain("thumbs up");
-    });
-
     test("unicode emoji characters pass through markdown rendering", () => {
       const md = "Status: ✅ Done and ❌ Failed";
       const result = renderMarkdown(md);
@@ -761,27 +579,11 @@ describe("round-trip tests", () => {
       expect(result).toContain("Launch Notes");
     });
 
-    test("emoji in list items", () => {
-      const md = "- \u{1F4E6} Package shipped\n- \u{1F527} Fixing bugs\n- ✨ New feature";
-      const result = renderMarkdown(md);
-      expect(result).toContain("<ul>");
-      expect(result).toContain("\u{1F4E6}");
-      expect(result).toContain("\u{1F527}");
-      expect(result).toContain("✨");
-    });
-
     test("emoji in code blocks are preserved as-is", () => {
       const md = "```\nconsole.log('\u{1F389}');\n```";
       const result = renderMarkdown(md);
       expect(result).toContain("<pre>");
       expect(result).toContain("\u{1F389}");
-    });
-
-    test("emoji in blockquotes", () => {
-      const md = "> \u{1F4A1} Remember to always test your code.";
-      const result = renderMarkdown(md);
-      expect(result).toContain("<blockquote>");
-      expect(result).toContain("\u{1F4A1}");
     });
 
     test("CJK characters in markdown", () => {

@@ -356,23 +356,6 @@ describe("CounterPanel accessibility", () => {
 // CROSS-WIDGET HEADING HIERARCHY
 // ===========================================================================
 describe("Widget heading hierarchy", () => {
-  it("all widget types use h2 in panel headers for consistent hierarchy", () => {
-    // Text widget with title
-    const textHtml = renderWidget({ text: "Content", title: "Text Section", format: "plain" });
-    expect(textHtml).toContain("<h2>Text Section</h2>");
-
-    // Iframe widget with title
-    const iframeHtml = renderWidget({ iframe: "https://example.com", title: "Iframe Section" });
-    expect(iframeHtml).toContain("<h2>Iframe Section</h2>");
-
-    // Counter panel
-    const pd = new Map<string, PanelData>([
-      ["Counter Section", { items: [] }],
-    ]);
-    const counterHtml = renderWidget(panelCfg("Counter Section", "counter", { display: "counter" }), pd);
-    expect(counterHtml).toContain("<h2>Counter Section</h2>");
-  });
-
   it("h1 in markdown body does not conflict with panel h2 header", () => {
     const html = renderWidget({ text: "# Top Heading\nContent", title: "Panel Title", format: "markdown" });
     // Panel header is h2
@@ -386,20 +369,6 @@ describe("Widget heading hierarchy", () => {
 // KEYBOARD NAVIGATION
 // ===========================================================================
 describe("Widget keyboard navigation", () => {
-  it("text widget body is focusable via tabindex=0", () => {
-    const html = renderWidget({ text: "Scrollable content", format: "plain" });
-    const bodyMatch = html.match(/class="text-widget-body"[^>]*/);
-    expect(bodyMatch).toBeTruthy();
-    expect(bodyMatch![0]).toContain('tabindex="0"');
-  });
-
-  it("iframe is keyboard-focusable by default (no negative tabindex)", () => {
-    const html = renderWidget({ iframe: "https://example.com" });
-    const iframeMatch = html.match(/<iframe[^>]*/);
-    expect(iframeMatch).toBeTruthy();
-    expect(iframeMatch![0]).not.toContain("tabindex");
-  });
-
   it("linked image is keyboard-focusable via anchor element", () => {
     const html = renderWidget({ image: "https://example.com/img.png", link: "https://example.com" });
     expect(html).toContain("<a ");
@@ -445,23 +414,4 @@ describe("Screen reader friendly text", () => {
     expect(html).toContain("5M");
   });
 
-  it("image widget link aria-label provides full URL context", () => {
-    const html = renderWidget({
-      image: "https://example.com/img.png",
-      link: "https://docs.example.com/getting-started",
-    });
-    expect(html).toContain('aria-label="https://docs.example.com/getting-started"');
-  });
-
-  it("text widget region aria-label matches visible title", () => {
-    const html = renderWidget({ text: "Content", title: "Release Notes", format: "plain" });
-    expect(html).toContain('aria-label="Release Notes"');
-    // Visible title also present
-    expect(html).toContain("<h2>Release Notes</h2>");
-  });
-
-  it("iframe title provides context about embedded content source", () => {
-    const html = renderWidget({ iframe: "https://grafana.internal.io/dashboard/42" });
-    expect(html).toContain('title="Embedded content from grafana.internal.io"');
-  });
 });

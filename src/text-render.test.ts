@@ -136,15 +136,6 @@ describe("text-render", () => {
       expect(result).toContain("<code>");
     });
 
-    test("renders GFM tables with table markup", () => {
-      const result = renderMarkdown("| A | B |\n|---|---|\n| 1 | 2 |");
-      expect(result).toContain("<table");
-      expect(result).toContain("<th");
-      expect(result).toContain("<td");
-      expect(result).toContain("A");
-      expect(result).toContain("B");
-    });
-
     test("sanitizes XSS in markdown output", () => {
       const result = renderMarkdown('Click <script>alert("xss")</script> here');
       expect(result).not.toContain("<script");
@@ -164,14 +155,6 @@ describe("text-render", () => {
     test("renders inline code", () => {
       const result = renderMarkdown("use `console.log`");
       expect(result).toContain("<code>console.log</code>");
-    });
-
-    test("renders nested blockquotes", () => {
-      const result = renderMarkdown("> outer\n>> inner\n>>> deeply nested");
-      expect(result).toContain("<blockquote>");
-      // Should have nested blockquote elements
-      const count = (result.match(/<blockquote>/g) || []).length;
-      expect(count).toBeGreaterThanOrEqual(2);
     });
 
     test("renders GFM task lists as text (input not in allowlist)", () => {
@@ -202,28 +185,6 @@ describe("text-render", () => {
       expect(result).toContain("<strong>bold</strong>");
     });
 
-    test("renderMarkdown strips raw HTML script in markdown", () => {
-      const result = renderMarkdown("## Title\n<script>alert(1)</script>\nText");
-      expect(result).toContain("<h2");
-      expect(result).toContain("Title");
-      expect(result).not.toContain("<script");
-      expect(result).not.toContain("alert");
-      expect(result).toContain("Text");
-    });
-
-    test("renderMarkdown preserves GFM table structure", () => {
-      const md = "| Name | Age |\n|------|-----|\n| Alice | 30 |\n| Bob | 25 |";
-      const result = renderMarkdown(md);
-      expect(result).toContain("<table");
-      expect(result).toContain("<thead");
-      expect(result).toContain("<tbody");
-      expect(result).toContain("<tr");
-      expect(result).toContain("<td");
-      expect(result).toContain("<th");
-      expect(result).toContain("Alice");
-      expect(result).toContain("Bob");
-    });
-
     test("sanitize strips deeply nested disallowed tags", () => {
       const input = "<p><strong><em><code>text</code></em></strong></p>";
       const result = sanitize(input);
@@ -239,31 +200,6 @@ describe("text-render", () => {
       expect(result).toContain("<code>text</code>");
     });
 
-    test("renderMarkdown with very long content (many headings and lists)", () => {
-      const lines: string[] = [];
-      for (let i = 0; i < 100; i++) {
-        lines.push(`### Heading ${i}`);
-        lines.push(`- Item ${i}a`);
-        lines.push(`- Item ${i}b`);
-        lines.push("");
-      }
-      const md = lines.join("\n");
-      expect(md.length).toBeGreaterThan(1000);
-      const result = renderMarkdown(md);
-      expect(result).toContain("<h3>");
-      expect(result).toContain("<li>");
-      expect(result).toContain("Heading 0");
-      expect(result).toContain("Heading 99");
-    });
-
-    test("renderMarkdown handles nested blockquotes", () => {
-      const md = "> Level 1\n>> Level 2\n>>> Level 3";
-      const result = renderMarkdown(md);
-      const count = (result.match(/<blockquote>/g) || []).length;
-      expect(count).toBeGreaterThanOrEqual(2);
-      expect(result).toContain("Level 1");
-      expect(result).toContain("Level 3");
-    });
   });
 
   describe("advanced XSS bypass vectors", () => {

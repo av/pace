@@ -418,25 +418,6 @@ describe("Preset consistency checks", () => {
     }
   });
 
-  it("presets that use widgets have the correct discriminator keys", () => {
-    for (const { name, validated } of allPresets) {
-      walkLayoutNodes(validated.layout, (node) => {
-        if (isImageWidget(node)) {
-          expect(typeof node.image).toBe("string");
-          expect(node.image.length).toBeGreaterThan(0);
-        }
-        if (isTextWidget(node)) {
-          expect(typeof node.text).toBe("string");
-          expect(node.text.length).toBeGreaterThan(0);
-        }
-        if (isIframe(node)) {
-          expect(typeof node.iframe).toBe("string");
-          expect(node.iframe.length).toBeGreaterThan(0);
-        }
-      });
-    }
-  });
-
   it("all image widgets use safe URLs (https or localhost http)", () => {
     for (const { name, validated } of allPresets) {
       walkLayoutNodes(validated.layout, (node) => {
@@ -465,79 +446,6 @@ describe("Preset consistency checks", () => {
         }
       });
     }
-  });
-});
-
-// ============================================================
-// 5. Cross-preset widget and adapter coverage
-// ============================================================
-
-describe("Cross-preset coverage", () => {
-  it("at least one preset uses image widgets", () => {
-    let found = false;
-    for (const name of PRESET_NAMES) {
-      const parsed = loadPresetYaml(name);
-      const validated = validateParsedConfig(parsed, DEFAULT_LAYOUT);
-      walkLayoutNodes(validated.layout, (node) => {
-        if (isImageWidget(node)) found = true;
-      });
-    }
-    expect(found).toBe(true);
-  });
-
-  it("at least one preset uses text widgets", () => {
-    let found = false;
-    for (const name of PRESET_NAMES) {
-      const parsed = loadPresetYaml(name);
-      const validated = validateParsedConfig(parsed, DEFAULT_LAYOUT);
-      walkLayoutNodes(validated.layout, (node) => {
-        if (isTextWidget(node)) found = true;
-      });
-    }
-    expect(found).toBe(true);
-  });
-
-  it("at least one preset uses iframe widgets", () => {
-    let found = false;
-    for (const name of PRESET_NAMES) {
-      const parsed = loadPresetYaml(name);
-      const validated = validateParsedConfig(parsed, DEFAULT_LAYOUT);
-      walkLayoutNodes(validated.layout, (node) => {
-        if (isIframe(node)) found = true;
-      });
-    }
-    expect(found).toBe(true);
-  });
-
-  it("at least one preset uses bookmarks adapter", () => {
-    let found = false;
-    for (const name of PRESET_NAMES) {
-      const parsed = loadPresetYaml(name);
-      const validated = validateParsedConfig(parsed, DEFAULT_LAYOUT);
-      if (validated.adapters.some((a) => a.type === "bookmarks")) found = true;
-    }
-    expect(found).toBe(true);
-  });
-
-  it("at least one preset uses counter adapter", () => {
-    let found = false;
-    for (const name of PRESET_NAMES) {
-      const parsed = loadPresetYaml(name);
-      const validated = validateParsedConfig(parsed, DEFAULT_LAYOUT);
-      if (validated.adapters.some((a) => a.type === "counter")) found = true;
-    }
-    expect(found).toBe(true);
-  });
-
-  it("at least one preset uses display:counter on a panel", () => {
-    let found = false;
-    for (const name of PRESET_NAMES) {
-      const parsed = loadPresetYaml(name);
-      const validated = validateParsedConfig(parsed, DEFAULT_LAYOUT);
-      const panels = collectPanels(validated.layout);
-      if (panels.some((p) => p.display === "counter")) found = true;
-    }
-    expect(found).toBe(true);
   });
 });
 

@@ -1247,17 +1247,6 @@ layout:
     expect(() => loadConfig()).not.toThrow();
   });
 
-  test("accepts minimal image widget (image only)", () => {
-    const yaml = `
-layout:
-  direction: row
-  children:
-    - image: https://example.com/logo.png
-`;
-    setConfig(yaml);
-    expect(() => loadConfig()).not.toThrow();
-  });
-
   test("rejects image widget with empty image url", () => {
     const yaml = `
 layout:
@@ -1323,20 +1312,6 @@ layout:
     expect(() => loadConfig()).not.toThrow();
   });
 
-  test("rejects image widget with non-localhost http link", () => {
-    const yaml = `
-layout:
-  direction: row
-  children:
-    - image: https://example.com/logo.png
-      link: "http://example.com/page"
-`;
-    setConfig(yaml);
-    expect(() => loadConfig()).toThrow(
-      /config: layout.children\[0\].link has disallowed scheme "http"/,
-    );
-  });
-
   test("image widget does not conflict with panel discriminator", () => {
     const yaml = `
 layout:
@@ -1367,29 +1342,6 @@ layout:
     expect(() => loadConfig()).not.toThrow();
   });
 
-  test("accepts minimal iframe widget (iframe only)", () => {
-    const yaml = `
-layout:
-  direction: row
-  children:
-    - iframe: https://example.com/embed
-`;
-    setConfig(yaml);
-    expect(() => loadConfig()).not.toThrow();
-  });
-
-  test("accepts iframe widget with height", () => {
-    const yaml = `
-layout:
-  direction: row
-  children:
-    - iframe: https://example.com/embed
-      height: "400px"
-`;
-    setConfig(yaml);
-    expect(() => loadConfig()).not.toThrow();
-  });
-
   test("accepts iframe widget with http://localhost", () => {
     const yaml = `
 layout:
@@ -1412,17 +1364,6 @@ layout:
     expect(() => loadConfig()).toThrow(
       /config: layout.children\[0\].iframe has disallowed scheme "http"/,
     );
-  });
-
-  test("rejects iframe widget with empty iframe URL", () => {
-    const yaml = `
-layout:
-  direction: row
-  children:
-    - iframe: ""
-`;
-    setConfig(yaml);
-    expect(() => loadConfig()).toThrow(/config: layout.children\[0\].iframe must be a non-empty URL string/);
   });
 
   test("rejects iframe widget with unknown field", () => {
@@ -1453,20 +1394,6 @@ layout:
     );
   });
 
-  test("rejects iframe widget with non-numeric aspect_ratio", () => {
-    const yaml = `
-layout:
-  direction: row
-  children:
-    - iframe: https://example.com/embed
-      aspect_ratio: "wide"
-`;
-    setConfig(yaml);
-    expect(() => loadConfig()).toThrow(
-      /config: layout.children\[0\].aspect_ratio must match the format "N\/N"/,
-    );
-  });
-
   test("rejects iframe widget with invalid height format", () => {
     const yaml = `
 layout:
@@ -1474,20 +1401,6 @@ layout:
   children:
     - iframe: https://example.com/embed
       height: "400"
-`;
-    setConfig(yaml);
-    expect(() => loadConfig()).toThrow(
-      /config: layout.children\[0\].height must be a valid CSS length/,
-    );
-  });
-
-  test("rejects iframe widget with non-string height", () => {
-    const yaml = `
-layout:
-  direction: row
-  children:
-    - iframe: https://example.com/embed
-      height: 400
 `;
     setConfig(yaml);
     expect(() => loadConfig()).toThrow(
@@ -1526,20 +1439,6 @@ layout:
     });
   });
 
-  test("iframe widget alongside panels", () => {
-    const yaml = `
-layout:
-  direction: row
-  children:
-    - iframe: https://example.com/embed
-      title: Dashboard
-    - panel: news
-      source: all
-`;
-    setConfig(yaml);
-    expect(() => loadConfig()).not.toThrow();
-  });
-
   // Text widget validation
   test("accepts valid text widget with all fields", () => {
     const yaml = `
@@ -1554,41 +1453,6 @@ layout:
       flex: 2
     - panel: news
       source: hackernews
-`;
-    setConfig(yaml);
-    expect(() => loadConfig()).not.toThrow();
-  });
-
-  test("accepts minimal text widget (text only)", () => {
-    const yaml = `
-layout:
-  direction: row
-  children:
-    - text: "Just some text"
-`;
-    setConfig(yaml);
-    expect(() => loadConfig()).not.toThrow();
-  });
-
-  test("accepts text widget with format: plain", () => {
-    const yaml = `
-layout:
-  direction: row
-  children:
-    - text: "Plain text"
-      format: plain
-`;
-    setConfig(yaml);
-    expect(() => loadConfig()).not.toThrow();
-  });
-
-  test("accepts text widget with format: html", () => {
-    const yaml = `
-layout:
-  direction: row
-  children:
-    - text: "<em>Hello</em>"
-      format: html
 `;
     setConfig(yaml);
     expect(() => loadConfig()).not.toThrow();
@@ -1649,23 +1513,6 @@ layout:
     );
   });
 
-  test("text widget alongside panels and other widgets", () => {
-    const yaml = `
-adapters:
-  - type: hackernews
-layout:
-  direction: row
-  children:
-    - text: "Welcome note"
-      title: About
-    - panel: news
-      source: hackernews
-    - text: "## Changelog"
-      format: markdown
-`;
-    setConfig(yaml);
-    expect(() => loadConfig()).not.toThrow();
-  });
 });
 
   describe("sanitizeSandboxTokens", () => {

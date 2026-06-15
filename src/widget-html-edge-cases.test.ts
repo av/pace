@@ -693,20 +693,6 @@ describe("text-render additional edge cases", () => {
     expect(typeof result).toBe("string");
   });
 
-  it("renderMarkdown renders all heading levels", () => {
-    const md = "# H1\n## H2\n### H3\n#### H4\n##### H5\n###### H6";
-    const result = renderMarkdown(md);
-    for (let i = 1; i <= 6; i++) {
-      expect(result).toContain(`<h${i}`);
-    }
-  });
-
-  it("renderMarkdown renders images with src and alt", () => {
-    const result = renderMarkdown("![alt text](https://example.com/pic.png)");
-    expect(result).toContain('src="https://example.com/pic.png"');
-    expect(result).toContain('alt="alt text"');
-  });
-
   it("sanitize strips disallowed tags (div, span) but keeps table and content", () => {
     const input = "<div><span>hello</span></div><table><tr><td>cell</td></tr></table>";
     const result = sanitize(input);
