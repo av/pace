@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "bun:test";
+import { beforeEach, describe, expect, it, spyOn } from "bun:test";
 import adapter from "./adapters/youtube";
 import { FEED_XML_ACCEPT } from "./adapters/fetch";
 import { fetchMockCallHeaders, useFetchMockSuite } from "./test/adapter-mocks";
@@ -109,10 +109,17 @@ describe("youtube", () => {
     expect(items[0].title).toBe("Video 2 Title");
   });
 
-  it("throws when any configured feed fails (!ok), even if others would succeed", async () => {
-    await expect(
-      adapter.fetch(youtubeCfg({ channels: ["ERR"], playlists: ["PL1"] })),
-    ).rejects.toThrow(/youtube:.*failed to fetch channel ERR.*HTTP error 404/);
+  it("returns items from successful feeds when one feed fails (partial failure)", async () => {
+    const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const items = await adapter.fetch(youtubeCfg({ channels: ["ERR"], playlists: ["PL1"] }));
+      expect(items.length).toBeGreaterThan(0);
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("skipping source"),
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it("strips HTML from media:description in body", async () => {

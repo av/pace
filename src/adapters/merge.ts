@@ -25,13 +25,32 @@ export async function fetchAndConcat<T, K = string>(
   return merged;
 }
 
-/** Fetch each key in parallel and flatten results. */
+/** Fetch each key in parallel, tolerating individual failures.
+ *  Successful results are flattened; failed keys are warned and skipped.
+ *  If ALL keys fail, the first error is rethrown so the adapter reports failure. */
 export async function fetchAllParallel<T, K>(
   keys: readonly K[],
   fetchOne: (key: K) => Promise<T[]>,
 ): Promise<T[]> {
-  const results = await Promise.all(keys.map(fetchOne));
-  return results.flat();
+  const settled = await Promise.allSettled(keys.map(fetchOne));
+  const items: T[] = [];
+  const failures: { index: number; reason: unknown }[] = [];
+  for (let i = 0; i < settled.length; i++) {
+    const result = settled[i];
+    if (result.status === "fulfilled") {
+      items.push(...result.value);
+    } else {
+      failures.push({ index: i, reason: result.reason });
+    }
+  }
+  if (items.length === 0 && failures.length > 0) {
+    throw failures[0].reason;
+  }
+  for (const f of failures) {
+    const msg = f.reason instanceof Error ? f.reason.message : String(f.reason);
+    console.warn(`feed: skipping source ${f.index + 1}/${keys.length}: ${msg}`);
+  }
+  return items;
 }
 
 /** Global cap when each source may contribute up to `perSourceLimit` items. */

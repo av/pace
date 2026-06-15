@@ -265,7 +265,7 @@ layout:
 #       max_height: 120px
 #       link: https://example.com
 #
-#     # Text widget - notes, instructions, or changelogs
+#     # Text widget - notes, instructions, or changelogs (format: plain | markdown | html)
 #     - text: "## Welcome\nYour personalized dashboard."
 #       format: markdown
 #       title: "About"
@@ -273,7 +273,7 @@ layout:
 #     # Iframe widget - embed an external page (Grafana, status page, etc.)
 #     - iframe: https://grafana.example.com/d/abc
 #       title: "Metrics"
-#       height: 400px
+#       height: 400px            # or use aspect_ratio: "16/9" (default when no height)
 #
 # Bookmarks adapter (curated links, no network fetch):
 #
@@ -282,6 +282,7 @@ layout:
 #       items:
 #         - title: "Linear"
 #           url: "https://linear.app"
+#           description: "Project management"
 #           tags: ["work"]
 #         - title: "Figma"
 #           url: "https://figma.com"
@@ -294,6 +295,11 @@ layout:
 #       url: https://api.github.com/repos/oven-sh/bun
 #       json_path: stargazers_count
 #       label: "Bun Stars"
+#       # unit: " stars"                        # suffix after the value
+#       # compare_url: https://.../yesterday    # previous value for trend arrow
+#       # compare_path: stargazers_count        # json_path in compare response (defaults to json_path)
+#       # headers:                              # custom headers (supports ${ENV_VAR} interpolation)
+#       #   Authorization: "Bearer ${GH_TOKEN}"
 #   # Use display: counter on the panel:
 #   # - panel: stars
 #   #   source: counter
