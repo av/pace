@@ -308,7 +308,7 @@ test("saveItems per-item failure uses errorMessage in thrown message", async () 
   initDb();
   const database = getDb();
   const realPrepare = database.prepare.bind(database);
-  const prepareSpy = spyOn(database, "prepare").mockImplementation((sql: string) => {
+  const prepareSpy = spyOn(database, "prepare").mockImplementation(((sql: string) => {
     const stmt = realPrepare(sql);
     if (sql.includes("INSERT INTO content_items")) {
       spyOn(stmt, "run").mockImplementation(() => {
@@ -316,7 +316,7 @@ test("saveItems per-item failure uses errorMessage in thrown message", async () 
       });
     }
     return stmt;
-  });
+  }) as typeof database.prepare);
   try {
     await expectThrowUsesErrorMessage(
       () => saveItems("perr", [makeItem({ id: "bad1" })]),
@@ -340,7 +340,7 @@ test("replacePanelItems per-item failure uses errorMessage in thrown message", a
     summary: null,
   });
   const realPrepare = database.prepare.bind(database);
-  const prepareSpy = spyOn(database, "prepare").mockImplementation((sql: string) => {
+  const prepareSpy = spyOn(database, "prepare").mockImplementation(((sql: string) => {
     const stmt = realPrepare(sql);
     if (sql.includes("INSERT OR REPLACE INTO content_items")) {
       spyOn(stmt, "run").mockImplementation(() => {
@@ -348,7 +348,7 @@ test("replacePanelItems per-item failure uses errorMessage in thrown message", a
       });
     }
     return stmt;
-  });
+  }) as typeof database.prepare);
   try {
     await expectThrowUsesErrorMessage(
       () => replacePanelItems("prep", [row]),

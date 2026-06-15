@@ -395,17 +395,18 @@ describe("scheduler: timer leak prevention", () => {
   test("config with widgets + adapters: scheduler runs adapters, widget nodes ignored", () => {
     const state = createSchedulerState();
     const runtime = createSchedulerRuntime(state);
+    const layout = flexCfg("row", [
+      { image: "https://example.com/logo.png" },
+      { panel: "news", source: "hackernews", id: "news-panel" },
+    ]);
     const config: AppConfig = {
       adapters: [{ type: "hackernews", refresh_interval: 15 }],
-      layout: flexCfg("row", [
-        { image: "https://example.com/logo.png" },
-        { panel: "news", source: "hackernews", id: "news-panel" },
-      ]),
+      layout,
     };
     const items = [makeContentItem({ id: "hn1", title: "Test", url: "https://hn.example.com", source: "hackernews" })];
     const adapters = adaptersMap(["hackernews", makeMockAdapter(items)]);
     const panelMap = {
-      dashboardPanels: [{ panel: config.layout.children[1], pid: "news-panel", isAll: false }],
+      dashboardPanels: [{ panel: layout.children[1], pid: "news-panel", isAll: false }],
       sourceToPanels: new Map([["hackernews", ["news-panel"]]]),
       sourceToReadKey: new Map([["hackernews", "hackernews"]]),
     };

@@ -168,7 +168,7 @@ describe("fetchText", () => {
       text: async () => {
         throw new Error("stream truncated");
       },
-    } as Response);
+    } as unknown as Response);
 
     await expect(fetchText("rss", "https://example.com/feed.xml")).rejects.toThrow(
       "rss: error reading https://example.com/feed.xml: stream truncated",
@@ -868,7 +868,7 @@ describe("fetchJson", () => {
       json: async () => {
         throw new Error("invalid json");
       },
-    } as Response);
+    } as unknown as Response);
 
     await expect(fetchJson("lemmy", "https://example.com/posts")).rejects.toThrow(
       "lemmy: error reading https://example.com/posts: invalid json",

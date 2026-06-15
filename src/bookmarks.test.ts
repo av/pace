@@ -253,7 +253,7 @@ describe("bookmarks adapter", () => {
     expect(result[0].title).toBe("Extra");
     expect(result[0].url).toBe("https://example.com");
     // Extra fields are not passed through to ContentItem
-    expect((result[0] as Record<string, unknown>).icon).toBeUndefined();
+    expect((result[0] as unknown as Record<string, unknown>).icon).toBeUndefined();
   });
 
   test("description that is an object is treated as undefined", async () => {

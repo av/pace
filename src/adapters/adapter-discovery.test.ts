@@ -1,4 +1,5 @@
 import { describe, test, expect } from "bun:test";
+import type { Dirent } from "node:fs";
 import {
   isExtensionAdapterSourceFile,
   isValidAdapter,
@@ -19,7 +20,7 @@ describe("parseReaddirEntry", () => {
       name: "custom-adapter.ts",
       isFile: () => true,
       isDirectory: () => false,
-    };
+    } as Dirent;
     expect(parseReaddirEntry(entry)).toEqual({
       file: "custom-adapter.ts",
       isFile: true,

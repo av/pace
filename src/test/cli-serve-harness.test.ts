@@ -26,7 +26,7 @@ describe("cli-serve-harness request helpers", () => {
   });
 
   test("requestCliServe parses json body and lowercases headers", async () => {
-    fetchSpy = spyOn(globalThis, "fetch").mockImplementation(async (url: string | URL | Request, init?: RequestInit) => {
+    fetchSpy = spyOn(globalThis, "fetch").mockImplementation((async (url: string | URL | Request, init?: RequestInit) => {
       expect(url).toBe("http://localhost:9999/health");
       expect(init?.method).toBe("GET");
       return new Response(JSON.stringify({ status: "ok" }), {
@@ -36,7 +36,7 @@ describe("cli-serve-harness request helpers", () => {
           "X-Frame-Options": "DENY",
         },
       });
-    });
+    }) as typeof fetch);
     const result = await requestCliServe("http://localhost:9999/health");
     expect(result.status).toBe(200);
     expect(result.body).toEqual({ status: "ok" });
@@ -51,14 +51,14 @@ describe("cli-serve-harness request helpers", () => {
   });
 
   test("requestCliServeDashboard GETs root HTML", async () => {
-    fetchSpy = spyOn(globalThis, "fetch").mockImplementation(async (url: string | URL | Request, init?: RequestInit) => {
+    fetchSpy = spyOn(globalThis, "fetch").mockImplementation((async (url: string | URL | Request, init?: RequestInit) => {
       expect(url).toBe("http://localhost:12345/");
       expect(init?.method).toBe("GET");
       return new Response("<!DOCTYPE html><title>pace</title>", {
         status: 200,
         headers: { "Content-Type": "text/html; charset=utf-8" },
       });
-    });
+    }) as typeof fetch);
     const harness = { base: "http://localhost:12345" } as CliServeHarness;
     const result = await requestCliServeDashboard(harness);
     expect(result.status).toBe(200);
@@ -67,13 +67,13 @@ describe("cli-serve-harness request helpers", () => {
   });
 
   test("requestCliServeHealth GETs /health", async () => {
-    fetchSpy = spyOn(globalThis, "fetch").mockImplementation(async (url: string | URL | Request) => {
+    fetchSpy = spyOn(globalThis, "fetch").mockImplementation((async (url: string | URL | Request) => {
       expect(url).toBe("http://localhost:12345/health");
       return new Response(JSON.stringify({ status: "ok" }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       });
-    });
+    }) as typeof fetch);
     const harness = { base: "http://localhost:12345" } as CliServeHarness;
     const result = await requestCliServeHealth(harness);
     expect(result.status).toBe(200);
@@ -81,7 +81,7 @@ describe("cli-serve-harness request helpers", () => {
   });
 
   test("requestCliServeRefresh POSTs with redirect manual", async () => {
-    fetchSpy = spyOn(globalThis, "fetch").mockImplementation(async (url: string | URL | Request, init?: RequestInit) => {
+    fetchSpy = spyOn(globalThis, "fetch").mockImplementation((async (url: string | URL | Request, init?: RequestInit) => {
       expect(url).toBe("http://localhost:12345/refresh/reddit");
       expect(init?.method).toBe("POST");
       expect(init?.redirect).toBe("manual");
@@ -89,7 +89,7 @@ describe("cli-serve-harness request helpers", () => {
         status: 303,
         headers: { location: "/" },
       });
-    });
+    }) as typeof fetch);
     const harness = {
       base: "http://localhost:12345",
     } as CliServeHarness;
