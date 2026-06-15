@@ -7,6 +7,7 @@ import {
 } from "./db";
 import { makeContentItem, makeContentItemRow as makeRow } from "./test/content-items";
 import { runPipeline, type TransformContext } from "./transforms";
+import type { TransformConfig } from "./config/types";
 import { dedupeGroupedByKey } from "./dedupe";
 
 installTempDbHooks({ prefix: "pace-adapter-provenance-", init: false, warnOnRmFail: true });
@@ -32,9 +33,9 @@ describe("provenance - bookmarks source attribution through pipeline", () => {
       makeRow({ id: "bk2", title: "Beta Tool", source: "bookmarks:tools", body: "Testing framework" }),
       makeRow({ id: "bk3", title: "Gamma Recipe", source: "bookmarks:food", body: "Pasta dish" }),
     ];
-    const steps = [
+    const steps: TransformConfig[] = [
       { type: "filter", keywords: ["tool"] },
-      { type: "sort", field: "title" as const, direction: "asc" as const },
+      { type: "sort", field: "title", direction: "asc" },
       { type: "latest", count: 1 },
     ];
     const result = await runPipeline(items, steps, ctx);
@@ -49,7 +50,7 @@ describe("provenance - bookmarks source attribution through pipeline", () => {
       makeRow({ id: "bk2", title: "NYT", source: "bookmarks:news" }),
       makeRow({ id: "bk3", title: "React Docs", source: "bookmarks:docs" }),
     ];
-    const steps = [{ type: "filter", keywords: ["tools"], fields: ["source"] }];
+    const steps: TransformConfig[] = [{ type: "filter", keywords: ["tools"], fields: ["source"] }];
     const result = await runPipeline(items, steps, ctx);
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("bk1");
@@ -62,7 +63,7 @@ describe("provenance - bookmarks source attribution through pipeline", () => {
       makeRow({ id: "bk2", title: "NYT", source: "bookmarks:news" }),
       makeRow({ id: "rs1", title: "HN Top", source: "hackernews" }),
     ];
-    const steps = [{ type: "filter", keywords: ["bookmarks"], fields: ["source"] }];
+    const steps: TransformConfig[] = [{ type: "filter", keywords: ["bookmarks"], fields: ["source"] }];
     const result = await runPipeline(items, steps, ctx);
     expect(result).toHaveLength(2);
     expect(result.every((r) => r.source.startsWith("bookmarks"))).toBe(true);
@@ -149,8 +150,8 @@ describe("provenance - mixed panel attribution", () => {
       makeRow({ id: "bk1", title: "Tool Bookmark", source: "bookmarks:tools", body: "Developer tool" }),
       makeRow({ id: "ct1", title: "Star Count", source: "github-stars", body: JSON.stringify({ value: 1000 }) }),
     ];
-    const steps = [
-      { type: "sort", field: "title" as const, direction: "asc" as const },
+    const steps: TransformConfig[] = [
+      { type: "sort", field: "title", direction: "asc" },
     ];
     const result = await runPipeline(items, steps, ctx);
     expect(result).toHaveLength(3);
@@ -185,7 +186,7 @@ describe("edge - dedup between two bookmark adapter instances", () => {
         body: "Go-to code site",
       }),
     ];
-    const steps = [{ type: "dedupe", strategy: "url", log: false }];
+    const steps: TransformConfig[] = [{ type: "dedupe", strategy: "url", log: false }];
     const result = await runPipeline(items, steps, ctx);
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("bk-tools-github"); // first wins
@@ -226,7 +227,7 @@ describe("edge - dedup between two bookmark adapter instances", () => {
         timestamp: "2024-01-02T00:00:00Z",
       }),
     ];
-    const steps = [{ type: "dedupe", strategy: "domain-normalized", keep: "latest", log: false }];
+    const steps: TransformConfig[] = [{ type: "dedupe", strategy: "domain-normalized", keep: "latest", log: false }];
     const result = await runPipeline(items, steps, ctx);
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("bk-b"); // latest kept
@@ -248,7 +249,7 @@ describe("edge - transforms modifying counter structured JSON body", () => {
         timestamp: new Date(now - 3600 * 1000).toISOString(),
       }),
     ];
-    const steps = [{
+    const steps: TransformConfig[] = [{
       type: "time-decay",
       half_life: "12h",
       engagement_weight: 0.5,
@@ -273,7 +274,7 @@ describe("edge - transforms modifying counter structured JSON body", () => {
         body: jsonBody,
       }),
     ];
-    const steps = [{
+    const steps: TransformConfig[] = [{
       type: "keyword-score",
       keywords: [{ term: "github", weight: 5 }],
     }];
@@ -298,7 +299,7 @@ describe("edge - transforms modifying counter structured JSON body", () => {
       }),
     ];
     // "stars" appears inside JSON body string as a value
-    const steps = [{ type: "filter", keywords: ["stars"] }];
+    const steps: TransformConfig[] = [{ type: "filter", keywords: ["stars"] }];
     const result = await runPipeline(items, steps, ctx);
     // ct1 matches on both title ("Star Count" does NOT have "stars") and body (JSON contains "stars")
     // ct2 does not match
@@ -321,7 +322,7 @@ describe("edge - transforms modifying counter structured JSON body", () => {
         body: JSON.stringify({ value: 200, category: "uploads", label: "monthly" }),
       }),
     ];
-    const steps = [{
+    const steps: TransformConfig[] = [{
       type: "keyword-score",
       keywords: [{ term: "downloads", weight: 10 }],
     }];
