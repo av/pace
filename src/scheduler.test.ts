@@ -186,7 +186,7 @@ describe("scheduler", () => {
     const kinds = new Set(results.map((r) => `${r.kind}:${r.name}`));
     expect(kinds.has("adapter:srcA")).toBe(true);
     expect(kinds.has("pipeline:merge")).toBe(true);
-    expect(dbMod.getAllItemsByPanel("outPanel").length).toBeGreaterThan(0);
+    expect(dbMod.getAllItemsByPanel("outPanel")).toHaveLength(1); // 1 adapter item through latest-5 pipeline
   });
 
   test("refreshSources with unknown names returns no results (no crash)", async () => {

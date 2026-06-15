@@ -113,7 +113,7 @@ describe("youtube", () => {
     const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
     try {
       const items = await adapter.fetch(youtubeCfg({ channels: ["ERR"], playlists: ["PL1"] }));
-      expect(items.length).toBeGreaterThan(0);
+      expect(items).toHaveLength(1); // only PL1 succeeds (ERR returns 404)
       expect(warnSpy).toHaveBeenCalledWith(
         expect.stringContaining("skipping key"),
       );

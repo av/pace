@@ -107,7 +107,7 @@ describe("github-releases", () => {
     );
 
     const apiCalls = githubReleasesFetchCalls().filter((c) => c.url.includes("api.github.com"));
-    expect(apiCalls.length).toBeGreaterThan(0);
+    expect(apiCalls).toHaveLength(2); // releases endpoint + repo meta
     for (const call of apiCalls) {
       const headers = (call.init?.headers ?? {}) as Record<string, string>;
       expect(headers.Authorization).toBeUndefined();
@@ -126,7 +126,7 @@ describe("github-releases", () => {
     );
 
     const apiCalls = githubReleasesFetchCalls().filter((c) => c.url.includes("api.github.com"));
-    expect(apiCalls.length).toBeGreaterThan(0);
+    expect(apiCalls).toHaveLength(2); // releases endpoint + repo meta
     for (const call of apiCalls) {
       const headers = (call.init?.headers ?? {}) as Record<string, string>;
       expect(headers.Authorization).toBe("Bearer ghp_test");
