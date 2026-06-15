@@ -255,7 +255,13 @@ export function getLastFetchedAt(panelId?: string): string | null {
   const row = db
     .prepare(`SELECT MAX(fetched_at) as last_fetched FROM content_items ${where}`)
     .get(...params) as { last_fetched: string | null } | null;
-  return row?.last_fetched ?? null;
+  const val = row?.last_fetched ?? null;
+  // SQLite datetime('now') returns UTC without a 'Z' suffix (e.g. "2026-06-15 00:57:04").
+  // new Date() would parse that as local time, causing the panel-refreshed
+  // relative timestamp to be off by the local UTC offset. Appending 'Z'
+  // ensures correct UTC interpretation.
+  if (val && !val.endsWith("Z")) return val + "Z";
+  return val;
 }
 
 export function getAllItemsByPanel(panelId: string): ContentItemRow[] {
@@ -273,7 +279,7 @@ export function replacePanelItems(panelId: string, items: ContentItemRow[]): voi
   runPanelItemsTx(panelId, items.length, "replace", () => {
     db.prepare("DELETE FROM content_items WHERE panel_id = ?").run(panelId);
     const stmt = db.prepare(`
-      INSERT INTO content_items (id, panel_id, title, url, source, body, timestamp, fetched_at, summary, origins, applied_transforms, score)
+      INSERT OR REPLACE INTO content_items (id, panel_id, title, url, source, body, timestamp, fetched_at, summary, origins, applied_transforms, score)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const item of items) {
