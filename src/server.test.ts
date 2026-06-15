@@ -6,7 +6,7 @@ import type { ServerRouteDeps } from "./server/routes";
 import type { RefreshResult } from "./refresh-result";
 import { singlePanelLayout, testAppLayout } from "./test/app-config";
 import { flexCfg, panelCfg } from "./test/layout-cfg";
-import { makeContentItemRow as makeItem } from "./test/content-items";
+import { makeContentItem as makeItem } from "./test/content-items";
 import { installTempDbHooks } from "./test/temp-db";
 import {
   createTestServerApp,

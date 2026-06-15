@@ -282,10 +282,10 @@ test("saveItems upsert by id updates panel_id (and all fields) from last save ev
     .prepare("SELECT id, panel_id, title, url, fetched_at FROM content_items WHERE id = ?")
     .get("upsert1") as ContentItemUpsertRow | undefined;
   expect(row).toBeTruthy();
-  expect(row.panel_id).toBe("panelB");
-  expect(row.title).toBe("second");
-  expect(row.url).toBe("https://ex.com/upsert/b");
-  expect(row.fetched_at).toBeTruthy();
+  expect(row!.panel_id).toBe("panelB");
+  expect(row!.title).toBe("second");
+  expect(row!.url).toBe("https://ex.com/upsert/b");
+  expect(row!.fetched_at).toBeTruthy();
 });
 
 test("initDb failure uses errorMessage in thrown message", async () => {
@@ -308,9 +308,9 @@ test("saveItems per-item failure uses errorMessage in thrown message", async () 
   initDb();
   const database = getDb();
   const realPrepare = database.prepare.bind(database);
-  const prepareSpy = spyOn(database, "prepare").mockImplementation((sql: unknown) => {
-    const stmt = realPrepare(sql as string);
-    if (typeof sql === "string" && sql.includes("INSERT INTO content_items")) {
+  const prepareSpy = spyOn(database, "prepare").mockImplementation((sql: string) => {
+    const stmt = realPrepare(sql);
+    if (sql.includes("INSERT INTO content_items")) {
       spyOn(stmt, "run").mockImplementation(() => {
         throw new Error("insert fail");
       });
@@ -340,9 +340,9 @@ test("replacePanelItems per-item failure uses errorMessage in thrown message", a
     summary: null,
   });
   const realPrepare = database.prepare.bind(database);
-  const prepareSpy = spyOn(database, "prepare").mockImplementation((sql: unknown) => {
-    const stmt = realPrepare(sql as string);
-    if (typeof sql === "string" && sql.includes("INSERT OR REPLACE INTO content_items")) {
+  const prepareSpy = spyOn(database, "prepare").mockImplementation((sql: string) => {
+    const stmt = realPrepare(sql);
+    if (sql.includes("INSERT OR REPLACE INTO content_items")) {
       spyOn(stmt, "run").mockImplementation(() => {
         throw new Error("replace insert fail");
       });

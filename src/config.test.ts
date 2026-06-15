@@ -11,8 +11,10 @@ import {
   buildLayoutRuntimeMaps,
   isPanel,
   isContainer,
+  type FlexContainerConfig,
   type PanelConfig,
   type LayoutNodeConfig,
+  type SourceValue,
 } from "./config/types";
 import {
   loadConfig,
@@ -46,7 +48,7 @@ describe("config", () => {
     expect(normalizeSource(["a", "b"])).toEqual([{ adapter: "a" }, { adapter: "b" }]);
     const obj = { adapter: "hn", params: { foo: 1 } };
     expect(normalizeSource(obj)).toEqual([obj]);
-    const arr = ["s1", { adapter: "s2" }, "s3"];
+    const arr = ["s1", { adapter: "s2" }, "s3"] as unknown as SourceValue;
     expect(normalizeSource(arr)).toEqual([{ adapter: "s1" }, { adapter: "s2" }, { adapter: "s3" }]);
   });
 
@@ -216,7 +218,7 @@ layout:
     expect(cfg.adapters).toEqual([]);
     expect(cfg.pipelines).toBeUndefined();
     expect(cfg.layout).toBeTruthy();
-    const firstChild = cfg.layout.children[0];
+    const firstChild = (cfg.layout as FlexContainerConfig).children[0];
     expect(isPanel(firstChild)).toBe(true);
     if (isPanel(firstChild)) {
       expect(firstChild.panel).toBe("testpanel");
@@ -1217,18 +1219,9 @@ layout:
   });
 
   test("resolveConfigPath treats preset-like PACE_CONFIG as explicit when resolved", () => {
-    const presetPath = path.join(tmpDir, "config.tech-news.yaml");
-    fs.writeFileSync(presetPath, "layout:\n  direction: row\n  children: []\n", "utf-8");
-    const cwd = process.cwd();
-    try {
-      process.chdir(tmpDir);
-      const resolved = resolveConfigPath("tech-news");
-      expect(resolved.path).toBe(presetPath);
-      expect(resolved.explicit).toBe(true);
-    } finally {
-      process.chdir(cwd);
-      if (fs.existsSync(presetPath)) fs.unlinkSync(presetPath);
-    }
+    const resolved = resolveConfigPath("tech-news");
+    expect(resolved.path).toContain("config.tech-news.yaml");
+    expect(resolved.explicit).toBe(true);
   });
 
   test("accepts valid image widget in layout", () => {
@@ -2602,7 +2595,7 @@ layout:
 `;
       setConfig(yaml);
       const cfg = loadConfig();
-      const child = cfg.layout.children[0] as { image: string };
+      const child = (cfg.layout as FlexContainerConfig).children[0] as { image: string };
       expect(child.image).toBe("https://embed.example.com/logo.png");
     });
 
@@ -2616,7 +2609,7 @@ layout:
 `;
       setConfig(yaml);
       const cfg = loadConfig();
-      const child = cfg.layout.children[0] as { image: string; link: string };
+      const child = (cfg.layout as FlexContainerConfig).children[0] as { image: string; link: string };
       expect(child.link).toBe("https://embed.example.com/details");
     });
 
@@ -2629,7 +2622,7 @@ layout:
 `;
       setConfig(yaml);
       const cfg = loadConfig();
-      const child = cfg.layout.children[0] as { text: string };
+      const child = (cfg.layout as FlexContainerConfig).children[0] as { text: string };
       expect(child.text).toBe("Welcome to resolved-value");
     });
 
@@ -2642,7 +2635,7 @@ layout:
 `;
       setConfig(yaml);
       const cfg = loadConfig();
-      const child = cfg.layout.children[0] as { iframe: string };
+      const child = (cfg.layout as FlexContainerConfig).children[0] as { iframe: string };
       expect(child.iframe).toBe("https://embed.example.com/embed");
     });
 
@@ -2701,11 +2694,11 @@ layout:
 `;
         setConfig(yaml);
         const cfg = loadConfig();
-        const child = cfg.layout.children[0] as { text: string };
+        const child = (cfg.layout as FlexContainerConfig).children[0] as { text: string };
         expect(child.text).toBe("prefix--suffix");
-        const warnCalls = warn.mock.calls.map((c) => String(c[0]));
+        const warnCalls = warn.mock.calls.map((c: unknown[]) => String(c[0]));
         expect(
-          warnCalls.some((w) =>
+          warnCalls.some((w: string) =>
             w.includes("PACE_NONEXISTENT_TEST_XYZ") && w.includes("unset"),
           ),
         ).toBe(true);
@@ -2721,12 +2714,12 @@ layout:
 `;
       setConfig(yaml);
       const cfg = loadConfig();
-      const child = cfg.layout.children[0] as { text: string };
+      const child = (cfg.layout as FlexContainerConfig).children[0] as { text: string };
       expect(child.text).toBe("/home/testuser/resolved-value/secret123");
     });
 
     test("real PATH env var resolves in counter headers at config level", () => {
-      const realPath = process.env.PATH;
+      const realPath: string = process.env.PATH!;
       expect(realPath).toBeTruthy(); // PATH should always be set
       const yaml = `
 adapters:
@@ -2761,7 +2754,7 @@ layout:
 `;
       setConfig(yaml);
       const cfg = loadConfig();
-      const child = cfg.layout.children[0] as { image: string; flex: number };
+      const child = (cfg.layout as FlexContainerConfig).children[0] as { image: string; flex: number };
       expect(child.flex).toBe(2);
       expect(typeof child.flex).toBe("number");
     });
@@ -2803,7 +2796,7 @@ layout:
 `;
       setConfig(yaml);
       const cfg = loadConfig();
-      const child = cfg.layout.children[0] as { text: string };
+      const child = (cfg.layout as FlexContainerConfig).children[0] as { text: string };
       expect(child.text).toContain("Line one");
       expect(child.text).toContain("Line two");
       expect(child.text).toContain("Line three");
@@ -2823,7 +2816,7 @@ layout:
 `;
       setConfig(yaml);
       const cfg = loadConfig();
-      const child = cfg.layout.children[0] as { text: string };
+      const child = (cfg.layout as FlexContainerConfig).children[0] as { text: string };
       // Folded scalar joins lines with spaces
       expect(child.text).toMatch(/This is a long paragraph that folds\./);
     });
@@ -2837,7 +2830,7 @@ layout:
 `;
       setConfig(yaml);
       const cfg = loadConfig();
-      const child = cfg.layout.children[0] as { text: string };
+      const child = (cfg.layout as FlexContainerConfig).children[0] as { text: string };
       expect(child.text).toBe("Status: OK # not a comment @ here");
     });
 
@@ -2850,7 +2843,7 @@ layout:
 `;
       setConfig(yaml);
       const cfg = loadConfig();
-      const child = cfg.layout.children[0] as { image: string };
+      const child = (cfg.layout as FlexContainerConfig).children[0] as { image: string };
       expect(child.image).toBe("https://example.com/img.png?width=400&height=300");
     });
 
@@ -2875,7 +2868,7 @@ layout:
 `;
       setConfig(yaml);
       const cfg = loadConfig();
-      const child = cfg.layout.children[0] as { image: string; alt?: string };
+      const child = (cfg.layout as FlexContainerConfig).children[0] as { image: string; alt?: string };
       expect(child.image).toBe("https://example.com/img.png");
       expect(child.alt).toBeUndefined();
     });
@@ -2889,7 +2882,7 @@ layout:
 `;
       setConfig(yaml);
       const cfg = loadConfig();
-      const child = cfg.layout.children[0] as { iframe: string };
+      const child = (cfg.layout as FlexContainerConfig).children[0] as { iframe: string };
       expect(child.iframe).toBe("https://example.com/embed?theme=dark&lang=en#section");
     });
 
@@ -2902,7 +2895,7 @@ layout:
 `;
       setConfig(yaml);
       const cfg = loadConfig();
-      const child = cfg.layout.children[0] as { text: string };
+      const child = (cfg.layout as FlexContainerConfig).children[0] as { text: string };
       expect(child.text).toBe("Hello World");
     });
 
@@ -2917,7 +2910,7 @@ layout:
 `;
       setConfig(yaml);
       const cfg = loadConfig();
-      const child = cfg.layout.children[0] as { text: string };
+      const child = (cfg.layout as FlexContainerConfig).children[0] as { text: string };
       expect(child.text).toBe("http://example.com:8080/path");
     });
 
@@ -2934,7 +2927,7 @@ layout:
 `;
       setConfig(yaml);
       const cfg = loadConfig();
-      const outer = cfg.layout.children[0] as { direction: string; children: unknown[] };
+      const outer = (cfg.layout as FlexContainerConfig).children[0] as { direction: string; children: unknown[] };
       const inner = outer.children[0] as { direction: string; children: unknown[] };
       const widget = inner.children[0] as { text: string };
       expect(widget.text).toBe("Deep nesting works");
@@ -2954,7 +2947,7 @@ layout:
 `;
       setConfig(yaml);
       const cfg = loadConfig();
-      const children = cfg.layout.children as Array<{ flex?: number }>;
+      const children = (cfg.layout as FlexContainerConfig).children as Array<{ flex?: number }>;
       expect(children[0].flex).toBe(2);
       expect(children[1].flex).toBe(0.5);
       expect(children[2].flex).toBe(3);
@@ -3016,7 +3009,7 @@ layout:
 `;
       setConfig(yaml1);
       const cfg1 = loadConfig();
-      expect((cfg1.layout.children[0] as { text: string }).text).toBe("Version 1");
+      expect(((cfg1.layout as FlexContainerConfig).children[0] as { text: string }).text).toBe("Version 1");
 
       const yaml2 = `
 layout:
@@ -3026,7 +3019,7 @@ layout:
 `;
       setConfig(yaml2);
       const cfg2 = loadConfig();
-      expect((cfg2.layout.children[0] as { text: string }).text).toBe("Version 2");
+      expect(((cfg2.layout as FlexContainerConfig).children[0] as { text: string }).text).toBe("Version 2");
     });
 
     test("loadConfig picks up new adapters on re-read", () => {

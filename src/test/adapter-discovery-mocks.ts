@@ -55,7 +55,7 @@ export function expectNoImportOrBadModWarnings(warnSpy: ReturnType<typeof spyOn>
   expect(discoveryWarnsContaining(warnSpy, "invalid default export")).toHaveLength(0);
 }
 
-function expectAdaptersRegistered(adapters: Map<string, unknown>, names: string[]): void {
+function expectAdaptersRegistered(adapters: Map<string, unknown>, names: readonly string[]): void {
   for (const name of names) {
     expect(adapters.has(name)).toBe(true);
   }
@@ -65,8 +65,8 @@ export function expectInvalidDefaultExport(
   adapters: Map<string, unknown>,
   warnSpy: ReturnType<typeof spyOn>,
   file: string,
-  rejectedNames: string[],
-  acceptedNames: string[] = [],
+  rejectedNames: readonly string[],
+  acceptedNames: readonly string[] = [],
 ): void {
   expectAdaptersRegistered(adapters, acceptedNames);
   for (const name of rejectedNames) {
@@ -81,8 +81,8 @@ export function expectInvalidDefaultExport(
 export function expectSkippedWithoutWarnings(
   adapters: Map<string, unknown>,
   warnSpy: ReturnType<typeof spyOn>,
-  rejectedNames: string[],
-  acceptedNames: string[] = [],
+  rejectedNames: readonly string[],
+  acceptedNames: readonly string[] = [],
 ): void {
   expectAdaptersRegistered(adapters, acceptedNames);
   for (const name of rejectedNames) {
