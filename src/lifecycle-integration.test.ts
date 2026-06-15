@@ -284,13 +284,11 @@ describe("counter refresh cycle with trend arrow", () => {
     // Save second fetch (new ID since timestamp differs)
     saveItems(panelId, secondItems);
 
-    // DB now has 2 items (different IDs based on timestamp)
+    // Counter items have url="" so dedup groups by id ("counter:stars").
+    // Both fetches produce the same id, so only the latest wins.
     const secondSnapshot = loadDashboardPanelData(panelId, false, 50);
-    // Both items are present (different URLs won't dedup, both have same URL
-    // but different IDs and the dedup is URL-based with empty-URL fallback to ID)
-    expect(secondSnapshot.items.length).toBeGreaterThanOrEqual(1);
+    expect(secondSnapshot.items).toHaveLength(1);
 
-    // Use the latest item (first in DESC order)
     const latestItem = secondSnapshot.items[0]!;
     const latestBody = parseCounterBody(latestItem.body);
     expect(latestBody).not.toBeNull();
