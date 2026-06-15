@@ -1,0 +1,159 @@
+# Audio and video feed dashboard.
+# Replace feed URLs and channel IDs with your subscriptions.
+# Find a channel ID via the channel page source ("channelId") or its RSS link.
+
+adapters:
+  - type: podcast
+    params:
+      feeds:
+        - https://feeds.simplecast.com/54nAGcIl          # The Changelog
+        - https://feeds.buzzsprout.com/2226484.rss       # Latent Space
+        - https://lexfridman.com/feed/podcast/
+      limit: 10
+    refresh_interval: 300
+    transforms:
+      # Collapse duplicate guest appearances across shows.
+      - type: dedupe
+        strategy: title-similarity
+        threshold: 0.85
+        keep: latest
+      # Score by topic relevance - weighted keyword matching.
+      - type: keyword-score
+        keywords:
+          - term: "interview|conversation|deep dive|episode"
+            weight: 5
+            regex: true
+          - term: "trailer|teaser|promo|bonus|preview|rerun|rebroadcast|best of"
+            weight: -10
+            regex: true
+        min_score: 0
+        annotate: false
+      - type: sort
+        field: timestamp
+        direction: desc
+      - type: latest
+        count: 15
+
+  - type: youtube
+    params:
+      channels:
+        - UCsBjURrPoezykLs9EqgamOA   # Fireship
+        - UC9-y-6csu5WGm29I7JiwpnA   # Computerphile
+        - UCYO_jab_esuFRV4b17AJtAw   # 3Blue1Brown
+        - UCHnyfMqiRRG1u-2MsSQLbXA   # Veritasium
+      playlists: []
+      limit: 10
+    refresh_interval: 120
+    transforms:
+      # Collapse duplicate topic coverage across channels.
+      - type: dedupe
+        strategy: title-similarity
+        threshold: 0.8
+        keep: latest
+      - type: sort
+        field: timestamp
+        direction: desc
+      - type: latest
+        count: 15
+
+  - type: mastodon
+    params:
+      instance: fosstodon.org
+      limit: 15
+      only_media: true
+    refresh_interval: 60
+    transforms:
+      # Blend engagement with recency - surface what's trending now.
+      - type: time-decay
+        half_life: "12h"
+        engagement_weight: 0.6
+        recency_weight: 0.4
+        decay: exponential
+        annotate: false
+      - type: latest
+        count: 15
+
+  # Podcast tools and players for quick access.
+  - name: podcast-tools
+    type: bookmarks
+    params:
+      items:
+        - title: "Pocket Casts"
+          url: "https://pocketcasts.com"
+          description: "Cross-platform podcast player"
+          tags: ["player"]
+        - title: "Overcast"
+          url: "https://overcast.fm"
+          description: "iOS podcast player with Smart Speed"
+          tags: ["player"]
+        - title: "YouTube"
+          url: "https://youtube.com"
+          tags: ["video"]
+        - title: "Listen Notes"
+          url: "https://www.listennotes.com"
+          description: "Podcast search engine"
+          tags: ["discovery"]
+        - title: "Podchaser"
+          url: "https://www.podchaser.com"
+          description: "Podcast database and reviews"
+          tags: ["discovery"]
+
+# --- Unified video feed (uncomment and add a panel to use) ---
+# Merges YouTube + Mastodon into one deduped feed. Add to your layout:
+#   - panel: all-video
+#     source: all-video
+#     limit: 15
+#
+# pipelines:
+#   - name: all-video
+#     sources:
+#       - youtube
+#       - mastodon
+#     transforms:
+#       - type: dedupe
+#         strategy: domain-normalized
+#         keep: latest
+#       - type: dedupe
+#         strategy: title-similarity
+#         threshold: 0.8
+#         keep: latest
+#       - type: sort
+#         field: timestamp
+#         direction: desc
+#       - type: latest
+#         count: 15
+
+layout:
+  direction: row
+  children:
+    - panel: podcasts
+      flex: 1
+      source: podcast
+      limit: 15
+
+    - panel: youtube
+      flex: 1
+      source: youtube
+      limit: 15
+
+    - direction: column
+      flex: 1
+      children:
+        - panel: media-feed
+          flex: 3
+          source: mastodon
+          limit: 15
+
+        - panel: podcast-tools
+          flex: 1
+          source: podcast-tools
+          limit: 5
+
+        - text: |
+            **Feeds:** Changelog, Latent Space, Lex Fridman.
+            **Channels:** Fireship, Computerphile, 3Blue1Brown,
+            Veritasium. Fosstodon media posts round out the
+            video column. Podcasts dedupe guest cross-appearances;
+            YouTube dedupes topic overlap across channels.
+          format: markdown
+          title: Listening Notes

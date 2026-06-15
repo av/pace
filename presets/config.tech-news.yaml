@@ -1,0 +1,201 @@
+# Tech news across communities: Hacker News, Lobsters, the Fediverse, and release feeds.
+# Note: the reddit adapter is intentionally absent - Reddit blocks unauthenticated API
+# access upstream, so this preset uses Lemmy communities instead (works out of the box).
+
+adapters:
+  - type: hackernews
+    params:
+      feed: top
+      limit: 30
+      min_score: 3
+    refresh_interval: 15
+    transforms:
+      - type: exclude
+        keywords: [hiring, "is hiring", "who is hiring"]
+        fields: [title]
+      - type: latest
+        count: 25
+
+  - type: lobsters
+    params:
+      feed: hottest
+      limit: 20
+      min_score: 3
+    refresh_interval: 20
+    transforms:
+      - type: latest
+        count: 15
+
+  - type: lemmy
+    params:
+      instance: programming.dev
+      communities: [programming, technology, experienced_devs]
+      sort: hot
+      limit: 25
+    refresh_interval: 20
+    transforms:
+      # Blend engagement with recency for smaller communities.
+      - type: time-decay
+        half_life: "12h"
+        engagement_weight: 0.5
+        recency_weight: 0.5
+        decay: exponential
+        annotate: false
+      - type: latest
+        count: 15
+
+  - type: rss
+    params:
+      urls:
+        - https://feeds.arstechnica.com/arstechnica/index
+        - https://thenewstack.io/feed/
+        - https://blog.golang.org/feed.atom
+        - https://devblogs.microsoft.com/typescript/feed/
+    refresh_interval: 30
+    transforms:
+      - type: latest
+        count: 20
+
+  # Reference docs for quick access.
+  - name: reference
+    type: bookmarks
+    params:
+      items:
+        - title: "MDN Web Docs"
+          url: "https://developer.mozilla.org"
+          tags: ["docs"]
+        - title: "TypeScript Handbook"
+          url: "https://www.typescriptlang.org/docs/handbook/"
+          tags: ["docs"]
+        - title: "Node.js Docs"
+          url: "https://nodejs.org/docs/latest/api/"
+          tags: ["docs"]
+        - title: "Rust Book"
+          url: "https://doc.rust-lang.org/book/"
+          tags: ["docs"]
+        - title: "Go by Example"
+          url: "https://gobyexample.com"
+          tags: ["docs"]
+
+  - type: github-releases
+    params:
+      repos:
+        - oven-sh/bun
+        - denoland/deno
+        - nodejs/node
+        - rust-lang/rust
+        - ziglang/zig
+        - honojs/hono
+    transforms:
+      - type: sort
+        field: timestamp
+        direction: desc
+      - type: latest
+        count: 10
+
+# Merge the two link-aggregator communities and drop cross-posted duplicates.
+pipelines:
+  - name: frontpage
+    sources: [hackernews, lobsters]
+    transforms:
+      # Catch URL variants (www, query params, trailing slashes).
+      - type: dedupe
+        strategy: domain-normalized
+        keep: highest-score
+      # Score by topic relevance - weighted keyword matching.
+      - type: keyword-score
+        keywords:
+          - term: "rust|zig|go|typescript|python|swift"
+            weight: 3
+            regex: true
+          - term: "security|vulnerability|CVE|zero-day|breach"
+            weight: 5
+            regex: true
+          - term: "open source|open-source|oss|foss"
+            weight: 3
+            regex: true
+          - term: "release|launched|announcing|shipping"
+            weight: 2
+            regex: true
+          - term: "acquisition|layoff|valuation|IPO"
+            weight: -3
+            regex: true
+        annotate: false
+      # Blend engagement with recency - surface what's trending now.
+      - type: time-decay
+        half_life: "8h"
+        engagement_weight: 0.65
+        recency_weight: 0.35
+        decay: exponential
+        annotate: false
+      - type: latest
+        count: 30
+
+  # --- Cross-community trending (uncomment and add a panel to use) ---
+  # Clusters related stories from HN + Lobsters + Lemmy. Add to your layout:
+  #   - panel: cross-community
+  #     source: cross-community
+  #     limit: 20
+  #
+  # - name: cross-community
+  #   sources: [hackernews, lobsters, lemmy]
+  #   transforms:
+  #     - type: dedupe
+  #       strategy: domain-normalized
+  #       keep: highest-score
+  #     - type: time-decay
+  #       half_life: "10h"
+  #       engagement_weight: 0.6
+  #       recency_weight: 0.4
+  #       decay: exponential
+  #       annotate: false
+  #     - type: cluster
+  #       strategy: auto
+  #       min_cluster_size: 2
+  #       max_clusters: 8
+  #       similarity_threshold: 0.3
+  #       annotate: true
+  #     - type: latest
+  #       count: 20
+
+layout:
+  direction: row
+  children:
+    - panel: frontpage
+      flex: 2
+      source: frontpage
+      limit: 30
+
+    - direction: column
+      flex: 1
+      children:
+        - panel: fediverse
+          flex: 1
+          source: lemmy
+          limit: 15
+
+        - panel: releases
+          flex: 1
+          source: github-releases
+          limit: 10
+
+    - direction: column
+      flex: 1
+      children:
+        - panel: news-and-blogs
+          flex: 3
+          source: rss
+          limit: 20
+
+        - panel: reference
+          flex: 1
+          source: reference
+          limit: 5
+
+        - text: |
+            **Frontpage** merges Hacker News + Lobsters,
+            deduped by normalized URL and ranked by
+            engagement x recency. **Cross-community**
+            adds Lemmy and clusters related stories.
+          format: markdown
+          title: Pipeline Legend
