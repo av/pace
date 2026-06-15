@@ -1,4 +1,4 @@
-import type { FlexContainerConfig, LayoutNodeConfig, PanelConfig, SourceValue } from "../config/types";
+import type { FlexContainerConfig, LayoutNodeConfig, PanelConfig, SourceValue, TextWidgetConfig } from "../config/types";
 
 export function panelCfg(
   panel: string,
@@ -14,4 +14,12 @@ export function flexCfg(
   extra?: Partial<Omit<FlexContainerConfig, "direction" | "children">>,
 ): FlexContainerConfig {
   return { direction, children, ...extra };
+}
+
+export function textCfg(
+  text: string,
+  format?: TextWidgetConfig["format"],
+  extra?: Partial<Omit<TextWidgetConfig, "text" | "format">>,
+): TextWidgetConfig {
+  return { text, ...(format !== undefined && { format }), ...extra };
 }

@@ -11,6 +11,7 @@ import {
   buildLayoutRuntimeMaps,
   isPanel,
   isContainer,
+  type AppConfig,
   type FlexContainerConfig,
   type PanelConfig,
   type LayoutNodeConfig,
@@ -36,7 +37,7 @@ describe("config", () => {
   });
 
   test("isContainer", () => {
-    const container = { direction: "column" as const, children: [] };
+    const container: FlexContainerConfig = { direction: "column", children: [] };
     const panel = { panel: "p", source: "all" };
     expect(isContainer(container)).toBe(true);
     expect(isContainer(panel)).toBe(false);
@@ -57,12 +58,12 @@ describe("config", () => {
     const single = leaf;
     expect(collectPanels(single)).toEqual([leaf]);
 
-    const row = {
-      direction: "row" as const,
+    const row: FlexContainerConfig = {
+      direction: "row",
       children: [
         { panel: "p1", source: "s1" },
         {
-          direction: "column" as const,
+          direction: "column",
           children: [
             { panel: "p2", source: "s2", id: "id2" },
             { panel: "p3", source: ["a", "b"] },
@@ -76,17 +77,17 @@ describe("config", () => {
   });
 
   test("collectPanels skips widget nodes in nested layouts", () => {
-    const layout: LayoutNodeConfig = {
-      direction: "row" as const,
+    const layout: FlexContainerConfig = {
+      direction: "row",
       children: [
-        { image: "https://example.com/logo.png" } as LayoutNodeConfig,
+        { image: "https://example.com/logo.png" },
         { panel: "news", source: "hn" },
         {
-          direction: "column" as const,
+          direction: "column",
           children: [
-            { text: "Welcome" } as LayoutNodeConfig,
+            { text: "Welcome" },
             { panel: "tech", source: "rss" },
-            { iframe: "https://example.com" } as LayoutNodeConfig,
+            { iframe: "https://example.com" },
           ],
         },
       ],
@@ -109,8 +110,8 @@ describe("config", () => {
   });
 
   test("buildLayoutRuntimeMaps maps panels to sources and registers orphan adapters", () => {
-    const layout = {
-      direction: "column" as const,
+    const layout: FlexContainerConfig = {
+      direction: "column",
       children: [
         { panel: "global", source: "all" },
         { panel: "tech", source: "hackernews", id: "hn-panel" },
@@ -136,8 +137,8 @@ describe("config", () => {
   });
 
   test("buildLayoutRuntimeMaps precomputes refresh source names for all and mixed panels", () => {
-    const layout = {
-      direction: "column" as const,
+    const layout: FlexContainerConfig = {
+      direction: "column",
       children: [
         { panel: "global", source: "all" },
         { panel: "mixed", source: ["rss", "podcast"] },
@@ -158,10 +159,10 @@ describe("config", () => {
   });
 
   test("sourcePanelMapFromConfig matches buildLayoutRuntimeMaps source/read maps", () => {
-    const config = {
+    const config: AppConfig = {
       adapters: [{ type: "hackernews", name: "hn" }],
       layout: {
-        direction: "row" as const,
+        direction: "row",
         children: [
           { panel: "tech", source: "hn", id: "hn-panel" },
           { panel: "pipe", source: "curated", id: "out" },

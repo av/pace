@@ -12,7 +12,7 @@ import type { Adapter } from "./adapters/types";
 import { makeContentItem } from "./test/content-items";
 import { adaptersMap, makeMockAdapter } from "./test/adapter-mocks";
 import * as dbMod from "./db";
-import { collectPanels, buildLayoutRuntimeMaps, type LayoutNodeConfig } from "./config/types";
+import { collectPanels, buildLayoutRuntimeMaps, type DashboardPanel, type LayoutNodeConfig } from "./config/types";
 import { testAppConfig, singlePanelLayout, testAppLayout } from "./test/app-config";
 import { waitForAsync } from "./test/async";
 
@@ -322,9 +322,9 @@ describe("scheduler-widget interaction", () => {
       }),
     ]);
 
-    const dashboardPanels = [
+    const dashboardPanels: DashboardPanel[] = [
       {
-        panel: { panel: "stats", source: "gh-stars", id: "stat-panel", display: "counter" as const },
+        panel: { panel: "stats", source: "gh-stars", id: "stat-panel", display: "counter" },
         pid: "stat-panel",
         isAll: false,
       },

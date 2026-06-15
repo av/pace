@@ -1,7 +1,7 @@
 import { describe, it, expect } from "bun:test";
 import { renderDashboard, type PanelData } from "./layout";
 import { makeContentItemRow as makeItem } from "./test/content-items";
-import { flexCfg, panelCfg } from "./test/layout-cfg";
+import { flexCfg, panelCfg, textCfg } from "./test/layout-cfg";
 import { sanitize, renderMarkdown } from "./layout/text-render";
 import { abbreviateNumber, parseCounterBody } from "./layout/counter-panel";
 import { sanitizeSandboxTokens } from "./config-validate";
@@ -155,7 +155,7 @@ describe("TextWidget HTML edge cases", () => {
 
   it("renders markdown h1 through h6", () => {
     const md = ["# H1", "## H2", "### H3", "#### H4", "##### H5", "###### H6"].join("\n\n");
-    const html = renderWidget({ text: md, format: "markdown" as const });
+    const html = renderWidget(textCfg(md, "markdown"));
     for (let i = 1; i <= 6; i++) {
       expect(html).toContain(`<h${i}`);
       expect(html).toContain(`H${i}`);
@@ -164,7 +164,7 @@ describe("TextWidget HTML edge cases", () => {
 
   it("renders markdown unordered lists", () => {
     const md = "- alpha\n- beta\n- gamma";
-    const html = renderWidget({ text: md, format: "markdown" as const });
+    const html = renderWidget(textCfg(md, "markdown"));
     expect(html).toContain("<ul>");
     expect(html).toContain("<li>alpha</li>");
     expect(html).toContain("<li>gamma</li>");
@@ -172,14 +172,14 @@ describe("TextWidget HTML edge cases", () => {
 
   it("renders markdown ordered lists", () => {
     const md = "1. first\n2. second\n3. third";
-    const html = renderWidget({ text: md, format: "markdown" as const });
+    const html = renderWidget(textCfg(md, "markdown"));
     expect(html).toContain("<ol>");
     expect(html).toContain("<li>first</li>");
   });
 
   it("renders markdown code blocks with pre and code tags", () => {
     const md = "```js\nconst x = 42;\n```";
-    const html = renderWidget({ text: md, format: "markdown" as const });
+    const html = renderWidget(textCfg(md, "markdown"));
     expect(html).toContain("<pre>");
     expect(html).toContain("<code");
     expect(html).toContain("const x = 42;");
@@ -187,21 +187,21 @@ describe("TextWidget HTML edge cases", () => {
 
   it("renders markdown links", () => {
     const md = "[Visit](https://example.com)";
-    const html = renderWidget({ text: md, format: "markdown" as const });
+    const html = renderWidget(textCfg(md, "markdown"));
     expect(html).toContain('<a href="https://example.com"');
     expect(html).toContain("Visit</a>");
   });
 
   it("renders markdown images (img tag with src and alt)", () => {
     const md = "![photo](https://example.com/img.jpg)";
-    const html = renderWidget({ text: md, format: "markdown" as const });
+    const html = renderWidget(textCfg(md, "markdown"));
     expect(html).toContain('<img src="https://example.com/img.jpg"');
     expect(html).toContain('alt="photo"');
   });
 
   it("renders markdown blockquotes", () => {
     const md = "> This is a quote";
-    const html = renderWidget({ text: md, format: "markdown" as const });
+    const html = renderWidget(textCfg(md, "markdown"));
     expect(html).toContain("<blockquote>");
     expect(html).toContain("This is a quote");
   });
@@ -209,7 +209,7 @@ describe("TextWidget HTML edge cases", () => {
   it("renders markdown details/summary (via HTML pass-through)", () => {
     // Details is an allowed tag in sanitize-html, test via html format
     const content = "<details><summary>Show more</summary><p>Hidden content</p></details>";
-    const html = renderWidget({ text: content, format: "html" as const });
+    const html = renderWidget(textCfg(content, "html"));
     expect(html).toContain("<details>");
     expect(html).toContain("<summary>Show more</summary>");
     expect(html).toContain("<p>Hidden content</p>");
@@ -217,7 +217,7 @@ describe("TextWidget HTML edge cases", () => {
 
   it("renders HTML with deeply nested allowed tags preserved", () => {
     const deep = "<ul><li><strong><em><code>nested</code></em></strong></li></ul>";
-    const html = renderWidget({ text: deep, format: "html" as const });
+    const html = renderWidget(textCfg(deep, "html"));
     expect(html).toContain("<ul>");
     expect(html).toContain("<li>");
     expect(html).toContain("<strong>");
@@ -228,7 +228,7 @@ describe("TextWidget HTML edge cases", () => {
   it("renders markdown content in html format mode as raw HTML (not rendered as markdown)", () => {
     // If format is "html", markdown-like content should be treated as HTML (sanitized but not parsed)
     const mdAsHtml = "**bold** and *italic*";
-    const html = renderWidget({ text: mdAsHtml, format: "html" as const });
+    const html = renderWidget(textCfg(mdAsHtml, "html"));
     // Should NOT have <strong> or <em> since html format does not invoke renderMarkdown
     expect(html).not.toContain("<strong>");
     expect(html).not.toContain("<em>");

@@ -3,7 +3,7 @@ import { spyConsole } from "./test/console-spy";
 import { formatDashboardUpdatedAt, renderDashboard, type PanelData } from "./layout";
 import { collectPanels, resolvePanelId } from "./layout/types";
 import { makeContentItemRow as makeItem } from "./test/content-items";
-import { flexCfg, panelCfg } from "./test/layout-cfg";
+import { flexCfg, panelCfg, textCfg } from "./test/layout-cfg";
 import { expectDashboardRefreshAction } from "./test/server-harness";
 
 describe("renderDashboard", () => {
@@ -325,7 +325,7 @@ describe("renderDashboard", () => {
 
   it("renders text widget with markdown format", () => {
     const layout = flexCfg("row", [
-      { text: "**bold** text", format: "markdown" as const },
+      textCfg("**bold** text", "markdown"),
     ]);
     const panelData = new Map<string, PanelData>();
     const html = renderDashboard({ layout, panelData, updatedAt: "now" });
@@ -335,7 +335,7 @@ describe("renderDashboard", () => {
 
   it("renders text widget with html format (sanitized)", () => {
     const layout = flexCfg("row", [
-      { text: "<p>safe</p><script>alert(1)</script>", format: "html" as const },
+      textCfg("<p>safe</p><script>alert(1)</script>", "html"),
     ]);
     const panelData = new Map<string, PanelData>();
     const html = renderDashboard({ layout, panelData, updatedAt: "now" });
@@ -511,7 +511,7 @@ describe("renderDashboard", () => {
 
   it("renders text widget markdown with inline code", () => {
     const layout = flexCfg("row", [
-      { text: "Run `npm install` to start", format: "markdown" as const },
+      textCfg("Run `npm install` to start", "markdown"),
     ]);
     const panelData = new Map<string, PanelData>();
     const html = renderDashboard({ layout, panelData, updatedAt: "now" });
@@ -520,7 +520,7 @@ describe("renderDashboard", () => {
 
   it("renders text widget html format stripping event handlers", () => {
     const layout = flexCfg("row", [
-      { text: '<p onmouseover="alert(1)">hover me</p>', format: "html" as const },
+      textCfg('<p onmouseover="alert(1)">hover me</p>', "html"),
     ]);
     const panelData = new Map<string, PanelData>();
     const html = renderDashboard({ layout, panelData, updatedAt: "now" });
@@ -674,7 +674,7 @@ describe("renderDashboard", () => {
     const layout = flexCfg("row", [
       flexCfg("column", [
         { image: "https://example.com/header.png", alt: "Header", max_height: "100px", link: "https://example.com" },
-        { text: "# Welcome\nThis is a **dashboard**.", format: "markdown" as const, title: "Info" },
+        textCfg("# Welcome\nThis is a **dashboard**.", "markdown", { title: "Info" }),
       ]),
       flexCfg("column", [
         { iframe: "https://grafana.example.com/d/overview", title: "Grafana", height: "300px" },

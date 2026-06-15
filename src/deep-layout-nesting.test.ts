@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import { renderDashboard, type PanelData } from "./layout";
-import { flexCfg, panelCfg } from "./test/layout-cfg";
+import { flexCfg, panelCfg, textCfg } from "./test/layout-cfg";
 import { makeContentItemRow as makeItem } from "./test/content-items";
 import type { LayoutNodeConfig } from "./config/types";
 
@@ -157,7 +157,7 @@ describe("validation: complex layouts pass through correctly", () => {
       ], { flex: 1 }),
       // Column 2: text + iframe
       flexCfg("column", [
-        { text: "# Dashboard", format: "markdown" as const, title: "Header" },
+        textCfg("# Dashboard", "markdown", { title: "Header" }),
         { text: "Status: all systems operational" },
         { iframe: "https://grafana.example.com/d/1", title: "Grafana 1", flex: 2 },
         { iframe: "https://grafana.example.com/d/2", title: "Grafana 2", flex: 2 },

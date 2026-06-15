@@ -4,11 +4,11 @@ import { join } from "node:path";
 import os from "node:os";
 import { runCli } from "./test/cli-runner";
 import { renderDashboard, type PanelData } from "./layout";
-import { flexCfg, panelCfg } from "./test/layout-cfg";
+import { flexCfg, panelCfg, textCfg } from "./test/layout-cfg";
 import { makeContentItemRow as makeItem } from "./test/content-items";
 import { createSchedulerState } from "./scheduler-state";
 import { createSchedulerRuntime } from "./scheduler-runtime";
-import { collectPanels, buildLayoutRuntimeMaps, type LayoutNodeConfig } from "./config/types";
+import { collectPanels, buildLayoutRuntimeMaps, type AppConfig, type LayoutNodeConfig } from "./config/types";
 import { installTempDbHooks } from "./test/temp-db";
 import { makeMockAdapter, adaptersMap } from "./test/adapter-mocks";
 import { makeContentItem } from "./test/content-items";
@@ -308,9 +308,9 @@ describe("scheduler: timer leak prevention", () => {
   test("multiple startScheduler calls do not create duplicate prune timers", () => {
     const state = createSchedulerState();
     const runtime = createSchedulerRuntime(state);
-    const config = {
+    const config: AppConfig = {
       adapters: [] as any[],
-      layout: { direction: "row" as const, children: [] },
+      layout: flexCfg("row", []),
     };
     const adapters = new Map();
     const panelMap = { dashboardPanels: [], sourceToPanels: new Map(), sourceToReadKey: new Map() };
@@ -337,9 +337,9 @@ describe("scheduler: timer leak prevention", () => {
   test("stopScheduler clears prune timer, allowing clean restart", () => {
     const state = createSchedulerState();
     const runtime = createSchedulerRuntime(state);
-    const config = {
+    const config: AppConfig = {
       adapters: [] as any[],
-      layout: { direction: "row" as const, children: [] },
+      layout: flexCfg("row", []),
     };
     const adapters = new Map();
     const panelMap = { dashboardPanels: [], sourceToPanels: new Map(), sourceToReadKey: new Map() };
@@ -366,13 +366,13 @@ describe("scheduler: timer leak prevention", () => {
   test("widget-only config (zero adapters) sets prune timer only", () => {
     const state = createSchedulerState();
     const runtime = createSchedulerRuntime(state);
-    const config = {
+    const config: AppConfig = {
       adapters: [] as any[],
-      layout: { direction: "column" as const, children: [
+      layout: flexCfg("column", [
         { image: "https://example.com/logo.png" },
         { text: "Hello" },
         { iframe: "https://grafana.example.com" },
-      ]},
+      ]),
     };
     const adapters = new Map();
     const panelMap = { dashboardPanels: [], sourceToPanels: new Map(), sourceToReadKey: new Map() };
@@ -395,15 +395,12 @@ describe("scheduler: timer leak prevention", () => {
   test("config with widgets + adapters: scheduler runs adapters, widget nodes ignored", () => {
     const state = createSchedulerState();
     const runtime = createSchedulerRuntime(state);
-    const config = {
-      adapters: [{ type: "hackernews" as const, refresh_interval: 15 }],
-      layout: {
-        direction: "row" as const,
-        children: [
-          { image: "https://example.com/logo.png" },
-          { panel: "news", source: "hackernews", id: "news-panel" },
-        ],
-      },
+    const config: AppConfig = {
+      adapters: [{ type: "hackernews", refresh_interval: 15 }],
+      layout: flexCfg("row", [
+        { image: "https://example.com/logo.png" },
+        { panel: "news", source: "hackernews", id: "news-panel" },
+      ]),
     };
     const items = [makeContentItem({ id: "hn1", title: "Test", url: "https://hn.example.com", source: "hackernews" })];
     const adapters = adaptersMap(["hackernews", makeMockAdapter(items)]);
@@ -600,7 +597,7 @@ describe("rendering: full dashboard with all widget types + bookmarks + counter"
     const layout = flexCfg("row", [
       flexCfg("column", [
         { image: "https://example.com/logo.png", alt: "Logo", link: "https://example.com", max_height: "80px" },
-        { text: "# Dashboard\n- Item 1\n- Item 2", format: "markdown" as const, title: "Info" },
+        textCfg("# Dashboard\n- Item 1\n- Item 2", "markdown", { title: "Info" }),
         { iframe: "https://grafana.example.com/d/overview", title: "Grafana", height: "400px" },
       ]),
       flexCfg("column", [

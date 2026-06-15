@@ -2,6 +2,7 @@ import { describe, test, expect, spyOn, beforeEach, afterEach } from "bun:test";
 import adapter from "./adapters/counter";
 import bookmarksAdapter from "./adapters/bookmarks";
 import type { AdapterConfig } from "./adapters/types";
+import type { PanelConfig } from "./config/types";
 import { CounterPanel } from "./layout/counter-panel";
 import { sanitize } from "./layout/text-render";
 
@@ -243,9 +244,9 @@ describe("counter panel with bad data", () => {
     return panelData;
   }
 
-  const panelNode = {
+  const panelNode: PanelConfig = {
     panel: "Test Panel",
-    source: "all" as const,
+    source: "all",
   };
 
   test("all items with unparseable body renders empty state", () => {
