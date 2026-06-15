@@ -312,7 +312,7 @@ export function closeDb(): void {
 export function pruneOldItems(days: number = 30): number {
   const db = getDb();
   const res = db.prepare(`DELETE FROM content_items WHERE fetched_at < datetime('now', ?)`).run(`-${days} days`);
-  return (res.changes as number) ?? 0;
+  return res.changes;
 }
 
 export interface ContentItemRow extends ContentItemFields {
