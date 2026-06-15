@@ -493,7 +493,31 @@ function validatePanelIds(panels: PanelConfig[]): void {
   });
 }
 
-function validatePanelSourceRefs(panels: PanelConfig[], sourceNames: Set<string>): void {
+/** Check whether any adapter reachable from the given source names is a counter adapter. */
+function hasCounterAdapter(
+  sourceNames: string[],
+  adapterTypesByName: Map<string, string>,
+  pipelineSourcesByName: Map<string, string[]>,
+): boolean {
+  for (const name of sourceNames) {
+    if (adapterTypesByName.get(name) === "counter") return true;
+    // If the source is a pipeline, check its upstream adapters
+    const pipelineSources = pipelineSourcesByName.get(name);
+    if (pipelineSources) {
+      for (const upstream of pipelineSources) {
+        if (adapterTypesByName.get(upstream) === "counter") return true;
+      }
+    }
+  }
+  return false;
+}
+
+function validatePanelSourceRefs(
+  panels: PanelConfig[],
+  sourceNames: Set<string>,
+  adapterTypesByName?: Map<string, string>,
+  pipelineSourcesByName?: Map<string, string[]>,
+): void {
   for (const panel of panels) {
     const sources = normalizeSource(panel.source);
     sources.forEach((source, index) => {
@@ -505,15 +529,35 @@ function validatePanelSourceRefs(panels: PanelConfig[], sourceNames: Set<string>
         throw new Error(`config: ${sourcePath} references unknown source "${source.adapter}"`);
       }
     });
+
+    // Warn when display:counter is used but no source is a counter adapter.
+    // source:"all" is exempt since counter items could arrive from any adapter.
+    if (panel.display === "counter" && adapterTypesByName) {
+      const isAll = sources.some((s) => s.adapter === "all");
+      if (!isAll) {
+        const names = sources.map((s) => s.adapter);
+        if (!hasCounterAdapter(names, adapterTypesByName, pipelineSourcesByName ?? new Map())) {
+          warnConfig(
+            `panel "${panel.panel}" uses display: counter but none of its sources are counter adapters; ` +
+            `the panel will show "No data yet" because non-counter items lack the expected body format`,
+          );
+        }
+      }
+    }
   }
 }
 
-export function validateLayout(layout: LayoutNodeConfig, sourceNames: Set<string>): void {
+export function validateLayout(
+  layout: LayoutNodeConfig,
+  sourceNames: Set<string>,
+  adapterTypesByName?: Map<string, string>,
+  pipelineSourcesByName?: Map<string, string[]>,
+): void {
   validateLayoutNode(layout);
   const panels = collectPanels(layout);
   validatePanelNames(panels);
   validatePanelIds(panels);
-  validatePanelSourceRefs(panels, sourceNames);
+  validatePanelSourceRefs(panels, sourceNames, adapterTypesByName, pipelineSourcesByName);
 }
 
 export function validateUniqueUnnamedAdapterTypes(adapters: IngestAdapterConfig[]): void {
@@ -650,7 +694,15 @@ export function validateParsedConfig(
   }
   validatePipelineAdapterNameCollision(pipelines, sourceNames);
 
-  validateLayout(layout, sourceNames);
+  const adapterTypesByName = new Map<string, string>();
+  for (const adapter of adapters) {
+    adapterTypesByName.set(getAdapterName(adapter), adapter.type);
+  }
+  const pipelineSourcesByName = new Map<string, string[]>();
+  for (const pipeline of pipelines) {
+    pipelineSourcesByName.set(pipeline.name, pipeline.sources as string[]);
+  }
+  validateLayout(layout, sourceNames, adapterTypesByName, pipelineSourcesByName);
   validateLlmConfig(resolved.llm);
 
   return {
