@@ -6,6 +6,18 @@ import { resolvePanelId } from "./types";
 import { relativeTime, safeLinkUrl } from "../utils";
 import { flexStyle } from "./flex-styles";
 
+const BODY_MAX_LENGTH = 200;
+
+function stripHtmlTags(html: string): string {
+  return html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+}
+
+function truncateBody(body: string): string {
+  const plain = stripHtmlTags(body).trim();
+  if (plain.length <= BODY_MAX_LENGTH) return plain;
+  return plain.slice(0, BODY_MAX_LENGTH) + "...";
+}
+
 function parseOrigins(raw: string | null | undefined): string[] {
   if (!raw) return [];
   try {
@@ -82,7 +94,7 @@ const ContentItemCard: FC<{ item: ContentItemRow }> = ({ item }) => {
           {item.summary}
         </div>
       ) : item.body ? (
-        <div class="item-body">{item.body}</div>
+        <div class="item-body">{truncateBody(item.body)}</div>
       ) : null}
     </div>
   );

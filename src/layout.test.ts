@@ -113,6 +113,53 @@ describe("renderDashboard", () => {
     // second item has no summary (verified by only one .item-summary in output)
   });
 
+  it("renders item-body fallback with truncation when body is long and no summary", () => {
+    const longBody = "A".repeat(300);
+    const item = makeItem({ title: "LongBody", summary: null, body: longBody });
+    const layout = panelCfg("P", "s");
+    const panelData = new Map<string, PanelData>([["P", { items: [item] }]]);
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain("item-body");
+    expect(html).not.toContain("item-summary");
+    // Truncated to 200 chars + "..."
+    expect(html).toContain("A".repeat(200) + "...");
+    expect(html).not.toContain("A".repeat(201));
+  });
+
+  it("renders item-body without truncation when body is short", () => {
+    const shortBody = "42 points, 15 comments";
+    const item = makeItem({ title: "ShortBody", summary: null, body: shortBody });
+    const layout = panelCfg("P", "s");
+    const panelData = new Map<string, PanelData>([["P", { items: [item] }]]);
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain("item-body");
+    expect(html).toContain("42 points, 15 comments");
+    expect(html).not.toContain("...");
+  });
+
+  it("strips HTML tags from body text before rendering", () => {
+    const htmlBody = '<p>Hello <strong>world</strong></p><img src="x">';
+    const item = makeItem({ title: "HtmlBody", summary: null, body: htmlBody });
+    const layout = panelCfg("P", "s");
+    const panelData = new Map<string, PanelData>([["P", { items: [item] }]]);
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain("item-body");
+    expect(html).toContain("Hello world");
+    expect(html).not.toContain("<strong>");
+    expect(html).not.toContain("<p>");
+    expect(html).not.toContain("<img");
+  });
+
+  it("prefers summary over body when both are present", () => {
+    const item = makeItem({ title: "Both", summary: "LLM summary", body: "Raw body text" });
+    const layout = panelCfg("P", "s");
+    const panelData = new Map<string, PanelData>([["P", { items: [item] }]]);
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain("item-summary");
+    expect(html).toContain("LLM summary");
+    expect(html).not.toContain("item-body");
+  });
+
   it("shows empty state when panel has no items", () => {
     const layout = panelCfg("EmptyP", "s");
     const panelData = new Map<string, PanelData>([["EmptyP", { items: [] }]]);
