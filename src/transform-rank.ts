@@ -13,15 +13,14 @@ export type SortTransformConfig = Extract<TransformConfig, { type: "sort" }>;
 
 export function applySort(
   items: ContentItemRow[],
-  { field, direction }: SortTransformConfig
+  { field, direction = "desc" }: SortTransformConfig
 ): ContentItemRow[] {
   const dir = direction === "asc" ? 1 : -1;
-  const effectiveDirection = direction ?? "desc";
   return [...items].sort((a, b) => {
     const av = a[field] ?? "";
     const bv = b[field] ?? "";
     if (field === "timestamp") {
-      return compareIsoTimestamp(av, bv, effectiveDirection);
+      return compareIsoTimestamp(av, bv, direction);
     }
     return av < bv ? -dir : av > bv ? dir : 0;
   });

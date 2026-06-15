@@ -126,12 +126,7 @@ export const TRANSFORM_VALIDATORS = {
     validateOptionalBoolean(transform.annotate, `${path}.annotate`);
   },
   "llm-summarize": (transform, path) => validateOptionalBoolean(transform.fetch_content, `${path}.fetch_content`),
-  "llm-filter": (transform, path) => {
-    validateOptionalNonEmptyString(transform.criteria, `${path}.criteria`);
-    if (transform.criteria === undefined) {
-      throw new Error(`config: ${path}.criteria is required`);
-    }
-  },
+  "llm-filter": (transform, path) => validateNonEmptyString(transform.criteria, `${path}.criteria`),
   "llm-rank": (transform, path) => validateOptionalStringList(transform.interests, `${path}.interests`),
   "llm-merge": (transform, path) => validateOptionalNonEmptyString(transform.prompt, `${path}.prompt`),
 } satisfies Readonly<Record<TransformType, TransformFieldValidator | undefined>>;
