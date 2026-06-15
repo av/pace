@@ -21,15 +21,22 @@ export const ENGAGEMENT_STRIP_TERMS = [
   ...STRIP_ONLY_METRIC_TERMS,
 ];
 
-export const RE_POINTS = countMetricRe("points?");
-export const RE_SCORE_LABEL = /score:\s*(\d+)/i;
-export const RE_UPVOTES = countMetricRe("upvotes?");
 export const RE_POINTS_OR_UPVOTES = /(\d+)\s*(?:points|upvotes?)/i;
 
+/**
+ * Primary patterns checked first by extractScore (return-on-first-match) and
+ * weighted at 1.0 in the full engagement score. Listed separately from
+ * COUNT_METRIC_SPECS because score-label uses a reversed capture format
+ * (label:\s*(\d+) instead of (\d+)\s*term).
+ */
+const PRIMARY_SCORE_PATTERNS: Array<{ re: RegExp; weight: number }> = [
+  { re: countMetricRe("points?"), weight: 1 },
+  { re: /score:\s*(\d+)/i, weight: 1 },
+  { re: countMetricRe("upvotes?"), weight: 1 },
+];
+
 export const ENGAGEMENT_PATTERNS: Array<{ re: RegExp; weight: number }> = [
-  { re: RE_POINTS, weight: 1 },
-  { re: RE_SCORE_LABEL, weight: 1 },
-  { re: RE_UPVOTES, weight: 1 },
+  ...PRIMARY_SCORE_PATTERNS,
   ...COUNT_METRIC_SPECS.slice(2).map((s) => ({ re: countMetricRe(s.term), weight: s.weight })),
 ];
 
@@ -43,11 +50,9 @@ export function stripEngagementMetricCounts(text: string): string {
   return text.replace(RE_STRIP_ENGAGEMENT_METRICS, "");
 }
 
-const PRIMARY_SCORE_PATTERNS: RegExp[] = ENGAGEMENT_PATTERNS.slice(0, 3).map(({ re }) => re);
-
 export function extractScore(body: string | null): number {
   if (!body) return 0;
-  for (const re of PRIMARY_SCORE_PATTERNS) {
+  for (const { re } of PRIMARY_SCORE_PATTERNS) {
     const match = body.match(re);
     if (match) return parseInt(match[1], 10);
   }
