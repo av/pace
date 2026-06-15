@@ -1,19 +1,19 @@
 import type { AppConfig, LayoutDirection, LayoutNodeConfig } from "../config/types";
 
-export interface TestAppConfigPanel {
+interface TestAppConfigPanel {
   panel: string;
   source: string;
   id?: string;
   limit?: number;
 }
 
-export interface TestAppConfigLayout {
+interface TestAppConfigLayout {
   direction: LayoutDirection;
   panels: TestAppConfigPanel[];
 }
 
 /** Default layout for scheduler integration tests (mirrors config defaultConfig). */
-export const SCHEDULER_TEST_LAYOUT: TestAppConfigLayout = {
+const SCHEDULER_TEST_LAYOUT: TestAppConfigLayout = {
   direction: "row",
   panels: [{ panel: "all", source: "all", limit: 50 }],
 };

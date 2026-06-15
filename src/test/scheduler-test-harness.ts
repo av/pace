@@ -12,7 +12,7 @@ import {
 let testRuntime: SchedulerRuntime | undefined;
 
 /** Per-test isolated scheduler runtime (parallel-safe). */
-export function schedulerTestRuntime(): SchedulerRuntime {
+function schedulerTestRuntime(): SchedulerRuntime {
   if (testRuntime === undefined) {
     throw new Error(
       "scheduler-test-harness: no runtime - call installSchedulerRuntimeHooks() in describe()",
@@ -31,18 +31,6 @@ export function installSchedulerRuntimeHooks(): void {
     testRuntime?.stopScheduler();
     testRuntime = undefined;
   });
-}
-
-/** Short-lived runtime for tests that need a second isolated instance. */
-export async function withSchedulerRuntime<T>(
-  fn: (runtime: SchedulerRuntime) => Promise<T> | T,
-): Promise<T> {
-  const runtime = createSchedulerRuntime();
-  try {
-    return await fn(runtime);
-  } finally {
-    runtime.stopScheduler();
-  }
 }
 
 export function startTestScheduler(

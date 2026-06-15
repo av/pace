@@ -18,7 +18,7 @@ export type FetchMockSuite = {
   readonly warnSpy: ReturnType<typeof spyOn>;
 };
 
-export type FetchMock = FetchMockSuite["fetchMock"];
+type FetchMock = FetchMockSuite["fetchMock"];
 
 /** URL from the nth global.fetch mock invocation (default: first). */
 export function fetchMockCallUrl(fetchMock: FetchMock, index = 0): string {
@@ -104,10 +104,10 @@ export function adaptersMap(...entries: [string, Adapter][]): Map<string, Adapte
   return new Map(entries);
 }
 
-export type AdapterFetchErrorSpyExpect = ErrorMessageSpyExpect;
+type AdapterFetchErrorSpyExpect = ErrorMessageSpyExpect;
 
 /** One fetch invocation in an adapter HTTP/network error-path test. */
-export type AdapterFetchErrorCase = {
+type AdapterFetchErrorCase = {
   /** Override fetch mock for this step; default derives from httpStatus/networkError. */
   setupFetch?: (fetchMock: FetchMock) => void;
   httpStatus?: number;
@@ -118,7 +118,7 @@ export type AdapterFetchErrorCase = {
   spy?: AdapterFetchErrorSpyExpect;
 };
 
-export type ExpectAdapterFetchErrorOptions = {
+type ExpectAdapterFetchErrorOptions = {
   /** Clear errorMessage spy between cases (default: true when a case sets spy). */
   clearBetweenCases?: boolean;
   /** Final spy assertion(s) after all cases. */

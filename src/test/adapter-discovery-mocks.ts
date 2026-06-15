@@ -9,7 +9,7 @@ export const DISCOVERY_FILTER_NOISE = ["foo.test.ts", "types.ts", "index.ts", "b
 
 export const emptyAdapterFetch = async (_config: AdapterConfig): Promise<ContentItem[]> => [];
 
-export function adapterModulePath(file: string): string {
+function adapterModulePath(file: string): string {
   return join(ADAPTERS_DIR, file);
 }
 
@@ -55,7 +55,7 @@ export function expectNoImportOrBadModWarnings(warnSpy: ReturnType<typeof spyOn>
   expect(discoveryWarnsContaining(warnSpy, "invalid default export")).toHaveLength(0);
 }
 
-export function expectAdaptersRegistered(adapters: Map<string, unknown>, names: string[]): void {
+function expectAdaptersRegistered(adapters: Map<string, unknown>, names: string[]): void {
   for (const name of names) {
     expect(adapters.has(name)).toBe(true);
   }

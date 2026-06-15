@@ -7,7 +7,7 @@ export function emptyPanelMap(): SourcePanelMap {
 }
 
 /** Derive scheduler SourcePanelMap from layout config (same path as index.ts). */
-export function sourcePanelMapFromLayout(
+function sourcePanelMapFromLayout(
   layout: LayoutNodeConfig,
   adapterNames: readonly string[] = [],
 ): SourcePanelMap {

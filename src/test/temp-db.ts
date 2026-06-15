@@ -5,12 +5,12 @@ import { tmpdir } from "node:os";
 import { closeDb, initDb } from "../db";
 import { errorMessage } from "../utils";
 
-export type TempDbFixture = {
+type TempDbFixture = {
   tempDir: string;
   dbPath: string;
 };
 
-export type InstallTempDbHooksOptions = {
+type InstallTempDbHooksOptions = {
   /** mkdtemp prefix, e.g. "pace-dbtest-" */
   prefix: string;
   /** Call initDb() after closeDb in beforeEach (default: true) */
