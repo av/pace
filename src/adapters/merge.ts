@@ -1,5 +1,5 @@
 import { dedupeByKey } from "../dedupe";
-import { sliceToLimit, sleep } from "../utils";
+import { errorMessage, sliceToLimit, sleep } from "../utils";
 
 /** Map each key sequentially and concatenate results (sync multi-mode / multi-section merge). */
 export function mapAndConcat<T, K = string>(
@@ -28,8 +28,7 @@ export async function fetchAndConcat<T, K = string>(
     } catch (err) {
       failCount++;
       if (firstError === undefined) firstError = err;
-      const msg = err instanceof Error ? err.message : String(err);
-      console.warn(`fetchAndConcat: skipping key ${i + 1}/${keys.length}: ${msg}`);
+      console.warn(`fetchAndConcat: skipping key ${i + 1}/${keys.length}: ${errorMessage(err)}`);
     }
   }
   if (merged.length === 0 && failCount > 0) {
@@ -60,8 +59,7 @@ export async function fetchAllParallel<T, K>(
     throw failures[0].reason;
   }
   for (const f of failures) {
-    const msg = f.reason instanceof Error ? f.reason.message : String(f.reason);
-    console.warn(`feed: skipping source ${f.index + 1}/${keys.length}: ${msg}`);
+    console.warn(`fetchAllParallel: skipping key ${f.index + 1}/${keys.length}: ${errorMessage(f.reason)}`);
   }
   return items;
 }
@@ -138,8 +136,7 @@ export async function fetchAllBatched<T, K>(
       } else {
         failCount++;
         if (firstError === undefined) firstError = outcome.reason;
-        const msg = outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason);
-        console.warn(`fetchAllBatched: skipping key ${i + j + 1}/${keys.length}: ${msg}`);
+        console.warn(`fetchAllBatched: skipping key ${i + j + 1}/${keys.length}: ${errorMessage(outcome.reason)}`);
         results.push(null);
       }
     }

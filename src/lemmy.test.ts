@@ -353,7 +353,7 @@ describe("lemmy", () => {
           throwMatcher: "lemmy:",
         },
       ],
-      { clearBetweenCases: false, spy: [{ times: 2 }, { message: "HTTP error 500" }] },
+      { clearBetweenCases: false, spy: [{ times: 4 }, { message: "HTTP error 500" }] },
     );
   });
 

@@ -115,7 +115,7 @@ describe("youtube", () => {
       const items = await adapter.fetch(youtubeCfg({ channels: ["ERR"], playlists: ["PL1"] }));
       expect(items.length).toBeGreaterThan(0);
       expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining("skipping source"),
+        expect.stringContaining("skipping key"),
       );
     } finally {
       warnSpy.mockRestore();
