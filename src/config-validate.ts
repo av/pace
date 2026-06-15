@@ -77,6 +77,20 @@ function containsDangerousSegment(jsonPath: string): boolean {
   return segments.some((s) => DANGEROUS_PATH_SEGMENTS.has(s.replace("]", "")));
 }
 
+/** Validate a dot-notation JSON path value (syntax, no dangerous segments). */
+function validateJsonPath(value: unknown, fieldPath: string): void {
+  validateNonEmptyString(value, fieldPath);
+  if (typeof value === "string" && !JSON_PATH_RE.test(value)) {
+    const hint = value.startsWith("$")
+      ? ' (do not use JSONPath "$." prefix; use plain dot notation like "data.count")'
+      : "";
+    throw new Error(`config: ${fieldPath} must be a valid dot-notation path${hint}`);
+  }
+  if (typeof value === "string" && containsDangerousSegment(value)) {
+    throw new Error(`config: ${fieldPath} contains a disallowed segment`);
+  }
+}
+
 function validateCounterParams(params: Record<string, unknown>, path: string): void {
   if (!params.url) {
     throw new Error(`config: ${path}.params.url is required for counter adapter`);
@@ -86,32 +100,14 @@ function validateCounterParams(params: Record<string, unknown>, path: string): v
   if (!params.json_path) {
     throw new Error(`config: ${path}.params.json_path is required for counter adapter`);
   }
-  validateNonEmptyString(params.json_path, `${path}.params.json_path`);
-  if (typeof params.json_path === "string" && !JSON_PATH_RE.test(params.json_path)) {
-    const hint = params.json_path.startsWith("$")
-      ? ' (do not use JSONPath "$." prefix; use plain dot notation like "data.count")'
-      : "";
-    throw new Error(`config: ${path}.params.json_path must be a valid dot-notation path${hint}`);
-  }
-  if (typeof params.json_path === "string" && containsDangerousSegment(params.json_path)) {
-    throw new Error(`config: ${path}.params.json_path contains a disallowed segment`);
-  }
+  validateJsonPath(params.json_path, `${path}.params.json_path`);
 
   if (params.compare_url !== undefined) {
     validateSafeUrl(params.compare_url, `${path}.params.compare_url`);
   }
 
   if (params.compare_path !== undefined) {
-    validateNonEmptyString(params.compare_path, `${path}.params.compare_path`);
-    if (typeof params.compare_path === "string" && !JSON_PATH_RE.test(params.compare_path)) {
-      const hint = (params.compare_path as string).startsWith("$")
-        ? ' (do not use JSONPath "$." prefix; use plain dot notation like "data.count")'
-        : "";
-      throw new Error(`config: ${path}.params.compare_path must be a valid dot-notation path${hint}`);
-    }
-    if (typeof params.compare_path === "string" && containsDangerousSegment(params.compare_path)) {
-      throw new Error(`config: ${path}.params.compare_path contains a disallowed segment`);
-    }
+    validateJsonPath(params.compare_path, `${path}.params.compare_path`);
   }
 
   if (params.headers !== undefined) {
