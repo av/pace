@@ -14,12 +14,10 @@ export function makeContentItem(
   const id = overrides.id ?? nextTestId();
   const now = new Date();
   return {
-    id,
-    title: overrides.title ?? `title-${id}`,
-    url: overrides.url ?? `https://ex.com/${id}`,
-    source: overrides.source ?? "testsrc",
-    timestamp: overrides.timestamp ?? now,
-    body: overrides.body,
+    title: `title-${id}`,
+    url: `https://ex.com/${id}`,
+    source: "testsrc",
+    body: undefined as string | undefined,
     ...overrides,
     id,
     timestamp: overrides.timestamp ?? now,
@@ -33,14 +31,11 @@ export function makeContentItemRow(
   const now = new Date().toISOString();
   const id = overrides.id ?? nextTestId("row");
   return {
-    id,
     panel_id: "panel-1",
     title: "Test Title",
     url: "https://example.com",
     source: "testsrc",
     body: "Default body content here.",
-    timestamp: now,
-    fetched_at: now,
     summary: null,
     origins: null,
     applied_transforms: null,

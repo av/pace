@@ -118,7 +118,7 @@ export const Panel: FC<{ node: PanelConfig; panelData: Map<string, PanelData> }>
         </div>
         <div class="panel-body">
           {items.length > 0
-            ? items.map((item) => <ContentItemCard item={item} />)
+            ? items.map((item: ContentItemRow) => <ContentItemCard item={item} />)
             : <div class="empty-state">No content yet</div>
           }
         </div>

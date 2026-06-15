@@ -667,7 +667,7 @@ describe("wikipedia", () => {
 
     const items = await wikipediaAdapter.fetch(wikiCfg());
 
-    const extractPart = items[0].body.split(" | ").find((part) => !part.endsWith(" views"));
+    const extractPart = items[0].body!.split(" | ").find((part) => !part.endsWith(" views"));
     expect(extractPart).toBe(
       truncateText(longExtract, 150, { ellipsis: "...", inclusive: false, trim: false }),
     );
@@ -693,7 +693,7 @@ describe("wikipedia", () => {
     const items = await wikipediaAdapter.fetch(wikiCfg({ mode: "featured" }));
 
     expect(items[0].body).toBe(`${"x".repeat(200)}...`);
-    expect(items[0].body.length).toBe(203);
+    expect(items[0].body!.length).toBe(203);
   });
 
   test("formats view counts correctly", async () => {

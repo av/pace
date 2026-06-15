@@ -164,7 +164,7 @@ describe("hackernews", () => {
 
     // should have fetched extra (limit*3=6 but only 5), filtered to >=50 (3 items), then limited to 2
     expect(results).toHaveLength(2);
-    expect(results.every((r) => (r.body.match(/(\d+) points/)?.[1] ?? 0) >= 50)).toBe(true);
+    expect(results.every((r) => Number(r.body!.match(/(\d+) points/)?.[1] ?? 0) >= 50)).toBe(true);
   });
 
   test.each(invalidMinScoreParams(50))(

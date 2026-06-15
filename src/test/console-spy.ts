@@ -25,7 +25,7 @@ function spyMockCallsMatching(
   spy: Spy,
   predicate: (text: string) => boolean,
 ): unknown[][] {
-  return spy.mock.calls.filter((call) => predicate(String(call[0])));
+  return spy.mock.calls.filter((call: unknown[]) => predicate(String(call[0])));
 }
 
 export function spyMockCallsContaining(spy: Spy, substring: string): unknown[][] {

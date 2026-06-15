@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import yaml from "js-yaml";
 import { validateParsedConfig } from "./config-validate";
@@ -21,21 +21,16 @@ import { DEFAULT_LAYOUT } from "./config/domain";
 import { makeContentItemRow as makeItem } from "./test/content-items";
 
 const ROOT = join(import.meta.dir, "..");
+const PRESETS_DIR = join(ROOT, "presets");
 
-const PRESET_NAMES = [
-  "daily-brief",
-  "tech-news",
-  "ml-ai",
-  "product-launches",
-  "release-tracker",
-  "academic-papers",
-  "video-podcast",
-  "ops-dashboard",
-] as const;
+const PRESET_NAMES = readdirSync(PRESETS_DIR)
+  .filter((f) => /^config\..+\.yaml$/.test(f))
+  .map((f) => f.replace(/^config\./, "").replace(/\.yaml$/, ""))
+  .sort();
 
-/** Load and parse a preset YAML from the project root. */
+/** Load and parse a preset YAML from the presets folder. */
 function loadPresetYaml(name: string): Record<string, unknown> {
-  const raw = readFileSync(join(ROOT, `config.${name}.yaml`), "utf-8");
+  const raw = readFileSync(join(PRESETS_DIR, `config.${name}.yaml`), "utf-8");
   const parsed = yaml.load(raw);
   if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
     throw new Error(`Preset ${name}: expected an object at top level`);
@@ -191,7 +186,7 @@ describe("Preset config validity", () => {
       it("adapter param keys are all valid for their type", () => {
         for (const adapter of validated.adapters) {
           if (!isAdapterType(adapter.type)) continue;
-          const allowedKeys = ADAPTER_PARAM_KEYS[adapter.type];
+          const allowedKeys: readonly string[] = ADAPTER_PARAM_KEYS[adapter.type];
           if (adapter.params) {
             for (const key of Object.keys(adapter.params)) {
               expect(allowedKeys).toContain(key);
@@ -457,7 +452,8 @@ describe("Preset rendering: ops-dashboard (all widget types)", () => {
   let html: string;
 
   beforeAll(() => {
-    const parsed = loadPresetYaml("ops-dashboard");
+    const raw = readFileSync(join(import.meta.dir, "test/ops-dashboard-fixture.yaml"), "utf-8");
+    const parsed = yaml.load(raw) as Record<string, unknown>;
     const validated = validateParsedConfig(parsed, DEFAULT_LAYOUT);
     const panelData = mockPanelData(validated.layout);
     html = renderDashboard({

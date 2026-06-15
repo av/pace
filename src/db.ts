@@ -76,7 +76,7 @@ function bindCoreContentItemParams(
 }
 
 /** Optional panel_id filter for queries scoped to one panel or all panels. */
-function panelIdWhereClause(panelId?: string): { where: string; params: unknown[] } {
+function panelIdWhereClause(panelId?: string): { where: string; params: (string | number)[] } {
   if (panelId != null) {
     return { where: "WHERE panel_id = ?", params: [panelId] };
   }

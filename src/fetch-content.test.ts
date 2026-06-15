@@ -10,7 +10,7 @@ const originalFetch = globalThis.fetch;
 
 function makeFetchMock() {
   const fetchMock = mock();
-  globalThis.fetch = fetchMock as typeof fetch;
+  globalThis.fetch = fetchMock as unknown as typeof fetch;
   return fetchMock;
 }
 

@@ -247,7 +247,7 @@ export async function filterItemsByLlm(
 ): Promise<ContentItem[]> {
   const systemPrompt = `Given the criteria: "${criteria}", decide which items to keep. Return a JSON array of item IDs that match. Return ONLY the JSON array of strings.`;
 
-  return runLlmBatchTransform(
+  return runLlmBatchTransform<string[]>(
     model,
     items,
     systemPrompt,

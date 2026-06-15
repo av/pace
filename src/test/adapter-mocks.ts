@@ -55,7 +55,7 @@ export function useFetchMockSuite(): FetchMockSuite {
 
   beforeEach(() => {
     fetchMock = mock();
-    globalThis.fetch = fetchMock as typeof fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
     warnSpy = spyOn(console, "warn").mockImplementation(() => {});
   });
 
@@ -168,13 +168,11 @@ export async function expectAdapterFetchError(
       }
     }
     if (options.spy !== undefined) {
-      const finalSpy = options.spy;
-      if (Array.isArray(finalSpy)) {
-        for (const spyExpect of finalSpy) {
-          assertErrorMessageSpy(emSpy, spyExpect);
-        }
-      } else {
-        assertErrorMessageSpy(emSpy, finalSpy);
+      const spyExpects: readonly AdapterFetchErrorSpyExpect[] = Array.isArray(options.spy)
+        ? options.spy
+        : [options.spy];
+      for (const spyExpect of spyExpects) {
+        assertErrorMessageSpy(emSpy, spyExpect);
       }
     }
   });

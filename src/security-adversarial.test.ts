@@ -489,7 +489,7 @@ describe("interpolateEnvVars adversarial tests", () => {
     const result = interpolateEnvVars("${PATH}");
     // The PATH variable should be expanded - this is by design for operator config
     expect(result.length).toBeGreaterThan(0);
-    expect(result).toBe(process.env.PATH);
+    expect(result).toBe(process.env.PATH!);
   });
 
   test("nested ${${NESTED}} - only outer braces matched", () => {

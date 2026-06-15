@@ -235,7 +235,8 @@ function buildOptionTypesMap<T>(types: AliasedOptionTypes<T>): Record<string, T>
   if (Array.isArray(types)) {
     return canonicalOptionTypes(...types);
   }
-  return types;
+  // Array.isArray doesn't narrow `readonly T[]` out of the union in TS 6.x
+  return types as Record<string, T>;
 }
 
 type AliasedResolverConfig<T> = {

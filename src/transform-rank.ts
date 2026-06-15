@@ -56,7 +56,7 @@ function parseHalfLife(str: string): number {
   }
 }
 
-function filterByMinScore<T extends { score?: number; finalScore?: number }>(
+function filterByMinScore<T>(
   scored: T[],
   minScore: number | undefined,
   getScore: (s: T) => number,
@@ -71,7 +71,7 @@ function filterByMinScore<T extends { score?: number; finalScore?: number }>(
   return filtered;
 }
 
-function annotateRow<T extends { body?: string }>(row: T, annotation: string | undefined): T {
+function annotateRow<T extends { body?: string | null }>(row: T, annotation: string | undefined): T {
   if (!annotation) return row;
   return { ...row, body: (row.body ?? "") + annotation } as T;
 }

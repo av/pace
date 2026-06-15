@@ -215,7 +215,7 @@ function isValidJsonObjectElement(
  * Validate a top-level JSON object response (e.g. Mastodon account lookup).
  * Returns null and warns when the payload is not an object or required fields are absent.
  */
-export function jsonObjectOrNull<T extends Record<string, unknown>>(
+export function jsonObjectOrNull<T extends object>(
   prefix: string,
   value: unknown,
   context: string,
@@ -250,7 +250,7 @@ export function jsonObjectOrNull<T extends Record<string, unknown>>(
   return value as T;
 }
 
-function filterValidObjectArrayElements<T extends Record<string, unknown>>(
+function filterValidObjectArrayElements<T extends object>(
   prefix: string,
   raw: unknown[],
   context: string,
@@ -277,7 +277,7 @@ function filterValidObjectArrayElements<T extends Record<string, unknown>>(
  * Validate a top-level JSON array of objects with required fields (e.g. Mastodon statuses).
  * Non-array payloads warn via jsonArrayOrEmpty; invalid elements are filtered with a warn.
  */
-export function jsonObjectArrayOrEmpty<T extends Record<string, unknown>>(
+export function jsonObjectArrayOrEmpty<T extends object>(
   prefix: string,
   value: unknown,
   context: string,
@@ -345,7 +345,7 @@ export function optionalArrayFieldOrEmpty<T>(
  * feed sections). Absent parent/field stays silent like optionalArrayFieldOrEmpty;
  * malformed shapes warn; invalid elements are filtered with a warn.
  */
-export function optionalObjectArrayFieldOrEmpty<T extends Record<string, unknown>>(
+export function optionalObjectArrayFieldOrEmpty<T extends object>(
   prefix: string,
   record: unknown,
   field: string,
@@ -362,7 +362,7 @@ export function optionalObjectArrayFieldOrEmpty<T extends Record<string, unknown
  * parent is present but not an object, the field is present but not an object, or
  * required fields are missing.
  */
-export function optionalObjectFieldOrNull<T extends Record<string, unknown>>(
+export function optionalObjectFieldOrNull<T extends object>(
   prefix: string,
   record: unknown,
   field: string,

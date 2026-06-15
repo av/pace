@@ -23,7 +23,7 @@ export type ServerRouteDeps = {
 };
 
 export async function handleRefreshPanel(c: Context, deps: ServerRouteDeps): Promise<Response> {
-  const param = c.req.param("panel");
+  const param = c.req.param("panel")!; // route pattern /refresh/:panel guarantees presence
   const binding = resolveRefreshPanelBinding(
     param,
     deps.panelNameToId,

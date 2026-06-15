@@ -20,7 +20,7 @@ export function decodeNumericFeedTitle(text: string): string {
 }
 
 export function decodeNumericFeedTitleOptional(
-  text: string | undefined,
+  text?: string | undefined,
   fallback = "(untitled)",
 ): string {
   if (!text) return fallback;

@@ -81,7 +81,7 @@ describe("arxiv", () => {
     const items = await arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"] }));
 
     expect(items.length).toBe(1);
-    const abstractPart = items[0].body
+    const abstractPart = items[0].body!
       .split(" | ")
       .find((part) => part.startsWith("Abstract: "));
     expect(abstractPart).toBeDefined();
