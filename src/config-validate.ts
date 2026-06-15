@@ -518,6 +518,29 @@ function validatePanelSourceRefs(
   adapterTypesByName?: Map<string, string>,
   pipelineSourcesByName?: Map<string, string[]>,
 ): void {
+  // Warn when multiple panels reference the same adapter source.
+  // Items are keyed by id in the DB, so shared sources cause panel_id to be
+  // overwritten by the last panel that saves, leaving earlier panels empty.
+  const sourceToPanelNames = new Map<string, string[]>();
+  for (const panel of panels) {
+    const sources = normalizeSource(panel.source);
+    for (const source of sources) {
+      if (source.adapter === "all") continue;
+      const list = sourceToPanelNames.get(source.adapter) ?? [];
+      list.push(panel.panel);
+      sourceToPanelNames.set(source.adapter, list);
+    }
+  }
+  for (const [source, panelNames] of sourceToPanelNames) {
+    if (panelNames.length > 1) {
+      warnConfig(
+        `multiple panels share source "${source}" (${panelNames.map((n) => `"${n}"`).join(", ")}); ` +
+        `items will only appear in one panel because the DB keys items by id. ` +
+        `Define separate adapters with different names to feed each panel independently`,
+      );
+    }
+  }
+
   for (const panel of panels) {
     const sources = normalizeSource(panel.source);
     sources.forEach((source, index) => {

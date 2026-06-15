@@ -150,6 +150,16 @@ describe("renderDashboard", () => {
     expect(html).not.toContain("<img");
   });
 
+  it("does not render empty item-body div when body is HTML-only tags that strip to nothing", () => {
+    const htmlOnlyBody = '<div><span></span><br/><img src="x"/></div>';
+    const item = makeItem({ title: "HtmlOnly", summary: null, body: htmlOnlyBody });
+    const layout = panelCfg("P", "s");
+    const panelData = new Map<string, PanelData>([["P", { items: [item] }]]);
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).not.toContain("item-body");
+    expect(html).not.toContain("item-summary");
+  });
+
   it("prefers summary over body when both are present", () => {
     const item = makeItem({ title: "Both", summary: "LLM summary", body: "Raw body text" });
     const layout = panelCfg("P", "s");

@@ -93,9 +93,10 @@ const ContentItemCard: FC<{ item: ContentItemRow }> = ({ item }) => {
           <span class="item-summary-label">summarized</span>
           {item.summary}
         </div>
-      ) : item.body ? (
-        <div class="item-body">{truncateBody(item.body)}</div>
-      ) : null}
+      ) : item.body ? (() => {
+        const bodyText = truncateBody(item.body);
+        return bodyText ? <div class="item-body">{bodyText}</div> : null;
+      })() : null}
     </div>
   );
 };
