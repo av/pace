@@ -53,6 +53,13 @@
 # rendering
 - The Dashboard is fully server-rendered HTML with no client-side JavaScript; it works in any browser, including on mobile, and updates require a page reload or explicit refresh
 
+# packaging
+
+## docker
+- label: GitHub Actions publishes the Docker image for both linux/amd64 and linux/arm64 platforms so Apple Silicon users can run ghcr.io/av/pace:latest
+  command: grep -q 'platforms: linux/amd64,linux/arm64' .github/workflows/docker.yml
+  tags: [spec, implemented]
+
 # domain
 - a Dashboard is the self-hosted web interface that displays aggregated, deduplicated, and optionally LLM-processed content from many sources in a single customizable view
 - a Source is a content provider (Hacker News, Reddit, arXiv, RSS feeds, GitHub releases, podcasts, etc.) that a user configures to pull Items into the Dashboard
