@@ -9,7 +9,17 @@ import { flexStyle } from "./flex-styles";
 const BODY_MAX_LENGTH = 200;
 
 function stripHtmlTags(html: string): string {
-  return html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+  // Decode &amp; last — all other named entities start with '&', so early
+  // &amp; decoding would double-decode sequences like &amp;lt; into <.
+  return html
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&");
 }
 
 function truncateBody(body: string): string {

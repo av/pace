@@ -10,15 +10,18 @@ const TAG_RE = /<[^>]+>/g;
 /** Collapse runs of whitespace (including newlines) to a single space. */
 const WHITESPACE_RE = /\s+/g;
 
-/** Decode a small set of common HTML entities. */
+/** Decode a small set of common HTML entities.
+ *  &amp; is decoded last — all other named entities start with '&', so early
+ *  &amp; decoding would double-decode sequences like &amp;lt; into <. */
 function decodeEntities(text: string): string {
   return text
-    .replace(/&amp;/g, "&")
+    .replace(/&nbsp;/g, " ")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
     .replace(/&#039;/g, "'")
-    .replace(/&nbsp;/g, " ");
+    .replace(/&amp;/g, "&");
 }
 
 /**
