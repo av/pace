@@ -13,7 +13,7 @@ export function validateAllowedKeys(
   }
 }
 
-export function validateNonEmptyString(value: unknown, path: string): void {
+export function validateNonEmptyString(value: unknown, path: string): asserts value is string {
   if (typeof value !== "string" || value.trim().length === 0) {
     throw new Error(`config: ${path} must be a non-empty string`);
   }
@@ -46,7 +46,7 @@ export function validateNonNegativeNumber(value: unknown, path: string): void {
   }
 }
 
-export function validateFiniteNumber(value: unknown, path: string): void {
+export function validateFiniteNumber(value: unknown, path: string): asserts value is number {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     throw new Error(`config: ${path} must be a number`);
   }
@@ -76,7 +76,7 @@ function validateList(value: unknown, path: string): void {
 
 function validateUnitNumber(value: unknown, path: string): void {
   validateFiniteNumber(value, path);
-  if ((value as number) < 0 || (value as number) > 1) {
+  if (value < 0 || value > 1) {
     throw new Error(`config: ${path} must be between 0 and 1`);
   }
 }
@@ -90,7 +90,7 @@ export const validateOptionalNonEmptyString = optionalValidator(validateNonEmpty
 export const validateOptionalList = optionalValidator(validateList);
 export const validateOptionalUnitNumber = optionalValidator(validateUnitNumber);
 
-export function validateStringList(value: unknown, path: string): void {
+export function validateStringList(value: unknown, path: string): asserts value is string[] {
   validateNonEmptyArray(value, path);
   value.forEach((entry, index) => {
     validateNonEmptyString(entry, `${path}[${index}]`);
@@ -125,7 +125,7 @@ export function validateUniqueStringList(
   validateUniqueStrings(value, path, duplicateLabel);
   if (allowed) {
     for (let index = 0; index < value.length; index++) {
-      const entry = value[index] as string;
+      const entry = value[index];
       const entryPath = `${path}[${index}]`;
       if (!allowed.has(entry)) {
         throw new Error(`config: ${entryPath} references unknown source "${entry}"`);

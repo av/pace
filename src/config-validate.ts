@@ -204,7 +204,7 @@ function validateSource(source: unknown, path: string): void {
   }
 
   validateNonEmptyString(source.adapter, `${path}.adapter`);
-  validateNestedParams(source.adapter as string, source.params, path);
+  validateNestedParams(source.adapter, source.params, path);
   validateAllowedKeys(source, ["adapter", "params"], (key) =>
     `${path}.${key} is not a valid source field`,
   );
@@ -628,13 +628,13 @@ export function validateAdapterConfig(adapter: unknown, index: number): asserts 
     `${path}.${key} is not a valid adapter field`,
   );
   validateNonEmptyString(adapter.type, `${path}.type`);
-  if (typeof adapter.type === "string" && !isAdapterType(adapter.type)) {
+  if (!isAdapterType(adapter.type)) {
     const suggestion = findClosestAdapterType(adapter.type);
     const hint = suggestion ? `; did you mean "${suggestion}"?` : "";
     warnConfig(`${path}.type "${adapter.type}" is not a known adapter type${hint}`);
   }
   validateOptionalNonEmptyString(adapter.name, `${path}.name`);
-  validateNestedParams(adapter.type as string, adapter.params, path);
+  validateNestedParams(adapter.type, adapter.params, path);
   validateOptionalPositiveNumber(adapter.refresh_interval, `${path}.refresh_interval`);
   if (adapter.transforms !== undefined) {
     validateTransforms(adapter.transforms, `${path}.transforms`);
