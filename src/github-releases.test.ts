@@ -260,7 +260,6 @@ describe("github-releases", () => {
           githubReleasesAdapter.fetch(githubReleasesCfg({ repos: ["missing/repo"] })),
         throwMatcher: /^github-releases: failed to fetch missing\/repo: HTTP error 404$/,
       },
-      { spy: { times: 1 } },
     );
   });
 

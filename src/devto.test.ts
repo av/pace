@@ -307,7 +307,7 @@ describe("devto", () => {
         fetch: () => devtoAdapter.fetch(devtoCfg({ tags: ["javascript"] })),
         throwMatcher: 'devto: failed to fetch tag "javascript": HTTP error 403',
       },
-      { spy: [{ times: 2 }, { message: "HTTP error 403" }] },
+      { spy: { times: 1 } },
     );
   });
 

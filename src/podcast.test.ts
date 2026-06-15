@@ -191,7 +191,6 @@ describe("podcast", () => {
           podcastAdapter.fetch(podcastCfg({ feeds: ["https://example.com/podcast.xml"] })),
         throwMatcher: /podcast: failed to fetch .*404/,
       },
-      { spy: [{ times: 1 }, { message: "HTTP error 404" }] },
     );
   });
 });

@@ -88,7 +88,7 @@ async function fetchOkResponse(
 
   if (!res.ok) {
     throw new Error(
-      `${prefix}: failed to fetch ${context}: ${errorMessage({ message: `HTTP error ${res.status}` })}`,
+      `${prefix}: failed to fetch ${context}: HTTP error ${res.status}`,
     );
   }
 
@@ -128,11 +128,6 @@ export async function fetchJson<T>(
   return fetchBody(prefix, url, context, options, async (res) => (await res.json()) as T);
 }
 
-/** Warn when a feed fetch succeeded but returned no items (absent or empty item/entry list). */
-function warnEmptyFeedItems(prefix: string, context: string): void {
-  warnEmptyFeedEntries(prefix, context);
-}
-
 function finalizeFeedItemList<TEntry, TParsed extends RssAtomFeedShape<TEntry>>(
   prefix: string,
   context: string,
@@ -140,7 +135,7 @@ function finalizeFeedItemList<TEntry, TParsed extends RssAtomFeedShape<TEntry>>(
   items: TEntry[],
 ): TEntry[] {
   if (shouldWarnLegitimatelyEmptyFeed(parsed, items)) {
-    warnEmptyFeedItems(prefix, context);
+    warnEmptyFeedEntries(prefix, context);
   }
   return items;
 }

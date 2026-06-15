@@ -165,7 +165,6 @@ describe("rss", () => {
         {
           fetch: () => rssAdapter.fetch(rssCfg({ urls: ["https://ex.com/badstatus"] })),
           throwMatcher: /rss: failed to fetch/,
-          spy: { message: "HTTP error 404" },
         },
         {
           networkError: new Error("connection refused"),

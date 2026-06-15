@@ -312,7 +312,6 @@ describe("producthunt", () => {
         fetch: () => producthuntAdapter.fetch(producthuntCfg()),
         throwMatcher: /producthunt: failed to fetch feed: HTTP error 429/,
       },
-      { spy: [{ times: 1 }, { message: "HTTP error 429" }] },
     );
   });
 

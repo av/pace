@@ -337,7 +337,7 @@ describe("stackexchange", () => {
           throwMatcher: /connection refused/,
         },
       ],
-      { clearBetweenCases: false, spy: [{ times: 4 }, { message: "HTTP error 429" }] },
+      { clearBetweenCases: false, spy: { times: 3 } },
     );
   });
 

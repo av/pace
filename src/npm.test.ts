@@ -301,7 +301,6 @@ describe("npm", () => {
         httpStatus: 429,
         fetch: () => npmAdapter.fetch(npmCfg({ keywords: ["test"] })),
         throwMatcher: "npm:",
-        spy: { message: "HTTP error 429" },
       },
       {
         networkError: new Error("ECONNREFUSED"),

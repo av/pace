@@ -296,7 +296,7 @@ describe("arxiv", () => {
         httpStatus: 429,
         fetch: () => arxivAdapter.fetch(arxivCfg({ categories: ["cs.AI"] })),
         throwMatcher: /arxiv: failed to fetch query "cat:cs.AI":/,
-        spy: { message: "HTTP error 429" },
+        spy: "called",
       },
       {
         networkError: new Error("DNS fail"),

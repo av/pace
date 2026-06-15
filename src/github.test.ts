@@ -504,7 +504,7 @@ describe("github", () => {
           throwMatcher: /github: error fetching trending/,
         },
       ],
-      { clearBetweenCases: false, spy: [{ message: "HTTP error 404" }, { times: 2 }] },
+      { clearBetweenCases: false, spy: { times: 1 } },
     );
   });
 });

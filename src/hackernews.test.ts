@@ -310,7 +310,6 @@ describe("hackernews", () => {
       httpStatus: 500,
       fetch: () => hackernewsAdapter.fetch(cfg),
       throwMatcher: /hackernews: failed to fetch topstories: HTTP error 500/,
-      spy: { message: "HTTP error 500" },
     });
   });
 

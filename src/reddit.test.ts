@@ -345,7 +345,7 @@ describe("reddit", () => {
       httpStatus: 404,
       fetch: () => redditAdapter.fetch(redditCfg({ subreddits: ["test"] })),
       throwMatcher: /reddit: failed to fetch/,
-      spy: { message: "HTTP error 404" },
+      spy: "called",
     });
   });
 
