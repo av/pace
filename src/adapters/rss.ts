@@ -46,20 +46,25 @@ interface TaggedRssItem {
   timestamp: Date;
 }
 
+/** Extract the display fields and canonical ID from a raw RSS entry. */
+function extractRssFields(raw: RssFeedItem) {
+  const link = extractAtomLink(raw.link);
+  const title = decodeFeedEntryTitle(raw.title);
+  const body = extractFeedEntryStrippedBody(raw);
+  const id = `rss:${link || `${title}:${simpleHash(body ?? "")}`}`;
+  return { link, title, body, id };
+}
+
 function rssDedupeKey(item: TaggedRssItem): string {
   const link = extractAtomLink(item.raw.link);
   if (link) return link;
-  const title = decodeFeedEntryTitle(item.raw.title);
-  const body = extractFeedEntryStrippedBody(item.raw);
-  return `rss:${link || `${title}:${simpleHash(body ?? "")}`}`;
+  return extractRssFields(item.raw).id;
 }
 
 function projectRssItem(item: TaggedRssItem): ContentItemProjection {
-  const link = extractAtomLink(item.raw.link);
-  const title = decodeFeedEntryTitle(item.raw.title);
-  const body = extractFeedEntryStrippedBody(item.raw);
+  const { link, title, body, id } = extractRssFields(item.raw);
   return {
-    id: `rss:${link || `${title}:${simpleHash(body ?? "")}`}`,
+    id,
     title,
     url: link || "",
     timestamp: item.timestamp,
