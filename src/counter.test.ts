@@ -1,8 +1,31 @@
 import { describe, test, expect, spyOn, beforeEach, afterEach, mock } from "bun:test";
 import { resolveJsonPath, parseJsonPath, interpolateEnvVars } from "./adapters/counter";
 import adapter from "./adapters/counter";
-import type { AdapterConfig } from "./adapters/types";
+import type { AdapterConfig, ContentItem } from "./adapters/types";
 import { abbreviateNumber, parseCounterBody } from "./layout/counter-panel";
+import { renderDashboard } from "./layout/dashboard";
+import { flexCfg, panelCfg } from "./test/layout-cfg";
+import { makeContentItemRow } from "./test/content-items";
+
+/** Render counter items through the actual CounterPanel and return the HTML. */
+function renderCounterPanel(items: ContentItem[]): string {
+  const rows = items.map((item) =>
+    makeContentItemRow({
+      id: item.id,
+      title: item.title,
+      body: item.body ?? undefined,
+      source: item.source,
+      url: item.url,
+    }),
+  );
+  const node = panelCfg("TestPanel", "counter", { display: "counter" });
+  const layout = flexCfg("row", [node]);
+  return renderDashboard({
+    layout,
+    panelData: new Map([["TestPanel", { panelId: "test", items: rows, lastRefreshedAt: null }]]),
+    updatedAt: "now",
+  });
+}
 
 describe("counter adapter", () => {
   describe("resolveJsonPath", () => {
@@ -115,7 +138,7 @@ describe("counter adapter", () => {
       if (fetchSpy) fetchSpy.mockRestore();
     });
 
-    test("returns one ContentItem with correct mapping", async () => {
+    test("renders stat card with value, label, and unit", async () => {
       fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
         new Response(JSON.stringify({ stargazers_count: 42000 }), { status: 200 }),
       );
@@ -131,16 +154,13 @@ describe("counter adapter", () => {
       };
 
       const result = await adapter.fetch(config);
-      expect(result).toHaveLength(1);
-
-      const item = result[0];
-      expect(item.title).toBe("Stars");
-      expect(item.url).toBe("");
-      expect(item.id).toBe("counter:counter");
-
-      const body = JSON.parse(item.body!);
-      expect(body.value).toBe(42000);
-      expect(body.unit).toBe("k");
+      const html = renderCounterPanel(result);
+      // Abbreviated value visible to user
+      expect(html).toContain("42k");
+      // Label visible to user
+      expect(html).toContain("Stars");
+      // Unit visible to user
+      expect(html).toContain("k</span>");
     });
 
     test("uses adapter type for label fallback when unnamed", async () => {
@@ -178,7 +198,7 @@ describe("counter adapter", () => {
       expect(result[0].title).toBe("bun-stars");
     });
 
-    test("includes previous value from compare_url", async () => {
+    test("renders trend-up arrow when current > previous from compare_url", async () => {
       fetchSpy = spyOn(globalThis, "fetch")
         .mockResolvedValueOnce(
           new Response(JSON.stringify({ current: 50 }), { status: 200 }),
@@ -198,9 +218,10 @@ describe("counter adapter", () => {
       };
 
       const result = await adapter.fetch(config);
-      const body = JSON.parse(result[0].body!);
-      expect(body.value).toBe(50);
-      expect(body.previous).toBe(38);
+      const html = renderCounterPanel(result);
+      // Trend arrow present and pointing up (50 > 38)
+      expect(html).toContain("stat-trend-up");
+      expect(html).toContain("trending up");
     });
 
     test("continues without previous when compare_url fails", async () => {
@@ -310,7 +331,7 @@ describe("counter adapter", () => {
       await expect(adapter.fetch(config)).rejects.toThrow(/path "missing.path" not found/);
     });
 
-    test("stores non-numeric values as-is", async () => {
+    test("renders non-numeric string value in stat card", async () => {
       fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
         new Response(JSON.stringify({ status: "UP" }), { status: 200 }),
       );
@@ -324,11 +345,15 @@ describe("counter adapter", () => {
       };
 
       const result = await adapter.fetch(config);
-      const body = JSON.parse(result[0].body!);
-      expect(body.value).toBe("UP");
+      const html = renderCounterPanel(result);
+      // "UP" visible in stat card value
+      expect(html).toContain("UP");
+      // No trend arrow (string values cannot trend)
+      expect(html).not.toContain("stat-trend-up");
+      expect(html).not.toContain("stat-trend-down");
     });
 
-    test("uses json_path as default compare_path", async () => {
+    test("renders trend arrow when compare_path defaults to json_path", async () => {
       fetchSpy = spyOn(globalThis, "fetch")
         .mockResolvedValueOnce(
           new Response(JSON.stringify({ rate: 5.2 }), { status: 200 }),
@@ -343,13 +368,15 @@ describe("counter adapter", () => {
           url: "https://example.com/api",
           json_path: "rate",
           compare_url: "https://example.com/api?old",
-          // no compare_path - should default to json_path
+          // no compare_path -- should default to json_path
         },
       };
 
       const result = await adapter.fetch(config);
-      const body = JSON.parse(result[0].body!);
-      expect(body.previous).toBe(4.8);
+      const html = renderCounterPanel(result);
+      // 5.2 > 4.8, so trend is up (proves compare_path defaulted to json_path)
+      expect(html).toContain("stat-trend-up");
+      expect(html).toContain("trending up");
     });
 
     test("handles JSON response that is a bare string", async () => {
@@ -403,7 +430,7 @@ describe("counter adapter", () => {
       await expect(adapter.fetch(config)).rejects.toThrow(/cannot traverse/);
     });
 
-    test("resolves JSON path through arrays", async () => {
+    test("renders value resolved through nested arrays in stat card", async () => {
       const data = { data: [{ metrics: [{ skip: true }, { value: 777 }] }] };
       fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
         new Response(JSON.stringify(data), { status: 200 }),
@@ -418,8 +445,9 @@ describe("counter adapter", () => {
       };
 
       const result = await adapter.fetch(config);
-      const body = JSON.parse(result[0].body!);
-      expect(body.value).toBe(777);
+      const html = renderCounterPanel(result);
+      // 777 < 10,000 so not abbreviated, appears as-is in stat card
+      expect(html).toContain("777");
     });
 
     test("throws on empty JSON object with any path", async () => {
@@ -478,7 +506,7 @@ describe("counter adapter", () => {
       expect(body.value).toBe(false);
     });
 
-    test("no trend when compare_url returns same value as url", async () => {
+    test("renders no trend arrow when current equals previous", async () => {
       fetchSpy = spyOn(globalThis, "fetch")
         .mockResolvedValueOnce(
           new Response(JSON.stringify({ count: 500 }), { status: 200 }),
@@ -498,10 +526,14 @@ describe("counter adapter", () => {
       };
 
       const result = await adapter.fetch(config);
-      const body = JSON.parse(result[0].body!);
-      expect(body.value).toBe(500);
-      expect(body.previous).toBe(500);
-      // value === previous means no change / no trend
+      const html = renderCounterPanel(result);
+      // Value visible
+      expect(html).toContain("500");
+      // No trend arrows when value === previous
+      expect(html).not.toContain("stat-trend-up");
+      expect(html).not.toContain("stat-trend-down");
+      // Aria-label shows "unchanged"
+      expect(html).toContain("unchanged");
     });
 
   });

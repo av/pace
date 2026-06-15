@@ -91,7 +91,7 @@ describe("CSS class presence in rendered HTML", () => {
     expect(html).toContain('class="item-source src-counter"');
   });
 
-  it("counter panel with trend renders .stat-trend-up or .stat-trend-down", () => {
+  it("counter panel with trend renders .stat-trend-up or .stat-trend-down as class values", () => {
     const upItem = makeItem({
       title: "Going Up",
       body: JSON.stringify({ value: 100, previous: 50 }),
@@ -105,8 +105,13 @@ describe("CSS class presence in rendered HTML", () => {
     const node = panelCfg("Trends", "counter", { display: "counter" });
     const panelData = new Map<string, PanelData>([["Trends", { items: [upItem, downItem] }]]);
     const html = renderWidget(node, panelData);
-    expect(html).toContain("stat-trend-up");
-    expect(html).toContain("stat-trend-down");
+    // Extract all class attributes containing stat-trend
+    const trendSpans = html.match(/<span[^>]*class="[^"]*stat-trend[^"]*"[^>]*>/g);
+    expect(trendSpans).toBeTruthy();
+    expect(trendSpans!.length).toBe(2);
+    const classes = trendSpans!.map((tag) => tag.match(/class="([^"]*)"/)?.[1] ?? "");
+    expect(classes.some((c) => c.includes("stat-trend-up"))).toBe(true);
+    expect(classes.some((c) => c.includes("stat-trend-down"))).toBe(true);
   });
 
   it("flex-container class on container nodes with flex-root on the outer wrapper", () => {

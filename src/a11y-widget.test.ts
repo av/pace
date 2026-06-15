@@ -59,12 +59,16 @@ describe("ImageWidget accessibility", () => {
 
   it("link has rel=noopener noreferrer for external links", () => {
     const html = renderWidget({ image: "https://example.com/img.png", link: "https://example.com" });
-    expect(html).toContain('rel="noopener noreferrer"');
+    const linkTag = html.match(/<a[^>]*>/);
+    expect(linkTag).toBeTruthy();
+    expect(linkTag![0]).toContain('rel="noopener noreferrer"');
   });
 
   it("link has target=_blank", () => {
     const html = renderWidget({ image: "https://example.com/img.png", link: "https://example.com" });
-    expect(html).toContain('target="_blank"');
+    const linkTag = html.match(/<a[^>]*>/);
+    expect(linkTag).toBeTruthy();
+    expect(linkTag![0]).toContain('target="_blank"');
   });
 
   it("img has loading=lazy for performance without blocking accessibility", () => {
@@ -77,24 +81,32 @@ describe("ImageWidget accessibility", () => {
 // TEXT WIDGET - WCAG 2.1 Compliance
 // ===========================================================================
 describe("TextWidget accessibility", () => {
-  it("has role=region on the text body", () => {
+  it("has role=region on the text-widget-body element", () => {
     const html = renderWidget({ text: "Hello", format: "plain" });
-    expect(html).toContain('role="region"');
+    const bodyTag = html.match(/class="text-widget-body"[^>]*/);
+    expect(bodyTag).toBeTruthy();
+    expect(bodyTag![0]).toContain('role="region"');
   });
 
-  it("has aria-label matching the title when title is provided", () => {
+  it("has aria-label matching the title on the text-widget-body element", () => {
     const html = renderWidget({ text: "Content", title: "My Section", format: "plain" });
-    expect(html).toContain('aria-label="My Section"');
+    const bodyTag = html.match(/class="text-widget-body"[^>]*/);
+    expect(bodyTag).toBeTruthy();
+    expect(bodyTag![0]).toContain('aria-label="My Section"');
   });
 
-  it("falls back to 'Text content' aria-label when no title", () => {
+  it("falls back to 'Text content' aria-label on the text-widget-body element", () => {
     const html = renderWidget({ text: "Content", format: "plain" });
-    expect(html).toContain('aria-label="Text content"');
+    const bodyTag = html.match(/class="text-widget-body"[^>]*/);
+    expect(bodyTag).toBeTruthy();
+    expect(bodyTag![0]).toContain('aria-label="Text content"');
   });
 
-  it("has tabindex=0 for keyboard navigation", () => {
+  it("has tabindex=0 on the text-widget-body element", () => {
     const html = renderWidget({ text: "Content", format: "plain" });
-    expect(html).toContain('tabindex="0"');
+    const bodyTag = html.match(/class="text-widget-body"[^>]*/);
+    expect(bodyTag).toBeTruthy();
+    expect(bodyTag![0]).toContain('tabindex="0"');
   });
 
   it("uses h2 for panel header heading level", () => {
