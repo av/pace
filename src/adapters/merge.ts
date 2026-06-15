@@ -13,14 +13,27 @@ export function mapAndConcat<T, K = string>(
   return merged;
 }
 
-/** Fetch each key sequentially and concatenate results (multi-tag / multi-endpoint merge). */
+/** Fetch each key sequentially and concatenate results (multi-tag / multi-endpoint merge).
+ *  Individual failures are logged and skipped; only if ALL keys fail is the first error rethrown. */
 export async function fetchAndConcat<T, K = string>(
   keys: readonly K[],
   fetchOne: (key: K) => Promise<T[]>,
 ): Promise<T[]> {
   const merged: T[] = [];
-  for (const key of keys) {
-    merged.push(...(await fetchOne(key)));
+  let firstError: unknown = undefined;
+  let failCount = 0;
+  for (let i = 0; i < keys.length; i++) {
+    try {
+      merged.push(...(await fetchOne(keys[i])));
+    } catch (err) {
+      failCount++;
+      if (firstError === undefined) firstError = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`fetchAndConcat: skipping key ${i + 1}/${keys.length}: ${msg}`);
+    }
+  }
+  if (merged.length === 0 && failCount > 0) {
+    throw firstError;
   }
   return merged;
 }
@@ -102,20 +115,40 @@ export async function aggregateSequentialFeeds<T, K>(
   return finalizeFetchedItems(items, options);
 }
 
-/** Parallel fetch in fixed-size batches with optional delay between batches (rate limiting). */
+/** Parallel fetch in fixed-size batches with optional delay between batches (rate limiting).
+ *  Individual failures within a batch are logged and produce null entries;
+ *  callers that need non-null results should filter afterwards.
+ *  If ALL keys fail, the first error is rethrown. */
 export async function fetchAllBatched<T, K>(
   keys: readonly K[],
   batchSize: number,
   fetchOne: (key: K) => Promise<T>,
   delayMs = 0,
-): Promise<T[]> {
-  const results: T[] = [];
+): Promise<(T | null)[]> {
+  const results: (T | null)[] = [];
+  let firstError: unknown = undefined;
+  let failCount = 0;
   for (let i = 0; i < keys.length; i += batchSize) {
     const batch = keys.slice(i, i + batchSize);
-    results.push(...(await Promise.all(batch.map(fetchOne))));
+    const settled = await Promise.allSettled(batch.map(fetchOne));
+    for (let j = 0; j < settled.length; j++) {
+      const outcome = settled[j];
+      if (outcome.status === "fulfilled") {
+        results.push(outcome.value);
+      } else {
+        failCount++;
+        if (firstError === undefined) firstError = outcome.reason;
+        const msg = outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason);
+        console.warn(`fetchAllBatched: skipping key ${i + j + 1}/${keys.length}: ${msg}`);
+        results.push(null);
+      }
+    }
     if (delayMs > 0 && i + batchSize < keys.length) {
       await sleep(delayMs);
     }
+  }
+  if (failCount === keys.length && failCount > 0) {
+    throw firstError;
   }
   return results;
 }
@@ -127,7 +160,8 @@ export async function fetchAndConcatBatched<T, K>(
   fetchOne: (key: K) => Promise<T[]>,
   delayMs = 0,
 ): Promise<T[]> {
-  return (await fetchAllBatched(keys, batchSize, fetchOne, delayMs)).flat();
+  const batched = await fetchAllBatched(keys, batchSize, fetchOne, delayMs);
+  return batched.filter((arr): arr is T[] => arr !== null).flat();
 }
 
 export type AggregateBatchedFeedsOptions<T> = {
@@ -189,7 +223,7 @@ export async function fetchAllBatchedKeyed<T, K>(
   keyOf: (key: K) => string,
   fetchOne: (key: K) => Promise<T>,
   delayMs = 0,
-): Promise<Map<string, T>> {
+): Promise<Map<string, T | null>> {
   const results = await fetchAllBatched(keys, batchSize, fetchOne, delayMs);
   return zipToKeyedMap(keys, results, keyOf);
 }

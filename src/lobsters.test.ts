@@ -277,15 +277,15 @@ describe("lobsters", () => {
     ).rejects.toThrow(/lobsters:.*failed to fetch newest.*404/);
   });
 
-  test("throws on !ok for first failing tag (no partial merge on fetch error)", async () => {
+  test("tolerates partial tag failure, returns items from successful tags", async () => {
     const good = makeLobstersItem({ short_id: "good", score: 10 });
     mocks.fetchMock
       .mockResolvedValueOnce(makeJsonResponse([], 503))
       .mockResolvedValueOnce(makeJsonResponse([good]));
 
-    await expect(
-      lobstersAdapter.fetch(lobstersCfg({ tags: ["bad", "good"] })),
-    ).rejects.toThrow(/lobsters:.*failed to fetch tag bad.*503/);
+    const results = await lobstersAdapter.fetch(lobstersCfg({ tags: ["bad", "good"] }));
+    expect(results).toHaveLength(1);
+    expect(results[0].title).toBe(good.title);
   });
 
   test("decodes HTML entities in item titles", async () => {
