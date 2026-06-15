@@ -118,6 +118,16 @@ export function normalizeParamStringList(
 export function normalizeParamString(
   params: Record<string, unknown> | undefined,
   key: string,
+  fallback: string,
+): string;
+export function normalizeParamString(
+  params: Record<string, unknown> | undefined,
+  key: string,
+  fallback?: string,
+): string | undefined;
+export function normalizeParamString(
+  params: Record<string, unknown> | undefined,
+  key: string,
   fallback?: string,
 ): string | undefined {
   const raw = params?.[key];
@@ -129,6 +139,16 @@ export function normalizeParamString(
  * Read the first present param key (in order); trim string value.
  * A present but blank/non-string value uses fallback without trying later keys.
  */
+export function normalizeParamStringFirst(
+  params: Record<string, unknown> | undefined,
+  keys: readonly string[],
+  fallback: string,
+): string;
+export function normalizeParamStringFirst(
+  params: Record<string, unknown> | undefined,
+  keys: readonly string[],
+  fallback?: string,
+): string | undefined;
 export function normalizeParamStringFirst(
   params: Record<string, unknown> | undefined,
   keys: readonly string[],

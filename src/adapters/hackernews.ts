@@ -98,12 +98,11 @@ function buildBody(item: HNItem): string {
 const adapter: Adapter = {
   name: "hackernews",
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
-    const feed =
-      normalizeParamStringFirst(
-        config.params,
-        ["type", "feed", "stories"],
-        "top",
-      ) ?? "top";
+    const feed = normalizeParamStringFirst(
+      config.params,
+      ["type", "feed", "stories"],
+      "top",
+    );
     const limit = clampAdapterLimit(config.params?.limit, 30, 200);
     const minScore = normalizeNonNegativeNumber(config.params?.min_score);
 
