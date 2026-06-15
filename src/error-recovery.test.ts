@@ -68,12 +68,7 @@ describe("counter adapter error recovery", () => {
     fetchSpy = spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(new Response("Too Many Requests", { status: 429 }));
 
-    try {
-      await adapter.fetch(baseConfig);
-      expect(true).toBe(false); // Should not reach here
-    } catch (err: unknown) {
-      expect((err as Error).message).toContain("429");
-    }
+    await expect(adapter.fetch(baseConfig)).rejects.toThrow(/429/);
   });
 
   test("valid JSON but empty object (path not found) throws with descriptive error", async () => {
