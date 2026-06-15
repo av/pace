@@ -272,6 +272,15 @@ export function resolveAliasedOption<T>(
   return fallback;
 }
 
+/** Lowercase slug (a-z0-9 + hyphens, trimmed, max 40 chars) for stable content-item IDs. */
+export function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+}
+
 /** Fast deterministic string hash (base36) for stable IDs when no URL is available. */
 export function simpleHash(str: string): string {
   let h = 0;

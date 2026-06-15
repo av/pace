@@ -1,5 +1,6 @@
 import { mapToContentItemsPerSource, type ContentItemProjection } from "./content-item";
 import { warnAdapter, warnEmptyConfig } from "./empty-config";
+import { slugify } from "../utils";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 export interface BookmarkEntry {
@@ -7,14 +8,6 @@ export interface BookmarkEntry {
   url: string;
   description?: string;
   tags?: string[];
-}
-
-function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 40);
 }
 
 function isValidUrl(url: string): boolean {
