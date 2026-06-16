@@ -2,11 +2,11 @@
 
 **Self-hosted news aggregator and personal content dashboard.**
 
-![Pace - self-hosted news aggregator dashboard showing Hacker News, Reddit, GitHub, RSS feeds, and more in a configurable layout](./assets/splash.jpg)
+![Pace - self-hosted news aggregator dashboard showing Hacker News, Lemmy, GitHub, RSS feeds, and more in a configurable layout](./assets/splash.jpg)
 
-Aggregate Hacker News, Reddit, RSS, GitHub, Mastodon, YouTube, arXiv, and 10 more sources into a single dashboard you own. Filter, deduplicate, score, and optionally use an LLM to summarize and rank what matters to you. Everything runs in a single Docker container with zero client-side JavaScript.
+Aggregate Hacker News, RSS, GitHub, Lemmy, Mastodon, YouTube, arXiv, and 10 more sources into a single dashboard you own. Filter, deduplicate, score, and optionally use an LLM to summarize and rank what matters to you. Everything runs in a single Docker container with zero client-side JavaScript.
 
-- **19 built-in sources** - Hacker News, Reddit, RSS/Atom, GitHub, Mastodon, YouTube, arXiv, npm, Wikipedia, Lemmy, and more
+- **19 built-in sources** - Hacker News, RSS/Atom, GitHub, Lemmy, Mastodon, YouTube, arXiv, npm, Wikipedia, and more (Reddit and Twitter/X need extra setup — see [adapter caveats](#adapter-caveats))
 - **Configurable in YAML** - adapters, transforms, layout, and LLM settings in one file
 - **Self-hosted in one command** - `docker run` and you're done, SQLite for persistence
 - **Optional AI-powered filtering** - LLM summarization, ranking, and filtering via any OpenAI/Anthropic/Google/Groq provider
@@ -19,7 +19,7 @@ Aggregate Hacker News, Reddit, RSS, GitHub, Mastodon, YouTube, arXiv, and 10 mor
 docker run -d -p 7453:7453 -v pace-data:/app/data ghcr.io/av/pace:latest
 ```
 
-Open http://localhost:7453 - the default config ships with Hacker News, Lobsters, GitHub trending/releases, engineering blogs, and DEV.to.
+Open http://localhost:7453 - the default config ships with Hacker News, Lobsters, GitHub trending/releases, engineering blogs, and DEV.to. Health check: `curl http://localhost:7453/health` returns `{"status":"ok"}`.
 
 ### With a preset
 
@@ -47,7 +47,7 @@ Or list them locally: `pace --list-presets`
 
 | | |
 |---|---|
-| ![Tech News preset](./assets/preset-tech-news.png) | **`tech-news`** Hacker News frontpage, Lobsters, Lemmy tech communities, Feedbin RSS, and GitHub releases in a multi-column layout. The default starting point for software engineers. |
+| ![Tech News preset](./assets/preset-tech-news.png) | **`tech-news`** HN + Lobsters frontpage pipeline, Lemmy communities, tech RSS (Ars Technica, New Stack, Go, TypeScript), GitHub releases, reference bookmarks, and pipeline legend in a multi-column layout. The default starting point for software engineers. |
 | **`ml-ai`** arXiv papers, Hacker News AI, Local Llama, curated ML blogs, and release tracking. Built for researchers and practitioners following the fast-moving AI/ML space. | ![ML & AI preset](./assets/preset-ml-ai.png) |
 | ![Daily Brief preset](./assets/preset-daily-brief.png) | **`daily-brief`** Breaking news digest, Wikipedia in-the-news and most-read, today-in-history, and top Hacker News stories. A morning briefing you can scan in two minutes. |
 | **`product-launches`** Product Hunt, Show HN, GitHub trending repos, npm new packages, and community discussions. Stay on top of what's shipping across the indie and open-source ecosystem. | ![Product Launches preset](./assets/preset-product-launches.png) |
@@ -77,6 +77,8 @@ bun install
 bun run dev
 ```
 
+For a global `pace` CLI: `bun install && npm link` (then `pace --config ~/my-config.yaml`).
+
 ## Content adapters
 
 Pace ships with 19 adapters that pull content from public APIs and local config. Each adapter has a configurable `refresh_interval` (in minutes, default: 15).
@@ -102,6 +104,13 @@ Pace ships with 19 adapters that pull content from public APIs and local config.
 | `twitter` | Twitter/X |
 | `bookmarks` | Curated link lists from config (no network fetch) |
 | `counter` | JSON endpoint metrics with stat-card display |
+
+### Adapter caveats
+
+Some adapters are listed above but do not work out of the box:
+
+- **`reddit`** — Reddit's public unauthenticated `.json` API often returns **HTTP 403** upstream. Bundled presets intentionally omit Reddit for this reason. For community discussions without credentials, use **`lemmy`** instead (included in the `tech-news` and `ml-ai` presets).
+- **`twitter`** — Requires `bearer_token` in adapter params. Without it, the adapter **always returns an empty list** (no error). Run `pace adapters explain twitter` for setup details.
 
 ```bash
 pace adapters list            # list all adapter types

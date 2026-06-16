@@ -1,5 +1,6 @@
 x-data-volume: &data-volume
   - pace-data:/app/data
+  # - ./config.yaml:/app/config.yaml:ro   # uncomment to use a custom config
 
 services:
   pace:

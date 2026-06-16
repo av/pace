@@ -158,6 +158,8 @@ Any RSS or Atom feed.
 
 Reddit subreddits.
 
+> **Caveat:** Reddit's public unauthenticated `.json` API often returns **HTTP 403** upstream, so this adapter may not work without credentials. Bundled presets omit Reddit for this reason. For community discussions that work out of the box, prefer **`lemmy`** (used in `tech-news` and `ml-ai` presets).
+
 ```yaml
 # Authoritative shape: pace adapters explain reddit
 - type: reddit
@@ -324,13 +326,15 @@ Podcast episodes from RSS feeds.
 
 Twitter/X lists and searches (requires authentication).
 
+> **Caveat:** Without `params.bearer_token`, this adapter **always returns an empty list** — no error, just no items. A Twitter API v2 bearer token is required for real usage. Run `pace adapters explain twitter` for the current param shape.
+
 ```yaml
 # Authoritative shape: pace adapters explain twitter
 - type: twitter
   params:
     lists: []            # list IDs
     searches: []         # search queries
-    bearer_token: ${TWITTER_BEARER_TOKEN}  # required; returns empty without it
+    bearer_token: ${TWITTER_BEARER_TOKEN}  # required; returns [] without it
 ```
 
 ### npm

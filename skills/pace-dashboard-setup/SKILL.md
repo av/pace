@@ -64,7 +64,7 @@ Environment variables `PACE_CONFIG` (config file path) and `PORT` (server port) 
 
 ```bash
 cd pace
-bun link
+bun install && npm link
 # Now `pace` is available globally
 pace --config ~/my-config.yaml
 ```
@@ -79,8 +79,8 @@ The CLI always resolves paths relative to the project root (where package.json l
 # Copy and edit config
 cp config.example.yaml config.yaml
 
-# Uncomment the config volume mount in docker-compose.yml:
-#   - ./config.yaml:/app/config.yaml:ro
+# Uncomment the config volume mount in docker-compose.yml (under x-data-volume):
+#   # - ./config.yaml:/app/config.yaml:ro   # uncomment to use a custom config
 
 docker compose up -d
 ```
@@ -163,6 +163,14 @@ See skills/pace-dashboard-configure/SKILL.md for full config reference and examp
 ```bash
 curl -X POST http://localhost:7453/refresh/hackernews
 ```
+
+4. For automated health checks (Docker, Kubernetes, load balancers), GET `/health`:
+
+```bash
+curl http://localhost:7453/health
+```
+
+Expected response: `{"status":"ok"}`
 
 ## Common issues
 
