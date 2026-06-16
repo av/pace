@@ -147,7 +147,7 @@ describe("config validator stress tests", () => {
           { adapters: [adapter("hackernews")], layout },
           DEFAULT_LAYOUT,
         ),
-      ).toThrow("must be a non-empty string");
+      ).toThrow("must be a non-empty string (got 42)");
     });
 
     test("string where number expected in flex rejects", () => {
@@ -159,7 +159,7 @@ describe("config validator stress tests", () => {
           { adapters: [adapter("hackernews")], layout },
           DEFAULT_LAYOUT,
         ),
-      ).toThrow("must be a non-negative number");
+      ).toThrow('must be a non-negative number (got "2")');
     });
 
     test("array where object expected in adapter rejects", () => {
@@ -168,7 +168,7 @@ describe("config validator stress tests", () => {
           { adapters: [["hackernews"]], layout: DEFAULT_LAYOUT },
           DEFAULT_LAYOUT,
         ),
-      ).toThrow("must be an object");
+      ).toThrow("must be an object (got array)");
     });
 
     test("string where array expected in adapters rejects", () => {
@@ -177,7 +177,7 @@ describe("config validator stress tests", () => {
           { adapters: "hackernews", layout: DEFAULT_LAYOUT },
           DEFAULT_LAYOUT,
         ),
-      ).toThrow("must be a list");
+      ).toThrow('must be a list (got "hackernews")');
     });
   });
 
@@ -188,7 +188,7 @@ describe("config validator stress tests", () => {
           { adapters: null, layout: DEFAULT_LAYOUT },
           DEFAULT_LAYOUT,
         ),
-      ).toThrow("must be a list");
+      ).toThrow("must be a list (got null)");
     });
 
     test("null layout falls through to default (null is nullish)", () => {
@@ -207,7 +207,7 @@ describe("config validator stress tests", () => {
           { adapters: [adapter("hackernews")], layout },
           DEFAULT_LAYOUT,
         ),
-      ).toThrow("must be a source name or source object");
+      ).toThrow("must be a source name or source object (got null)");
     });
 
     test("null llm config rejects (not undefined)", () => {
@@ -216,7 +216,7 @@ describe("config validator stress tests", () => {
           { adapters: [], layout: DEFAULT_LAYOUT, llm: null },
           DEFAULT_LAYOUT,
         ),
-      ).toThrow("llm must be an object");
+      ).toThrow("llm must be an object (got null)");
     });
 
   });
@@ -274,7 +274,7 @@ describe("config validator stress tests", () => {
           { adapters: [adapter("hackernews")], layout },
           DEFAULT_LAYOUT,
         ),
-      ).toThrow("must be a non-empty string");
+      ).toThrow('must be a non-empty string (got empty string "")');
     });
 
     test("empty direction rejects", () => {
@@ -284,7 +284,7 @@ describe("config validator stress tests", () => {
           { adapters: [], layout },
           DEFAULT_LAYOUT,
         ),
-      ).toThrow("must be one of: row, column");
+      ).toThrow('must be one of: row, column (got empty string "")');
     });
 
     test("whitespace-only strings rejected as empty", () => {
@@ -293,7 +293,7 @@ describe("config validator stress tests", () => {
           { adapters: [{ type: "   " }], layout: DEFAULT_LAYOUT },
           DEFAULT_LAYOUT,
         ),
-      ).toThrow("must be a non-empty string");
+      ).toThrow('must be a non-empty string (got "   ")');
     });
   });
 
@@ -307,7 +307,7 @@ describe("config validator stress tests", () => {
           { adapters: [adapter("hackernews")], layout },
           DEFAULT_LAYOUT,
         ),
-      ).toThrow("must be a non-negative number");
+      ).toThrow("must be a non-negative number (got -1)");
     });
 
     test("refresh_interval: -5 on adapter rejects", () => {
@@ -319,7 +319,7 @@ describe("config validator stress tests", () => {
           },
           DEFAULT_LAYOUT,
         ),
-      ).toThrow("must be a positive number");
+      ).toThrow("must be a positive number (got -5)");
     });
 
     test("limit: -10 on panel rejects", () => {
@@ -331,7 +331,7 @@ describe("config validator stress tests", () => {
           { adapters: [adapter("hackernews")], layout },
           DEFAULT_LAYOUT,
         ),
-      ).toThrow("must be a positive integer");
+      ).toThrow("must be a positive integer (got -10)");
     });
 
     test("flex: 0 is accepted (use natural size, no grow)", () => {
@@ -355,7 +355,7 @@ describe("config validator stress tests", () => {
           { adapters: [adapter("hackernews")], layout },
           DEFAULT_LAYOUT,
         ),
-      ).toThrow("must be a non-negative number");
+      ).toThrow("must be a non-negative number (got NaN)");
     });
 
     test("flex: Infinity rejects", () => {
@@ -367,7 +367,7 @@ describe("config validator stress tests", () => {
           { adapters: [adapter("hackernews")], layout },
           DEFAULT_LAYOUT,
         ),
-      ).toThrow("must be a non-negative number");
+      ).toThrow("must be a non-negative number (got Infinity)");
     });
 
     test("limit: 0 rejects (must be positive integer)", () => {
@@ -379,7 +379,7 @@ describe("config validator stress tests", () => {
           { adapters: [adapter("hackernews")], layout },
           DEFAULT_LAYOUT,
         ),
-      ).toThrow("must be a positive integer");
+      ).toThrow("must be a positive integer (got 0)");
     });
 
     test("limit: 1.5 (non-integer) rejects", () => {
@@ -391,7 +391,7 @@ describe("config validator stress tests", () => {
           { adapters: [adapter("hackernews")], layout },
           DEFAULT_LAYOUT,
         ),
-      ).toThrow("must be a positive integer");
+      ).toThrow("must be a positive integer (got 1.5)");
     });
   });
 

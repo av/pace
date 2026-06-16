@@ -440,7 +440,7 @@ layout:
       source: counter
       display: table
 `);
-    expect(() => loadConfig()).toThrow(/display must be one of: counter/);
+    expect(() => loadConfig()).toThrow(/display must be one of: counter.+\(got "table"\)/);
   });
 
   test("display: empty string is rejected", () => {
@@ -457,7 +457,7 @@ layout:
       source: counter
       display: ""
 `);
-    expect(() => loadConfig()).toThrow(/display must be one of: counter/);
+    expect(() => loadConfig()).toThrow(/display must be one of: counter.+\(got empty string ""\)/);
   });
 
   test("omitting display on a panel defaults to standard rendering", () => {
