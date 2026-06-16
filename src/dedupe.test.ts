@@ -171,6 +171,14 @@ describe("dedupe utils", () => {
     test("returns exact match (distance 0)", () => {
       expect(findClosestMatch("reddit", candidates)).toBe("reddit");
     });
+
+    test("returns null for empty candidates list", () => {
+      expect(findClosestMatch("reddit", [])).toBeNull();
+    });
+
+    test("returns null for empty input string", () => {
+      expect(findClosestMatch("", candidates)).toBeNull();
+    });
   });
 
   describe("jaccardSimilarity", () => {
