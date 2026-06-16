@@ -19,6 +19,12 @@
       "skillPath": "bugbash/SKILL.md",
       "computedHash": "d68cfc7d3724f7a810c31e3fccff79e0205fb14fff4950bbcc9b3f83b3be6320"
     },
+    "bughunt": {
+      "source": "av/skills",
+      "sourceType": "github",
+      "skillPath": "bughunt/SKILL.md",
+      "computedHash": "dac4328ff7beddc245e29ba68a16c1cf1ee8a00b5df80f84ad097e1edee4cd5e"
+    },
     "ideate": {
       "source": "av/skills",
       "sourceType": "github",

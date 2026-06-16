@@ -79,9 +79,9 @@ layout:
       flex: 2
       children:
         # Iframe widget - replace with your real Grafana or status page.
-        - iframe: https://wttr.in/?0FnT
-          title: Weather (wttr.in)
-          aspect_ratio: "21/9"
+        - iframe: https://www.githubstatus.com
+          title: Live Feed (placeholder)
+          aspect_ratio: "16/9"
 
         # Status feeds from GitHub, GCP, Cloudflare.
         - panel: Status Feeds
@@ -89,9 +89,9 @@ layout:
           flex: 2
           limit: 15
 
-        # Second iframe - an uptime or CI dashboard placeholder.
-        - iframe: https://wttr.in/London?0FnT
-          title: London Weather
+        # Second iframe - replace with a CI or uptime dashboard.
+        - iframe: https://www.wikipedia.org
+          title: Reference
           height: "200px"
 
     # Center column: metrics, toolbox, and notes.

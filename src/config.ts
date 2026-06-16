@@ -1,4 +1,4 @@
-import { readFileSync, existsSync, statSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import yaml from "js-yaml";
 import { validateParsedConfig } from "./config-validate";
@@ -146,23 +146,29 @@ export function tryReadRegularFile(path: string): string | null {
   }
 }
 
-const PRESET_NAMES = ["example", "daily-brief", "tech-news", "ml-ai", "product-launches", "release-tracker", "academic-papers", "video-podcast", "ops-dashboard"] as const;
+const PRESETS_DIR = existsSync("/app/presets")
+  ? "/app/presets"
+  : join(process.cwd(), "presets");
+
+function discoverPresets(): string[] {
+  try {
+    return readdirSync(PRESETS_DIR)
+      .filter((f) => /^config\..+\.yaml$/.test(f))
+      .map((f) => f.replace(/^config\./, "").replace(/\.yaml$/, ""))
+      .sort();
+  } catch {
+    return [];
+  }
+}
 
 export function resolvePreset(name: string): string | null {
   if (!name || name.includes("/") || name.includes("\\")) return null;
-  if (!(PRESET_NAMES as readonly string[]).includes(name)) return null;
-  const candidates = [
-    `/app/presets/config.${name}.yaml`,
-    join(process.cwd(), `config.${name}.yaml`),
-  ];
-  for (const p of candidates) {
-    if (tryReadRegularFile(p)) return p;
-  }
-  return null;
+  const p = join(PRESETS_DIR, `config.${name}.yaml`);
+  return tryReadRegularFile(p) ? p : null;
 }
 
 export function listPresets(): string[] {
-  return [...PRESET_NAMES];
+  return discoverPresets();
 }
 
 /** Resolve PACE_CONFIG (or defaults) to a filesystem path and whether it was explicitly requested. */

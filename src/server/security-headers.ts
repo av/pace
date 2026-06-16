@@ -5,7 +5,8 @@ export const SECURITY_HEADERS = {
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
   "Referrer-Policy": "strict-origin-when-cross-origin",
-  "Content-Security-Policy": "default-src 'self'; style-src 'self' 'unsafe-inline'",
+  "Content-Security-Policy":
+    "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src *; frame-src *",
   "Permissions-Policy": "interest-cohort=()",
 } as const;
 

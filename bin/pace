@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+DIR="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+cd "$DIR" && exec bun run src/cli.ts "$@"

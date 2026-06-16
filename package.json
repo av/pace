@@ -2,7 +2,7 @@
   "name": "pace",
   "version": "0.5.0",
   "bin": {
-    "pace": "./src/cli.ts"
+    "pace": "./bin/pace"
   },
   "scripts": {
     "dev": "bun run src/cli.ts serve",

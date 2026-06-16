@@ -7,7 +7,7 @@ RUN bun install --production
 
 COPY src/ src/
 COPY tsconfig.json config.example.yaml ./
-COPY config.*.yaml /app/presets/
+COPY presets/ /app/presets/
 COPY skills/ ./skills/
 
 RUN mkdir -p /app/data
