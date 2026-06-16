@@ -1,4 +1,5 @@
 import { ADAPTER_PARAM_KEYS, ADAPTER_TYPES, isAdapterType } from "./adapters/params";
+import { findClosestMatch } from "./dedupe";
 import {
   collectPanels,
   isRecord,
@@ -67,7 +68,8 @@ function findClosestAdapterType(input: string): string | null {
   for (const type of ADAPTER_TYPES) {
     if (type.includes(lower) || lower.includes(type)) return type;
   }
-  return null;
+  // Fall back to Levenshtein distance for close typos (e.g., "redddit", "youtueb")
+  return findClosestMatch(lower, ADAPTER_TYPES);
 }
 
 const JSON_PATH_RE = /^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*|\[\d+\])*$/;

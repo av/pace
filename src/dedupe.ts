@@ -103,6 +103,27 @@ export function levenshteinSimilarity(a: string, b: string): number {
   return 1 - distance / maxLen;
 }
 
+/**
+ * Find the closest match for `input` among `candidates` using Levenshtein distance.
+ * Returns the best match if its edit distance is at most `maxDistance` (default: 3)
+ * and no more than 40% of the longer string's length (avoids nonsensical matches on
+ * short inputs like "a" -> "npm").
+ */
+export function findClosestMatch(input: string, candidates: readonly string[], maxDistance = 3): string | null {
+  const lower = input.toLowerCase();
+  let best: string | null = null;
+  let bestDist = maxDistance + 1;
+  for (const candidate of candidates) {
+    const dist = levenshteinDistance(lower, candidate.toLowerCase());
+    const maxLen = Math.max(lower.length, candidate.length);
+    if (dist < bestDist && dist <= maxLen * 0.4) {
+      bestDist = dist;
+      best = candidate;
+    }
+  }
+  return best;
+}
+
 export function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
   if (a.size === 0 || b.size === 0) return 0;
   let intersection = 0;

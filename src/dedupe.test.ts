@@ -4,6 +4,7 @@ import {
   dedupeByKey,
   dedupeByTitleSimilarity,
   dedupeGroupedByKey,
+  findClosestMatch,
   normalizeUrl,
   extractHostname,
   jaccardSimilarity,
@@ -132,6 +133,43 @@ describe("dedupe utils", () => {
       expect(sim).toBeGreaterThan(0.5);
       expect(sim).toBeLessThan(1);
       expect(levenshteinSimilarity("abc", "abd")).toBeCloseTo(2 / 3, 10);
+    });
+  });
+
+  describe("findClosestMatch", () => {
+    const candidates = ["hackernews", "reddit", "youtube", "mastodon", "rss", "github"];
+
+    test("finds close typos within default threshold", () => {
+      expect(findClosestMatch("redddit", candidates)).toBe("reddit");
+      expect(findClosestMatch("youtueb", candidates)).toBe("youtube");
+      expect(findClosestMatch("masodon", candidates)).toBe("mastodon");
+      expect(findClosestMatch("gihub", candidates)).toBe("github");
+    });
+
+    test("is case-insensitive", () => {
+      expect(findClosestMatch("REDDIT", candidates)).toBe("reddit");
+      expect(findClosestMatch("YouTube", candidates)).toBe("youtube");
+    });
+
+    test("returns null for distant strings", () => {
+      expect(findClosestMatch("banana", candidates)).toBeNull();
+      expect(findClosestMatch("server", candidates)).toBeNull();
+      expect(findClosestMatch("zzzzzz", candidates)).toBeNull();
+    });
+
+    test("returns null for very short inputs to avoid nonsensical matches", () => {
+      expect(findClosestMatch("a", candidates)).toBeNull();
+      expect(findClosestMatch("x", candidates)).toBeNull();
+    });
+
+    test("respects custom maxDistance", () => {
+      // "hackrnes" -> "hackernews" has distance 2
+      expect(findClosestMatch("hackrnes", candidates, 1)).toBeNull();
+      expect(findClosestMatch("hackrnes", candidates, 3)).toBe("hackernews");
+    });
+
+    test("returns exact match (distance 0)", () => {
+      expect(findClosestMatch("reddit", candidates)).toBe("reddit");
     });
   });
 

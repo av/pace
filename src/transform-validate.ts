@@ -15,6 +15,7 @@ import {
   type TransformConfig,
   type TransformType,
 } from "./config/types";
+import { findClosestMatch } from "./dedupe";
 import {
   describeValue,
   validateAllowedKeys,
@@ -150,7 +151,9 @@ export function isTransformType(value: string): value is TransformType {
 function validateTransform(transform: Record<string, unknown>, path: string): void {
   const transformType = transform.type;
   if (typeof transformType !== "string" || !isTransformType(transformType)) {
-    throw new Error(`config: ${path}.type references unknown transform "${transformType}"`);
+    const suggestion = typeof transformType === "string" ? findClosestMatch(transformType, TRANSFORM_TYPES) : null;
+    const hint = suggestion ? `; did you mean "${suggestion}"?` : "";
+    throw new Error(`config: ${path}.type references unknown transform "${transformType}"${hint}`);
   }
   const schema = TRANSFORM_SCHEMAS[transformType];
   validateAllowedKeys(transform, schema.fields, (key) =>
