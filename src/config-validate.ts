@@ -15,6 +15,7 @@ import { warnConfig } from "./config-warn";
 import { validateTransforms } from "./transform-validate";
 import { getAdapterName } from "./utils";
 import {
+  describeValue,
   validateAllowedKeys,
   validateEnum,
   validateOptionalEnum,
@@ -112,11 +113,11 @@ function validateCounterParams(params: Record<string, unknown>, path: string): v
 
   if (params.headers !== undefined) {
     if (!isRecord(params.headers)) {
-      throw new Error(`config: ${path}.params.headers must be an object`);
+      throw new Error(`config: ${path}.params.headers must be an object (got ${describeValue(params.headers)})`);
     }
     for (const [key, value] of Object.entries(params.headers)) {
       if (typeof value !== "string") {
-        throw new Error(`config: ${path}.params.headers.${key} must be a string`);
+        throw new Error(`config: ${path}.params.headers.${key} must be a string (got ${describeValue(value)})`);
       }
     }
   }
@@ -166,7 +167,7 @@ const ADAPTER_PARAM_SUGGESTIONS: Partial<Record<string, Record<string, string>>>
 function validateNestedParams(type: string, params: unknown, path: string): void {
   if (params === undefined) return;
   if (!isRecord(params)) {
-    throw new Error(`config: ${path}.params must be an object`);
+    throw new Error(`config: ${path}.params must be an object (got ${describeValue(params)})`);
   }
   if (!isAdapterType(type)) return;
   const allowed = ADAPTER_PARAM_KEYS[type];
@@ -200,7 +201,7 @@ function validateSource(source: unknown, path: string): void {
   }
 
   if (!isRecord(source)) {
-    throw new Error(`config: ${path} must be a source name or source object`);
+    throw new Error(`config: ${path} must be a source name or source object (got ${describeValue(source)})`);
   }
 
   validateNonEmptyString(source.adapter, `${path}.adapter`);
@@ -425,7 +426,7 @@ const LAYOUT_KEY_SUGGESTIONS: Record<string, string> = {
 
 function validateLayoutNode(node: unknown, path = "layout"): asserts node is LayoutNodeConfig {
   if (!isRecord(node)) {
-    throw new Error(`config: ${path} must be a layout node object`);
+    throw new Error(`config: ${path} must be a layout node object (got ${describeValue(node)})`);
   }
 
   const found = LAYOUT_DISCRIMINATORS.filter((k) => k in node);
@@ -597,7 +598,7 @@ export function validateUniqueUnnamedAdapterTypes(adapters: IngestAdapterConfig[
 export function validateLlmConfig(llm: unknown): asserts llm is LlmConfig | undefined {
   if (llm === undefined) return;
   if (!isRecord(llm)) {
-    throw new Error("config: llm must be an object");
+    throw new Error(`config: llm must be an object (got ${describeValue(llm)})`);
   }
 
   const LLM_CONFIG_FIELDS = ["provider", "model", "api_key", "base_url", "interests"] as const;
@@ -622,7 +623,7 @@ export function validateTopLevelKeys(config: Record<string, unknown>): void {
 export function validateAdapterConfig(adapter: unknown, index: number): asserts adapter is IngestAdapterConfig {
   const path = `adapters[${index}]`;
   if (!isRecord(adapter)) {
-    throw new Error(`config: ${path} must be an object`);
+    throw new Error(`config: ${path} must be an object (got ${describeValue(adapter)})`);
   }
   validateAllowedKeys(adapter, ["type", "name", "params", "refresh_interval", "transforms"], (key) =>
     `${path}.${key} is not a valid adapter field`,
@@ -648,7 +649,7 @@ export function validatePipelineConfig(
 ): asserts pipeline is PipelineConfig {
   const path = `pipelines[${index}]`;
   if (!isRecord(pipeline)) {
-    throw new Error(`config: ${path} must be an object`);
+    throw new Error(`config: ${path} must be an object (got ${describeValue(pipeline)})`);
   }
   validateAllowedKeys(pipeline, ["name", "sources", "transforms", "refresh_interval"], (key) =>
     `${path}.${key} is not a valid pipeline field`,

@@ -16,6 +16,7 @@ import {
   type TransformType,
 } from "./config/types";
 import {
+  describeValue,
   validateAllowedKeys,
   validateEnum,
   validateFiniteNumber,
@@ -68,7 +69,7 @@ function validateKeywordScoreEntries(value: unknown, path: string): void {
   value.forEach((entry, index) => {
     const entryPath = `${path}[${index}]`;
     if (!isRecord(entry)) {
-      throw new Error(`config: ${entryPath} must be an object`);
+      throw new Error(`config: ${entryPath} must be an object (got ${describeValue(entry)})`);
     }
     validateAllowedKeys(entry, KEYWORD_SCORE_ENTRY_FIELDS, (key) =>
       `${entryPath}.${key} is not a valid keyword-score entry field`,
@@ -160,12 +161,12 @@ function validateTransform(transform: Record<string, unknown>, path: string): vo
 
 export function validateTransforms(transforms: unknown, path: string): asserts transforms is TransformConfig[] {
   if (!Array.isArray(transforms)) {
-    throw new Error(`config: ${path} must be a list`);
+    throw new Error(`config: ${path} must be a list (got ${describeValue(transforms)})`);
   }
 
   transforms.forEach((transform, index) => {
     if (!isRecord(transform)) {
-      throw new Error(`config: ${path}[${index}] must be an object`);
+      throw new Error(`config: ${path}[${index}] must be an object (got ${describeValue(transform)})`);
     }
     validateNonEmptyString(transform.type, `${path}[${index}].type`);
     validateTransform(transform, `${path}[${index}]`);

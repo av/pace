@@ -1,5 +1,15 @@
 /** Shared config field validators used by config-validate and transform-validate. */
 
+/** Describe a value for inclusion in error messages: type for non-scalars, quoted value for scalars. */
+export function describeValue(value: unknown): string {
+  if (value === null) return "null";
+  if (value === undefined) return "undefined";
+  if (Array.isArray(value)) return "array";
+  if (typeof value === "object") return "object";
+  if (typeof value === "string") return value.length === 0 ? 'empty string ""' : `"${value}"`;
+  return String(value);
+}
+
 export function validateAllowedKeys(
   record: Record<string, unknown>,
   allowed: readonly string[],
@@ -15,13 +25,13 @@ export function validateAllowedKeys(
 
 export function validateNonEmptyString(value: unknown, path: string): asserts value is string {
   if (typeof value !== "string" || value.trim().length === 0) {
-    throw new Error(`config: ${path} must be a non-empty string`);
+    throw new Error(`config: ${path} must be a non-empty string (got ${describeValue(value)})`);
   }
 }
 
 export function validateNonEmptyArray(value: unknown, path: string): asserts value is unknown[] {
   if (!Array.isArray(value)) {
-    throw new Error(`config: ${path} must be a list`);
+    throw new Error(`config: ${path} must be a list (got ${describeValue(value)})`);
   }
   if (value.length === 0) {
     throw new Error(`config: ${path} must not be empty`);
@@ -30,25 +40,25 @@ export function validateNonEmptyArray(value: unknown, path: string): asserts val
 
 export function validatePositiveNumber(value: unknown, path: string): void {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
-    throw new Error(`config: ${path} must be a positive number`);
+    throw new Error(`config: ${path} must be a positive number (got ${describeValue(value)})`);
   }
 }
 
 export function validatePositiveInteger(value: unknown, path: string): void {
   if (typeof value !== "number" || !Number.isInteger(value) || value <= 0) {
-    throw new Error(`config: ${path} must be a positive integer`);
+    throw new Error(`config: ${path} must be a positive integer (got ${describeValue(value)})`);
   }
 }
 
 export function validateNonNegativeNumber(value: unknown, path: string): void {
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
-    throw new Error(`config: ${path} must be a non-negative number`);
+    throw new Error(`config: ${path} must be a non-negative number (got ${describeValue(value)})`);
   }
 }
 
 export function validateFiniteNumber(value: unknown, path: string): asserts value is number {
   if (typeof value !== "number" || !Number.isFinite(value)) {
-    throw new Error(`config: ${path} must be a number`);
+    throw new Error(`config: ${path} must be a number (got ${describeValue(value)})`);
   }
 }
 
@@ -64,20 +74,20 @@ function optionalValidator(validator: (v: unknown, p: string) => void): (value: 
 
 function validateBoolean(value: unknown, path: string): void {
   if (typeof value !== "boolean") {
-    throw new Error(`config: ${path} must be a boolean`);
+    throw new Error(`config: ${path} must be a boolean (got ${describeValue(value)})`);
   }
 }
 
 function validateList(value: unknown, path: string): void {
   if (!Array.isArray(value)) {
-    throw new Error(`config: ${path} must be a list`);
+    throw new Error(`config: ${path} must be a list (got ${describeValue(value)})`);
   }
 }
 
 function validateUnitNumber(value: unknown, path: string): void {
   validateFiniteNumber(value, path);
   if (value < 0 || value > 1) {
-    throw new Error(`config: ${path} must be between 0 and 1`);
+    throw new Error(`config: ${path} must be between 0 and 1 (got ${value})`);
   }
 }
 
@@ -142,7 +152,7 @@ export function validateEnum<T extends string>(
   path: string,
 ): void {
   if (typeof value !== "string" || !(allowed as readonly string[]).includes(value)) {
-    throw new Error(`config: ${path} must be one of: ${allowed.join(", ")}`);
+    throw new Error(`config: ${path} must be one of: ${allowed.join(", ")} (got ${describeValue(value)})`);
   }
 }
 
