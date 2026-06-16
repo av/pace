@@ -40,7 +40,6 @@ Available presets:
 | `release-tracker` | Software release tracking |
 | `academic-papers` | Academic papers: arXiv, CS theory Q&A, science journalism |
 | `video-podcast` | Video and podcast content |
-| `ops-dashboard` | Ops dashboard: status feeds, iframe embeds, bookmarks, counters, runbook notes |
 
 Or list them locally: `pace --list-presets`
 
@@ -48,12 +47,13 @@ Or list them locally: `pace --list-presets`
 
 | | |
 |---|---|
-| | |
-|---|---|
 | ![Tech News preset](./assets/preset-tech-news.png) | **`tech-news`** Hacker News frontpage, Lobsters, Lemmy tech communities, Feedbin RSS, and GitHub releases in a multi-column layout. The default starting point for software engineers. |
 | **`ml-ai`** arXiv papers, Hacker News AI, Local Llama, curated ML blogs, and release tracking. Built for researchers and practitioners following the fast-moving AI/ML space. | ![ML & AI preset](./assets/preset-ml-ai.png) |
 | ![Daily Brief preset](./assets/preset-daily-brief.png) | **`daily-brief`** Breaking news digest, Wikipedia in-the-news and most-read, today-in-history, and top Hacker News stories. A morning briefing you can scan in two minutes. |
 | **`product-launches`** Product Hunt, Show HN, GitHub trending repos, npm new packages, and community discussions. Stay on top of what's shipping across the indie and open-source ecosystem. | ![Product Launches preset](./assets/preset-product-launches.png) |
+| ![Academic Papers preset](./assets/preset-academic-papers.png) | **`academic-papers`** arXiv categories and search, Stack Exchange research, science writing blogs, and Hacker News. Designed for academics and researchers tracking new publications. |
+| **`release-tracker`** GitHub releases for key projects, trending repos, Lobsters, and Hacker News. Follow what's shipping across the open-source ecosystem. | ![Release Tracker preset](./assets/preset-release-tracker.png) |
+| ![Video & Podcast preset](./assets/preset-video-podcast.png) | **`video-podcast`** YouTube channels, podcast feeds, and Mastodon discussions. Keep up with video and audio content creators in one view. |
 
 ### Custom config
 
@@ -85,9 +85,9 @@ Pace ships with 19 adapters that pull content from public APIs and local config.
 |---------|--------|
 | `hackernews` | Hacker News (top, new, best, ask, show) |
 | `reddit` | Reddit subreddits |
-| `rss` | Any RSS feed |
-| `atom` | Any Atom feed |
+| `rss` | Any RSS/Atom feed |
 | `github` | GitHub trending repos + release tracking |
+| `github-releases` | GitHub release notes from specific repos |
 | `lobsters` | Lobsters (hottest, newest) |
 | `youtube` | YouTube channels |
 | `arxiv` | arXiv papers by category |
