@@ -107,6 +107,31 @@ describe("flex layout: widget-only layouts (no panels)", () => {
   });
 });
 
+describe("flex layout: flex:0 container gets height:auto override", () => {
+  it("container with flex:0 includes height:auto to override CSS height:100%", () => {
+    const layout = flexCfg("column", [
+      flexCfg("row", [
+        { text: "Header", flex: 3 },
+      ], { flex: 0 }),
+      panelCfg("Feed", "rss", { flex: 1 }),
+    ]);
+    const panelData = new Map<string, PanelData>([
+      ["Feed", { items: [makeItem({ title: "Story" })] }],
+    ]);
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain("flex:none;");
+    expect(html).toContain("height:auto;");
+  });
+
+  it("container without flex:0 does not get height:auto override", () => {
+    const layout = flexCfg("row", [
+      { text: "A" },
+    ]);
+    const html = renderDashboard({ layout, panelData: new Map(), updatedAt: "now" });
+    expect(html).not.toContain("height:auto;");
+  });
+});
+
 describe("flex layout: container and child flex values are independent", () => {
   it("container flex:5 with child flex:3 both render correctly", () => {
     const layout = flexCfg("row", [

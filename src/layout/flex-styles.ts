@@ -9,5 +9,8 @@ export function flexStyle(f?: number): string {
 }
 
 export function flexContainerStyle(container: FlexContainerConfig): string {
-  return `display:flex; flex-direction:${container.direction}; gap:${container.gap ?? "1rem"}; ${flexStyle(container.flex)}`;
+  // When flex:0 (none), override the CSS height:100% on .flex-container so the
+  // container shrinks to its content instead of claiming the parent's full height.
+  const heightOverride = container.flex === 0 ? " height:auto;" : "";
+  return `display:flex; flex-direction:${container.direction}; gap:${container.gap ?? "1rem"}; ${flexStyle(container.flex)}${heightOverride}`;
 }
