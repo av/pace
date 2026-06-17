@@ -1,3 +1,27 @@
+## pace CLI
+
+pace is a personal dashboard that aggregates content from RSS, Hacker News, Reddit, GitHub, arXiv, YouTube, Mastodon, and more. Use the CLI to explore adapters, transforms, presets, and validate configs:
+
+```bash
+pace --help                      # full CLI reference
+pace adapters list               # all adapter types
+pace adapters explain <type>     # docs for one adapter
+pace transforms list             # all transform types
+pace transforms explain <type>   # docs for one transform
+pace presets list                # bundled starter configs
+pace config check [path]         # validate config without starting the server
+pace skill [name]                # list or print bundled agent skills
+```
+
+## Skills
+
+Skills for working with pace dashboards are in `.agents/skills/` (symlinked from `.claude/skills/`):
+
+- **pace-dashboard-setup** — install, run, and deploy pace (Bun dev, Docker, Docker Compose, CLI flags, troubleshooting)
+- **pace-dashboard-configure** — generate or modify `config.yaml` from a natural-language description of interests
+
+Use `/pace-dashboard-setup` when asked to install or run pace. Use `/pace-dashboard-configure` when asked to configure, customize, or add feeds to a dashboard.
+
 <!-- facts:start -->
 ## Fact-driven development
 
