@@ -562,7 +562,7 @@ describe("counter vs regular panel rendering symmetry", () => {
     expect(html).toContain("stat-card");
     expect(html).toContain('class="item"');
     // Both have headers with the panel name
-    expect(html).toContain("<h2>Counter View</h2>");
-    expect(html).toContain("<h2>List View</h2>");
+    expect(html).toContain('<h2 title="Counter View">Counter View</h2>');
+    expect(html).toContain('<h2 title="List View">List View</h2>');
   });
 });

@@ -1,0 +1,179 @@
+# Dev Radar — live developer-news radar.
+# Merges Hacker News and Lobsters into a trending feed, keeps engineering
+# blogs, GitHub trending, releases, and DEV.to in the periphery.
+
+adapters:
+  - name: hn
+    type: hackernews
+    params:
+      feed: top
+      limit: 30
+      min_score: 20
+    refresh_interval: 15
+
+  - name: lobsters
+    type: lobsters
+    params:
+      feed: hottest
+      limit: 25
+      min_score: 3
+    refresh_interval: 15
+
+  - name: devto
+    type: devto
+    params:
+      tags: [webdev, devops, programming]
+      top: 7
+      limit: 15
+    refresh_interval: 30
+    transforms:
+      - type: time-decay
+        half_life: 12h
+        engagement_weight: 0.6
+        recency_weight: 0.4
+        decay: exponential
+      - type: latest
+        count: 10
+
+  - name: engineering-blogs
+    type: rss
+    params:
+      urls:
+        - https://blog.pragmaticengineer.com/rss/
+        - https://jvns.ca/atom.xml
+        - https://simonwillison.net/atom/everything/
+        - https://martinfowler.com/feed.atom
+      limit: 15
+    refresh_interval: 30
+    transforms:
+      - type: keyword-score
+        keywords:
+          - term: "architecture|distributed|scalab"
+            weight: 8
+            regex: true
+          - term: "rust|go|typescript"
+            weight: 6
+            regex: true
+          - term: "performance|latency|throughput"
+            weight: 5
+            regex: true
+          - term: "security|vulnerability|CVE"
+            weight: 7
+            regex: true
+      - type: latest
+        count: 12
+
+  - name: gh-trending
+    type: github
+    params:
+      mode: trending
+      since: weekly
+      limit: 15
+    refresh_interval: 60
+
+  - name: gh-releases
+    type: github-releases
+    params:
+      repos:
+        - oven-sh/bun
+        - denoland/deno
+        - golang/go
+        - rust-lang/rust
+      limit: 10
+    refresh_interval: 60
+
+  - name: bun-stars
+    type: counter
+    params:
+      url: https://api.github.com/repos/oven-sh/bun
+      json_path: stargazers_count
+      label: Bun
+      unit: "★"
+
+  - name: deno-stars
+    type: counter
+    params:
+      url: https://api.github.com/repos/denoland/deno
+      json_path: stargazers_count
+      label: Deno
+      unit: "★"
+
+pipelines:
+  - name: hot-tech
+    sources: [hn, lobsters]
+    transforms:
+      - type: dedupe
+        strategy: domain-normalized
+        keep: highest-score
+      - type: dedupe
+        strategy: title-similarity
+        threshold: 0.85
+        keep: highest-score
+      - type: time-decay
+        half_life: 8h
+        engagement_weight: 0.7
+        recency_weight: 0.3
+        decay: exponential
+      - type: cluster
+        strategy: auto
+        min_cluster_size: 2
+        max_clusters: 8
+      - type: latest
+        count: 30
+
+layout:
+  direction: column
+  gap: 8px
+  children:
+    - direction: row
+      flex: 0
+      gap: 8px
+      children:
+        - text: |
+            # Dev Radar
+            Hacker News + Lobsters, engineering blogs, GitHub trending, releases, and DEV.to in one view.
+          format: markdown
+          flex: 2
+
+        - panel: Bun Stars
+          source: bun-stars
+          display: counter
+          flex: 1
+
+        - panel: Deno Stars
+          source: deno-stars
+          display: counter
+          flex: 1
+
+    - direction: row
+      flex: 1
+      gap: 8px
+      children:
+        - panel: Hot Tech
+          source: hot-tech
+          flex: 2
+          limit: 30
+
+        - direction: column
+          flex: 1
+          gap: 8px
+          children:
+            - panel: GitHub Trending
+              source: gh-trending
+              limit: 12
+
+            - panel: Releases
+              source: gh-releases
+              limit: 10
+
+        - direction: column
+          flex: 1
+          gap: 8px
+          children:
+            - panel: DEV.to
+              source: devto
+              limit: 10
+
+            - panel: Engineering Blogs
+              source: engineering-blogs
+              limit: 12

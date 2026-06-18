@@ -1,6 +1,14 @@
-<a href="https://www.youtube.com/watch?v=UElmyC06ryM">
-  <img src="https://img.youtube.com/vi/UElmyC06ryM/maxresdefault.jpg" alt="Watch pace demo on YouTube" width="100%">
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=UElmyC06ryM"><strong>▶ Watch the 2-minute demo on YouTube</strong></a>
+</p>
+
+<a href="https://www.youtube.com/watch?v=UElmyC06ryM" title="Watch the pace demo on YouTube">
+  <img src="https://img.youtube.com/vi/UElmyC06ryM/maxresdefault.jpg" alt="▶ Click to watch the pace demo on YouTube" width="100%">
 </a>
+
+<p align="center">
+  <strong><a href="https://www.youtube.com/watch?v=UElmyC06ryM">▶ Click the thumbnail to play the demo</a></strong>
+</p>
 
 ---
 
@@ -10,12 +18,23 @@
 
 Aggregate Hacker News, RSS, GitHub, Lemmy, Mastodon, YouTube, arXiv, and 10 more sources into a single dashboard you own. Filter, deduplicate, score, and optionally use an LLM to summarize and rank what matters to you. Everything runs in a single Docker container with zero client-side JavaScript.
 
-- **19 built-in sources** - Hacker News, RSS/Atom, GitHub, Lemmy, Mastodon, YouTube, arXiv, npm, Wikipedia, and more (Reddit and Twitter/X need extra setup — see [adapter caveats](#adapter-caveats))
+- **19 built-in sources** - Hacker News, RSS/Atom, GitHub, Lemmy, Mastodon, YouTube, arXiv, npm, Wikipedia, and more (Reddit and Twitter/X need extra setup - see [adapter caveats](#adapter-caveats))
 - **Configurable in YAML** - adapters, transforms, layout, and LLM settings in one file
 - **Self-hosted in one command** - `docker run` and you're done, SQLite for persistence
 - **Optional AI-powered filtering** - LLM summarization, ranking, and filtering via any OpenAI/Anthropic/Google/Groq provider
 - **No client-side JavaScript** - server-rendered HTML, fast on any device
 - **Layout widgets** - embed images, text/markdown, and iframes directly in your dashboard layout
+
+### Example dashboards
+
+Ready-made configs in [`examples/`](examples/) - copy a YAML, run `pace config check`, and serve.
+
+| | | | |
+|:---:|:---:|:---:|:---:|
+| [![Morning Brief](./examples/morning-brief.png)](./examples/morning-brief.yaml) | [![Dev Radar](./examples/dev-radar.png)](./examples/dev-radar.yaml) | [![Indie Web](./examples/indie-web.png)](./examples/indie-web.yaml) | [![Open Source Launchpad](./examples/open-source-launchpad.png)](./examples/open-source-launchpad.yaml) |
+| [Morning Brief](./examples/morning-brief.yaml) | [Dev Radar](./examples/dev-radar.yaml) | [Indie Web](./examples/indie-web.yaml) | [Open Source Launchpad](./examples/open-source-launchpad.yaml) |
+| [![Release Cockpit](./examples/release-cockpit.png)](./examples/release-cockpit.yaml) | [![Science Desk](./examples/science-desk.png)](./examples/science-desk.yaml) | [![Layout System](./examples/layout-system.png)](./examples/layout-system.yaml) | [![Widgets Gallery](./examples/widgets-gallery.png)](./examples/widgets-gallery.yaml) |
+| [Release Cockpit](./examples/release-cockpit.yaml) | [Science Desk](./examples/science-desk.yaml) | [Layout System](./examples/layout-system.yaml) | [Widgets Gallery](./examples/widgets-gallery.yaml) |
 
 ## Quick start
 
@@ -113,8 +132,8 @@ Pace ships with 19 adapters that pull content from public APIs and local config.
 
 Some adapters are listed above but do not work out of the box:
 
-- **`reddit`** — Reddit's public unauthenticated `.json` API often returns **HTTP 403** upstream. Bundled presets intentionally omit Reddit for this reason. For community discussions without credentials, use **`lemmy`** instead (included in the `tech-news` and `ml-ai` presets).
-- **`twitter`** — Requires `bearer_token` in adapter params. Without it, the adapter **always returns an empty list** (no error). Run `pace adapters explain twitter` for setup details.
+- **`reddit`** - Reddit's public unauthenticated `.json` API often returns **HTTP 403** upstream. Bundled presets intentionally omit Reddit for this reason. For community discussions without credentials, use **`lemmy`** instead (included in the `tech-news` and `ml-ai` presets).
+- **`twitter`** - Requires `bearer_token` in adapter params. Without it, the adapter **always returns an empty list** (no error). Run `pace adapters explain twitter` for setup details.
 
 ```bash
 pace adapters list            # list all adapter types

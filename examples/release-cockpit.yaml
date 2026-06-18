@@ -1,0 +1,129 @@
+# Release Cockpit — track releases, trending repos, and package updates.
+# Live GitHub star counters sit above the release panels.
+
+adapters:
+  - name: release-tracker
+    type: github-releases
+    params:
+      repos:
+        - oven-sh/bun
+        - denoland/deno
+        - nodejs/node
+        - vercel/next.js
+        - golang/go
+      limit: 5
+    refresh_interval: 60
+
+  - name: github-trending
+    type: github
+    params:
+      mode: trending
+      since: weekly
+      limit: 15
+    refresh_interval: 60
+
+  - name: npm-packages
+    type: npm
+    params:
+      keywords: [framework]
+      limit: 15
+    refresh_interval: 60
+
+  - name: bun-stars
+    type: counter
+    params:
+      url: https://api.github.com/repos/oven-sh/bun
+      json_path: stargazers_count
+      label: Bun
+      unit: "★"
+
+  - name: deno-stars
+    type: counter
+    params:
+      url: https://api.github.com/repos/denoland/deno
+      json_path: stargazers_count
+      label: Deno
+      unit: "★"
+
+  - name: node-stars
+    type: counter
+    params:
+      url: https://api.github.com/repos/nodejs/node
+      json_path: stargazers_count
+      label: Node
+      unit: "★"
+
+  - name: next-stars
+    type: counter
+    params:
+      url: https://api.github.com/repos/vercel/next.js
+      json_path: stargazers_count
+      label: Next.js
+      unit: "★"
+
+  - name: checklist
+    type: bookmarks
+    params:
+      items:
+        - title: Check CHANGELOG
+          url: https://keepachangelog.com
+          description: "A format for tracking changes"
+        - title: Semantic Versioning
+          url: https://semver.org
+          description: "Versioning spec"
+        - title: GitHub Releases
+          url: https://docs.github.com/en/releases
+          description: "Release docs"
+
+layout:
+  direction: column
+  gap: 8px
+  children:
+    - direction: row
+      flex: 0
+      gap: 8px
+      children:
+        - panel: Bun Stars
+          source: bun-stars
+          display: counter
+          flex: 1
+
+        - panel: Deno Stars
+          source: deno-stars
+          display: counter
+          flex: 1
+
+        - panel: Node Stars
+          source: node-stars
+          display: counter
+          flex: 1
+
+        - panel: Next.js Stars
+          source: next-stars
+          display: counter
+          flex: 1
+
+    - direction: row
+      flex: 1
+      gap: 8px
+      children:
+        - panel: Releases
+          source: release-tracker
+          flex: 2
+          limit: 15
+
+        - direction: column
+          flex: 1
+          gap: 8px
+          children:
+            - panel: GitHub Trending
+              source: github-trending
+              limit: 12
+
+            - panel: npm Packages
+              source: npm-packages
+              limit: 12
+
+            - panel: Checklist
+              source: checklist
+              limit: 5

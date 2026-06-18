@@ -14,7 +14,7 @@ export const TextWidget: FC<{ node: TextWidgetConfig }> = ({ node }) => {
       <div class="panel text-widget">
         {node.title && (
           <div class="panel-header">
-            <h2>{node.title}</h2>
+            <h2 title={node.title}>{node.title}</h2>
           </div>
         )}
         <div class="text-widget-body" tabindex={0} role="region" aria-label={node.title ?? "Text content"}>

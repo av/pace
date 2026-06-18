@@ -32,7 +32,7 @@ describe("renderDashboard", () => {
     const layout = panelCfg("My Panel", "mysrc");
     const panelData = new Map<string, PanelData>([["My Panel", { items: [item] }]]);
     const html = renderDashboard({ layout, panelData, updatedAt: "now" });
-    expect(html).toContain("<h2>My Panel</h2>");
+    expect(html).toContain('<h2 title="My Panel">My Panel</h2>');
     expect(html).toContain(">Hello Item</a>");
     expect(html).toContain('href="https://safe.com/path"');
     expect(html).toContain('target="_blank" rel="noopener noreferrer"');
@@ -317,7 +317,7 @@ describe("renderDashboard", () => {
     const panelData = new Map<string, PanelData>();
     const html = renderDashboard({ layout, panelData, updatedAt: "now" });
     expect(html).toContain('class="panel text-widget"');
-    expect(html).toContain("<h2>Notes</h2>");
+    expect(html).toContain('<h2 title="Notes">Notes</h2>');
     expect(html).toContain('class="text-widget-body"');
     // plain format escapes HTML tags
     expect(html).toContain("&lt;b&gt;world&lt;/b&gt;");
@@ -362,7 +362,7 @@ describe("renderDashboard", () => {
     ]);
     const panelData = new Map<string, PanelData>();
     const html = renderDashboard({ layout, panelData, updatedAt: "now" });
-    expect(html).toContain("<h2>Dashboard</h2>");
+    expect(html).toContain('<h2 title="Dashboard">Dashboard</h2>');
     expect(html).toContain('class="panel-header"');
     // iframe widget title header should not have refresh button
     expect(html).not.toContain("refresh-btn");
@@ -698,12 +698,12 @@ describe("renderDashboard", () => {
     // Text widget with markdown rendered
     expect(html).toContain("<h1");
     expect(html).toContain("<strong>dashboard</strong>");
-    expect(html).toContain("<h2>Info</h2>");
+    expect(html).toContain('<h2 title="Info">Info</h2>');
     expect(html).toContain('class="panel-header"');
 
     // Iframe widget rendered
     expect(html).toContain('src="https://grafana.example.com/d/overview"');
-    expect(html).toContain("<h2>Grafana</h2>");
+    expect(html).toContain('<h2 title="Grafana">Grafana</h2>');
     expect(html).toContain("height:300px");
     expect(html).toContain('sandbox="allow-scripts allow-same-origin"');
     expect(html).toContain('referrerpolicy="no-referrer"');

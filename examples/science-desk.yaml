@@ -1,0 +1,74 @@
+# Science Desk — a research dashboard mixing arXiv, Q&A, and science headlines.
+
+adapters:
+  - name: arxiv-papers
+    type: arxiv
+    params:
+      categories:
+        - physics
+        - cs.AI
+        - math.CO
+      limit: 20
+    refresh_interval: 60
+
+  - name: physics-qa
+    type: stackexchange
+    params:
+      site: physics
+      sort: hot
+      limit: 10
+    refresh_interval: 60
+
+  - name: space-qa
+    type: stackexchange
+    params:
+      site: space
+      sort: hot
+      limit: 10
+    refresh_interval: 60
+
+  - name: wikipedia-science
+    type: wikipedia
+    params:
+      modes: [news, featured]
+      language: en
+      limit: 10
+    refresh_interval: 240
+
+  - name: science-headlines
+    type: rss
+    params:
+      urls:
+        - https://www.sciencedaily.com/rss/all.xml
+      limit: 10
+    refresh_interval: 60
+
+layout:
+  direction: row
+  gap: 8px
+  children:
+    - panel: arXiv
+      source: arxiv-papers
+      flex: 2
+      limit: 18
+
+    - direction: column
+      flex: 1
+      gap: 8px
+      children:
+        - panel: Physics Q&A
+          source: physics-qa
+          limit: 10
+
+        - panel: Space Q&A
+          source: space-qa
+          limit: 10
+
+        - panel: Wikipedia
+          source: wikipedia-science
+          limit: 10
+
+    - panel: Science Headlines
+      source: science-headlines
+      flex: 1
+      limit: 10

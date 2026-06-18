@@ -1,0 +1,123 @@
+# Open Source Launchpad — what's shipping across the open-source ecosystem.
+# Product Hunt, Show HN, GitHub trending, npm, and live GitHub star counters.
+
+adapters:
+  - name: producthunt
+    type: producthunt
+    params:
+      limit: 15
+    refresh_interval: 60
+
+  - name: show-hn
+    type: hackernews
+    params:
+      feed: show
+      limit: 25
+      min_score: 10
+    refresh_interval: 15
+
+  - name: devto-oss
+    type: devto
+    params:
+      tags: [opensource]
+      top: 7
+      limit: 15
+    refresh_interval: 30
+
+  - name: github-trending
+    type: github
+    params:
+      mode: trending
+      since: weekly
+      limit: 15
+    refresh_interval: 60
+
+  - name: npm-new
+    type: npm
+    params:
+      keywords: [framework]
+      limit: 15
+    refresh_interval: 60
+
+  - name: bun-stars
+    type: counter
+    params:
+      url: https://api.github.com/repos/oven-sh/bun
+      json_path: stargazers_count
+      label: Bun
+      unit: "★"
+
+  - name: deno-stars
+    type: counter
+    params:
+      url: https://api.github.com/repos/denoland/deno
+      json_path: stargazers_count
+      label: Deno
+      unit: "★"
+
+  - name: node-stars
+    type: counter
+    params:
+      url: https://api.github.com/repos/nodejs/node
+      json_path: stargazers_count
+      label: Node
+      unit: "★"
+
+pipelines:
+  - name: shipping
+    sources: [producthunt, show-hn, devto-oss]
+    transforms:
+      - type: dedupe
+        strategy: domain-normalized
+        keep: highest-score
+      - type: time-decay
+        half_life: 24h
+        engagement_weight: 0.8
+        recency_weight: 0.2
+        decay: exponential
+      - type: latest
+        count: 20
+
+layout:
+  direction: column
+  gap: 8px
+  children:
+    - direction: row
+      flex: 0
+      gap: 8px
+      children:
+        - panel: Bun Stars
+          source: bun-stars
+          display: counter
+          flex: 1
+
+        - panel: Deno Stars
+          source: deno-stars
+          display: counter
+          flex: 1
+
+        - panel: Node Stars
+          source: node-stars
+          display: counter
+          flex: 1
+
+    - direction: row
+      flex: 1
+      gap: 8px
+      children:
+        - panel: Shipping
+          source: shipping
+          flex: 2
+          limit: 20
+
+        - direction: column
+          flex: 1
+          gap: 8px
+          children:
+            - panel: GitHub Trending
+              source: github-trending
+              limit: 12
+
+            - panel: npm
+              source: npm-new
+              limit: 12

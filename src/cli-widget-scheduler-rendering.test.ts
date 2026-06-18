@@ -641,13 +641,13 @@ describe("rendering: full dashboard with all widget types + bookmarks + counter"
     expect(html).toContain('href="https://example.com"');
 
     // Text widget (markdown)
-    expect(html).toContain("<h2>Info</h2>");
+    expect(html).toContain('<h2 title="Info">Info</h2>');
     expect(html).toContain("<h1");
     expect(html).toContain("<li>Item 1</li>");
 
     // Iframe widget
     expect(html).toContain('src="https://grafana.example.com/d/overview"');
-    expect(html).toContain("<h2>Grafana</h2>");
+    expect(html).toContain('<h2 title="Grafana">Grafana</h2>');
     expect(html).toContain("height:400px");
     expect(html).toContain('sandbox="allow-scripts allow-same-origin"');
     expect(html).toContain('referrerpolicy="no-referrer"');

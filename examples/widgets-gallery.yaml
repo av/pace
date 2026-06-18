@@ -1,0 +1,144 @@
+# Widgets Gallery — a showcase of the image, text, iframe, and bookmarks widgets.
+
+adapters:
+  - name: tools
+    type: bookmarks
+    params:
+      items:
+        - title: "Hacker News"
+          url: https://news.ycombinator.com
+          description: "Tech news aggregator"
+          tags: [news]
+        - title: "GitHub"
+          url: https://github.com
+          description: "Code hosting"
+          tags: [tools]
+        - title: "Wikipedia"
+          url: https://en.wikipedia.org
+          description: "Free encyclopedia"
+          tags: [ref]
+        - title: "MDN Web Docs"
+          url: https://developer.mozilla.org
+          description: "Web platform reference"
+          tags: [ref]
+        - title: "Lobsters"
+          url: https://lobste.rs
+          description: "Computing-focused community"
+          tags: [news]
+        - title: "arXiv"
+          url: https://arxiv.org
+          description: "Open-access preprints"
+          tags: [science]
+
+  - name: weather-berlin
+    type: counter
+    params:
+      url: https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41&current_weather=true
+      json_path: current_weather.temperature
+      label: Berlin
+      unit: "°C"
+
+  - name: weather-new-york
+    type: counter
+    params:
+      url: https://api.open-meteo.com/v1/forecast?latitude=40.71&longitude=-74.01&current_weather=true
+      json_path: current_weather.temperature
+      label: New York
+      unit: "°C"
+
+  - name: weather-tokyo
+    type: counter
+    params:
+      url: https://api.open-meteo.com/v1/forecast?latitude=35.69&longitude=139.69&current_weather=true
+      json_path: current_weather.temperature
+      label: Tokyo
+      unit: "°C"
+
+layout:
+  direction: row
+  gap: 12px
+  children:
+    - direction: column
+      flex: 1
+      gap: 12px
+      children:
+        - text: |
+            # Text Widget
+            This panel renders **Markdown** — not just plain text.
+
+            - **Bold** and *italic* text
+            - `inline code` and fenced code blocks
+            - [links](https://github.com/av/pace)
+            - unordered lists and blockquotes
+
+            ```ts
+            // code blocks are supported
+            const dashboard = "pace";
+            ```
+
+            > Widgets are static content nodes mixed into the layout tree.
+          format: markdown
+          title: Full Markdown
+          flex: 0
+
+        - image: https://picsum.photos/seed/pace/800/600
+          alt: "Sample photo from Lorem Picsum"
+          object_fit: cover
+          flex: 1
+
+    - direction: column
+      flex: 1
+      gap: 12px
+      children:
+        - iframe: https://www.openstreetmap.org/export/embed.html?bbox=-122.5%2C37.7%2C-122.3%2C37.8&layer=mapnik
+          title: OpenStreetMap
+          height: 100%
+          flex: 1
+
+        - panel: Bookmarks
+          source: tools
+          limit: 6
+          flex: 0
+
+    - direction: column
+      flex: 1
+      gap: 12px
+      children:
+        - direction: row
+          flex: 0
+          gap: 12px
+          children:
+            - panel: Berlin
+              source: weather-berlin
+              display: counter
+              flex: 1
+
+            - panel: New York
+              source: weather-new-york
+              display: counter
+              flex: 1
+
+            - panel: Tokyo
+              source: weather-tokyo
+              display: counter
+              flex: 1
+
+        - text: |
+            # Mix & Match
+            Widgets and adapter panels can be combined freely in the same recursive layout. You can use them to annotate a dashboard, add branding, embed external tools, or surface static reference links alongside live data.
+
+            - **Counters** for live numbers
+            - **Text widgets** for notes and documentation
+            - **Image widgets** for banners and screenshots
+            - **Iframe widgets** for embedded tools
+            - **Bookmarks** panels for curated links
+
+            > Widgets are layout-only nodes: they do not fetch data on their own, so they add no refresh cost to the scheduler.
+          format: markdown
+          title: Mix & Match
+          flex: 1
+
+        - image: https://picsum.photos/seed/mix/800/600
+          alt: "Another sample photo"
+          object_fit: cover
+          flex: 1

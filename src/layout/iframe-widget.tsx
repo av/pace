@@ -57,7 +57,7 @@ export const IframeWidget: FC<{ node: IframeWidgetConfig }> = ({ node }) => {
     <div class="flex-panel" style={containerStyle}>
       {node.title && (
         <div class="panel-header">
-          <h2>{node.title}</h2>
+          <h2 title={node.title}>{node.title}</h2>
         </div>
       )}
       <div class="iframe-panel" style={iframePanelStyle} role="region" aria-label={iframeTitle}>

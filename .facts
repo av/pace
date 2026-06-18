@@ -1,3 +1,9 @@
+- label: rendering > panel-header h2 truncates with ellipsis (or gradient fade) instead of wrapping; panel-actions stay fixed-width and never overlap the title
+  command: grep -q "text-overflow: ellipsis" src/styles.css && grep -q "white-space: nowrap" src/styles.css && grep -q "flex-shrink: 0" src/styles.css && bun test src/panel-layout-styles.test.ts --test-name-pattern "panel header title truncation"
+  tags: [spec, implemented]
+- label: rendering > counter panel stat cards scale gracefully at narrow widths (single-card panels shrink content instead of overflowing or warping layout)
+  command: grep -q "minmax(min(100%, 140px), 1fr)" src/styles.css && grep -q "clamp(1rem, 6cqi, 1.75rem)" src/styles.css && bun test src/panel-layout-styles.test.ts --test-name-pattern "counter panel narrow-width"
+  tags: [spec, implemented]
 
 # config
 
@@ -261,3 +267,13 @@
   tags: [implemented]
 - skills/pace-dashboard-configure/SKILL.md Transform reference yaml contains no verbosity-inflating restating per-transform comments (the '# Deduplicate items' before obvious 'type: dedupe' and '# Group related items (no LLM)' before 'type: cluster' have been removed; type: key + params + section prose are self-documenting, similar to nwf); verifiable by: ! grep -q ' # Deduplicate items' skills/pace-dashboard-configure/SKILL.md && ! grep -q ' # Group related items (no LLM)' skills/pace-dashboard-configure/SKILL.md @implemented
 - skills/pace-dashboard-configure/SKILL.md Transform reference yaml contains no verbosity-inflating restating per-transform comments (the '# Keep items matching LLM-evaluated criteria' before obvious 'type: llm-filter' and '# Reorder by LLM-scored relevance to user interests' before 'type: llm-rank' have been removed; type: key + params + section prose are self-documenting, similar to nwf/evu); verifiable by: ! grep -q ' # Keep items matching LLM-evaluated criteria' skills/pace-dashboard-configure/SKILL.md && ! grep -q ' # Reorder by LLM-scored relevance to user interests' skills/pace-dashboard-configure/SKILL.md @implemented
+
+# examples
+- label: The examples/ directory contains curated example configs that are valid and have screenshots
+  command: set -e; for cfg in examples/*.yaml; do name="${cfg%.yaml}"; [ -f "${name}.png" ] || { echo "missing screenshot for $cfg"; exit 1; }; bun run src/cli.ts config check "$cfg" >/dev/null 2>&1 || { echo "config check failed for $cfg"; exit 1; }; done
+  tags: [implemented]
+
+# layout
+- label: flex:0 layout nodes get height:auto so they shrink to content instead of claiming the parent's full height
+  command: grep -q "flex:none; height:auto;" src/layout/flex-styles.ts
+  tags: [implemented]

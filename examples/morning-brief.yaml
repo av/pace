@@ -1,0 +1,88 @@
+# Morning Brief — a quick scan to start the day.
+# Wikipedia featured content, world news, and the top of Hacker News.
+
+adapters:
+  - name: wikipedia
+    type: wikipedia
+    params:
+      modes: [most_read, on_this_day, news]
+      language: en
+      limit: 15
+    refresh_interval: 240
+
+  - name: hn
+    type: hackernews
+    params:
+      feed: top
+      limit: 20
+      min_score: 10
+    refresh_interval: 15
+
+  - name: world-news
+    type: rss
+    params:
+      urls:
+        - https://feeds.bbci.co.uk/news/rss.xml
+        - https://www.theverge.com/rss/index.xml
+      limit: 12
+    refresh_interval: 30
+    transforms:
+      - type: latest
+        count: 15
+
+  - name: coffee-reads
+    type: bookmarks
+    params:
+      items:
+        - title: "Read the docs"
+          url: https://docs.github.com
+          description: "GitHub Docs"
+        - title: "MDN Web Docs"
+          url: https://developer.mozilla.org
+          description: "Web platform reference"
+        - title: "Wikipedia Main Page"
+          url: https://en.wikipedia.org/wiki/Main_Page
+          description: "Daily featured article"
+
+layout:
+  direction: column
+  gap: 8px
+  children:
+    - direction: row
+      flex: 0
+      gap: 8px
+      children:
+        - text: |
+            # Morning Brief
+            Start the day with world news, Wikipedia, and Hacker News.
+          format: markdown
+          flex: 1
+
+    - direction: row
+      flex: 1
+      gap: 8px
+      children:
+        - panel: Wikipedia
+          source: wikipedia
+          flex: 1
+          limit: 15
+
+        - direction: column
+          flex: 1
+          gap: 8px
+          children:
+            - panel: Hacker News
+              source: hn
+              limit: 15
+
+            - panel: World News
+              source: world-news
+              limit: 12
+
+        - direction: column
+          flex: 1
+          gap: 8px
+          children:
+            - panel: Coffee Reads
+              source: coffee-reads
+              limit: 5

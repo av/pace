@@ -46,7 +46,7 @@ describe("deep nesting: 5+ levels of containers with widgets", () => {
     expect(html).toContain('alt="A"');
     expect(html).toContain("Sibling text");
     expect(html).toContain('src="https://example.com/embed"');
-    expect(html).toContain("<h2>P</h2>");
+    expect(html).toContain('<h2 title="P">P</h2>');
     // 3 widget flex-panels + 1 panel flex-panel = 4
     const flexPanels = html.match(/class="flex-panel"/g);
     expect(flexPanels?.length).toBe(4);
@@ -184,8 +184,8 @@ describe("validation: complex layouts pass through correctly", () => {
     const iframes = html.match(/class="iframe-panel"/g);
     expect(iframes?.length).toBe(3);
     // Verify panels
-    expect(html).toContain("<h2>News</h2>");
-    expect(html).toContain("<h2>Social</h2>");
+    expect(html).toContain('<h2 title="News">News</h2>');
+    expect(html).toContain('<h2 title="Social">Social</h2>');
     expect(html).toContain("Breaking");
     // Container count: root + 3 columns = 4
     const containers = html.match(/class="flex-container"/g);

@@ -1,0 +1,116 @@
+# Layout System — a tour of Pace's recursive flexbox layout.
+# Uses nested rows and columns with varied flex ratios, gaps, and widget types.
+
+adapters:
+  - name: one
+    type: bookmarks
+    params:
+      items:
+        - title: "1x panel"
+          url: "https://en.wikipedia.org/wiki/Flexbox"
+          description: "flex: 1"
+        - title: "Another item"
+          url: "https://en.wikipedia.org/wiki/Responsive_web_design"
+          description: "Fills one share of available space"
+
+  - name: one-b
+    type: bookmarks
+    params:
+      items:
+        - title: "1x nested panel"
+          url: "https://en.wikipedia.org/wiki/Responsive_web_design"
+          description: "Another flex: 1 share"
+        - title: "Another item"
+          url: "https://en.wikipedia.org/wiki/Flexbox"
+          description: "Fills one share of available space"
+
+  - name: two
+    type: bookmarks
+    params:
+      items:
+        - title: "2x panel"
+          url: "https://en.wikipedia.org/wiki/CSS_grid_layout"
+          description: "flex: 2"
+        - title: "Wide item"
+          url: "https://en.wikipedia.org/wiki/Swiss_Style_(design)"
+          description: "Twice the space of a 1x panel"
+
+  - name: three
+    type: bookmarks
+    params:
+      items:
+        - title: "3x panel"
+          url: "https://en.wikipedia.org/wiki/Golden_ratio"
+          description: "flex: 3"
+        - title: "Big item"
+          url: "https://en.wikipedia.org/wiki/Modular_design"
+          description: "Three shares of available space"
+
+  - name: weather
+    type: counter
+    params:
+      url: https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41&current_weather=true
+      json_path: current_weather.temperature
+      label: "Berlin"
+      unit: "°C"
+
+layout:
+  direction: column
+  gap: 12px
+  children:
+    - direction: row
+      flex: 0
+      gap: 12px
+      children:
+        - text: |
+            # Layout System
+            Recursive rows and columns with flexible ratios, nested containers, and mixed widgets.
+          format: markdown
+          flex: 1
+
+        - panel: Counter
+          source: weather
+          display: counter
+          flex: 1
+
+    - direction: row
+      flex: 1
+      gap: 12px
+      children:
+        - panel: 1x
+          source: one
+          flex: 1
+
+        - direction: column
+          flex: 2
+          gap: 12px
+          children:
+            - direction: row
+              flex: 1
+              gap: 12px
+              children:
+                - panel: 2x
+                  source: two
+                  flex: 2
+
+                - panel: 1x nested
+                  source: one-b
+                  flex: 1
+
+            - panel: 3x
+              source: three
+              flex: 1
+
+        - direction: column
+          flex: 1
+          gap: 12px
+          children:
+            - image: https://picsum.photos/seed/pace/800/600
+              alt: "Sample photo from Lorem Picsum"
+              object_fit: cover
+              flex: 1
+
+            - text: |
+                > Nesting containers lets you compose any grid-like dashboard.
+              format: markdown
+              flex: 0

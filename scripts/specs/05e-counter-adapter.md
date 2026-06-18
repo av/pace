@@ -152,7 +152,7 @@ New component: `src/layout/counter-panel.tsx`. Dispatched when
 - Each card shows: large value, unit suffix, label, optional trend arrow.
 - Trend arrow: ↑ (green) if current > previous, ↓ (red) if lower.
 - Large numbers abbreviated: 10k+, 1M+.
-- Grid wraps at container width (`auto-fit, minmax(140px, 1fr)`).
+- Grid wraps at container width (`auto-fit, minmax(min(100%, 140px), 1fr)`).
 - Empty state: "No data yet".
 
 ### Fallback

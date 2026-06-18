@@ -97,7 +97,7 @@ export function expectDashboardFooterUtc(html: string): void {
 }
 
 export function expectDashboardPanelHeading(html: string, panelName: string): void {
-  expect(html).toContain(`<h2>${panelName}</h2>`);
+  expect(html).toMatch(new RegExp(`<h2(?:\\s+title="${panelName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}")?>${panelName}</h2>`));
 }
 
 export function expectDashboardItemTitle(html: string, title: string): void {

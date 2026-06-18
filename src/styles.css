@@ -118,6 +118,7 @@ a:hover {
   flex: 1;
   flex-direction: column;
   height: 100%;
+  min-width: 0;
 }
 
 .flex-panel > .panel > .panel-body,
@@ -167,12 +168,18 @@ a:hover {
   z-index: 1;
 }
 
+.panel:has(.counter-panel)::after {
+  display: none;
+}
+
 .panel-header {
   padding: 0.5rem 0.75rem;
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
 }
 
 .panel-header h2 {
@@ -180,12 +187,18 @@ a:hover {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-secondary);
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .panel-actions {
   display: flex;
   align-items: center;
   gap: 0.35rem;
+  flex-shrink: 0;
 }
 
 .panel-refreshed {
@@ -499,20 +512,25 @@ a:hover {
 
 .counter-panel {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
   gap: 0.75rem;
   padding: 0.75rem;
+  min-width: 0;
 }
 
 .stat-card {
   background: var(--bg-card);
   border-radius: 6px;
   padding: 1rem;
+  padding: clamp(0.5rem, 2cqi, 1rem);
   text-align: center;
+  min-width: 0;
+  container-type: inline-size;
 }
 
 .stat-value {
   font-size: 1.75rem;
+  font-size: clamp(1rem, 6cqi, 1.75rem);
   font-weight: 700;
   color: var(--text-primary);
   font-family: var(--font-mono);
@@ -523,7 +541,7 @@ a:hover {
 }
 
 .stat-unit {
-  font-size: 0.9rem;
+  font-size: 0.9em;
   font-weight: 400;
   color: var(--text-secondary);
   margin-left: 0.15em;
@@ -533,6 +551,7 @@ a:hover {
   font-size: 0.75rem;
   color: var(--text-secondary);
   margin-top: 0.35rem;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

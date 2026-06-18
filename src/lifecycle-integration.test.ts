@@ -99,7 +99,7 @@ describe("counter adapter full lifecycle", () => {
     expect(html).toContain("Stars");
     expect(html).toContain("93.2k"); // abbreviateNumber for 93200
     expect(html).toContain("stars"); // unit
-    expect(html).toContain("<h2>Metrics</h2>");
+    expect(html).toContain('<h2 title="Metrics">Metrics</h2>');
   });
 });
 
@@ -161,7 +161,7 @@ describe("bookmarks adapter full lifecycle", () => {
     const html = renderDashboard({ layout, panelData, updatedAt: "now" });
     expect(html).toContain("<!DOCTYPE html>");
     expect(html).toContain("panel-body"); // standard panel, not counter-panel
-    expect(html).toContain('<h2>Quick Links</h2>');
+    expect(html).toContain('<h2 title="Quick Links">Quick Links</h2>');
 
     // All three bookmarks present as clickable links
     expect(html).toContain('href="https://github.com"');
@@ -482,7 +482,7 @@ describe("mixed counter and bookmarks in one dashboard", () => {
     expect(html).toContain("stat-card");
     expect(html).toContain("1.5M"); // abbreviateNumber for 1500000
     expect(html).toContain("Downloads");
-    expect(html).toContain("<h2>Stats</h2>");
+    expect(html).toContain('<h2 title="Stats">Stats</h2>');
 
     // Bookmarks panel section
     expect(html).toContain("panel-body");
@@ -490,7 +490,7 @@ describe("mixed counter and bookmarks in one dashboard", () => {
     expect(html).toContain(">NPM</a>");
     expect(html).toContain('href="https://pypi.org"');
     expect(html).toContain(">PyPI</a>");
-    expect(html).toContain("<h2>Package Repos</h2>");
+    expect(html).toContain('<h2 title="Package Repos">Package Repos</h2>');
 
     // Both panels present
     expect(html).toContain("flex-panel");

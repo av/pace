@@ -1,0 +1,100 @@
+# Indie Web — a decentralized feed of Lemmy, Mastodon, and indie blogs.
+
+adapters:
+  - name: lemmy
+    type: lemmy
+    params:
+      instance: programming.dev
+      communities: [programming, technology, selfhost]
+      sort: hot
+      limit: 15
+    refresh_interval: 15
+
+  - name: mastodon
+    type: mastodon
+    params:
+      instance: fosstodon.org
+      hashtags: [opensource, linux, webdev]
+      limit: 15
+    refresh_interval: 15
+
+  - name: devto-indie
+    type: devto
+    params:
+      tags: [opensource, webdev]
+      top: 7
+      limit: 12
+    refresh_interval: 30
+
+  - name: indie-blogs
+    type: rss
+    params:
+      urls:
+        - https://lucumr.pocoo.org/feed.atom
+        - https://rachelbythebay.com/w/feed/
+      limit: 10
+    refresh_interval: 60
+
+  - name: tools
+    type: bookmarks
+    params:
+      items:
+        - title: Fosstodon
+          url: https://fosstodon.org
+          description: "Mastodon for open-source folks"
+        - title: Lemmy
+          url: https://join-lemmy.org
+          description: "Federated link aggregator"
+        - title: IndieWeb
+          url: https://indieweb.org
+          description: "Own your content on the web"
+
+pipelines:
+  - name: fediverse
+    sources: [lemmy, mastodon]
+    transforms:
+      - type: dedupe
+        strategy: domain-normalized
+        keep: highest-score
+      - type: latest
+        count: 20
+
+layout:
+  direction: row
+  gap: 8px
+  children:
+    - direction: column
+      flex: 1
+      gap: 8px
+      children:
+        - panel: Fediverse
+          source: fediverse
+          limit: 20
+
+        - panel: Indie Blogs
+          source: indie-blogs
+          limit: 10
+
+    - direction: column
+      flex: 1
+      gap: 8px
+      children:
+        - panel: Lemmy
+          source: lemmy
+          limit: 15
+
+        - panel: DEV.to
+          source: devto-indie
+          limit: 10
+
+    - direction: column
+      flex: 1
+      gap: 8px
+      children:
+        - panel: Mastodon
+          source: mastodon
+          limit: 15
+
+        - panel: Tools
+          source: tools
+          limit: 5

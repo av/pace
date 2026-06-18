@@ -115,7 +115,7 @@ export const CounterPanel: FC<{ node: PanelConfig; panelData: Map<string, PanelD
     <div class="flex-panel" style={flexStyle(node.flex)}>
       <div class="panel">
         <div class="panel-header">
-          <h2>{node.panel}</h2>
+          <h2 title={node.panel}>{node.panel}</h2>
           <div class="panel-actions">
             {lastRefreshedAt && <span class="panel-refreshed">{relativeTime(lastRefreshedAt)}</span>}
             <form method="POST" action={`/refresh/${encodeURIComponent(panelId)}`}>

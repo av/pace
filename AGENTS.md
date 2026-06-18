@@ -22,6 +22,28 @@ Skills for working with pace dashboards are in `.agents/skills/` (symlinked from
 
 Use `/pace-dashboard-setup` when asked to install or run pace. Use `/pace-dashboard-configure` when asked to configure, customize, or add feeds to a dashboard.
 
+## Example dashboards
+
+`examples/` pairs showcase configs (`<name>.yaml`) with screenshots (`<name>.png`). README preset images live separately in `assets/preset-<name>.png`.
+
+**Edit a config:** change `examples/<name>.yaml`, then `pace config check examples/<name>.yaml`.
+
+**Refresh example screenshots:** Playwright required (`pip install playwright && playwright install chromium`). From repo root:
+
+```bash
+python3 examples/screenshot.py
+```
+
+For each `*.yaml` in `examples/`, the script copies it to a temp dir, starts `pace serve` on port 17453, waits for adapters to fetch, and overwrites the matching `.png` (1920×1080 full-page).
+
+**Refresh preset screenshots** (README `assets/` images):
+
+```bash
+scripts/screenshot-presets.sh
+```
+
+Serves each bundled preset on port 17453 via `pace serve -P <preset>`, screenshots at 1440×900.
+
 <!-- facts:start -->
 ## Fact-driven development
 

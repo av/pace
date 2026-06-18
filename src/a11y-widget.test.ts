@@ -111,7 +111,7 @@ describe("TextWidget accessibility", () => {
 
   it("uses h2 for panel header heading level", () => {
     const html = renderWidget({ text: "Content", title: "My Section", format: "plain" });
-    expect(html).toContain("<h2>My Section</h2>");
+    expect(html).toContain('<h2 title="My Section">My Section</h2>');
   });
 
   it("preserves heading hierarchy in markdown (h1-h6 allowed in body)", () => {
@@ -219,7 +219,7 @@ describe("IframeWidget accessibility", () => {
 
   it("uses h2 for panel header when title is set", () => {
     const html = renderWidget({ iframe: "https://example.com/embed", title: "Live Feed" });
-    expect(html).toContain("<h2>Live Feed</h2>");
+    expect(html).toContain('<h2 title="Live Feed">Live Feed</h2>');
   });
 });
 
@@ -342,7 +342,7 @@ describe("CounterPanel accessibility", () => {
       { title: "Test", body: JSON.stringify({ value: 1 }) },
     ]);
     const html = renderWidget(metricsPanel, pd);
-    expect(html).toContain("<h2>Metrics</h2>");
+    expect(html).toContain('<h2 title="Metrics">Metrics</h2>');
   });
 
   it("aria-label works for non-numeric string values", () => {
@@ -371,7 +371,7 @@ describe("Widget heading hierarchy", () => {
   it("h1 in markdown body does not conflict with panel h2 header", () => {
     const html = renderWidget({ text: "# Top Heading\nContent", title: "Panel Title", format: "markdown" });
     // Panel header is h2
-    expect(html).toContain("<h2>Panel Title</h2>");
+    expect(html).toContain('<h2 title="Panel Title">Panel Title</h2>');
     // Body heading is h1 (inside the region)
     expect(html).toContain("<h1>Top Heading</h1>");
   });
