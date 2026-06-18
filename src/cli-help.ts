@@ -716,8 +716,8 @@ export function formatCliHelp(version: string): string {
 
 If you're an agent, start here:
   pace skill                          list agent skills
-  pace skill pace-dashboard-setup     set up / run a dashboard
-  pace skill pace-dashboard-configure create or edit config.yaml
+  pace skill pace-setup     set up / run a dashboard
+  pace skill pace-config create or edit config.yaml
 
 Usage:
   pace [command] [options]

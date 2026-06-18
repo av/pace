@@ -17,10 +17,10 @@ pace skill [name]                # list or print bundled agent skills
 
 Skills for working with pace dashboards are in `.agents/skills/` (symlinked from `.claude/skills/`):
 
-- **pace-dashboard-setup** — install, run, and deploy pace (Bun dev, Docker, Docker Compose, CLI flags, troubleshooting)
-- **pace-dashboard-configure** — generate or modify `config.yaml` from a natural-language description of interests
+- **pace-setup** — install, run, and deploy pace (Bun dev, Docker, Docker Compose, CLI flags, troubleshooting)
+- **pace-config** — generate or modify `config.yaml` from a natural-language description of interests
 
-Use `/pace-dashboard-setup` when asked to install or run pace. Use `/pace-dashboard-configure` when asked to configure, customize, or add feeds to a dashboard.
+Use `/pace-setup` when asked to install or run pace. Use `/pace-config` when asked to configure, customize, or add feeds to a dashboard.
 
 ## Example dashboards
 

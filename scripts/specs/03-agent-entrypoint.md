@@ -15,8 +15,8 @@ Docker image) can bootstrap without the repo checkout.
 1. `pace skill` — lists available bundled skills, one per line:
 
    ```
-   pace-dashboard-setup      Install and run a pace dashboard
-   pace-dashboard-configure  Generate or modify a config.yaml from interests
+   pace-setup      Install and run a pace dashboard
+   pace-config  Generate or modify a config.yaml from interests
 
    Run `pace skill <name>` to print the full skill.
    ```
@@ -33,8 +33,8 @@ Docker image) can bootstrap without the repo checkout.
    ```
    If you're an agent, start here:
      pace skill                      list agent skills
-     pace skill pace-dashboard-setup     set up / run a dashboard
-     pace skill pace-dashboard-configure create or edit config.yaml
+     pace skill pace-setup     set up / run a dashboard
+     pace skill pace-config create or edit config.yaml
    ```
 
 4. Docker image ships `skills/` (add `COPY skills ./skills` to Dockerfile if
@@ -55,7 +55,7 @@ Docker image) can bootstrap without the repo checkout.
 
 - `pace skill` lists exactly the directories under `skills/` that contain a
   SKILL.md, with descriptions from frontmatter.
-- `pace skill pace-dashboard-setup` output contains a known heading from the
+- `pace skill pace-setup` output contains a known heading from the
   file.
 - `pace skill nope` → exit 1 + available list.
 - HELP snapshot includes the agent section.

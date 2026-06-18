@@ -18,7 +18,7 @@ The CLI is the source of truth for *shapes*; the skills are the source of
 truth for *judgment* (which adapter for which interest, pipeline design,
 layout taste).
 
-## Changes to `skills/pace-dashboard-configure/SKILL.md`
+## Changes to `skills/pace-config/SKILL.md`
 
 1. Top of file: a "Source of truth" note — run `pace adapters list`,
    `pace adapters explain <type>`, `pace transforms list|explain <type>` for
@@ -46,7 +46,7 @@ layout taste).
 7. Process list updated: step 0 = consider presets; final step = run
    `pace config check` on the written file.
 
-## Changes to `skills/pace-dashboard-setup/SKILL.md`
+## Changes to `skills/pace-setup/SKILL.md`
 
 1. CLI flags section: replace the prose pointer with `pace --help` plus the
    new Commands overview (serve, presets, adapters, transforms, config
@@ -71,7 +71,7 @@ layout taste).
 ## Drift guard
 
 - New test `skills-sync.test.ts`: for every type in `ADAPTER_TYPES` and
-  `TRANSFORM_TYPES`, `skills/pace-dashboard-configure/SKILL.md` contains a
+  `TRANSFORM_TYPES`, `skills/pace-config/SKILL.md` contains a
   `### <type>` heading (or the type name in a designated coverage list).
   Keeps the skill from silently missing future adapters, without asserting
   on prose.

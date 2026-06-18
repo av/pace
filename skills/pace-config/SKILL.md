@@ -1,5 +1,5 @@
 ---
-name: pace-dashboard-configure
+name: pace-config
 description: >
   Generate a config.yaml for the pace personal dashboard from a user's natural-language
   description of interests. Maps topics to content adapters (RSS, Hacker News, Reddit,

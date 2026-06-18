@@ -135,8 +135,8 @@ describe("cli-help", () => {
 
 If you're an agent, start here:
   pace skill                          list agent skills
-  pace skill pace-dashboard-setup     set up / run a dashboard
-  pace skill pace-dashboard-configure create or edit config.yaml
+  pace skill pace-setup     set up / run a dashboard
+  pace skill pace-config create or edit config.yaml
 
 Usage:
   pace [command] [options]
@@ -165,7 +165,7 @@ Options:
 
   test("parseSkillFrontmatter extracts name and description from block scalar", () => {
     const content = `---
-name: pace-dashboard-setup
+name: pace-setup
 description: >
   Install and run the pace personal dashboard. Covers cloning, dependency install via Bun,
   Docker and Docker Compose deployment.
@@ -175,7 +175,7 @@ description: >
 `;
     const result = parseSkillFrontmatter(content);
     expect(result).not.toBeNull();
-    expect(result!.name).toBe("pace-dashboard-setup");
+    expect(result!.name).toBe("pace-setup");
     expect(result!.description).toContain("Install and run the pace personal dashboard");
   });
 
@@ -419,21 +419,21 @@ describe("cli", () => {
   test("pace skill lists skills from skills/ directory", () => {
     const res = runCli(["skill"]);
     expect(res.status).toBe(0);
-    expect(res.stdout).toContain("pace-dashboard-setup");
-    expect(res.stdout).toContain("pace-dashboard-configure");
+    expect(res.stdout).toContain("pace-setup");
+    expect(res.stdout).toContain("pace-config");
     expect(res.stdout).toContain("pace skill <name>");
   });
 
-  test("pace skill pace-dashboard-setup prints full SKILL.md with known heading", () => {
-    const res = runCli(["skill", "pace-dashboard-setup"]);
+  test("pace skill pace-setup prints full SKILL.md with known heading", () => {
+    const res = runCli(["skill", "pace-setup"]);
     expect(res.status).toBe(0);
     expect(res.stdout).toContain("# Set up and run pace");
     expect(res.stdout).toContain("---");
-    expect(res.stdout).toContain("name: pace-dashboard-setup");
+    expect(res.stdout).toContain("name: pace-setup");
   });
 
-  test("pace skill pace-dashboard-configure prints full SKILL.md", () => {
-    const res = runCli(["skill", "pace-dashboard-configure"]);
+  test("pace skill pace-config prints full SKILL.md", () => {
+    const res = runCli(["skill", "pace-config"]);
     expect(res.status).toBe(0);
     expect(res.stdout).toContain("# Configure a pace dashboard");
   });
@@ -443,7 +443,7 @@ describe("cli", () => {
     expect(res.status).toBe(1);
     expect(res.stderr).toContain("Unknown skill: nope");
     expect(res.stderr).toContain("Available:");
-    expect(res.stderr).toContain("pace-dashboard-setup");
+    expect(res.stderr).toContain("pace-setup");
   });
 
   test("--chdir/-C accepted; invalid dir fails with cli: chdir message", () => {

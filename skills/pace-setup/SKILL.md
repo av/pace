@@ -1,5 +1,5 @@
 ---
-name: pace-dashboard-setup
+name: pace-setup
 description: >
   Install and run the pace personal dashboard. Covers cloning, dependency install via Bun,
   Docker and Docker Compose deployment, CLI flags (--config, --port), environment variable
@@ -27,7 +27,7 @@ bun install
 
 # Create config from the example
 cp config.example.yaml config.yaml
-# Edit config.yaml -- see skills/pace-dashboard-configure/SKILL.md for how to build one from scratch
+# Edit config.yaml -- see skills/pace-config/SKILL.md for how to build one from scratch
 
 # Start the dev server
 bun run dev
@@ -136,7 +136,7 @@ docker run -d -p 7453:7453 -v pace-data:/app/data ghcr.io/av/pace:latest --prese
 ```
 
 Copy a preset to `config.yaml` and customise it, then restart with your edited file (see
-skills/pace-dashboard-configure/SKILL.md for detailed editing guidance).
+skills/pace-config/SKILL.md for detailed editing guidance).
 
 ## Beyond feeds: widgets, bookmarks, and counters
 
@@ -152,7 +152,7 @@ Two special adapters complement these:
 - **Bookmarks** - curated link lists defined in config (no network fetch)
 - **Counter** - fetches a JSON endpoint and extracts a numeric value; pair with `display: counter` on the panel for stat-card rendering
 
-See skills/pace-dashboard-configure/SKILL.md for full config reference and examples.
+See skills/pace-config/SKILL.md for full config reference and examples.
 
 ## Verifying it works
 

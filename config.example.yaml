@@ -305,4 +305,4 @@ layout:
 #   #   source: counter
 #   #   display: counter
 
-# see skills/pace-dashboard-configure/SKILL.md for the full reference (adapters, transforms, pipelines, layout, LLM config and examples).
+# see skills/pace-config/SKILL.md for the full reference (adapters, transforms, pipelines, layout, LLM config and examples).

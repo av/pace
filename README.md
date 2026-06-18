@@ -16,18 +16,19 @@
 
 **Self-hosted news aggregator and personal content dashboard.**
 
-Aggregate Hacker News, RSS, GitHub, Lemmy, Mastodon, YouTube, arXiv, and 10 more sources into a single dashboard you own. Filter, deduplicate, score, and optionally use an LLM to summarize and rank what matters to you. Everything runs in a single Docker container with zero client-side JavaScript.
+Aggregate Hacker News, RSS, GitHub, Lemmy, Mastodon, YouTube, arXiv, and 10 more sources into a single dashboard you own. Filter, deduplicate, score, and optionally use an LLM to summarize and rank what matters to you. Runs as a single process (Bun or Docker) with zero client-side JavaScript.
 
 - **19 built-in sources** - Hacker News, RSS/Atom, GitHub, Lemmy, Mastodon, YouTube, arXiv, npm, Wikipedia, and more (Reddit and Twitter/X need extra setup - see [adapter caveats](#adapter-caveats))
 - **Configurable in YAML** - adapters, transforms, layout, and LLM settings in one file
-- **Self-hosted in one command** - `docker run` and you're done, SQLite for persistence
+- **Agent-friendly setup** - humans install skills with `npx skills`; agents use `pace skill`
+- **Self-hosted** - one-line Docker deploy, or Bun from source
 - **Optional AI-powered filtering** - LLM summarization, ranking, and filtering via any OpenAI/Anthropic/Google/Groq provider
 - **No client-side JavaScript** - server-rendered HTML, fast on any device
 - **Layout widgets** - embed images, text/markdown, and iframes directly in your dashboard layout
 
 ### Example dashboards
 
-Ready-made configs in [`examples/`](examples/) - copy a YAML, run `pace config check`, and serve.
+Ready-made configs in [`examples/`](examples/) — copy a YAML, validate with `pace config check`, and serve.
 
 | | | | |
 |:---:|:---:|:---:|:---:|
@@ -36,17 +37,47 @@ Ready-made configs in [`examples/`](examples/) - copy a YAML, run `pace config c
 | [![Release Cockpit](./examples/release-cockpit.png)](./examples/release-cockpit.yaml) | [![Science Desk](./examples/science-desk.png)](./examples/science-desk.yaml) | [![Layout System](./examples/layout-system.png)](./examples/layout-system.yaml) | [![Widgets Gallery](./examples/widgets-gallery.png)](./examples/widgets-gallery.yaml) |
 | [Release Cockpit](./examples/release-cockpit.yaml) | [Science Desk](./examples/science-desk.yaml) | [Layout System](./examples/layout-system.yaml) | [Widgets Gallery](./examples/widgets-gallery.yaml) |
 
+<p align="center">Example layouts above. See <a href="#quick-start">Quick start</a> to run pace — agent skills, CLI, or Docker.</p>
+
 ## Quick start
+
+### Humans: use an agent
+
+Install pace's bundled skills into your coding agent, then ask it to set up a dashboard. No pace binary required.
+
+```bash
+npx skills add av/pace --skill pace-setup     # install and run
+npx skills add av/pace --skill pace-config # create or edit config.yaml
+```
+
+List all available skills: `npx skills add av/pace --list`.
+
+### Agents: install the CLI
+
+Clone pace, install dependencies, then read skills from the binary:
+
+```bash
+git clone https://github.com/av/pace.git && cd pace
+bun install && npm link
+
+pace skill                          # list agent skills
+pace skill pace-setup     # set up / run a dashboard
+pace skill pace-config # create or edit config.yaml
+```
+
+Before `npm link`, use `bun run src/cli.ts skill …` instead of `pace skill …`. The Docker image also ships skills: `docker run --rm ghcr.io/av/pace pace skill`.
+
+### Docker
 
 ```bash
 docker run -d -p 7453:7453 -v pace-data:/app/data ghcr.io/av/pace:latest
 ```
 
-Open http://localhost:7453 - the default config ships with Hacker News, Lobsters, GitHub trending/releases, engineering blogs, and DEV.to. Health check: `curl http://localhost:7453/health` returns `{"status":"ok"}`.
+Open http://localhost:7453. Health check: `curl http://localhost:7453/health` returns `{"status":"ok"}`. Ships with the default config (Hacker News, Lobsters, GitHub trending/releases, engineering blogs, DEV.to).
 
-### With a preset
+### Presets
 
-Presets are bundled configs for common setups. Use `--preset` (or `-P`) to start with one:
+Bundled configs you can run today. Use `--preset` (or `-P`):
 
 ```bash
 docker run -d -p 7453:7453 -v pace-data:/app/data ghcr.io/av/pace:latest --preset tech-news
@@ -64,7 +95,7 @@ Available presets:
 | `academic-papers` | Academic papers: arXiv, CS theory Q&A, science journalism |
 | `video-podcast` | Video and podcast content |
 
-Or list them locally: `pace --list-presets`
+List presets: `pace presets list` (or `pace --list-presets`)
 
 #### Preset showcase
 
@@ -90,17 +121,7 @@ docker run -d -p 7453:7453 \
   ghcr.io/av/pace:latest
 ```
 
-### From source
-
-Requires Bun v1.3+.
-
-```bash
-git clone https://github.com/av/pace.git && cd pace
-bun install
-bun run dev
-```
-
-For a global `pace` CLI: `bun install && npm link` (then `pace --config ~/my-config.yaml`).
+Validate before serving: `pace config check config.yaml`
 
 ## Content adapters
 
@@ -128,6 +149,37 @@ Pace ships with 19 adapters that pull content from public APIs and local config.
 | `bookmarks` | Curated link lists from config (no network fetch) |
 | `counter` | JSON endpoint metrics with stat-card display |
 
+### Bookmarks adapter
+
+Display curated link lists defined directly in config (no network fetch required).
+Params: `items` (required array; each entry needs `title` and `url`; optional `description`, `tags`).
+
+```yaml
+- name: tools
+  type: bookmarks
+  params:
+    items:
+      - title: Linear
+        url: https://linear.app
+        description: Issue tracker
+        tags: [work]
+```
+
+### Counter adapter
+
+Fetch a JSON endpoint and extract a numeric value for stat-card display. Supports trend arrows via a comparison endpoint and env var interpolation in headers.
+Params: `url` (required), `json_path` (required), `label`, `unit`, `compare_url`, `compare_path` (defaults to `json_path` when `compare_url` is set), `headers`.
+
+```yaml
+- name: github-stars
+  type: counter
+  params:
+    url: https://api.github.com/repos/oven-sh/bun
+    json_path: stargazers_count
+    label: "Bun Stars"
+    unit: "stars"
+```
+
 ### Adapter caveats
 
 Some adapters are listed above but do not work out of the box:
@@ -138,6 +190,7 @@ Some adapters are listed above but do not work out of the box:
 ```bash
 pace adapters list            # list all adapter types
 pace adapters explain <type>  # show params and example
+pace config check [path]      # validate a config file
 ```
 
 ## Transforms
@@ -183,17 +236,25 @@ pipelines:
 
 ## Layout
 
-Arrange panels in a recursive flexbox tree. Each node is either a container (with direction + children) or a leaf panel (with a source).
+Arrange panels in a recursive flexbox tree. Each node is a flex container, a panel, or a widget.
+
+**Flex container** - groups children in a row or column.
+Options: `direction` (row/column, required), `children` (required), `flex`, `gap`.
+
+**Panel** - displays content from an adapter or pipeline.
+Options: `panel` (name, required), `source` (required), `id`, `flex`, `limit`, `display` (only value: `counter` for stat-card rendering with counter adapters).
 
 ```yaml
 layout:
   direction: row
+  gap: 12px
   children:
     - panel: main-feed
       source: curated-feed
       flex: 2
     - direction: column
       flex: 1
+      gap: 12px
       children:
         - panel: releases
           source: gh-releases
@@ -208,7 +269,7 @@ Responsive - collapses to a single column on mobile (below 768px).
 Layout nodes can also be widgets - static content that doesn't come from an adapter.
 
 **Image widget** - display a static image with optional link.
-Options: `image` (URL, required), `alt`, `link`, `object_fit` (cover/contain/fill/none), `max_height`, `flex`.
+Options: `image` (URL, required), `flex`, `alt`, `object_fit` (cover/contain/fill/none), `max_height`, `link`.
 
 ```yaml
 - image: https://example.com/banner.png
@@ -219,7 +280,7 @@ Options: `image` (URL, required), `alt`, `link`, `object_fit` (cover/contain/fil
 ```
 
 **Text widget** - inline text, markdown, or HTML.
-Options: `text` (content, required), `title`, `format` (plain/markdown/html), `flex`.
+Options: `text` (content, required), `format` (plain/markdown/html), `title`, `flex`.
 
 ```yaml
 - text: "## Welcome\nDaily reading list."
@@ -228,42 +289,12 @@ Options: `text` (content, required), `title`, `format` (plain/markdown/html), `f
 ```
 
 **Iframe widget** - embed an external page with sandbox security.
-Options: `iframe` (URL, required), `title`, `height`, `aspect_ratio`, `sandbox`, `allow`, `flex`.
+Options: `iframe` (URL, required), `flex`, `title`, `height` (CSS length: `px`, `rem`, `em`, `vh`, or `%`; e.g. `400px`, `20rem`, `50vh`), `aspect_ratio` (format `N/N`, e.g. `16/9`), `sandbox`, `allow`.
 
 ```yaml
 - iframe: https://example.com/embed
   title: Live Dashboard
-  aspect_ratio: "16/9"
-```
-
-### Bookmarks adapter
-
-Display curated link lists defined directly in config (no network fetch required):
-
-```yaml
-- name: tools
-  type: bookmarks
-  params:
-    items:
-      - title: Linear
-        url: https://linear.app
-        description: Issue tracker
-        tags: [work]
-```
-
-### Counter adapter
-
-Fetch a JSON endpoint and extract a numeric value for stat-card display. Supports trend arrows via a comparison endpoint and env var interpolation in headers.
-Params: `url` (required), `json_path` (required), `label`, `unit`, `compare_url`, `compare_path`, `headers`.
-
-```yaml
-- name: github-stars
-  type: counter
-  params:
-    url: https://api.github.com/repos/oven-sh/bun
-    json_path: stargazers_count
-    label: "Bun Stars"
-    unit: "stars"
+  aspect_ratio: 16/9
 ```
 
 Set `display: counter` on the **panel** (not the adapter) to render stat cards instead of the default list view:
@@ -299,19 +330,7 @@ llm:
 
 ## For agents
 
-Pace ships with built-in agent skills for setup and configuration:
-
-```bash
-pace skill                          # list available skills
-pace skill pace-dashboard-setup     # deployment guide
-pace skill pace-dashboard-configure # full configuration reference
-```
-
-Also available from Docker:
-
-```bash
-docker run --rm ghcr.io/av/pace pace skill
-```
+See [Quick start](#quick-start): humans install skills with `npx skills add av/pace`; agents clone pace and use `pace skill`. The [`examples/`](examples/) directory pairs the screenshots above with reference configs to study when writing `config.yaml`.
 
 ## Tech stack
 

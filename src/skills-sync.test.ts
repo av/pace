@@ -4,10 +4,10 @@ import { join } from "path";
 import { ADAPTER_TYPES } from "./adapters/params";
 import { TRANSFORM_TYPES } from "./transform-schema";
 
-const skillPath = join(import.meta.dir, "../skills/pace-dashboard-configure/SKILL.md");
+const skillPath = join(import.meta.dir, "../skills/pace-config/SKILL.md");
 const skillContent = readFileSync(skillPath, "utf-8");
 
-describe("skills-sync: pace-dashboard-configure coverage", () => {
+describe("skills-sync: pace-config coverage", () => {
   describe("adapter types", () => {
     for (const type of ADAPTER_TYPES) {
       test(`has ### ${type} heading`, () => {
