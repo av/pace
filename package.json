@@ -1,6 +1,6 @@
 {
   "name": "pace",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "bin": {
     "pace": "./bin/pace"
   },
