@@ -123,17 +123,30 @@ export interface PipelineConfig {
   refresh_interval?: number;
 }
 
+export interface ServerConfig {
+  base_path?: string;
+}
+
 export interface AppConfig {
   adapters: IngestAdapterConfig[];
   pipelines?: PipelineConfig[];
   layout: LayoutNodeConfig;
   llm?: LlmConfig;
+  server?: ServerConfig;
 }
 
 export const DEFAULT_LAYOUT: LayoutNodeConfig = {
   direction: "row",
   children: [{ panel: "all", source: "all", limit: 50 }],
 };
+
+export function normalizeBasePath(raw?: string): string {
+  if (!raw) return "";
+  let p = raw.trim();
+  if (!p.startsWith("/")) p = "/" + p;
+  if (p.endsWith("/")) p = p.slice(0, -1);
+  return p;
+}
 
 export interface ConfigPathResolution {
   path: string;

@@ -616,7 +616,7 @@ export function validateLlmConfig(llm: unknown): asserts llm is LlmConfig | unde
   }
 }
 
-const TOP_LEVEL_CONFIG_FIELDS = ["adapters", "pipelines", "layout", "llm"] as const;
+const TOP_LEVEL_CONFIG_FIELDS = ["adapters", "pipelines", "layout", "llm", "server"] as const;
 
 export function validateTopLevelKeys(config: Record<string, unknown>): void {
   validateAllowedKeys(config, TOP_LEVEL_CONFIG_FIELDS, (key) => `${key} is not a valid top-level field`);
@@ -680,6 +680,7 @@ export interface ValidatedConfigSections {
   pipelines: PipelineConfig[];
   layout: LayoutNodeConfig;
   llm: LlmConfig | undefined;
+  server: { base_path?: string } | undefined;
 }
 
 /** Validate resolved config object (post-YAML/env); shared by loadConfig. */
@@ -727,10 +728,22 @@ export function validateParsedConfig(
   validateLayout(layout, sourceNames, adapterTypesByName, pipelineSourcesByName);
   validateLlmConfig(resolved.llm);
 
+  const server = resolved.server as { base_path?: string } | undefined;
+  if (server !== undefined) {
+    if (!isRecord(server)) {
+      throw new Error(`config: server must be an object (got ${describeValue(server)})`);
+    }
+    validateAllowedKeys(server, ["base_path"], (key) => `server.${key} is not a valid server field`);
+    if (server.base_path !== undefined && typeof server.base_path !== "string") {
+      throw new Error(`config: server.base_path must be a string (got ${describeValue(server.base_path)})`);
+    }
+  }
+
   return {
     adapters,
     pipelines,
     layout,
     llm: resolved.llm as LlmConfig | undefined,
+    server,
   };
 }

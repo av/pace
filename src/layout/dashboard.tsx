@@ -17,19 +17,20 @@ interface DashboardProps {
   updatedAt: string;
   cssHref?: string;
   mode?: DashboardRenderMode;
+  basePath?: string;
 }
 
-const Dashboard: FC<DashboardProps> = ({ layout, panelData, updatedAt, cssHref = "/styles.css", mode = "interactive" }) => (
+const Dashboard: FC<DashboardProps> = ({ layout, panelData, updatedAt, cssHref, mode = "interactive", basePath = "" }) => (
   <html lang="en">
     <head>
       <meta charset="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <title>pace</title>
-      <link rel="stylesheet" href={cssHref} />
+      <link rel="stylesheet" href={cssHref ?? `${basePath}/styles.css`} />
     </head>
     <body>
       <div class="flex-root">
-        <LayoutNode node={layout} panelData={panelData} mode={mode} />
+        <LayoutNode node={layout} panelData={panelData} mode={mode} basePath={basePath} />
       </div>
       <footer class="footer">
         <a href="https://github.com/av/pace" target="_blank" rel="noopener noreferrer">Pace</a> / {updatedAt} UTC

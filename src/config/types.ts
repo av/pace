@@ -22,6 +22,7 @@ export {
   DEDUPE_STRATEGIES,
   isDedupeStrategy,
   KEYWORD_FIELDS,
+  normalizeBasePath,
   SORT_DIRECTIONS,
   SORT_FIELDS,
 } from "./domain";
@@ -39,6 +40,7 @@ export type {
   KeywordScoreEntry,
   LlmConfig,
   PipelineConfig,
+  ServerConfig,
   SortDirection,
   SortField,
   TransformConfig,

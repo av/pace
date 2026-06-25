@@ -13,6 +13,7 @@ import {
   type SourcePanelMap,
 } from "../scheduler";
 import { parsePort, getAdapterName } from "../utils";
+import { normalizeBasePath } from "../config/domain";
 import { logServerListening } from "../server-log";
 import { createServerApp } from "./app";
 
@@ -87,12 +88,15 @@ export async function bootstrapServer(
   const panelMap: SourcePanelMap = { sourceToPanels, sourceToReadKey };
   deps.startScheduler(config, adapters, panelMap, llmModel);
 
+  const basePath = normalizeBasePath(config.server?.base_path);
+
   const app = deps.createServerApp({
     layout: config.layout,
     dashboardPanels,
     panelNameToId,
     panelIdToRefreshSourceNames,
     refreshSources: deps.refreshSources,
+    basePath,
   });
 
   const port = deps.resolvePort();

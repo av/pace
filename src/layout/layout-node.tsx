@@ -10,16 +10,16 @@ import { ImageWidget } from "./image-widget";
 import { IframeWidget } from "./iframe-widget";
 import { TextWidget } from "./text-widget";
 
-export const LayoutNode: FC<{ node: LayoutNodeConfig; panelData: Map<string, PanelData>; mode: DashboardRenderMode }> = ({ node, panelData, mode }) => {
+export const LayoutNode: FC<{ node: LayoutNodeConfig; panelData: Map<string, PanelData>; mode: DashboardRenderMode; basePath?: string }> = ({ node, panelData, mode, basePath = "" }) => {
   if (isImageWidget(node)) return <ImageWidget node={node} />;
   if (isTextWidget(node)) return <TextWidget node={node} />;
   if (isIframe(node)) return <IframeWidget node={node} />;
 
   if (isPanel(node)) {
     if (node.display === "counter") {
-      return <CounterPanel node={node} panelData={panelData} mode={mode} />;
+      return <CounterPanel node={node} panelData={panelData} mode={mode} basePath={basePath} />;
     }
-    return <Panel node={node} panelData={panelData} mode={mode} />;
+    return <Panel node={node} panelData={panelData} mode={mode} basePath={basePath} />;
   }
 
   if (isContainer(node)) {
@@ -29,7 +29,7 @@ export const LayoutNode: FC<{ node: LayoutNodeConfig; panelData: Map<string, Pan
         style={flexContainerStyle(node)}
       >
         {node.children.map((child) => (
-          <LayoutNode node={child} panelData={panelData} mode={mode} />
+          <LayoutNode node={child} panelData={panelData} mode={mode} basePath={basePath} />
         ))}
       </div>
     );

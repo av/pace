@@ -20,6 +20,7 @@ export type ServerRouteDeps = {
   panelNameToId: Map<string, string>;
   panelIdToRefreshSourceNames: Map<string, string[]>;
   refreshSources: RefreshSourcesFn;
+  basePath: string;
 };
 
 export async function handleRefreshPanel(c: Context, deps: ServerRouteDeps): Promise<Response> {
@@ -39,7 +40,7 @@ export async function handleRefreshPanel(c: Context, deps: ServerRouteDeps): Pro
     }
   }
 
-  return c.redirect("/", 303);
+  return c.redirect(deps.basePath + "/", 303);
 }
 
 export function registerServerRoutes(app: Hono, deps: ServerRouteDeps): void {
@@ -52,6 +53,7 @@ export function registerServerRoutes(app: Hono, deps: ServerRouteDeps): void {
       layout: deps.layout,
       panelData,
       updatedAt: formatDashboardUpdatedAt(),
+      basePath: deps.basePath,
     });
     return c.html(content);
   });

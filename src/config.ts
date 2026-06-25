@@ -235,12 +235,13 @@ export function loadConfig(): AppConfig {
   }
 
   const resolved = resolveEnvInObject(parsed) as Record<string, unknown>;
-  const { adapters, pipelines, layout, llm } = validateParsedConfig(resolved, DEFAULT_LAYOUT);
+  const { adapters, pipelines, layout, llm, server } = validateParsedConfig(resolved, DEFAULT_LAYOUT);
 
   return {
     adapters,
     pipelines: pipelines.length > 0 ? pipelines : undefined,
     layout,
     llm,
+    server,
   };
 }
