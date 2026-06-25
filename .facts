@@ -120,6 +120,9 @@
 - LLM-powered Transforms (summarize, filter, rank by interests) are optional; when no LLM is configured or the provider is unreachable, the Dashboard still works normally using only the non-LLM Transforms
 - the entire system runs as a single Docker container (or local Bun process) serving server-rendered HTML with no client-side JavaScript; the Dashboard is responsive and works on phones, tablets, and desktops
 - a Widget is a layout node that displays static content (an image, text/markdown, or embedded iframe) rather than adapter-sourced Items; widgets are not Panels and are skipped by collectPanels @implemented
+- a Share Storage Backend is a storage target such as GitHub Gist that saves Static Dashboard artifacts and returns an artifact identifier or raw artifact URL @implemented
+- a Static Dashboard is a read-only snapshot of a Dashboard rendered to portable files that can be opened without running a pace server @implemented
+- a Share Renderer is a service such as gisthost.github.io or gistpreview.github.io that turns stored Static Dashboard artifacts into a browser-rendered share URL @implemented
 
 # content
 
@@ -277,3 +280,36 @@
 - label: flex:0 layout nodes get height:auto so they shrink to content instead of claiming the parent's full height
   command: grep -q "flex:none; height:auto;" src/layout/flex-styles.ts
   tags: [implemented]
+
+# sharing
+
+## static-dashboards
+- Publishing a Static Dashboard does not require the user to expose or operate a public pace web server @implemented
+- A Static Dashboard export includes a rendered index.html file and the required CSS needed to view the snapshot later @implemented
+- A user can publish the current Dashboard snapshot to a configured Share Storage Backend from the CLI @implemented
+- Static Dashboard artifacts never include adapter credentials, LLM API keys, auth tokens, or unresolved environment variable placeholders @implemented
+- Publishing a Static Dashboard reports the storage backend name and browser-rendered share URL on success, and errors start with 'share:' on failure @implemented
+- Static Dashboards are read-only: refresh controls, forms, and routes that require a running pace server are omitted or rendered inert in the exported artifact @implemented
+- Static Dashboard export can write to a local directory without using a remote Share Backend, so users can inspect the artifact before publishing @implemented
+- The CLI exposes pace share export [dir] and pace share gist; share export supports output directories, share gist supports renderer URL, gist ID updates, and visibility, and both commands route failures through share: errors @implemented
+
+## backends
+- The GitHub Gist Share Storage Backend stores Static Dashboard artifacts in a public or secret gist using a GitHub token supplied by the user's environment @implemented
+- Share Storage Backends support creating a new shared snapshot and updating a previously published snapshot so the Share Renderer URL remains stable when the backend supports stable artifact IDs @implemented
+- Share Storage Backend configuration is separate from content adapters so publishing settings do not affect dashboard refresh behavior @implemented
+- Secret Gist publishing is unlisted but not private; anyone with the returned share URL can view the Static Dashboard @implemented
+- When publishing through the GitHub Gist Share Storage Backend, pace returns a browser-rendered Share Renderer URL by default rather than the raw gist URL @implemented
+- gisthost.github.io is the default Share Renderer for GitHub Gist publishing, and users can configure a different compatible renderer @implemented
+
+# docs
+
+## readme
+- label: README.md leads with a concise product promise, immediate visual proof, fast copy-paste start paths, and static sharing commands without repeating demo calls to action
+  command: grep -q "^# pace$" README.md && grep -q "self-hosted dashboard" README.md && grep -q "## Get Started" README.md && grep -q "## Share a Snapshot" README.md && grep -q "pace share gist" README.md && [ $(grep -ci "click the thumbnail" README.md) -eq 0 ]
+  tags: [spec, implemented]
+- label: README.md places Preset showcase immediately after Why Pace and before Get Started, keeps it in the same thumbnail-grid style as Example Dashboards, keeps Example Dashboards secondary, and presents agent skills as the primary setup path before Docker or source commands
+  command: python3 -c "from pathlib import Path; t=Path('README.md').read_text(); lines=t.splitlines(); pos=lambda s: next((i for i,l in enumerate(lines) if l.strip()==s), 999999); assert pos('## Why Pace') < pos('## Presets') < pos('#### Preset showcase') < pos('## Get Started') < pos('## Example Dashboards'); assert pos('## Built-in content adapters') < pos('## Example Dashboards'); assert t.count('| | | | |') >= 2; assert '[![Tech News preset](./assets/preset-tech-news.png)](./presets/config.tech-news.yaml)' in t; assert t.count('./presets/config.tech-news.yaml') >= 2; assert 'reference dashboards' in t; assert 'Recommended: agent skills' in t; assert pos('### Recommended: agent skills') < pos('### Secondary: Docker'); assert pos('### Recommended: agent skills') < pos('### Secondary: from source')"
+  tags: [spec, implemented]
+- label: README.md describes Pace in plain concrete language: self-hosted dashboard, YAML config, Bun or Docker runtime, optional LLM transforms, and no hype phrases like revolutionary, game-changing, internet you actually follow, or noisy sources
+  command: grep -q 'self-hosted dashboard' README.md && grep -q 'YAML' README.md && grep -q 'Bun process or Docker container' README.md && grep -q 'optional' README.md && ! grep -Ei '\b(revolutionary|game-changing|next-generation|supercharge|unlock|internet you actually follow|noisy sources|dashboard you own)\b' README.md
+  tags: [spec, implemented]

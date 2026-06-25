@@ -1,87 +1,45 @@
-<p align="center">
-  <a href="https://www.youtube.com/watch?v=UElmyC06ryM"><strong>▶ Watch the 2-minute demo on YouTube</strong></a>
-</p>
-
-<a href="https://www.youtube.com/watch?v=UElmyC06ryM" title="Watch the pace demo on YouTube">
-  <img src="https://img.youtube.com/vi/UElmyC06ryM/maxresdefault.jpg" alt="▶ Click to watch the pace demo on YouTube" width="100%">
-</a>
-
-<p align="center">
-  <strong><a href="https://www.youtube.com/watch?v=UElmyC06ryM">▶ Click the thumbnail to play the demo</a></strong>
-</p>
-
----
-
 # pace
 
-**Self-hosted news aggregator and personal content dashboard.**
+**A self-hosted dashboard for feeds, repos, papers, videos, and links.**
 
-Aggregate Hacker News, RSS, GitHub, Lemmy, Mastodon, YouTube, arXiv, and 10 more sources into a single dashboard you own. Filter, deduplicate, score, and optionally use an LLM to summarize and rank what matters to you. Runs as a single process (Bun or Docker) with zero client-side JavaScript.
+Pace collects content from Hacker News, RSS, GitHub, Lemmy, Mastodon, YouTube, arXiv, npm, Wikipedia, podcasts, Product Hunt, and more. You configure sources, transforms, ranking, summaries, and layout in YAML. It runs as one Bun process or Docker container.
 
-- **19 built-in sources** - Hacker News, RSS/Atom, GitHub, Lemmy, Mastodon, YouTube, arXiv, npm, Wikipedia, and more (Reddit and Twitter/X need extra setup - see [adapter caveats](#adapter-caveats))
-- **Configurable in YAML** - adapters, transforms, layout, and LLM settings in one file
-- **Agent-friendly setup** - humans install skills with `npx skills`; agents use `pace skill`
-- **Self-hosted** - one-line Docker deploy, or Bun from source
-- **Optional AI-powered filtering** - LLM summarization, ranking, and filtering via any OpenAI/Anthropic/Google/Groq provider
-- **No client-side JavaScript** - server-rendered HTML, fast on any device
-- **Layout widgets** - embed images, text/markdown, and iframes directly in your dashboard layout
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=UElmyC06ryM"><img src="./assets/splash.jpg" alt="Pace dashboard showing multiple feed panels in a configurable layout" width="100%"></a>
+</p>
 
-### Example dashboards
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=UElmyC06ryM"><strong>Watch the 2-minute demo</strong></a>
+  ·
+  <a href="#presets">Presets</a>
+  ·
+  <a href="#get-started">Get started</a>
+  ·
+  <a href="#share-a-snapshot">Share a snapshot</a>
+  ·
+  <a href="#example-dashboards">Examples</a>
+</p>
 
-Ready-made configs in [`examples/`](examples/) — copy a YAML, validate with `pace config check`, and serve.
+## Why Pace
+
+- **One dashboard** - combine feeds, repos, releases, papers, videos, podcasts, metrics, and hand-picked links.
+- **Filtering and ranking** - filter, exclude, dedupe, time-decay, cluster, keyword-score, and optionally use an LLM to summarize, filter, merge, or rank items.
+- **Flexible layout** - arrange panels, counters, markdown, images, and iframes with a recursive flexbox layout.
+- **Portable output** - server-rendered HTML, SQLite storage, no client-side JavaScript, and static snapshots you can export or publish through Gist.
+- **Agent-readable config** - bundled skills document setup and configuration workflows for coding agents.
+
+## Presets
+
+#### Preset showcase
 
 | | | | |
 |:---:|:---:|:---:|:---:|
-| [![Morning Brief](./examples/morning-brief.png)](./examples/morning-brief.yaml) | [![Dev Radar](./examples/dev-radar.png)](./examples/dev-radar.yaml) | [![Indie Web](./examples/indie-web.png)](./examples/indie-web.yaml) | [![Open Source Launchpad](./examples/open-source-launchpad.png)](./examples/open-source-launchpad.yaml) |
-| [Morning Brief](./examples/morning-brief.yaml) | [Dev Radar](./examples/dev-radar.yaml) | [Indie Web](./examples/indie-web.yaml) | [Open Source Launchpad](./examples/open-source-launchpad.yaml) |
-| [![Release Cockpit](./examples/release-cockpit.png)](./examples/release-cockpit.yaml) | [![Science Desk](./examples/science-desk.png)](./examples/science-desk.yaml) | [![Layout System](./examples/layout-system.png)](./examples/layout-system.yaml) | [![Widgets Gallery](./examples/widgets-gallery.png)](./examples/widgets-gallery.yaml) |
-| [Release Cockpit](./examples/release-cockpit.yaml) | [Science Desk](./examples/science-desk.yaml) | [Layout System](./examples/layout-system.yaml) | [Widgets Gallery](./examples/widgets-gallery.yaml) |
+| [![Tech News preset](./assets/preset-tech-news.png)](./presets/config.tech-news.yaml) | [![ML & AI preset](./assets/preset-ml-ai.png)](./presets/config.ml-ai.yaml) | [![Daily Brief preset](./assets/preset-daily-brief.png)](./presets/config.daily-brief.yaml) | [![Product Launches preset](./assets/preset-product-launches.png)](./presets/config.product-launches.yaml) |
+| [`tech-news`](./presets/config.tech-news.yaml) | [`ml-ai`](./presets/config.ml-ai.yaml) | [`daily-brief`](./presets/config.daily-brief.yaml) | [`product-launches`](./presets/config.product-launches.yaml) |
+| [![Academic Papers preset](./assets/preset-academic-papers.png)](./presets/config.academic-papers.yaml) | [![Release Tracker preset](./assets/preset-release-tracker.png)](./presets/config.release-tracker.yaml) | [![Video & Podcast preset](./assets/preset-video-podcast.png)](./presets/config.video-podcast.yaml) | |
+| [`academic-papers`](./presets/config.academic-papers.yaml) | [`release-tracker`](./presets/config.release-tracker.yaml) | [`video-podcast`](./presets/config.video-podcast.yaml) | |
 
-<p align="center">Example layouts above. See <a href="#quick-start">Quick start</a> to run pace — agent skills, CLI, or Docker.</p>
-
-## Quick start
-
-### Humans: use an agent
-
-Install pace's bundled skills into your coding agent, then ask it to set up a dashboard. No pace binary required.
-
-```bash
-npx skills add av/pace --skill pace-setup     # install and run
-npx skills add av/pace --skill pace-config # create or edit config.yaml
-```
-
-List all available skills: `npx skills add av/pace --list`.
-
-### Agents: install the CLI
-
-Clone pace, install dependencies, then read skills from the binary:
-
-```bash
-git clone https://github.com/av/pace.git && cd pace
-bun install && npm link
-
-pace skill                          # list agent skills
-pace skill pace-setup     # set up / run a dashboard
-pace skill pace-config # create or edit config.yaml
-```
-
-Before `npm link`, use `bun run src/cli.ts skill …` instead of `pace skill …`. The Docker image also ships skills: `docker run --rm ghcr.io/av/pace pace skill`.
-
-### Docker
-
-```bash
-docker run -d -p 7453:7453 -v pace-data:/app/data ghcr.io/av/pace:latest
-```
-
-Open http://localhost:7453. Health check: `curl http://localhost:7453/health` returns `{"status":"ok"}`. Ships with the default config (Hacker News, Lobsters, GitHub trending/releases, engineering blogs, DEV.to).
-
-### Presets
-
-Bundled configs you can run today. Use `--preset` (or `-P`):
-
-```bash
-docker run -d -p 7453:7453 -v pace-data:/app/data ghcr.io/av/pace:latest --preset tech-news
-```
+Presets are bundled in the Docker image and selectable with a single flag (`--preset tech-news` or `-P ml-ai`; see `pace --list-presets`).
 
 Available presets:
 
@@ -95,27 +53,74 @@ Available presets:
 | `academic-papers` | Academic papers: arXiv, CS theory Q&A, science journalism |
 | `video-podcast` | Video and podcast content |
 
-List presets: `pace presets list` (or `pace --list-presets`)
+List presets: `pace presets list` (or `pace --list-presets`).
 
-#### Preset showcase
+## Get Started
 
-| | |
-|---|---|
-| ![Tech News preset](./assets/preset-tech-news.png) | **`tech-news`** HN + Lobsters frontpage pipeline, Lemmy communities, tech RSS (Ars Technica, New Stack, Go, TypeScript), GitHub releases, reference bookmarks, and pipeline legend in a multi-column layout. The default starting point for software engineers. |
-| **`ml-ai`** arXiv papers, Hacker News AI, Local Llama, curated ML blogs, and release tracking. Built for researchers and practitioners following the fast-moving AI/ML space. | ![ML & AI preset](./assets/preset-ml-ai.png) |
-| ![Daily Brief preset](./assets/preset-daily-brief.png) | **`daily-brief`** Breaking news digest, Wikipedia in-the-news and most-read, today-in-history, and top Hacker News stories. A morning briefing you can scan in two minutes. |
-| **`product-launches`** Product Hunt, Show HN, GitHub trending repos, npm new packages, and community discussions. Stay on top of what's shipping across the indie and open-source ecosystem. | ![Product Launches preset](./assets/preset-product-launches.png) |
-| ![Academic Papers preset](./assets/preset-academic-papers.png) | **`academic-papers`** arXiv categories and search, Stack Exchange research, science writing blogs, and Hacker News. Designed for academics and researchers tracking new publications. |
-| **`release-tracker`** GitHub releases for key projects, trending repos, Lobsters, and Hacker News. Follow what's shipping across the open-source ecosystem. | ![Release Tracker preset](./assets/preset-release-tracker.png) |
-| ![Video & Podcast preset](./assets/preset-video-podcast.png) | **`video-podcast`** YouTube channels, podcast feeds, and Mastodon discussions. Keep up with video and audio content creators in one view. |
+### Recommended: agent skills
 
-### Custom config
+If you use a coding agent, install the bundled skills so it can follow the local setup commands and config schema. The skills cover installing Pace, running a preset, creating `config.yaml`, adding feeds, tuning transforms, and publishing a static snapshot.
+
+```bash
+npx skills add av/pace --skill pace-setup
+npx skills add av/pace --skill pace-config
+```
+
+List all available skills: `npx skills add av/pace --list`.
+
+Agents working inside the repo can read the same skills through the CLI:
+
+```bash
+git clone https://github.com/av/pace.git && cd pace
+bun install && npm link
+
+pace skill
+pace skill pace-setup
+pace skill pace-config
+```
+
+The Docker image also ships skills: `docker run --rm ghcr.io/av/pace pace skill`.
+
+### Secondary: Docker
+
+```bash
+docker run -d -p 7453:7453 -v pace-data:/app/data ghcr.io/av/pace:latest
+```
+
+Open http://localhost:7453. Health check: `curl http://localhost:7453/health` returns `{"status":"ok"}`.
+
+### With a preset
+
+Use `--preset` (or `-P`) with Docker or source commands, for example `--preset tech-news`. See the "## Presets" section for the full list.
+
+### Secondary: from source
+
+```bash
+git clone https://github.com/av/pace.git && cd pace
+bun install && npm link
+pace serve --preset tech-news
+```
+
+Before `npm link`, use `bun run src/cli.ts ...` instead of `pace ...`.
+
+### Secondary: your own config
 
 ```bash
 curl -O https://raw.githubusercontent.com/av/pace/main/config.example.yaml
 mv config.example.yaml config.yaml
 # edit config.yaml
-docker run -d -p 7453:7453 \
+pace config check config.yaml
+pace serve --config config.yaml
+```
+
+## Custom Docker Config
+
+```bash
+curl -O https://raw.githubusercontent.com/av/pace/main/config.example.yaml
+mv config.example.yaml config.yaml
+# edit config.yaml
+docker run -d \
+  -p 7453:7453 \
   -v pace-data:/app/data \
   -v ./config.yaml:/app/config.yaml:ro \
   ghcr.io/av/pace:latest
@@ -123,64 +128,39 @@ docker run -d -p 7453:7453 \
 
 Validate before serving: `pace config check config.yaml`
 
-## Content adapters
+## Share a Snapshot
 
-Pace ships with 19 adapters that pull content from public APIs and local config. Each adapter has a configurable `refresh_interval` (in minutes, default: 15).
+Pace can turn the current dashboard into static files, so you can share a dashboard without exposing or operating a public pace server.
 
-| Adapter | Source |
-|---------|--------|
-| `hackernews` | Hacker News (top, new, best, ask, show) |
-| `reddit` | Reddit subreddits |
-| `rss` | Any RSS/Atom feed |
-| `github` | GitHub trending repos + release tracking |
-| `github-releases` | GitHub release notes from specific repos |
-| `lobsters` | Lobsters (hottest, newest) |
-| `youtube` | YouTube channels |
-| `arxiv` | arXiv papers by category |
-| `mastodon` | Mastodon hashtags/timelines |
-| `npm` | npm package updates |
-| `wikipedia` | Wikipedia featured/most-read/on-this-day |
-| `lemmy` | Lemmy communities |
-| `devto` | DEV.to articles |
-| `stackexchange` | Stack Exchange sites |
-| `producthunt` | Product Hunt |
-| `podcast` | Podcast RSS feeds |
-| `twitter` | Twitter/X |
-| `bookmarks` | Curated link lists from config (no network fetch) |
-| `counter` | JSON endpoint metrics with stat-card display |
-
-### Bookmarks adapter
-
-Display curated link lists defined directly in config (no network fetch required).
-Params: `items` (required array; each entry needs `title` and `url`; optional `description`, `tags`).
-
-```yaml
-- name: tools
-  type: bookmarks
-  params:
-    items:
-      - title: Linear
-        url: https://linear.app
-        description: Issue tracker
-        tags: [work]
+```bash
+pace share export pace-share
 ```
 
-### Counter adapter
+That writes `pace-share/index.html` and `pace-share/styles.css` for local review or manual upload.
 
-Fetch a JSON endpoint and extract a numeric value for stat-card display. Supports trend arrows via a comparison endpoint and env var interpolation in headers.
-Params: `url` (required), `json_path` (required), `label`, `unit`, `compare_url`, `compare_path` (defaults to `json_path` when `compare_url` is set), `headers`.
+Publish the same snapshot to GitHub Gist and get a browser-rendered URL:
 
-```yaml
-- name: github-stars
-  type: counter
-  params:
-    url: https://api.github.com/repos/oven-sh/bun
-    json_path: stargazers_count
-    label: "Bun Stars"
-    unit: "stars"
+```bash
+GITHUB_TOKEN=... pace share gist
 ```
 
-### Adapter caveats
+Useful options:
+
+- `--gist-id <id>` or `--update <id>` updates an existing Gist so the share URL stays stable.
+- `--public` creates a public Gist; the default is secret/unlisted.
+- `--renderer-url <url>` switches from the default `https://gisthost.github.io/` renderer to another compatible Gist renderer.
+
+Static snapshots are read-only: refresh controls and server-only routes are omitted, and unresolved environment placeholders are rejected instead of being published.
+
+## Built-in content adapters
+
+Pace ships with 19 adapters: `hackernews`, `rss`, `github`, `github-releases`, `lobsters`, `youtube`, `arxiv`, `mastodon`, `npm`, `wikipedia`, `lemmy`, `devto`, `stackexchange`, `producthunt`, `podcast`, `bookmarks`, `counter`, `reddit`, and `twitter`.
+
+Use `bookmarks` for curated links that live directly in config. Use `counter` for numeric JSON endpoints rendered as stat cards. Every ingest adapter can have its own `refresh_interval`.
+
+See skills/pace-config/SKILL.md for the full adapter table.
+
+### Caveats
 
 Some adapters are listed above but do not work out of the box:
 
@@ -212,125 +192,46 @@ Transforms process content after fetching - filter, deduplicate, rank, or enrich
 | `llm-rank` | Rank items 0-10 by relevance to your interests |
 | `llm-merge` | Merge and deduplicate using LLM understanding |
 
-```bash
-pace transforms list            # list all transform types
-pace transforms explain <type>  # show params and example
-```
+`pace transforms list` shows all transform types. `pace transforms explain <type>` shows parameters and examples.
 
 ## Pipelines
 
 Pipelines merge items from multiple adapters, then apply transforms to the combined feed. Useful for cross-source deduplication and unified ranking.
 
-```yaml
-pipelines:
-  - name: curated-feed
-    sources: [hackernews, lobsters, rss]
-    transforms:
-      - type: dedupe
-        strategy: url
-      - type: llm-rank
-        interests: [distributed systems, security, open source]
-      - type: llm-summarize
-        fetch_content: true
-```
+For example, one panel can merge Hacker News, Lobsters, and RSS, dedupe repeated links, rank by your interests, and summarize the winners before rendering.
 
 ## Layout
 
 Arrange panels in a recursive flexbox tree. Each node is a flex container, a panel, or a widget.
 
-**Flex container** - groups children in a row or column.
-Options: `direction` (row/column, required), `children` (required), `flex`, `gap`.
+Panels display adapters or pipelines. Widgets display static images, text/markdown, sanitized HTML, iframes, or stat-card counters. Responsive layouts collapse to a single column on mobile below 768px.
 
-**Panel** - displays content from an adapter or pipeline.
-Options: `panel` (name, required), `source` (required), `id`, `flex`, `limit`, `display` (only value: `counter` for stat-card rendering with counter adapters).
-
-```yaml
-layout:
-  direction: row
-  gap: 12px
-  children:
-    - panel: main-feed
-      source: curated-feed
-      flex: 2
-    - direction: column
-      flex: 1
-      gap: 12px
-      children:
-        - panel: releases
-          source: gh-releases
-        - panel: papers
-          source: arxiv
-```
-
-Responsive - collapses to a single column on mobile (below 768px).
-
-### Widgets
-
-Layout nodes can also be widgets - static content that doesn't come from an adapter.
-
-**Image widget** - display a static image with optional link.
-Options: `image` (URL, required), `flex`, `alt`, `object_fit` (cover/contain/fill/none), `max_height`, `link`.
-
-```yaml
-- image: https://example.com/banner.png
-  alt: Site banner
-  link: https://example.com
-  object_fit: cover
-  max_height: 200px
-```
-
-**Text widget** - inline text, markdown, or HTML.
-Options: `text` (content, required), `format` (plain/markdown/html), `title`, `flex`.
-
-```yaml
-- text: "## Welcome\nDaily reading list."
-  title: Notes
-  format: markdown
-```
-
-**Iframe widget** - embed an external page with sandbox security.
-Options: `iframe` (URL, required), `flex`, `title`, `height` (CSS length: `px`, `rem`, `em`, `vh`, or `%`; e.g. `400px`, `20rem`, `50vh`), `aspect_ratio` (format `N/N`, e.g. `16/9`), `sandbox`, `allow`.
-
-```yaml
-- iframe: https://example.com/embed
-  title: Live Dashboard
-  aspect_ratio: 16/9
-```
-
-Set `display: counter` on the **panel** (not the adapter) to render stat cards instead of the default list view:
-
-```yaml
-- panel: stats
-  source: github-stars
-  display: counter
-```
+See skills/pace-config/SKILL.md for the layout reference.
 
 ## LLM integration (optional)
 
 Connect any LLM provider via [pi-ai](https://github.com/badlogic/pi-mono) to power the `llm-*` transforms. Works with OpenAI, Anthropic, Google, Groq, Mistral, and any OpenAI-compatible endpoint. Gracefully degrades when unconfigured.
 
-```yaml
-llm:
-  provider: openai
-  model: gpt-4o-mini
-  api_key: ${OPENAI_API_KEY}
+Define your interests once; `llm-rank` and `llm-filter` use them by default. Without an LLM, the same adapters, transforms, layouts, and static sharing flow still work.
 
-  # or use a local model via any OpenAI-compatible server:
-  # provider: openai
-  # model: llama3
-  # base_url: http://localhost:11434/v1
-```
+See skills/pace-config/SKILL.md for the llm reference.
 
-Define your interests once; all `llm-rank` and `llm-filter` transforms use them by default:
+## Example Dashboards
 
-```yaml
-llm:
-  interests: [systems programming, self-hosting, security]
-```
+These are reference dashboards: useful for seeing what pace can express, studying layout patterns, and adapting a config by hand. For ready-to-run starting points, use Presets.
+
+| | | | |
+|:---:|:---:|:---:|:---:|
+| [![Morning Brief](./examples/morning-brief.png)](./examples/morning-brief.yaml) | [![Dev Radar](./examples/dev-radar.png)](./examples/dev-radar.yaml) | [![Indie Web](./examples/indie-web.png)](./examples/indie-web.yaml) | [![Open Source Launchpad](./examples/open-source-launchpad.png)](./examples/open-source-launchpad.yaml) |
+| [Morning Brief](./examples/morning-brief.yaml) | [Dev Radar](./examples/dev-radar.yaml) | [Indie Web](./examples/indie-web.yaml) | [Open Source Launchpad](./examples/open-source-launchpad.yaml) |
+| [![Release Cockpit](./examples/release-cockpit.png)](./examples/release-cockpit.yaml) | [![Science Desk](./examples/science-desk.png)](./examples/science-desk.yaml) | [![Layout System](./examples/layout-system.png)](./examples/layout-system.yaml) | [![Widgets Gallery](./examples/widgets-gallery.png)](./examples/widgets-gallery.yaml) |
+| [Release Cockpit](./examples/release-cockpit.yaml) | [Science Desk](./examples/science-desk.yaml) | [Layout System](./examples/layout-system.yaml) | [Widgets Gallery](./examples/widgets-gallery.yaml) |
+
+<p align="center">Example layouts above. Use the paths in Get Started to run pace with agent skills, Docker, or source.</p>
 
 ## For agents
 
-See [Quick start](#quick-start): humans install skills with `npx skills add av/pace`; agents clone pace and use `pace skill`. The [`examples/`](examples/) directory pairs the screenshots above with reference configs to study when writing `config.yaml`.
+See [Get Started](#get-started): humans install skills with `npx skills add av/pace`; agents clone pace and use `pace skill`. The [`examples/`](examples/) directory pairs screenshots with reference configs to study when writing `config.yaml`.
 
 ## Tech stack
 
@@ -339,7 +240,3 @@ Bun + Hono + SQLite + JSX server rendering. No client-side JavaScript.
 ## License
 
 MIT
-
----
-
-![Pace - self-hosted news aggregator dashboard showing Hacker News, Lemmy, GitHub, RSS feeds, and more in a configurable layout](./assets/splash.jpg)

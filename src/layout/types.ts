@@ -36,6 +36,8 @@ export {
 
 export type { ContentItemRow, DashboardPanelSnapshot } from "../db";
 
+export type DashboardRenderMode = "interactive" | "static";
+
 /**
  * Panel render payload keyed by panel display name in dashboard maps.
  * `panelId` and `lastRefreshedAt` are optional — the layout layer falls back

@@ -1,7 +1,7 @@
 /** @jsx jsx */
 import { jsx } from "hono/jsx";
 import type { FC } from "hono/jsx";
-import type { LayoutNodeConfig, PanelData } from "./types";
+import type { DashboardRenderMode, LayoutNodeConfig, PanelData } from "./types";
 import { isImageWidget, isTextWidget, isIframe, isPanel, isContainer } from "./types";
 import { flexContainerStyle } from "./flex-styles";
 import { Panel } from "./panel";
@@ -10,16 +10,16 @@ import { ImageWidget } from "./image-widget";
 import { IframeWidget } from "./iframe-widget";
 import { TextWidget } from "./text-widget";
 
-export const LayoutNode: FC<{ node: LayoutNodeConfig; panelData: Map<string, PanelData> }> = ({ node, panelData }) => {
+export const LayoutNode: FC<{ node: LayoutNodeConfig; panelData: Map<string, PanelData>; mode: DashboardRenderMode }> = ({ node, panelData, mode }) => {
   if (isImageWidget(node)) return <ImageWidget node={node} />;
   if (isTextWidget(node)) return <TextWidget node={node} />;
   if (isIframe(node)) return <IframeWidget node={node} />;
 
   if (isPanel(node)) {
     if (node.display === "counter") {
-      return <CounterPanel node={node} panelData={panelData} />;
+      return <CounterPanel node={node} panelData={panelData} mode={mode} />;
     }
-    return <Panel node={node} panelData={panelData} />;
+    return <Panel node={node} panelData={panelData} mode={mode} />;
   }
 
   if (isContainer(node)) {
@@ -29,7 +29,7 @@ export const LayoutNode: FC<{ node: LayoutNodeConfig; panelData: Map<string, Pan
         style={flexContainerStyle(node)}
       >
         {node.children.map((child) => (
-          <LayoutNode node={child} panelData={panelData} />
+          <LayoutNode node={child} panelData={panelData} mode={mode} />
         ))}
       </div>
     );

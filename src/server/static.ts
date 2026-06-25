@@ -13,7 +13,7 @@ export const BUNDLED_STATIC: BundledStatic[] = [
   { route: "/styles.css", file: "styles.css", contentType: "text/css" },
 ];
 
-function readBundledText(srcDir: string, file: string): string {
+export function readBundledText(srcDir: string, file: string): string {
   try {
     return readFileSync(join(srcDir, file), "utf-8");
   } catch (err) {
@@ -21,7 +21,7 @@ function readBundledText(srcDir: string, file: string): string {
   }
 }
 
-const DEFAULT_SRC_DIR = join(import.meta.dir, "..");
+export const DEFAULT_SRC_DIR = join(import.meta.dir, "..");
 
 export function registerBundledStatic(
   app: Hono,

@@ -3,10 +3,9 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 import yaml from "js-yaml";
 import { writeCliStderr, writeCliStdout } from "./cli-log";
-import { readConfigSource, resolveConfigPath, tryReadRegularFile as defaultReadFile } from "./config";
+import { loadConfig, readConfigSource, resolveConfigPath, tryReadRegularFile as defaultReadFile } from "./config";
 import { DEFAULT_LAYOUT } from "./config/domain";
 import { validateParsedConfig } from "./config-validate";
-import { validateTransforms } from "./transform-validate";
 import { bootstrapServer } from "./server/bootstrap";
 import { ADAPTER_DOCS } from "./adapters/adapter-docs";
 import { ADAPTER_TYPES } from "./adapters/params";
@@ -14,6 +13,17 @@ import { TRANSFORM_DOCS } from "./transform-docs";
 import { TRANSFORM_TYPES } from "./transform-schema";
 import { isRecord } from "./config/types";
 import { errorMessage, normalizeParamBoolean, parseCliPort } from "./utils";
+import {
+  exportStaticDashboard,
+  formatExportStaticDashboardResult,
+  formatGistPublishResult,
+  publishStaticDashboardToGist,
+  type ExportStaticDashboardOptions,
+  type ExportStaticDashboardResult,
+  type PublishStaticDashboardOptions,
+} from "./share";
+import type { AppConfig } from "./config/types";
+import type { GistPublishResult } from "./share-gist";
 
 export const CLI_FATAL_ERROR_PREFIXES = ["config:", "scheduler:", "index:"] as const;
 
@@ -43,6 +53,12 @@ export const CLI_PARSE_OPTIONS = {
   chdir: { type: "string", short: "C" },
   preset: { type: "string", short: "P" },
   listPresets: { type: "boolean" },
+  "renderer-url": { type: "string" },
+  "gist-id": { type: "string" },
+  update: { type: "string" },
+  public: { type: "boolean" },
+  secret: { type: "boolean" },
+  "output-dir": { type: "string", short: "o" },
   help: { type: "boolean", short: "h" },
   version: { type: "boolean", short: "v" },
 } as const;
@@ -67,12 +83,27 @@ export type CliParsedValues = Record<string, unknown> & {
   chdir?: string;
   preset?: string;
   listPresets?: boolean;
+  rendererUrl?: string;
+  gistId?: string;
+  update?: string;
+  public?: boolean;
+  secret?: boolean;
+  outputDir?: string;
 };
 
 /** Map kebab-case flags from parseArgs (e.g. list-presets) onto camelCase fields. */
 export function normalizeCliParsedValues(values: CliParsedValues): void {
   if (values["list-presets"] !== undefined) {
     values.listPresets = normalizeParamBoolean(values, "list-presets");
+  }
+  if (typeof values["renderer-url"] === "string") {
+    values.rendererUrl = values["renderer-url"];
+  }
+  if (typeof values["gist-id"] === "string") {
+    values.gistId = values["gist-id"];
+  }
+  if (typeof values["output-dir"] === "string") {
+    values.outputDir = values["output-dir"];
   }
 }
 
@@ -86,7 +117,17 @@ export type CliServeModuleDeps = CliConfigDeps & {
   bootstrapServer?: typeof bootstrapServer;
 };
 
-export type CliRunDeps = CliConfigDeps;
+export type CliRunDeps = CliConfigDeps & {
+  loadConfig?: () => AppConfig;
+  exportStaticDashboard?: (
+    config: AppConfig,
+    options: ExportStaticDashboardOptions,
+  ) => ExportStaticDashboardResult;
+  publishStaticDashboardToGist?: (
+    config: AppConfig,
+    options: PublishStaticDashboardOptions,
+  ) => Promise<GistPublishResult>;
+};
 
 type CliInfoContext = {
   version: string;
@@ -289,6 +330,23 @@ export function formatConfigUsage(): string {
 
 Subcommands:
   check [path]  Validate a config file (defaults to serve resolution order)
+`;
+}
+
+export function formatShareUsage(): string {
+  return `Usage: pace share <subcommand> [options]
+
+Subcommands:
+  export [dir]  Export a static dashboard snapshot to a local directory
+  gist          Publish a static dashboard snapshot to GitHub Gist
+
+Options:
+  -o, --output-dir <dir>    Directory for local export
+      --gist-id <id>        Update an existing Gist instead of creating one
+      --update <id>         Alias for --gist-id
+      --public              Create a public Gist
+      --secret              Create a secret Gist (default)
+      --renderer-url <url>  Share renderer URL for Gist publishing
 `;
 }
 
@@ -509,6 +567,100 @@ function rejectServeOnlyFlags(
   }
 }
 
+const SHARE_OPTION_KEYS = new Set([
+  "config",
+  "preset",
+  "chdir",
+  "renderer-url",
+  "rendererUrl",
+  "gist-id",
+  "gistId",
+  "update",
+  "public",
+  "secret",
+  "output-dir",
+  "outputDir",
+]);
+
+function rejectNonShareOptions(values: CliParsedValues, usageBlock: string): void {
+  const rejected = Object.keys(values).filter(
+    (key) => values[key] !== undefined && !SHARE_OPTION_KEYS.has(key),
+  );
+  if (rejected.length > 0) {
+    cliFailWithHelp(
+      `Unknown option(s) for this command: ${rejected.map((k) => "--" + k).join(", ")}\n`,
+      usageBlock,
+    );
+  }
+}
+
+function normalizeShareError(err: unknown): string {
+  const message = errorMessage(err);
+  return message.startsWith("share:") ? message : `share: ${message}`;
+}
+
+async function runShareCommand(
+  positionals: string[],
+  values: CliParsedValues,
+  ctx: CliCommandContext,
+): Promise<void> {
+  const usage = formatShareUsage();
+  rejectNonShareOptions(values, usage);
+
+  const sub = positionals[0];
+  if (sub === "export") {
+    if (positionals.length > 2) {
+      cliFailWithHelp(`Unknown argument: ${positionals[2]}\n`, usage);
+    }
+    if (positionals[1] !== undefined && values.outputDir !== undefined) {
+      cliFailWithHelp("Use either [dir] or --output-dir, not both\n", usage);
+    }
+    const outputDir = values.outputDir ?? positionals[1] ?? "pace-share";
+    let result: ExportStaticDashboardResult;
+    try {
+      applyCliConfigEnv(values, ctx.deps);
+      const runExport = ctx.deps.exportStaticDashboard ?? exportStaticDashboard;
+      const readConfig = ctx.deps.loadConfig ?? loadConfig;
+      result = runExport(readConfig(), { outputDir });
+    } catch (err) {
+      cliDie(normalizeShareError(err));
+    }
+    cliExitOk(formatExportStaticDashboardResult(result));
+  } else if (sub === "gist") {
+    if (positionals.length > 1) {
+      cliFailWithHelp(`Unknown argument: ${positionals[1]}\n`, usage);
+    }
+    if (values.public && values.secret) {
+      cliFailWithHelp("Use either --public or --secret, not both\n", usage);
+    }
+    if (values.gistId !== undefined && values.update !== undefined) {
+      cliFailWithHelp("Use either --gist-id or --update, not both\n", usage);
+    }
+    if (values.outputDir !== undefined) {
+      cliFailWithHelp("Use share export for local output; share gist publishes in memory\n", usage);
+    }
+    let result: GistPublishResult;
+    try {
+      applyCliConfigEnv(values, ctx.deps);
+      const runGist = ctx.deps.publishStaticDashboardToGist ?? publishStaticDashboardToGist;
+      const readConfig = ctx.deps.loadConfig ?? loadConfig;
+      result = await runGist(readConfig(), {
+        renderer: values.rendererUrl,
+        gistId: values.gistId ?? values.update,
+        public: values.public ? true : false,
+      });
+    } catch (err) {
+      cliDie(normalizeShareError(err));
+    }
+    cliExitOk(formatGistPublishResult(result));
+  } else {
+    cliFailWithHelp(
+      sub === undefined ? "Unknown subcommand: (none)\n" : `Unknown subcommand: ${sub}\n`,
+      usage,
+    );
+  }
+}
+
 const CLI_COMMANDS: CliCommand[] = [
   {
     name: "serve",
@@ -592,6 +744,12 @@ const CLI_COMMANDS: CliCommand[] = [
     },
   },
   {
+    name: "share",
+    summary: "Export or publish static dashboard snapshots",
+    usage: formatShareUsage(),
+    run: runShareCommand,
+  },
+  {
     name: "skill",
     summary: "List or print agent skills",
     usage: `Usage: pace skill [name]
@@ -650,10 +808,6 @@ const CLI_COMMAND_MAP = new Map<string, CliCommand>(CLI_COMMANDS.map((c) => [c.n
 
 export function getCliCommand(name: string): CliCommand | undefined {
   return CLI_COMMAND_MAP.get(name);
-}
-
-export function getCliCommands(): CliCommand[] {
-  return CLI_COMMANDS;
 }
 
 // ---------------------------------------------------------------------------
@@ -730,6 +884,8 @@ Commands:
   adapters explain <type>  Show adapter documentation
   transforms list          List all transform types
   transforms explain <type>  Show transform documentation
+  share export [dir]       Export a static dashboard snapshot
+  share gist               Publish a static dashboard snapshot to GitHub Gist
   config check [path]      Validate a config file
 
 Options:

@@ -18,6 +18,7 @@ import {
   cliHelpStdout,
   formatCliHelp,
   formatPresetsUsage,
+  getCliCommand,
   isCliFatalStartupError,
   normalizeCliParsedValues,
   parseSkillFrontmatter,
@@ -129,6 +130,11 @@ describe("cli-help", () => {
     expect(cliHelpStdout("1.2.3")).toBe(formatCliHelp("1.2.3") + "\n");
   });
 
+  test("getCliCommand resolves known commands and rejects removed aliases", () => {
+    expect(getCliCommand("transforms")?.name).toBe("transforms");
+    expect(getCliCommand("tq")).toBeUndefined();
+  });
+
   test("formatCliHelp returns exact help text", () => {
     expect(formatCliHelp("1.0.0")).toBe(
       `pace v1.0.0 - personal content dashboard
@@ -149,6 +155,8 @@ Commands:
   adapters explain <type>  Show adapter documentation
   transforms list          List all transform types
   transforms explain <type>  Show transform documentation
+  share export [dir]       Export a static dashboard snapshot
+  share gist               Publish a static dashboard snapshot to GitHub Gist
   config check [path]      Validate a config file
 
 Options:
@@ -345,6 +353,13 @@ describe("cli", () => {
     const res = runCli(["bogus"]);
     expect(res.status).toBe(1);
     expect(res.stderr).toContain("Unknown command: bogus");
+    expect(res.stdout).toBe(cliHelpStdout());
+  });
+
+  test("pace tq list → exit 1, stderr Unknown command (removed alias)", () => {
+    const res = runCli(["tq", "list"]);
+    expect(res.status).toBe(1);
+    expect(res.stderr).toContain("Unknown command: tq");
     expect(res.stdout).toBe(cliHelpStdout());
   });
 

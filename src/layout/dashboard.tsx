@@ -1,7 +1,7 @@
 /** @jsx jsx */
 import { jsx } from "hono/jsx";
 import type { FC } from "hono/jsx";
-import type { LayoutNodeConfig, PanelData } from "./types";
+import type { DashboardRenderMode, LayoutNodeConfig, PanelData } from "./types";
 import { LayoutNode } from "./layout-node";
 
 export type { PanelData } from "./types";
@@ -15,19 +15,21 @@ interface DashboardProps {
   layout: LayoutNodeConfig;
   panelData: Map<string, PanelData>;
   updatedAt: string;
+  cssHref?: string;
+  mode?: DashboardRenderMode;
 }
 
-const Dashboard: FC<DashboardProps> = ({ layout, panelData, updatedAt }) => (
+const Dashboard: FC<DashboardProps> = ({ layout, panelData, updatedAt, cssHref = "/styles.css", mode = "interactive" }) => (
   <html lang="en">
     <head>
       <meta charset="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <title>pace</title>
-      <link rel="stylesheet" href="/styles.css" />
+      <link rel="stylesheet" href={cssHref} />
     </head>
     <body>
       <div class="flex-root">
-        <LayoutNode node={layout} panelData={panelData} />
+        <LayoutNode node={layout} panelData={panelData} mode={mode} />
       </div>
       <footer class="footer">
         <a href="https://github.com/av/pace" target="_blank" rel="noopener noreferrer">Pace</a> / {updatedAt} UTC

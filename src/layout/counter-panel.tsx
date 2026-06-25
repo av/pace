@@ -1,7 +1,7 @@
 /** @jsx jsx */
 import { jsx } from "hono/jsx";
 import type { FC } from "hono/jsx";
-import type { PanelConfig, PanelData } from "./types";
+import type { DashboardRenderMode, PanelConfig, PanelData } from "./types";
 import { resolvePanelId } from "./types";
 import { relativeTime } from "../utils";
 import { flexStyle } from "./flex-styles";
@@ -97,7 +97,7 @@ const StatCard: FC<{ label: string; data: CounterBody }> = ({ label, data }) => 
   );
 };
 
-export const CounterPanel: FC<{ node: PanelConfig; panelData: Map<string, PanelData> }> = ({ node, panelData }) => {
+export const CounterPanel: FC<{ node: PanelConfig; panelData: Map<string, PanelData>; mode: DashboardRenderMode }> = ({ node, panelData, mode }) => {
   const data = panelData.get(node.panel);
   const panelId = data?.panelId ?? resolvePanelId(node);
   const items = data?.items ?? [];
@@ -118,9 +118,11 @@ export const CounterPanel: FC<{ node: PanelConfig; panelData: Map<string, PanelD
           <h2 title={node.panel}>{node.panel}</h2>
           <div class="panel-actions">
             {lastRefreshedAt && <span class="panel-refreshed">{relativeTime(lastRefreshedAt)}</span>}
-            <form method="POST" action={`/refresh/${encodeURIComponent(panelId)}`}>
-              <button type="submit" class="refresh-btn" title="Refresh" aria-label="Refresh">{"↻"}</button>
-            </form>
+            {mode === "interactive" && (
+              <form method="POST" action={`/refresh/${encodeURIComponent(panelId)}`}>
+                <button type="submit" class="refresh-btn" title="Refresh" aria-label="Refresh">{"↻"}</button>
+              </form>
+            )}
           </div>
         </div>
         <div class="counter-panel" aria-live="polite">
