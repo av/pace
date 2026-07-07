@@ -28,6 +28,10 @@ export const PIPELINE_INITIAL_DELAY_MS = 5000;
 export const PIPELINE_ID_PREFIX = "pipeline:";
 export const DEFAULT_REFRESH_INTERVAL_MIN = 15;
 export const MIN_REFRESH_INTERVAL_MIN = 1;
+// setInterval/setTimeout delays are 32-bit signed ints; larger values clamp to
+// ~1ms and would cause a tight refresh loop hammering sources.
+export const MAX_TIMER_DELAY_MS = 2 ** 31 - 1;
+export const MAX_REFRESH_INTERVAL_MIN = Math.floor(MAX_TIMER_DELAY_MS / 60_000);
 
 export interface SourcePanelMap {
   sourceToPanels: Map<string, string[]>;
@@ -67,11 +71,17 @@ async function executeWithRunningGuard(
   }
 }
 
-function computeRefreshInterval(refreshInterval?: number): { intervalMin: number; intervalMs: number } {
-  const intervalMin = Math.max(
+export function computeRefreshInterval(refreshInterval?: number): { intervalMin: number; intervalMs: number } {
+  const requestedMin = Math.max(
     refreshInterval ?? DEFAULT_REFRESH_INTERVAL_MIN,
     MIN_REFRESH_INTERVAL_MIN,
   );
+  const intervalMin = Math.min(requestedMin, MAX_REFRESH_INTERVAL_MIN);
+  if (intervalMin !== requestedMin) {
+    logScheduler(
+      `refresh_interval ${requestedMin}m exceeds the maximum timer delay; clamped to ${intervalMin}m`,
+    );
+  }
   const intervalMs = intervalMin * 60 * 1000;
   return { intervalMin, intervalMs };
 }

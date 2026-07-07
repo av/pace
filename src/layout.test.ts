@@ -43,6 +43,26 @@ describe("renderDashboard", () => {
     expectDashboardRefreshAction(html, resolvePanelId(panelCfg("My Panel", "mysrc")));
   });
 
+  it("does not leak Object.prototype members for prototype-key source names", () => {
+    // `source` is feed-derived; a bare SOURCE_COLORS[s] lookup would return
+    // Object.prototype.constructor and render function source as the class.
+    const item = makeItem({ id: "p1", title: "Proto", source: "constructor" });
+    const layout = panelCfg("P", "constructor");
+    const panelData = new Map<string, PanelData>([["P", { items: [item] }]]);
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain('<span class="item-source">constructor</span>');
+    expect(html).not.toContain("native code");
+  });
+
+  it("prototype-key prefix before colon also falls through to no color class", () => {
+    const item = makeItem({ id: "p2", title: "ProtoBase", source: "toString:extra" });
+    const layout = panelCfg("P", "s");
+    const panelData = new Map<string, PanelData>([["P", { items: [item] }]]);
+    const html = renderDashboard({ layout, panelData, updatedAt: "now" });
+    expect(html).toContain('<span class="item-source">toString:extra</span>');
+    expect(html).not.toContain("native code");
+  });
+
   it("renders merged origins as individual source pills with count badge", () => {
     const merged = makeItem({ id: "m1", title: "Merged", origins: JSON.stringify(["hn", "lobsters"]) });
     const single = makeItem({ id: "s1", title: "Single", origins: JSON.stringify(["hn"]) });
