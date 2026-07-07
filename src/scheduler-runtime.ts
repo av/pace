@@ -7,7 +7,6 @@ import type { Model, Api } from "@mariozechner/pi-ai";
 import {
   type ContentItemRow,
   saveItems,
-  getAllItemsByPanel,
   getPipelineInputItemsByPanel,
   getRawItemsByPanel,
   replacePanelItems,
@@ -197,10 +196,22 @@ async function applyTransformsOnPanels(
   logName: string,
 ): Promise<void> {
   for (const pid of panelIds) {
-    await runTransformsAndReplaceOnPanels(scheduler, [pid], getAllItemsByPanel(pid), transforms, {
-      logLabel: logName,
-      logDetail: "transforms:",
-    });
+    // Adapter-level transforms must only see (and rewrite) the adapter's raw
+    // items. On a panel shared with a pipeline, a plain deduped read would
+    // surface the pipeline's copies (the dedup tie-break prefers them), so the
+    // transforms would re-process pipeline output and the replace would wipe
+    // it. Read the pipeline-free deduped view and retain pipeline rows.
+    await runTransformsAndReplaceOnPanels(
+      scheduler,
+      [pid],
+      getPipelineInputItemsByPanel(pid),
+      transforms,
+      {
+        logLabel: logName,
+        logDetail: "transforms:",
+        retainPanelItem: (item) => item.id.startsWith(PIPELINE_ID_PREFIX),
+      },
+    );
   }
 }
 

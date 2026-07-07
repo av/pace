@@ -356,6 +356,71 @@ describe("scheduler", () => {
     expect(deduped[0].id.startsWith("pipeline:")).toBe(true);
   });
 
+  test("adapter with ingest transforms sharing a panel with a pipeline keeps the pipeline's output across adapter refreshes", async () => {
+    // Adapter-level transforms rewrite their panels. On a panel shared with a
+    // pipeline consuming the adapter, the transforms must neither consume the
+    // pipeline's output as input nor wipe it in the replace. An explicit
+    // refreshSources(["hn"]) would mask a wipe (dependent pipelines re-run and
+    // regenerate their output), so this exercises the adapter-only path: the
+    // adapter's initial run at scheduler start, with pipeline output pre-seeded
+    // (pipelines have a 5s initial delay and do not run here).
+    dbMod.saveItems("shared", [
+      makeContentItem({
+        id: "pipeline:curated:h1",
+        title: "HN item (curated)",
+        url: "https://hn/1",
+        source: "hn",
+        timestamp: new Date("2024-06-01T12:00:00.000Z"),
+      }),
+    ]);
+    const items = [
+      makeContentItem({
+        id: "h1",
+        title: "HN item",
+        url: "https://hn/1",
+        source: "hn",
+        timestamp: new Date("2024-06-01T12:00:00.000Z"),
+      }),
+    ];
+    const adapters = adaptersMap(["test", makeMockAdapter(items)]);
+    const config = testAppConfig(
+      {
+        adapters: [{
+          type: "test",
+          name: "hn",
+          refresh_interval: 60,
+          transforms: [{ type: "latest", count: 10 }],
+        }],
+        pipelines: [{
+          name: "curated",
+          sources: ["hn"],
+          transforms: [{ type: "latest", count: 10 }],
+        }],
+      },
+      {
+        direction: "column",
+        panels: [
+          { panel: "mixed", source: ["hn", "curated"], id: "shared" },
+        ],
+      },
+    );
+    const pm = sourcePanelMapFromConfig(config);
+    startTestScheduler(config, adapters, pm, null);
+    await waitForAsync();
+    const rawPanelIds = () =>
+      (dbMod.getDb()
+        .prepare("SELECT id FROM content_items WHERE panel_id = ? ORDER BY id")
+        .all("shared") as { id: string }[])
+        .map((r) => r.id);
+    // Adapter's initial run has fetched h1 and applied its transforms; the
+    // pre-seeded pipeline output must survive that rewrite.
+    expect(rawPanelIds()).toEqual(["h1", "pipeline:curated:h1"]);
+    // Full refresh cycles stay stable: no duplication, no re-prefixing.
+    await refreshTestSources(["curated"]);
+    await refreshTestSources(["hn"]);
+    expect(rawPanelIds()).toEqual(["h1", "pipeline:curated:h1"]);
+  });
+
   test("runPipelineJob preserves source concat order when timestamps tie (stable sort)", async () => {
     const ts = "2024-06-01T12:00:00.000Z";
     dbMod.saveItems("srcA", [
