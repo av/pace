@@ -308,6 +308,54 @@ describe("scheduler", () => {
     expect(rawPanelIds()).toEqual(["h1", "pipeline:curated:h1"]);
   });
 
+  test("two pipelines sourcing the same adapter on one shared panel keep each other's output and never cross-prefix ids", async () => {
+    // Shared panel lists the adapter plus BOTH pipelines consuming it, so
+    // each pipeline's input read (adapter read key = shared panel) sees the
+    // other pipeline's output. That output must be excluded from input
+    // (no pipeline:a:pipeline:b:... growth) and must survive the replace.
+    dbMod.saveItems("shared", [
+      makeContentItem({
+        id: "h1",
+        title: "HN item",
+        url: "https://hn/1",
+        source: "hn",
+        timestamp: new Date("2024-06-01T12:00:00.000Z"),
+      }),
+    ]);
+    const config = testAppConfig(
+      {
+        adapters: [],
+        pipelines: [
+          { name: "a", sources: ["hn"], transforms: [{ type: "latest", count: 10 }] },
+          { name: "b", sources: ["hn"], transforms: [{ type: "latest", count: 10 }] },
+        ],
+      },
+      {
+        direction: "column",
+        panels: [
+          { panel: "mixed", source: ["hn", "a", "b"], id: "shared" },
+        ],
+      },
+    );
+    const pm = sourcePanelMapFromConfig(config);
+    startTestScheduler(config, new Map(), pm, null);
+    const rawPanelIds = () =>
+      (dbMod.getDb()
+        .prepare("SELECT id FROM content_items WHERE panel_id = ? ORDER BY id")
+        .all("shared") as { id: string }[])
+        .map((r) => r.id);
+    await refreshTestSources(["a", "b"]);
+    expect(rawPanelIds()).toEqual(["h1", "pipeline:a:h1", "pipeline:b:h1"]);
+    // Repeat refreshes stay stable: no cross-prefixing, no clobbered output.
+    await refreshTestSources(["a", "b"]);
+    await refreshTestSources(["b", "a"]);
+    expect(rawPanelIds()).toEqual(["h1", "pipeline:a:h1", "pipeline:b:h1"]);
+    // Read layer dedupes by url; the enriched pipeline copy wins the tie.
+    const deduped = dbMod.getAllItemsByPanel("shared");
+    expect(deduped).toHaveLength(1);
+    expect(deduped[0].id.startsWith("pipeline:")).toBe(true);
+  });
+
   test("runPipelineJob preserves source concat order when timestamps tie (stable sort)", async () => {
     const ts = "2024-06-01T12:00:00.000Z";
     dbMod.saveItems("srcA", [

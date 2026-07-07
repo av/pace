@@ -258,6 +258,36 @@ test("dedup breaks timestamp ties with latest fetched_at then lowest id", () => 
   expect(panel2[0].id).toBe("tie-0");
 });
 
+test("dedup prefers the pipeline (enriched) copy over the raw item on full ties", () => {
+  initDb();
+  const tieTime = new Date("2025-06-01T12:00:00.000Z");
+  // Raw adapter item and its pipeline copy on a shared panel: same url,
+  // timestamp, and (after replacePanelItems) same fetched_at. Lexicographic
+  // id ASC alone would pick the raw item ("h1" < "pipeline:..."); the
+  // enriched copy must win instead.
+  saveItems("pshared", [
+    makeItem({ id: "h1", url: "https://ex.com/story", timestamp: tieTime, title: "raw" }),
+    makeItem({ id: "pipeline:curated:h1", url: "https://ex.com/story", timestamp: tieTime, title: "enriched" }),
+  ]);
+  const stamp = new Date().toISOString();
+  getDb().prepare("UPDATE content_items SET fetched_at = ? WHERE panel_id = ?").run(stamp, "pshared");
+
+  const panel = getItemsByPanel("pshared", 10);
+  expect(panel.length).toBe(1);
+  expect(panel[0].id).toBe("pipeline:curated:h1");
+
+  // A strictly newer raw item still beats an older pipeline copy: the
+  // pipeline preference only breaks exact timestamp/fetched_at ties.
+  saveItems("pshared2", [
+    makeItem({ id: "pipeline:curated:h2", url: "https://ex.com/story2", timestamp: tieTime, title: "old enriched" }),
+    makeItem({ id: "h2", url: "https://ex.com/story2", timestamp: new Date("2025-06-02T12:00:00.000Z"), title: "new raw" }),
+  ]);
+  getDb().prepare("UPDATE content_items SET fetched_at = ? WHERE panel_id = ?").run(stamp, "pshared2");
+  const panel2 = getItemsByPanel("pshared2", 10);
+  expect(panel2.length).toBe(1);
+  expect(panel2[0].id).toBe("h2");
+});
+
 test("saveItems handles items with empty url (falls back to id for dedup key)", () => {
   initDb();
   const noUrl1 = makeItem({ id: "nu1", url: "", timestamp: new Date("2024-01-01") });

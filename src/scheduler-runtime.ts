@@ -8,6 +8,8 @@ import {
   type ContentItemRow,
   saveItems,
   getAllItemsByPanel,
+  getPipelineInputItemsByPanel,
+  getRawItemsByPanel,
   replacePanelItems,
   pruneOldItems as dbPruneOldItems,
 } from "./db";
@@ -23,6 +25,8 @@ import {
 } from "./scheduler-state";
 
 export const PIPELINE_INITIAL_DELAY_MS = 5000;
+/** Id namespace for pipeline output items: `pipeline:<name>:<sourceId>`. Mirrored in db.ts dedup tie-break SQL. */
+export const PIPELINE_ID_PREFIX = "pipeline:";
 export const DEFAULT_REFRESH_INTERVAL_MIN = 15;
 export const MIN_REFRESH_INTERVAL_MIN = 1;
 
@@ -122,21 +126,19 @@ function replaceItemsOnPanels(panelIds: string[], items: ContentItemRow[]): void
 function gatherPipelineInputItems(
   scheduler: SchedulerState,
   sources: string[],
-  pipelineName: string,
 ): ContentItemRow[] {
-  // When a panel lists both an adapter and a pipeline consuming that adapter,
-  // the adapter's read key is that shared panel, so the pipeline's own output
-  // (ids prefixed `pipeline:<name>:`) is read back as input on every refresh.
-  // Without this filter each cycle re-transforms already-transformed items
-  // (duplicate LLM work) and re-prefixes ids without bound
-  // (pipeline:x:pipeline:x:...).
-  const ownOutputPrefix = `pipeline:${pipelineName}:`;
+  // When a panel lists both an adapter and one or more pipelines consuming
+  // that adapter, the adapter's read key is that shared panel, so pipeline
+  // output (ids prefixed `pipeline:<name>:`) is read back as input on every
+  // refresh. Pipeline sources are always adapters (config validation rejects
+  // pipeline names), so ANY pipeline-prefixed item here is contamination from
+  // a shared panel: without this filter each cycle re-transforms
+  // already-transformed items (duplicate LLM work) and re-prefixes ids
+  // without bound (pipeline:x:pipeline:y:pipeline:x:...).
   let items: ContentItemRow[] = [];
   for (const source of sources) {
     const readKey = scheduler.sourceToReadKey.get(source) ?? source;
-    items = items.concat(
-      getAllItemsByPanel(readKey).filter((item) => !item.id.startsWith(ownOutputPrefix)),
-    );
+    items = items.concat(getPipelineInputItemsByPanel(readKey));
   }
   items.sort((a, b) => compareIsoTimestamp(a.timestamp, b.timestamp, "desc"));
   return items;
@@ -171,7 +173,9 @@ async function runTransformsAndReplaceOnPanels(
   if (retainPanelItem) {
     const outputIds = new Set(output.map((item) => item.id));
     for (const pid of panelIds) {
-      const retained = getAllItemsByPanel(pid).filter(
+      // Raw read: a deduped read would collapse a raw item with its own
+      // pipeline copy and the rewrite would drop the dedup loser.
+      const retained = getRawItemsByPanel(pid).filter(
         (item) => retainPanelItem(item) && !outputIds.has(item.id),
       );
       replacePanelItems(pid, output.concat(retained));
@@ -230,8 +234,8 @@ async function runPipelineJob(scheduler: SchedulerState, entry: PipelineEntry): 
     // Same panel-lock rationale as runAdapter: the output panels are rewritten
     // from a snapshot gathered before awaited transforms.
     scheduler.panelLocks.withLock(panelIds, async () => {
-      const ownOutputPrefix = `pipeline:${config.name}:`;
-      const items = gatherPipelineInputItems(scheduler, config.sources, config.name);
+      const ownOutputPrefix = `${PIPELINE_ID_PREFIX}${config.name}:`;
+      const items = gatherPipelineInputItems(scheduler, config.sources);
       await runTransformsAndReplaceOnPanels(scheduler, panelIds, items, config.transforms, {
         logLabel: `pipeline "${config.name}"`,
         logMode: "always",
@@ -241,9 +245,10 @@ async function runPipelineJob(scheduler: SchedulerState, entry: PipelineEntry): 
             id: `${ownOutputPrefix}${item.id}`,
           })),
         // Only replace this pipeline's own output namespace: if an output
-        // panel is shared with a source adapter, the adapter's raw items
-        // must survive the replace (otherwise the next cycle would see an
-        // empty input and wipe the panel).
+        // panel is shared with a source adapter or another pipeline, the
+        // adapter's raw items and the other pipeline's output must survive
+        // the replace (otherwise the next cycle would see an empty input
+        // and wipe the panel).
         retainPanelItem: (item) => !item.id.startsWith(ownOutputPrefix),
       });
     }),

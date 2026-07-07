@@ -186,12 +186,16 @@ export function saveItems(panelId: string, items: ContentItem[]): void {
 const DEDUP_GROUP_EXPR = `CASE WHEN url = '' THEN id ELSE lower(rtrim(url, '/')) END`;
 
 function dedupWinnerSubquery(panelFilter: string): string {
+  // On a panel shared between an adapter and a pipeline consuming it, the raw
+  // item and its pipeline copy (`pipeline:<name>:<id>`, see PIPELINE_ID_PREFIX
+  // in scheduler-runtime.ts) share url/timestamp/fetched_at, so the tie must
+  // prefer the pipeline copy - it carries the transformed/enriched fields.
   return `id IN (
     SELECT id FROM (
       SELECT id,
         ROW_NUMBER() OVER (
           PARTITION BY ${DEDUP_GROUP_EXPR}
-          ORDER BY timestamp DESC, fetched_at DESC, id ASC
+          ORDER BY timestamp DESC, fetched_at DESC, (id LIKE 'pipeline:%') DESC, id ASC
         ) AS rn
       FROM content_items
       ${panelFilter}
@@ -199,9 +203,19 @@ function dedupWinnerSubquery(panelFilter: string): string {
   )`;
 }
 
-function getDedupedItems(panelId?: string, limit?: number): ContentItemRow[] {
+function getDedupedItems(
+  panelId?: string,
+  limit?: number,
+  options: { excludePipelineOutput?: boolean } = {},
+): ContentItemRow[] {
   const db = getDb();
-  const { where: panelFilter, params } = panelIdWhereClause(panelId);
+  let { where: panelFilter, params } = panelIdWhereClause(panelId);
+  if (options.excludePipelineOutput) {
+    // Applied inside the dedup window too, so pipeline copies neither appear
+    // in the result nor shadow their raw counterparts in the tie-break.
+    const exclude = `id NOT LIKE 'pipeline:%'`;
+    panelFilter = panelFilter ? `${panelFilter} AND ${exclude}` : `WHERE ${exclude}`;
+  }
   let sql = `SELECT * FROM content_items WHERE ${dedupWinnerSubquery(panelFilter)} ORDER BY timestamp DESC`;
   if (limit != null) {
     sql += ` LIMIT ?`;
@@ -266,6 +280,29 @@ export function getLastFetchedAt(panelId?: string): string | null {
 
 export function getAllItemsByPanel(panelId: string): ContentItemRow[] {
   return getDedupedItems(panelId);
+}
+
+/**
+ * All raw rows for a panel, without URL dedup. Needed when rewriting a panel
+ * (e.g. a pipeline retaining foreign items across a replace): a deduped read
+ * would collapse a raw item and its pipeline copy into one winner and the
+ * loser would be silently dropped by the rewrite.
+ */
+export function getRawItemsByPanel(panelId: string): ContentItemRow[] {
+  const db = getDb();
+  return db
+    .prepare("SELECT * FROM content_items WHERE panel_id = ? ORDER BY timestamp DESC")
+    .all(panelId) as ContentItemRow[];
+}
+
+/**
+ * Deduped panel read that ignores pipeline output rows entirely. Used when
+ * gathering pipeline input from a panel shared with pipeline output: the
+ * dedup tie-break prefers pipeline copies, so a plain deduped read would hide
+ * the raw item behind its own transformed copy and starve the pipeline.
+ */
+export function getPipelineInputItemsByPanel(panelId: string): ContentItemRow[] {
+  return getDedupedItems(panelId, undefined, { excludePipelineOutput: true });
 }
 
 export function replacePanelItems(panelId: string, items: ContentItemRow[]): void {
