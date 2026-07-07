@@ -7,7 +7,7 @@ import {
 } from "./engagement";
 import { joinTitle } from "./title";
 
-import { arrayFieldOrEmpty, fetchJson, jsonObjectOrNull } from "./fetch";
+import { fetchJson, jsonObjectOrNull, objectArrayFieldOrEmpty } from "./fetch";
 import { decodeNumericFeedTitleOptional } from "./html";
 import {
   normalizeNonNegativeNumber,
@@ -75,6 +75,23 @@ interface LemmyPostListResponse {
   posts: LemmyPostView[];
 }
 
+/**
+ * Fields every valid post_view must carry. Elements missing any of these are
+ * skipped with a warn — previously a single malformed element (null, or missing
+ * post/counts/creator/community) threw inside the sort comparator or buildBody
+ * and failed the whole lemmy fetch.
+ */
+const LEMMY_POST_VIEW_REQUIRED_FIELDS = [
+  "post.id",
+  "post.name",
+  "post.ap_id",
+  "post.published",
+  "counts.score",
+  "counts.comments",
+  "creator.name",
+  "community.name",
+] as const;
+
 function buildBody(view: LemmyPostView): string {
   return joinTitle(
     formatPoints(view.counts.score),
@@ -100,7 +117,13 @@ async function fetchLemmyPosts(
   });
   const json = jsonObjectOrNull<LemmyPostListResponse>("lemmy", raw, context, ["posts"]);
   if (json == null) return [];
-  return arrayFieldOrEmpty<LemmyPostView>("lemmy", json, "posts", context);
+  return objectArrayFieldOrEmpty<LemmyPostView>(
+    "lemmy",
+    json,
+    "posts",
+    context,
+    LEMMY_POST_VIEW_REQUIRED_FIELDS,
+  );
 }
 
 const adapter: Adapter = {

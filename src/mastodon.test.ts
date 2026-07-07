@@ -412,7 +412,7 @@ describe("mastodon", () => {
     expect(items).toHaveLength(1);
     expect(items[0].id).toBe("mastodon:ex.com:10");
     expect(mocks.warnSpy).toHaveBeenCalledWith(
-      "mastodon: skipped 2 invalid element(s) in public timeline from ex.com (3 total; required: id, created_at, account)",
+      "mastodon: skipped 2 invalid element(s) in public timeline from ex.com (3 total; required: id, created_at, account.acct)",
     );
   });
 
@@ -431,7 +431,7 @@ describe("mastodon", () => {
     expect(items).toHaveLength(1);
     expect(items[0].id).toBe("mastodon:ex.com:1");
     expect(mocks.warnSpy).toHaveBeenCalledWith(
-      "mastodon: skipped 1 invalid element(s) in hashtag #foo from ex.com (2 total; required: id, created_at, account)",
+      "mastodon: skipped 1 invalid element(s) in hashtag #foo from ex.com (2 total; required: id, created_at, account.acct)",
     );
   });
 
@@ -461,7 +461,7 @@ describe("mastodon", () => {
     expect(items).toHaveLength(1);
     expect(items[0].id).toBe("mastodon:ex.com:10");
     expect(mocks.warnSpy).toHaveBeenCalledWith(
-      "mastodon: skipped 1 invalid element(s) in account acct42 statuses from ex.com (2 total; required: id, created_at, account)",
+      "mastodon: skipped 1 invalid element(s) in account acct42 statuses from ex.com (2 total; required: id, created_at, account.acct)",
     );
   });
 
@@ -479,6 +479,41 @@ describe("mastodon", () => {
     expect(items).toEqual([]);
     expect(mocks.warnSpy).toHaveBeenCalledWith(
       "mastodon: expected JSON object for account lookup user@ex.com (missing required field(s): id), treating as null",
+    );
+  });
+});
+describe("mastodon partial status objects", () => {
+  test("maps a minimal status without crashing (defaults counts, media, content, url)", async () => {
+    // Regression: partial implementations (Pleroma/GoToSocial) or trimmed
+    // proxies may omit media_attachments/counts/content — previously
+    // media_attachments.map / stripHtml(undefined) threw and failed the fetch.
+    const minimal = {
+      id: "77",
+      created_at: "2024-08-01T00:00:00Z",
+      account: { acct: "sparse" },
+    };
+    mocks.fetchMock.mockImplementation(async () => makeJsonResponse([minimal]));
+
+    const items = await adapter.fetch(mastodonCfg({ instance: "ex.com", limit: 5 }));
+
+    expect(items).toHaveLength(1);
+    expect(items[0].id).toBe("mastodon:ex.com:77");
+    expect(items[0].title).toBe("(empty post)");
+    expect(items[0].url).toBe("");
+    expect(items[0].body).toBe("0 boosts | 0 favorites | @sparse@ex.com");
+  });
+
+  test("rejects statuses whose account lacks acct", async () => {
+    const valid = makeStatus("1", "<p>ok</p>", "2024-08-01T00:00:00Z");
+    const badAccount = { id: "2", created_at: "2024-08-02T00:00:00Z", account: "user@ex.com" };
+    mocks.fetchMock.mockImplementation(async () => makeJsonResponse([valid, badAccount]));
+
+    const items = await adapter.fetch(mastodonCfg({ instance: "ex.com", limit: 5 }));
+
+    expect(items).toHaveLength(1);
+    expect(items[0].id).toBe("mastodon:ex.com:1");
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "mastodon: skipped 1 invalid element(s) in public timeline from ex.com (2 total; required: id, created_at, account.acct)",
     );
   });
 });

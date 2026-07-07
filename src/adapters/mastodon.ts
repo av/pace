@@ -73,7 +73,17 @@ interface MastodonAccount {
 
 type MastodonMode = "public" | "hashtag" | "account";
 
-const MASTODON_STATUS_REQUIRED_FIELDS = ["id", "created_at", "account"] as const;
+/**
+ * "account.acct" is a dot path: presence of a bare (or non-object) `account`
+ * is not enough — buildBody reads account.acct directly. Other fields consumed
+ * by buildTitle/buildBody are defaulted at use sites instead of required here,
+ * since partial implementations (Pleroma/GoToSocial) may legitimately omit them.
+ */
+const MASTODON_STATUS_REQUIRED_FIELDS = [
+  "id",
+  "created_at",
+  "account.acct",
+] as const;
 
 /** Pick timeline mode from configured accounts/hashtags (accounts take precedence). */
 export function resolveMastodonMode(
@@ -100,18 +110,20 @@ export function mastodonSourceLabel(
 }
 
 function buildBody(status: MastodonStatus, instance: string): string {
+  // Counts/media are not in MASTODON_STATUS_REQUIRED_FIELDS — default rather
+  // than crash the whole fetch on a partial status object.
   return joinTitle(
-    formatBoosts(status.reblogs_count),
-    formatFavorites(status.favourites_count),
+    formatBoosts(status.reblogs_count ?? 0),
+    formatFavorites(status.favourites_count ?? 0),
     formatAtHandle(status.account.acct, instance),
-    status.replies_count > 0 ? formatReplies(status.replies_count) : undefined,
-    formatMedia(status.media_attachments.map((m) => m.url)),
+    (status.replies_count ?? 0) > 0 ? formatReplies(status.replies_count) : undefined,
+    formatMedia((status.media_attachments ?? []).map((m) => m.url)),
   );
 }
 
 function buildTitle(status: MastodonStatus): string {
   const content = decodeNumericFeedTitle(
-    stripHtml(status.content, { blockBreaks: true }),
+    stripHtml(status.content ?? "", { blockBreaks: true }),
   );
   if (!content && status.spoiler_text) {
     return decodeNumericFeedTitle(status.spoiler_text);
@@ -261,7 +273,7 @@ const adapter: Adapter = {
     return mapToContentItems(limited, mastodonSourceLabel(mode, instance, hashtags), (status) => ({
       id: `mastodon:${instance}:${status.id}`,
       title: buildTitle(status),
-      url: status.url ?? status.uri,
+      url: status.url ?? status.uri ?? "",
       timestamp: new Date(status.created_at),
       body: buildBody(status, instance),
     }));

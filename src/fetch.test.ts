@@ -11,6 +11,7 @@ import {
   jsonNumericArrayOrEmpty,
   jsonObjectArrayOrEmpty,
   jsonObjectOrNull,
+  objectArrayFieldOrEmpty,
   optionalArrayFieldOrEmpty,
   optionalObjectArrayFieldOrEmpty,
   optionalObjectFieldOrNull,
@@ -696,6 +697,72 @@ describe("jsonObjectArrayOrEmpty", () => {
       ).toEqual([]);
       expect(warn).toHaveBeenCalledWith(
         "mastodon: expected JSON array for public timeline from ex.com (got object), treating as empty",
+      );
+    });
+  });
+});
+
+describe("required field dot paths", () => {
+  test("jsonObjectArrayOrEmpty validates nested paths and rejects non-object intermediates", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      const valid = { id: "1", created_at: "t", account: { acct: "u" } };
+      const payload = [
+        valid,
+        { id: "2", created_at: "t", account: "u@ex.com" }, // account not an object
+        { id: "3", created_at: "t", account: { acct: "" } }, // empty nested string
+        { id: "4", created_at: "t" }, // account missing entirely
+      ];
+      expect(
+        jsonObjectArrayOrEmpty("mastodon", payload, "public timeline from ex.com", [
+          "id",
+          "created_at",
+          "account.acct",
+        ]),
+      ).toEqual([valid]);
+      expect(warn).toHaveBeenCalledWith(
+        "mastodon: skipped 3 invalid element(s) in public timeline from ex.com (4 total; required: id, created_at, account.acct)",
+      );
+    });
+  });
+
+  test("jsonObjectOrNull accepts nested numeric zero and rejects missing nested field", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      expect(
+        jsonObjectOrNull("lemmy", { counts: { score: 0 } }, "post", ["counts.score"]),
+      ).toEqual({ counts: { score: 0 } });
+      expect(warn).not.toHaveBeenCalled();
+
+      expect(jsonObjectOrNull("lemmy", { counts: {} }, "post", ["counts.score"])).toBeNull();
+      expect(warn).toHaveBeenCalledWith(
+        "lemmy: expected JSON object for post (missing required field(s): counts.score), treating as null",
+      );
+    });
+  });
+});
+
+describe("objectArrayFieldOrEmpty", () => {
+  const required = ["post.id", "counts.score"] as const;
+
+  test("returns only elements satisfying nested required fields and warns for the rest", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      const valid = { post: { id: 1 }, counts: { score: 0 } };
+      const payload = {
+        posts: [valid, null, { post: { id: 2 } }, { post: {}, counts: { score: 3 } }],
+      };
+      expect(objectArrayFieldOrEmpty("lemmy", payload, "posts", "frontpage", required)).toEqual([
+        valid,
+      ]);
+      expect(warn).toHaveBeenCalledWith(
+        "lemmy: skipped 3 invalid element(s) in frontpage (4 total; required: post.id, counts.score)",
+      );
+    });
+  });
+
+  test("warns and returns [] when field is missing (delegates to arrayFieldOrEmpty)", async () => {
+    await spyConsole(["warn"], async ({ warn }) => {
+      expect(objectArrayFieldOrEmpty("lemmy", {}, "posts", "frontpage", required)).toEqual([]);
+      expect(warn).toHaveBeenCalledWith(
+        'lemmy: expected array field "posts" for frontpage (field is missing), treating as empty',
       );
     });
   });

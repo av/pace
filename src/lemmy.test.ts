@@ -5,6 +5,7 @@ import { invalidMinScoreParams } from "./test/invalid-params";
 import { expectAdapterFetchError, fetchMockCallUrl, useFetchMockSuite } from "./test/adapter-mocks";
 import { lemmyCfg } from "./test/adapter-cfg";
 import { makePostListResponse, makePostView } from "./test/lemmy-fixtures";
+import { spyConsole } from "./test/console-spy";
 
 const mocks = useFetchMockSuite();
 
@@ -37,6 +38,42 @@ describe("resolveLemmySort", () => {
     ["invalid", "Hot"],
   ] as const)("maps %s → %s", (input, expected) => {
     expect(resolveLemmySort(input)).toBe(expected);
+  });
+});
+
+describe("lemmy malformed post views", () => {
+  test("skips malformed elements with a warn instead of failing the whole fetch", async () => {
+    const valid = makePostView();
+    const payload = makePostListResponse([valid]);
+    // Regression: any of these previously threw (sort comparator reading
+    // b.counts.score, dedupeKey reading view.post.id, buildBody reading
+    // creator.name) and failed the entire lemmy fetch.
+    (payload.posts as unknown[]).push(
+      null,
+      { post: { id: 2, name: "no counts", ap_id: "https://x/2", published: "2024-01-01T00:00:00Z" } },
+      { ...valid, creator: undefined },
+      "garbage",
+    );
+    mocks.fetchMock.mockResolvedValue(makeJsonResponse(payload));
+
+    await spyConsole(["warn"], async ({ warn }) => {
+      const items = await lemmyAdapter.fetch(lemmyCfg());
+      expect(items).toHaveLength(1);
+      expect(items[0].id).toBe("lemmy:lemmy.ml:1001");
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(String(warn.mock.calls[0][0])).toContain("skipped 4 invalid element(s)");
+    });
+  });
+
+  test("keeps a valid post with score 0", async () => {
+    const zero = makePostView({ counts: { score: 0 } });
+    mocks.fetchMock.mockResolvedValue(makeJsonResponse(makePostListResponse([zero])));
+
+    await spyConsole(["warn"], async ({ warn }) => {
+      const items = await lemmyAdapter.fetch(lemmyCfg());
+      expect(items).toHaveLength(1);
+      expect(warn).not.toHaveBeenCalled();
+    });
   });
 });
 

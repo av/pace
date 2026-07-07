@@ -187,12 +187,31 @@ export function jsonArrayOrEmpty<T>(
   return value as T[];
 }
 
+/**
+ * Resolve a required-field path on a record. Supports dot paths ("post.id",
+ * "account.acct") so nested API shapes can be validated; each intermediate
+ * segment must be a plain object.
+ */
+function resolveRequiredFieldPath(
+  record: Record<string, unknown>,
+  field: string,
+): unknown {
+  let current: unknown = record;
+  for (const segment of field.split(".")) {
+    if (current == null || typeof current !== "object" || Array.isArray(current)) {
+      return undefined;
+    }
+    current = (current as Record<string, unknown>)[segment];
+  }
+  return current;
+}
+
 function missingRequiredJsonObjectFields(
   record: Record<string, unknown>,
   requiredFields: readonly string[],
 ): string[] {
   return requiredFields.filter((field) => {
-    const fieldValue = record[field];
+    const fieldValue = resolveRequiredFieldPath(record, field);
     return (
       fieldValue == null ||
       (typeof fieldValue === "string" && fieldValue.length === 0)
@@ -284,6 +303,23 @@ export function jsonObjectArrayOrEmpty<T extends object>(
   requiredFields: readonly string[],
 ): T[] {
   const raw = jsonArrayOrEmpty<unknown>(prefix, value, context);
+  return filterValidObjectArrayElements<T>(prefix, raw, context, requiredFields);
+}
+
+/**
+ * Read a required array field from a JSON object response AND validate each
+ * element as an object with the given required (dot-path capable) fields.
+ * Combines arrayFieldOrEmpty with per-element filtering (e.g. Lemmy post views):
+ * malformed elements are skipped with a warn instead of crashing downstream code.
+ */
+export function objectArrayFieldOrEmpty<T extends object>(
+  prefix: string,
+  record: unknown,
+  field: string,
+  context: string,
+  requiredFields: readonly string[],
+): T[] {
+  const raw = arrayFieldOrEmpty<unknown>(prefix, record, field, context);
   return filterValidObjectArrayElements<T>(prefix, raw, context, requiredFields);
 }
 
