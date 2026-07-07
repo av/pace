@@ -48,12 +48,46 @@ describe("decodeHtmlEntities", () => {
   });
 
   test("leaves unknown named entities untouched", () => {
-    expect(decodeHtmlEntities("&mdash; &bogus;")).toBe("&mdash; &bogus;");
+    expect(decodeHtmlEntities("&notarealentity; &bogus;")).toBe(
+      "&notarealentity; &bogus;",
+    );
   });
 
   test("nbsp is case-insensitive, other named entities are not", () => {
     expect(decodeHtmlEntities("&NBSP;&Nbsp;")).toBe("  ");
     expect(decodeHtmlEntities("&LT;&AMP;")).toBe("&LT;&AMP;");
+  });
+
+  test("decodes typographic entities common in feed titles", () => {
+    expect(decodeHtmlEntities("Rust &mdash; it&rsquo;s fast&hellip;")).toBe(
+      "Rust — it’s fast…",
+    );
+    expect(decodeHtmlEntities("&ldquo;Hi&rdquo; &lsquo;there&rsquo;")).toBe(
+      "“Hi” ‘there’",
+    );
+    expect(decodeHtmlEntities("2019&ndash;2026")).toBe("2019–2026");
+    expect(decodeHtmlEntities("&laquo;quote&raquo; &bull; &middot;")).toBe(
+      "«quote» • ·",
+    );
+  });
+
+  test("decodes symbol and currency entities", () => {
+    expect(decodeHtmlEntities("Acme&trade; &copy; &reg;")).toBe("Acme™ © ®");
+    expect(decodeHtmlEntities("20&deg;C &plusmn;2 3&times;4 8&divide;2")).toBe(
+      "20°C ±2 3×4 8÷2",
+    );
+    expect(decodeHtmlEntities("&euro;5 &pound;3 &yen;100 &cent;99")).toBe(
+      "€5 £3 ¥100 ¢99",
+    );
+    expect(decodeHtmlEntities("&frac12; &frac14; &frac34; &permil;")).toBe(
+      "½ ¼ ¾ ‰",
+    );
+  });
+
+  test("typographic entity names are case-sensitive; Dagger/Prime differ from lowercase", () => {
+    expect(decodeHtmlEntities("&dagger;&Dagger;")).toBe("†‡");
+    expect(decodeHtmlEntities("&prime;&Prime;")).toBe("′″");
+    expect(decodeHtmlEntities("&MDASH;&Mdash;")).toBe("&MDASH;&Mdash;");
   });
 });
 

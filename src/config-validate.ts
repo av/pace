@@ -552,6 +552,30 @@ function validatePanelSourceRefs(
       }
     });
 
+    // Warn when a panel lists both a pipeline and one of that pipeline's
+    // upstream adapters. This works, but the semantics can surprise: when the
+    // pipeline's enriched copy and the raw adapter item share a URL, the
+    // deduped panel view shows only the enriched copy (it shadows the raw item).
+    if (pipelineSourcesByName) {
+      const directAdapters = new Set(
+        sources.map((s) => s.adapter).filter((n) => !pipelineSourcesByName.has(n)),
+      );
+      for (const source of sources) {
+        const upstreams = pipelineSourcesByName.get(source.adapter);
+        if (!upstreams) continue;
+        const overlapping = upstreams.filter((u) => directAdapters.has(u));
+        if (overlapping.length > 0) {
+          warnConfig(
+            `panel "${panel.panel}" lists pipeline "${source.adapter}" alongside its upstream ` +
+            `adapter${overlapping.length > 1 ? "s" : ""} ${overlapping.map((n) => `"${n}"`).join(", ")}; ` +
+            `when the pipeline's enriched copy and the raw item share a URL, only the enriched copy ` +
+            `is shown (it shadows the raw item in the deduplicated view). ` +
+            `List only the pipeline if that is intended, or only the adapter for raw items`,
+          );
+        }
+      }
+    }
+
     // Warn when display:counter is used but no source is a counter adapter.
     // source:"all" is exempt since counter items could arrive from any adapter.
     if (panel.display === "counter" && adapterTypesByName) {

@@ -33,6 +33,54 @@ const NAMED_ENTITIES: Record<string, string> = {
   quot: '"',
   apos: "'",
   amp: "&",
+  // Curated typographic/symbol entities common in feed titles and bodies.
+  // Names are case-sensitive (HTML defines these lowercase); unknown names
+  // still pass through untouched.
+  mdash: "—",
+  ndash: "–",
+  rsquo: "’",
+  lsquo: "‘",
+  ldquo: "“",
+  rdquo: "”",
+  sbquo: "‚",
+  bdquo: "„",
+  hellip: "…",
+  bull: "•",
+  middot: "·",
+  laquo: "«",
+  raquo: "»",
+  trade: "™",
+  copy: "©",
+  reg: "®",
+  deg: "°",
+  plusmn: "±",
+  times: "×",
+  divide: "÷",
+  micro: "µ",
+  sect: "§",
+  para: "¶",
+  dagger: "†",
+  Dagger: "‡",
+  prime: "′",
+  Prime: "″",
+  frac12: "½",
+  frac14: "¼",
+  frac34: "¾",
+  euro: "€",
+  pound: "£",
+  yen: "¥",
+  cent: "¢",
+  permil: "‰",
+  minus: "−",
+  larr: "←",
+  rarr: "→",
+  uarr: "↑",
+  darr: "↓",
+  oline: "‾",
+  shy: "­",
+  ensp: " ",
+  emsp: " ",
+  thinsp: " ",
 };
 
 /** Decode a numeric character reference safely: astral-plane aware, and
@@ -51,7 +99,7 @@ function decodeNumericEntity(match: string, dec?: string, hex?: string): string 
   return String.fromCodePoint(codePoint);
 }
 
-const ENTITY_PATTERN = /&(?:#(\d+)|#[xX]([0-9a-fA-F]+)|([a-zA-Z]+));/g;
+const ENTITY_PATTERN = /&(?:#(\d+)|#[xX]([0-9a-fA-F]+)|([a-zA-Z][a-zA-Z0-9]*));/g;
 
 /** Single-pass entity decoder: each source entity decodes at most once, so
  *  double-escaped input like `&#38;lt;` yields the literal `&lt;` (not `<`). */
