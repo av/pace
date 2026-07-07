@@ -362,4 +362,33 @@ describe("stackexchange", () => {
       "stackexchange: expected JSON object for from stackoverflow (got array), treating as null",
     );
   });
+
+  test("skips malformed question elements instead of crashing the fetch", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      makeApiResponse([null, "junk", {}, { title: "no id" }, makeQuestion()]),
+    );
+
+    const items = await stackexchangeAdapter.fetch(seCfg());
+
+    expect(items).toHaveLength(1);
+    expect(items[0].id).toBe("se:stackoverflow:123");
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "stackexchange: skipped 4 invalid element(s) in from stackoverflow (5 total; required: question_id, title)",
+    );
+  });
+
+  test("degrades gracefully when a question has only identity fields", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      makeApiResponse([{ question_id: 999, title: "Sparse question" }]),
+    );
+
+    const items = await stackexchangeAdapter.fetch(seCfg());
+
+    expect(items).toHaveLength(1);
+    expect(items[0].id).toBe("se:stackoverflow:999");
+    expect(items[0].title).toBe("Sparse question");
+    expect(items[0].url).toBe("");
+    expect(items[0].body).toBe("Score: 0 | 0 answers | 0 views");
+    expect(items[0].timestamp).toBeInstanceOf(Date);
+  });
 });

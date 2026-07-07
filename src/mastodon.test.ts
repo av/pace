@@ -516,4 +516,58 @@ describe("mastodon partial status objects", () => {
       "mastodon: skipped 1 invalid element(s) in public timeline from ex.com (2 total; required: id, created_at, account.acct)",
     );
   });
+
+  test("account mode ids, dedupe keys, and handles use each account's home instance", async () => {
+    mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const urlStr = typeof input === "string" ? input : input.toString();
+      if (urlStr.includes("https://x.com/api/v1/accounts/lookup")) {
+        return makeJsonResponse({
+          id: "ax",
+          username: "alice",
+          acct: "alice",
+          display_name: "Alice",
+          url: "https://x.com/@alice",
+        });
+      }
+      if (urlStr.includes("https://y.com/api/v1/accounts/lookup")) {
+        return makeJsonResponse({
+          id: "by",
+          username: "bob",
+          acct: "bob",
+          display_name: "Bob",
+          url: "https://y.com/@bob",
+        });
+      }
+      // Same status id "5" on both home instances: must NOT dedupe across instances.
+      if (urlStr.includes("https://x.com/api/v1/accounts/ax/statuses")) {
+        const status = makeStatus("5", "<p>from x</p>", "2024-01-01T10:00:00Z");
+        return makeJsonResponse([
+          { ...status, account: { ...status.account, username: "alice", acct: "alice" } },
+        ]);
+      }
+      if (urlStr.includes("https://y.com/api/v1/accounts/by/statuses")) {
+        const status = makeStatus("5", "<p>from y</p>", "2024-01-01T11:00:00Z");
+        return makeJsonResponse([
+          { ...status, account: { ...status.account, username: "bob", acct: "bob" } },
+        ]);
+      }
+      return makeErrorResponse(404);
+    });
+
+    const items = await adapter.fetch(
+      mastodonCfg({ accounts: ["alice@x.com", "bob@y.com"] }),
+    );
+
+    expect(items).toHaveLength(2);
+    // Ids carry the status's HOME instance, not the configured one.
+    expect(items.map((i) => i.id).sort()).toEqual([
+      "mastodon:x.com:5",
+      "mastodon:y.com:5",
+    ]);
+    // Local acct from the home-instance API is qualified with the home instance.
+    const xItem = items.find((i) => i.id === "mastodon:x.com:5")!;
+    const yItem = items.find((i) => i.id === "mastodon:y.com:5")!;
+    expect(xItem.body).toContain("@alice@x.com");
+    expect(yItem.body).toContain("@bob@y.com");
+  });
 });

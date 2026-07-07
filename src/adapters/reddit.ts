@@ -9,7 +9,7 @@ import { joinTitle } from "./title";
 
 import { parseUnixEpochSeconds } from "./dates";
 import { warnEmptyConfig } from "./empty-config";
-import { arrayFieldOrEmpty, fetchJson, jsonObjectOrNull } from "./fetch";
+import { fetchJson, jsonObjectOrNull, objectArrayFieldOrEmpty } from "./fetch";
 import { decodeNumericFeedTitle } from "./html";
 import {
   normalizeNonNegativeNumber,
@@ -63,23 +63,35 @@ export const resolveRedditPeriod = createAliasedResolver<TimePeriod>({
   fallback: "day",
 });
 
+/**
+ * Only `id` and `title` are required (REDDIT_POST_REQUIRED_FIELDS); everything
+ * else is defaulted at use sites so a partial post degrades instead of crashing
+ * the whole fetch.
+ */
 interface RedditPostData {
   id: string;
   title: string;
-  permalink: string;
-  url: string;
-  selftext: string;
-  is_self: boolean;
-  created_utc: number;
-  subreddit: string;
-  score: number;
-  num_comments: number;
-  author: string;
+  permalink?: string;
+  url?: string;
+  selftext?: string;
+  is_self?: boolean;
+  created_utc?: number;
+  subreddit?: string;
+  score?: number;
+  num_comments?: number;
+  author?: string;
 }
 
 interface RedditPost {
   data: RedditPostData;
 }
+
+/**
+ * Dot paths: identity fields read unguarded downstream (dedupeKey, item id,
+ * title). A listing element missing these is dropped with a warn instead of
+ * crashing the whole reddit fetch.
+ */
+const REDDIT_POST_REQUIRED_FIELDS = ["data.id", "data.title"] as const;
 
 interface RedditListing {
   data: {
@@ -87,22 +99,26 @@ interface RedditListing {
   };
 }
 
+function permalinkUrl(post: RedditPostData): string {
+  return post.permalink ? `https://reddit.com${post.permalink}` : "";
+}
+
 function buildBody(post: RedditPostData): string {
-  const discussLink = `https://reddit.com${post.permalink}`;
+  const discussLink = permalinkUrl(post);
   return joinTitle(
-    formatPoints(post.score),
-    formatBy(post.author),
-    formatComments(post.num_comments),
-    formatSubreddit(post.subreddit),
-    !post.is_self ? formatDiscuss(discussLink) : undefined,
+    formatPoints(post.score ?? 0),
+    post.author ? formatBy(post.author) : undefined,
+    formatComments(post.num_comments ?? 0),
+    post.subreddit ? formatSubreddit(post.subreddit) : undefined,
+    !post.is_self && discussLink ? formatDiscuss(discussLink) : undefined,
   );
 }
 
 function getItemUrl(post: RedditPostData): string {
   if (post.is_self) {
-    return `https://reddit.com${post.permalink}`;
+    return permalinkUrl(post);
   }
-  return post.url;
+  return post.url ?? permalinkUrl(post);
 }
 
 async function fetchRedditListing(
@@ -120,7 +136,13 @@ async function fetchRedditListing(
   const raw = await fetchJson<unknown>("reddit", url, context);
   const json = jsonObjectOrNull<RedditListing>("reddit", raw, context, ["data"]);
   if (json == null) return [];
-  return arrayFieldOrEmpty<RedditPost>("reddit", json.data, "children", context);
+  return objectArrayFieldOrEmpty<RedditPost>(
+    "reddit",
+    json.data,
+    "children",
+    context,
+    REDDIT_POST_REQUIRED_FIELDS,
+  );
 }
 
 const adapter: Adapter = {
@@ -146,8 +168,8 @@ const adapter: Adapter = {
         limit,
         dedupeKey: (post) => post.data.id,
         minScore,
-        scoreOf: (post) => post.data.score,
-        sort: (a, b) => b.data.score - a.data.score,
+        scoreOf: (post) => post.data.score ?? 0,
+        sort: (a, b) => (b.data.score ?? 0) - (a.data.score ?? 0),
       },
     );
 

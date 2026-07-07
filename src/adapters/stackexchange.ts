@@ -9,7 +9,7 @@ import { joinTitle } from "./title";
 
 import { parseUnixEpochSeconds } from "./dates";
 import { warnAdapter } from "./empty-config";
-import { arrayFieldOrEmpty, fetchJson, jsonObjectOrNull } from "./fetch";
+import { fetchJson, jsonObjectOrNull, objectArrayFieldOrEmpty } from "./fetch";
 import { decodeNumericFeedTitle } from "./html";
 import {
   clampAdapterLimit,
@@ -53,19 +53,27 @@ export const resolveStackExchangeSort = createAliasedResolver<SortType>({
   fallback: "hot",
 });
 
+/**
+ * Only `question_id` and `title` are required (SE_QUESTION_REQUIRED_FIELDS);
+ * everything else is defaulted at use sites so a partial question degrades
+ * instead of crashing the whole fetch.
+ */
 interface SEQuestion {
   question_id: number;
   title: string;
-  link: string;
-  score: number;
-  answer_count: number;
-  view_count: number;
-  tags: string[];
-  owner: { display_name: string };
-  creation_date: number;
-  is_answered: boolean;
+  link?: string;
+  score?: number;
+  answer_count?: number;
+  view_count?: number;
+  tags?: string[];
+  owner?: { display_name?: string };
+  creation_date?: number;
+  is_answered?: boolean;
   accepted_answer_id?: number;
 }
+
+/** Identity fields read unguarded downstream (dedupeKey, item id, title). */
+const SE_QUESTION_REQUIRED_FIELDS = ["question_id", "title"] as const;
 
 interface SEResponse {
   items: SEQuestion[];
@@ -75,10 +83,10 @@ interface SEResponse {
 
 function buildBody(question: SEQuestion): string {
   return joinTitle(
-    formatScore(question.score),
-    formatAnswers(question.answer_count, !!question.accepted_answer_id),
-    formatViews(question.view_count),
-    formatTags(question.tags),
+    formatScore(question.score ?? 0),
+    formatAnswers(question.answer_count ?? 0, !!question.accepted_answer_id),
+    formatViews(question.view_count ?? 0),
+    formatTags(question.tags ?? []),
     question.owner?.display_name ? formatBy(question.owner.display_name) : undefined,
   );
 }
@@ -116,7 +124,13 @@ async function fetchQuestions(
     warnAdapter("stackexchange", `API quota low (${json.quota_remaining} remaining)`);
   }
 
-  return arrayFieldOrEmpty<SEQuestion>("stackexchange", json, "items", context);
+  return objectArrayFieldOrEmpty<SEQuestion>(
+    "stackexchange",
+    json,
+    "items",
+    context,
+    SE_QUESTION_REQUIRED_FIELDS,
+  );
 }
 
 const adapter: Adapter = {
@@ -136,7 +150,7 @@ const adapter: Adapter = {
       limit,
       dedupeKey: isMultiTag ? (q: SEQuestion) => q.question_id : undefined,
       minScore,
-      scoreOf: (q: SEQuestion) => q.score,
+      scoreOf: (q: SEQuestion) => q.score ?? 0,
     };
 
     const keys = isMultiTag ? tags : [site];
@@ -153,7 +167,7 @@ const adapter: Adapter = {
       (question) => ({
       id: `se:${site}:${question.question_id}`,
       title: decodeNumericFeedTitle(question.title),
-      url: question.link,
+      url: question.link ?? "",
       timestamp: parseUnixEpochSeconds(question.creation_date),
       body: buildBody(question),
     }),

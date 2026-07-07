@@ -370,4 +370,45 @@ describe("reddit", () => {
       "reddit: expected JSON object for /r/broken/hot (response is null/undefined), treating as null",
     );
   });
+
+  test("skips malformed listing children instead of crashing the fetch", async () => {
+    const good = makePost("aa", "Good post");
+    mocks.fetchMock.mockResolvedValue(
+      makeJsonResponse({
+        data: {
+          children: [
+            null,
+            "junk",
+            {},
+            { data: { title: "no id" } },
+            { data: { id: "noname" } },
+            { data: good },
+          ],
+        },
+      }),
+    );
+
+    const items = await redditAdapter.fetch(redditCfg({ subreddits: ["test"] }));
+
+    expect(items).toHaveLength(1);
+    expect(items[0].id).toBe("reddit:aa");
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "reddit: skipped 5 invalid element(s) in /r/test/hot (6 total; required: data.id, data.title)",
+    );
+  });
+
+  test("degrades gracefully when a post has only identity fields", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      makeJsonResponse({ data: { children: [{ data: { id: "min1", title: "Minimal" } }] } }),
+    );
+
+    const items = await redditAdapter.fetch(redditCfg({ subreddits: ["test"] }));
+
+    expect(items).toHaveLength(1);
+    expect(items[0].id).toBe("reddit:min1");
+    expect(items[0].title).toBe("Minimal");
+    expect(items[0].url).toBe("");
+    expect(items[0].body).toBe("0 points | 0 comments");
+    expect(items[0].timestamp).toBeInstanceOf(Date);
+  });
 });

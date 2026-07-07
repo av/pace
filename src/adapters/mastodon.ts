@@ -48,6 +48,12 @@ interface MastodonStatus {
   tags: MastodonTag[];
   spoiler_text: string;
   reblog: MastodonStatus | null;
+  /**
+   * Instance the status was actually fetched from. Set in account mode, where
+   * statuses come from each account's HOME instance rather than the configured
+   * one — item ids and @handles must use this to stay collision-free/accurate.
+   */
+  sourceInstance?: string;
 }
 
 interface MastodonMedia {
@@ -232,7 +238,15 @@ async function fetchAccountTimeline(
   }
   const account = await lookupAccount(parsed.instance, parsed.username);
   if (!account) return [];
-  return fetchAccountStatuses(parsed.instance, account.id, limit, onlyMedia);
+  const statuses = await fetchAccountStatuses(
+    parsed.instance,
+    account.id,
+    limit,
+    onlyMedia,
+  );
+  // Tag with the home instance: status ids are only unique per instance, and
+  // the local `acct` returned by the home instance has no @domain suffix.
+  return statuses.map((status) => ({ ...status, sourceInstance: parsed.instance }));
 }
 
 const adapter: Adapter = {
@@ -252,7 +266,8 @@ const adapter: Adapter = {
     const mode = resolveMastodonMode(accounts, hashtags);
     const finalizeOptions = {
       limit,
-      dedupeKey: (status: MastodonStatus) => status.id,
+      dedupeKey: (status: MastodonStatus) =>
+        `${status.sourceInstance ?? instance}:${status.id}`,
       minScore: minFavourites,
       scoreOf: (status: MastodonStatus) => status.favourites_count,
       sort: (a: MastodonStatus, b: MastodonStatus) =>
@@ -270,13 +285,16 @@ const adapter: Adapter = {
 
     const limited = await aggregateSequentialFeeds(keys, fetchOne, finalizeOptions);
 
-    return mapToContentItems(limited, mastodonSourceLabel(mode, instance, hashtags), (status) => ({
-      id: `mastodon:${instance}:${status.id}`,
-      title: buildTitle(status),
-      url: status.url ?? status.uri ?? "",
-      timestamp: new Date(status.created_at),
-      body: buildBody(status, instance),
-    }));
+    return mapToContentItems(limited, mastodonSourceLabel(mode, instance, hashtags), (status) => {
+      const statusInstance = status.sourceInstance ?? instance;
+      return {
+        id: `mastodon:${statusInstance}:${status.id}`,
+        title: buildTitle(status),
+        url: status.url ?? status.uri ?? "",
+        timestamp: new Date(status.created_at),
+        body: buildBody(status, statusInstance),
+      };
+    });
   },
 };
 
