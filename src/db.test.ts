@@ -24,6 +24,7 @@ import {
   contentRowMapById,
   filterRowsByItemIds,
   contentItemsToRows,
+  toDbFetchedAt,
   type ContentItemRow,
 } from "./db";
 import * as utilsMod from "./utils";
@@ -201,6 +202,62 @@ test("pruneOldItems deletes old rows and returns change count", () => {
   const remaining = getAllItemsByPanel("ppr");
   expect(remaining.length).toBe(1);
   expect(remaining[0].id).toBe("new1");
+});
+
+test("toDbFetchedAt normalizes Dates and ISO strings to SQLite UTC format", () => {
+  expect(toDbFetchedAt(new Date("2024-01-02T03:04:05.678Z"))).toBe("2024-01-02 03:04:05");
+  expect(toDbFetchedAt("2024-01-02T03:04:05.678Z")).toBe("2024-01-02 03:04:05");
+  expect(toDbFetchedAt("2024-01-02T03:04:05+02:00")).toBe("2024-01-02 01:04:05");
+  // Already-canonical and non-ISO strings pass through untouched
+  // (new Date() would misparse space-separated strings as local time).
+  expect(toDbFetchedAt("2024-01-02 03:04:05")).toBe("2024-01-02 03:04:05");
+  expect(toDbFetchedAt("2024-01-02 03:04:05.123")).toBe("2024-01-02 03:04:05.123");
+  expect(toDbFetchedAt("not a date T")).toBe("not a date T");
+});
+
+test("ISO fetched_at rows are normalized so string comparisons against datetime('now') rows stay correct", () => {
+  initDb();
+  const db = getDb();
+  const tieTime = "2025-06-01T12:00:00.000Z";
+
+  // Adapter-style row (datetime('now') format), fetched at 10:00.
+  saveItems("pmixa", [
+    makeItem({ id: "mix-raw", url: "https://ex.com/mix", timestamp: new Date(tieTime), title: "raw" }),
+  ]);
+  db.prepare("UPDATE content_items SET fetched_at = '2026-01-05 10:00:00' WHERE id = 'mix-raw'").run();
+
+  // JS-built row (e.g. llm-merge output) with ISO fetched_at, actually OLDER (08:00 same day).
+  replacePanelItems("pmixb", [
+    makeRow({
+      id: "mix-iso",
+      url: "https://ex.com/mix",
+      timestamp: tieTime,
+      fetched_at: "2026-01-05T08:00:00.000Z",
+      title: "iso",
+    }),
+  ]);
+
+  // MAX(fetched_at) must pick the genuinely newer 10:00 row. Before
+  // normalization the ISO string won lexically ('T' > ' ').
+  expect(getLastFetchedAt()).toBe("2026-01-05 10:00:00Z");
+
+  // Dedup tie-break (same url, same timestamp) orders by fetched_at DESC:
+  // the newer-fetched raw row must win, not the ISO-formatted older one.
+  const recent = getRecentItems(10);
+  expect(recent.map((r) => r.id)).toEqual(["mix-raw"]);
+});
+
+test("pruneOldItems prunes ISO-format rows aged past the cutoff on the cutoff day", () => {
+  initDb();
+  // Fetched 30 days + 1 hour ago, written as ISO via replacePanelItems.
+  // Pre-normalization this survived same-day cutoffs ('T' > ' ' pushed it
+  // lexically past datetime('now', '-30 days')).
+  const aged = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000 - 60 * 60 * 1000);
+  replacePanelItems("pprISO", [
+    makeRow({ id: "iso-old", url: "https://ex.com/iso-old", fetched_at: aged.toISOString() }),
+  ]);
+  expect(pruneOldItems(30)).toBe(1);
+  expect(getAllItemsByPanel("pprISO").length).toBe(0);
 });
 
 test("empty results for unknown panel or no data", () => {
@@ -556,7 +613,8 @@ test("contentItemToRow preserves base row metadata and defaults merged panel", (
   });
   const row = contentItemToRow(item, base);
   expect(row.panel_id).toBe("panel-x");
-  expect(row.fetched_at).toBe("2024-01-02T00:00:00.000Z");
+  // ISO base fetched_at is normalized to the canonical SQLite UTC format.
+  expect(row.fetched_at).toBe("2024-01-02 00:00:00");
   expect(row.summary).toBe("kept summary");
   expect(row.timestamp).toBe("2024-03-01T00:00:00.000Z");
   expect(row.body).toBe("new body");

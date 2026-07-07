@@ -75,6 +75,28 @@ function bindCoreContentItemParams(
   return [core.id, panelId, core.title, core.url, core.source, core.body, core.timestamp];
 }
 
+/**
+ * Normalize a fetched_at value to the canonical SQLite UTC format.
+ *
+ * saveItems writes datetime('now') ("YYYY-MM-DD HH:MM:SS"), but rows built in
+ * JS (e.g. llm-merge output via contentItemToRow) used to carry ISO strings
+ * ("...T...Z"). Since 'T' > ' ', mixed formats corrupt every string
+ * comparison on the column: MAX(fetched_at) in getLastFetchedAt, the
+ * `fetched_at DESC` dedup tie-break, and same-day pruneOldItems cutoffs.
+ * Unparseable strings pass through untouched rather than being mangled.
+ */
+export function toDbFetchedAt(value: Date | string): string {
+  if (typeof value === "string") {
+    // Only convert ISO 'T' strings: space-separated variants are already
+    // SQLite-style UTC, and new Date() would misparse them as local time.
+    if (!value.includes("T")) return value;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return parsed.toISOString().slice(0, 19).replace("T", " ");
+  }
+  return value.toISOString().slice(0, 19).replace("T", " ");
+}
+
 /** Optional panel_id filter for queries scoped to one panel or all panels. */
 function panelIdWhereClause(panelId?: string): { where: string; params: (string | number)[] } {
   if (panelId != null) {
@@ -323,7 +345,7 @@ export function replacePanelItems(panelId: string, items: ContentItemRow[]): voi
       runItemOp(panelId, item, "replace", () => {
         stmt.run(
           ...bindCoreContentItemParams(panelId, item),
-          item.fetched_at,
+          toDbFetchedAt(item.fetched_at),
           item.summary ?? summaryMap.get(item.id) ?? null,
           item.origins ?? null,
           item.applied_transforms ?? null,
@@ -382,7 +404,7 @@ export function contentItemToRow(item: ContentItem, base?: ContentItemRow): Cont
   return {
     ...core,
     panel_id: base?.panel_id ?? "merged",
-    fetched_at: base?.fetched_at ?? new Date().toISOString(),
+    fetched_at: toDbFetchedAt(base?.fetched_at ?? new Date()),
     summary: base?.summary ?? (item.body ?? null),
     origins: base?.origins ?? null,
     applied_transforms: base?.applied_transforms ?? null,
