@@ -111,7 +111,9 @@ export function decodeHtmlEntities(
   return str.replace(ENTITY_PATTERN, (match, dec, hex, name) => {
     if (name !== undefined) {
       if (name.toLowerCase() === "nbsp") return " ";
-      return NAMED_ENTITIES[name] ?? match;
+      // Object.hasOwn: feed content controls `name`; bare indexing would leak
+      // Object.prototype members ("&constructor;" -> function source text).
+      return Object.hasOwn(NAMED_ENTITIES, name) ? NAMED_ENTITIES[name] : match;
     }
     // `&#39;` decodes even in non-numeric mode (legacy adapter convention).
     if (!numeric && !(dec === "39" && match === "&#39;")) return match;

@@ -107,7 +107,10 @@ function resolveEnvVars(value: string, depth = 0, warnedUnset = new Set<string>(
     );
   }
   const replaced = value.replace(ENV_VAR_PLACEHOLDER, (_, name) => {
-    const envValue = process.env[name];
+    // typeof guard: in Bun, process.env exposes Object.prototype members, so
+    // `${toString}`/`${constructor}` would otherwise inject function source text.
+    const raw: unknown = process.env[name];
+    const envValue = typeof raw === "string" ? raw : undefined;
     if (envValue === undefined) warnUnsetEnvVar(name, warnedUnset);
     return envValue ?? "";
   });

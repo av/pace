@@ -53,6 +53,13 @@ describe("decodeHtmlEntities", () => {
     );
   });
 
+  test("Object.prototype member names are not treated as entities", () => {
+    expect(decodeHtmlEntities("a &constructor; b")).toBe("a &constructor; b");
+    expect(decodeHtmlEntities("a &toString; b")).toBe("a &toString; b");
+    expect(decodeHtmlEntities("a &hasOwnProperty; b")).toBe("a &hasOwnProperty; b");
+    expect(decodeHtmlEntities("a &valueOf; b", { numeric: true })).toBe("a &valueOf; b");
+  });
+
   test("nbsp is case-insensitive, other named entities are not", () => {
     expect(decodeHtmlEntities("&NBSP;&Nbsp;")).toBe("  ");
     expect(decodeHtmlEntities("&LT;&AMP;")).toBe("&LT;&AMP;");

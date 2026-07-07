@@ -287,9 +287,13 @@ export function resolveAliasedOption<T>(
   fallback: T | null,
 ): T | null {
   const lower = input.toLowerCase();
-  if (lower in types) return types[lower];
-  const alias = aliases[lower];
-  if (alias !== undefined) return alias;
+  // Object.hasOwn: `in` / bare indexing would match Object.prototype keys
+  // ("constructor", "toString", ...) for untrusted config tokens.
+  if (Object.hasOwn(types, lower)) return types[lower];
+  if (Object.hasOwn(aliases, lower)) {
+    const alias = aliases[lower];
+    if (alias !== undefined) return alias;
+  }
   return fallback;
 }
 

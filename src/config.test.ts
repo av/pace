@@ -1152,6 +1152,31 @@ layout:
     }
   });
 
+  test("env var named after an Object.prototype member is treated as unset", async () => {
+    // Bun's process.env exposes Object.prototype members; ${toString} must not
+    // inject function source text into the config.
+    const yaml = `
+adapters:
+  - type: rss
+    params:
+      urls:
+        - "https://example.com/\${toString}/feed"
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(yaml);
+    await spyConsole(["warn"], async ({ warn }) => {
+      const cfg = loadConfig();
+      expect(cfg.adapters[0]?.params?.urls).toEqual(["https://example.com//feed"]);
+      expect(warn).toHaveBeenCalledWith(
+        "config: env var toString is unset (expanding to empty)",
+      );
+    });
+  });
+
   test("expands chained ${VAR} in adapter params", () => {
     const outerKey = "TEST_REC_OUTER_" + Date.now().toString(36);
     const innerKey = "TEST_REC_INNER_" + Date.now().toString(36);
