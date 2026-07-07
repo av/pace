@@ -119,11 +119,24 @@ function replaceItemsOnPanels(panelIds: string[], items: ContentItemRow[]): void
   for (const pid of panelIds) replacePanelItems(pid, items);
 }
 
-function gatherPipelineInputItems(scheduler: SchedulerState, sources: string[]): ContentItemRow[] {
+function gatherPipelineInputItems(
+  scheduler: SchedulerState,
+  sources: string[],
+  pipelineName: string,
+): ContentItemRow[] {
+  // When a panel lists both an adapter and a pipeline consuming that adapter,
+  // the adapter's read key is that shared panel, so the pipeline's own output
+  // (ids prefixed `pipeline:<name>:`) is read back as input on every refresh.
+  // Without this filter each cycle re-transforms already-transformed items
+  // (duplicate LLM work) and re-prefixes ids without bound
+  // (pipeline:x:pipeline:x:...).
+  const ownOutputPrefix = `pipeline:${pipelineName}:`;
   let items: ContentItemRow[] = [];
   for (const source of sources) {
     const readKey = scheduler.sourceToReadKey.get(source) ?? source;
-    items = items.concat(getAllItemsByPanel(readKey));
+    items = items.concat(
+      getAllItemsByPanel(readKey).filter((item) => !item.id.startsWith(ownOutputPrefix)),
+    );
   }
   items.sort((a, b) => compareIsoTimestamp(a.timestamp, b.timestamp, "desc"));
   return items;
@@ -136,6 +149,13 @@ interface RunTransformsOptions {
   logMode?: TransformLogMode;
   logDetail?: string;
   mapOutput?: (items: ContentItemRow[]) => ContentItemRow[];
+  /**
+   * When set, items already on a target panel that match this predicate are
+   * kept alongside the new output instead of being wiped by the replace.
+   * Used by pipeline jobs so a panel shared with a source adapter retains the
+   * adapter's raw items.
+   */
+  retainPanelItem?: (item: ContentItemRow) => boolean;
 }
 
 async function runTransformsAndReplaceOnPanels(
@@ -147,7 +167,18 @@ async function runTransformsAndReplaceOnPanels(
 ): Promise<void> {
   const transformed = await runPipeline(items, transforms, scheduler.transformCtx);
   const output = options.mapOutput ? options.mapOutput(transformed) : transformed;
-  replaceItemsOnPanels(panelIds, output);
+  const { retainPanelItem } = options;
+  if (retainPanelItem) {
+    const outputIds = new Set(output.map((item) => item.id));
+    for (const pid of panelIds) {
+      const retained = getAllItemsByPanel(pid).filter(
+        (item) => retainPanelItem(item) && !outputIds.has(item.id),
+      );
+      replacePanelItems(pid, output.concat(retained));
+    }
+  } else {
+    replaceItemsOnPanels(panelIds, output);
+  }
   const logMode = options.logMode ?? "when-changed";
   if (logMode === "always" || items.length !== transformed.length) {
     const detail = options.logDetail ? `${options.logDetail} ` : "";
@@ -199,15 +230,21 @@ async function runPipelineJob(scheduler: SchedulerState, entry: PipelineEntry): 
     // Same panel-lock rationale as runAdapter: the output panels are rewritten
     // from a snapshot gathered before awaited transforms.
     scheduler.panelLocks.withLock(panelIds, async () => {
-      const items = gatherPipelineInputItems(scheduler, config.sources);
+      const ownOutputPrefix = `pipeline:${config.name}:`;
+      const items = gatherPipelineInputItems(scheduler, config.sources, config.name);
       await runTransformsAndReplaceOnPanels(scheduler, panelIds, items, config.transforms, {
         logLabel: `pipeline "${config.name}"`,
         logMode: "always",
         mapOutput: (transformed) =>
           transformed.map((item) => ({
             ...item,
-            id: `pipeline:${config.name}:${item.id}`,
+            id: `${ownOutputPrefix}${item.id}`,
           })),
+        // Only replace this pipeline's own output namespace: if an output
+        // panel is shared with a source adapter, the adapter's raw items
+        // must survive the replace (otherwise the next cycle would see an
+        // empty input and wipe the panel).
+        retainPanelItem: (item) => !item.id.startsWith(ownOutputPrefix),
       });
     }),
   );

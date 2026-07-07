@@ -262,6 +262,52 @@ describe("scheduler", () => {
     expect(out.map((r) => r.id)).toEqual(["pipeline:curated:h1"]);
   });
 
+  test("runPipelineJob does not re-transform its own output when it shares a panel with its source (no pipeline:x:pipeline:x id growth)", async () => {
+    // Panel lists both the adapter and the pipeline consuming it, so the
+    // adapter's read key is the shared panel and the pipeline's previous
+    // output is visible to gatherPipelineInputItems.
+    dbMod.saveItems("shared", [
+      makeContentItem({
+        id: "h1",
+        title: "HN item",
+        url: "https://hn/1",
+        source: "hn",
+        timestamp: new Date("2024-06-01T12:00:00.000Z"),
+      }),
+    ]);
+    const config = testAppConfig(
+      {
+        adapters: [],
+        pipelines: [{
+          name: "curated",
+          sources: ["hn"],
+          transforms: [{ type: "latest", count: 10 }],
+        }],
+      },
+      {
+        direction: "column",
+        panels: [
+          { panel: "mixed", source: ["hn", "curated"], id: "shared" },
+        ],
+      },
+    );
+    const pm = sourcePanelMapFromConfig(config);
+    startTestScheduler(config, new Map(), pm, null);
+    const rawPanelIds = () =>
+      (dbMod.getDb()
+        .prepare("SELECT id FROM content_items WHERE panel_id = ? ORDER BY id")
+        .all("shared") as { id: string }[])
+        .map((r) => r.id);
+    await refreshTestSources(["curated"]);
+    // Raw adapter item survives the pipeline's replace on the shared panel.
+    expect(rawPanelIds()).toEqual(["h1", "pipeline:curated:h1"]);
+    // Subsequent refreshes must not treat the previous output as fresh input:
+    // no pipeline:curated:pipeline:curated:... id growth, no item loss.
+    await refreshTestSources(["curated"]);
+    await refreshTestSources(["curated"]);
+    expect(rawPanelIds()).toEqual(["h1", "pipeline:curated:h1"]);
+  });
+
   test("runPipelineJob preserves source concat order when timestamps tie (stable sort)", async () => {
     const ts = "2024-06-01T12:00:00.000Z";
     dbMod.saveItems("srcA", [

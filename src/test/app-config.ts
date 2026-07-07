@@ -1,8 +1,9 @@
 import type { AppConfig, LayoutDirection, LayoutNodeConfig } from "../config/types";
+import type { SourceValue } from "../layout/domain";
 
 interface TestAppConfigPanel {
   panel: string;
-  source: string;
+  source: SourceValue;
   id?: string;
   limit?: number;
 }
