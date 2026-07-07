@@ -140,29 +140,61 @@ async function queryLlmForJson<T>(
   return parseLlmJsonResponse<T>(text);
 }
 
-/** Query LLM for JSON and map results; passthrough on skip, empty batch, or failure. */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+/** Warn about a malformed (valid JSON, wrong shape) LLM response and signal passthrough. */
+function warnMalformedLlmResponse(context: string): null {
+  warnLlm(`malformed response shape (${context}), items passed through unchanged`);
+  return null;
+}
+
+/**
+ * Query LLM for JSON, validate the response shape, and map results;
+ * passthrough on skip, empty batch, or any failure (network, parse,
+ * malformed shape, or an applyResult throw).
+ */
 async function runLlmBatchTransform<T>(
   model: Model<Api> | null,
   items: ContentItem[],
   systemPrompt: string,
+  validateResult: (result: unknown) => T | null,
   applyResult: (result: T, items: ContentItem[]) => ContentItem[],
   options?: { maxBodyLen?: number; skip?: boolean; fetchedContent?: Map<string, string> },
 ): Promise<ContentItem[]> {
   if (shouldPassthroughLlmBatch(model, items) || options?.skip) return items;
 
-  const result = await queryLlmForJson<T>(
+  const raw = await queryLlmForJson<unknown>(
     model!,
     systemPrompt,
     items,
     options?.maxBodyLen ?? 0,
     options?.fetchedContent,
   );
+  if (raw == null) return items;
+
+  const result = validateResult(raw);
   if (result == null) return items;
 
-  return applyResult(result, items);
+  try {
+    return applyResult(result, items);
+  } catch (err: unknown) {
+    warnLlm("applying response failed, items passed through unchanged", err);
+    return items;
+  }
 }
 
 type SummaryEntry = { id: string; summary: string };
+
+/** Accepts an array; keeps only well-formed {id, summary} entries. Null if not an array. */
+function validateSummaryEntries(result: unknown): SummaryEntry[] | null {
+  if (!Array.isArray(result)) return warnMalformedLlmResponse("summaries: expected JSON array");
+  return result.filter(
+    (entry): entry is SummaryEntry =>
+      isRecord(entry) && typeof entry.id === "string" && typeof entry.summary === "string",
+  );
+}
 
 function applySummaryEntries(entries: SummaryEntry[], items: ContentItem[]): ContentItem[] {
   const summaryMap = new Map(entries.map((entry) => [entry.id, entry.summary]));
@@ -181,7 +213,7 @@ export async function summarizeItems(
   const systemPrompt =
     "You are a concise summarizer. For each content item below, provide a 2-3 sentence summary focusing on key points and why it matters. Return a JSON array of {\"id\": \"...\", \"summary\": \"...\"} objects. Every item ID must appear exactly once. Return ONLY the JSON array.";
 
-  return runLlmBatchTransform(model, items, systemPrompt, applySummaryEntries, { maxBodyLen: 2000, fetchedContent });
+  return runLlmBatchTransform(model, items, systemPrompt, validateSummaryEntries, applySummaryEntries, { maxBodyLen: 2000, fetchedContent });
 }
 
 /** 2-3 sentence summary, or null on error. */
@@ -195,6 +227,27 @@ export async function summarizeItem(
 }
 
 type MergeGroup = { merged_ids: string[]; title: string; summary: string | null };
+
+/**
+ * Merge output is exhaustive (items absent from every group are dropped), so a
+ * single malformed group means the whole response is unusable: passthrough.
+ */
+function validateMergeGroups(result: unknown): MergeGroup[] | null {
+  if (!Array.isArray(result)) return warnMalformedLlmResponse("merge: expected JSON array");
+  const valid = result.every(
+    (group) =>
+      isRecord(group) &&
+      Array.isArray(group.merged_ids) &&
+      group.merged_ids.length > 0 &&
+      group.merged_ids.every((id: unknown) => typeof id === "string") &&
+      typeof group.title === "string",
+  );
+  if (!valid) return warnMalformedLlmResponse("merge: invalid group entry");
+  return (result as MergeGroup[]).map((group) => ({
+    ...group,
+    summary: typeof group.summary === "string" ? group.summary : null,
+  }));
+}
 
 function applyMergeGroups(groups: MergeGroup[], items: ContentItem[]): ContentItem[] {
   const itemMap = new Map(items.map((item) => [item.id, item]));
@@ -236,7 +289,7 @@ Given the content items below, decide which ones to merge together. Return a JSO
 
 Every item ID must appear exactly once. Return ONLY the JSON array.`;
 
-  return runLlmBatchTransform(model, items, systemPrompt, applyMergeGroups, { maxBodyLen: 300 });
+  return runLlmBatchTransform(model, items, systemPrompt, validateMergeGroups, applyMergeGroups, { maxBodyLen: 300 });
 }
 
 /** LLM filter by criteria string; unchanged on failure. */
@@ -251,6 +304,10 @@ export async function filterItemsByLlm(
     model,
     items,
     systemPrompt,
+    (result) => {
+      if (!Array.isArray(result)) return warnMalformedLlmResponse("filter: expected JSON array");
+      return result.filter((id): id is string => typeof id === "string");
+    },
     (keepIds, sourceItems) => {
       const keepSet = new Set(keepIds);
       return sourceItems.filter((item) => keepSet.has(item.id));
@@ -289,6 +346,14 @@ export async function lensItemsWithScores(
     model,
     items,
     systemPrompt,
+    (result) => {
+      if (!Array.isArray(result)) return warnMalformedLlmResponse("scores: expected JSON array");
+      return result.filter(
+        (entry): entry is ScoreEntry =>
+          isRecord(entry) && typeof entry.id === "string" &&
+          typeof entry.score === "number" && Number.isFinite(entry.score),
+      );
+    },
     (scores, sourceItems) => {
       scoreMap = new Map(scores.map(({ id, score }) => [id, score]));
       return [...sourceItems].sort((a, b) => {

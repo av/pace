@@ -85,4 +85,17 @@ describe("formatSeconds", () => {
     expect(formatSeconds(3600)).toBe("1:00:00");
     expect(formatSeconds(3723)).toBe("1:02:03");
   });
+
+  test("floors fractional input", () => {
+    expect(formatSeconds(5.9)).toBe("0:05");
+    expect(formatSeconds(59.999)).toBe("0:59");
+    expect(formatSeconds(3600.5)).toBe("1:00:00");
+  });
+
+  test("non-finite and negative input fall back to 0:00", () => {
+    expect(formatSeconds(NaN)).toBe("0:00");
+    expect(formatSeconds(Infinity)).toBe("0:00");
+    expect(formatSeconds(-Infinity)).toBe("0:00");
+    expect(formatSeconds(-3)).toBe("0:00");
+  });
 });
