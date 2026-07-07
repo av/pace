@@ -16,9 +16,10 @@ interface DashboardProps {
   cssHref?: string;
   mode?: DashboardRenderMode;
   basePath?: string;
+  notice?: string;
 }
 
-const Dashboard: FC<DashboardProps> = ({ layout, panelData, updatedAt, cssHref, mode = "interactive", basePath = "" }) => (
+const Dashboard: FC<DashboardProps> = ({ layout, panelData, updatedAt, cssHref, mode = "interactive", basePath = "", notice }) => (
   <html lang="en">
     <head>
       <meta charset="utf-8" />
@@ -27,6 +28,15 @@ const Dashboard: FC<DashboardProps> = ({ layout, panelData, updatedAt, cssHref, 
       <link rel="stylesheet" href={cssHref ?? `${basePath}/styles.css`} />
     </head>
     <body>
+      {notice ? (
+        <div
+          class="refresh-notice"
+          role="status"
+          style="padding:0.5rem 1rem;font-size:0.85rem;opacity:0.8;"
+        >
+          {notice}
+        </div>
+      ) : null}
       <div class="flex-root">
         <LayoutNode node={layout} panelData={panelData} mode={mode} basePath={basePath} />
       </div>

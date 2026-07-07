@@ -136,7 +136,8 @@ export async function expectRefreshPanelFailureOrRedirect(
   failureSource: string,
 ): Promise<void> {
   if (res.status === 303) {
-    expectRefreshPanelRedirect(res);
+    // May carry ?skipped=<names> when the startup refresh is still running.
+    expect(res.headers.get("location") || "").toMatch(/^\/(\?skipped=.+)?$/);
     return;
   }
   expect(res.status).toBe(502);

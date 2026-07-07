@@ -24,6 +24,18 @@ export function collectRefreshFailures(
   return results.filter((result) => result.status === "failed");
 }
 
+/** Collect refresh results that were skipped (a refresh was already running). */
+export function collectRefreshSkips(
+  results: ReadonlyArray<RefreshResult>,
+): RefreshResult[] {
+  return results.filter((result) => result.status === "skipped");
+}
+
+/** Build the dashboard notice shown when refresh sources were skipped. */
+export function formatRefreshSkippedNotice(names: ReadonlyArray<string>): string {
+  return `Refresh already in progress for ${names.join(", ")} — showing existing data.`;
+}
+
 /** Build 502 response body when one or more refresh sources fail. */
 export function formatRefreshPanelFailureBody(failures: ReadonlyArray<RefreshResult>): string {
   const details = failures

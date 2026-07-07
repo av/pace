@@ -4,7 +4,9 @@ import { loadDashboardPanelDataMap } from "../db";
 import { formatDashboardUpdatedAt, renderDashboard } from "../layout";
 import {
   collectRefreshFailures,
+  collectRefreshSkips,
   formatRefreshPanelFailureBody,
+  formatRefreshSkippedNotice,
   type RefreshResult,
 } from "../refresh-result";
 import {
@@ -38,9 +40,39 @@ export async function handleRefreshPanel(c: Context, deps: ServerRouteDeps): Pro
     if (failures.length > 0) {
       return c.text(formatRefreshPanelFailureBody(failures), 502);
     }
+    const skips = collectRefreshSkips(results);
+    if (skips.length > 0) {
+      const names = skips.map((result) => result.name).join(",");
+      return c.redirect(
+        `${deps.basePath}/?skipped=${encodeURIComponent(names)}`,
+        303,
+      );
+    }
   }
 
   return c.redirect(deps.basePath + "/", 303);
+}
+
+/**
+ * Resolve the `?skipped=` query param into a dashboard notice, keeping only
+ * names that are actually configured refresh sources (the param is
+ * user-controllable, so unknown names are dropped).
+ */
+export function resolveSkippedNotice(
+  skippedParam: string | undefined,
+  panelIdToRefreshSourceNames: ReadonlyMap<string, string[]>,
+): string | undefined {
+  if (!skippedParam) return undefined;
+  const known = new Set<string>();
+  for (const names of panelIdToRefreshSourceNames.values()) {
+    for (const name of names) known.add(name);
+  }
+  const names = skippedParam
+    .split(",")
+    .map((name) => name.trim())
+    .filter((name) => known.has(name));
+  if (names.length === 0) return undefined;
+  return formatRefreshSkippedNotice(names);
 }
 
 export function registerServerRoutes(app: Hono, deps: ServerRouteDeps): void {
@@ -54,6 +86,10 @@ export function registerServerRoutes(app: Hono, deps: ServerRouteDeps): void {
       panelData,
       updatedAt: formatDashboardUpdatedAt(),
       basePath: deps.basePath,
+      notice: resolveSkippedNotice(
+        c.req.query("skipped"),
+        deps.panelIdToRefreshSourceNames,
+      ),
     });
     return c.html(content);
   });
