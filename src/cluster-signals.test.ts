@@ -3,6 +3,7 @@ import { makeContentItemRow } from "./test/content-items";
 import {
   buildClusterSignals,
   computeClusterSimilarity,
+  registrableDomain,
   type ClusterItemSignals,
 } from "./cluster-signals";
 
@@ -79,6 +80,35 @@ describe("cluster-signals", () => {
       expect(computeClusterSimilarity(exact, exact, "domain")).toBe(1);
       expect(computeClusterSimilarity(exact, sibling, "domain")).toBe(0.7);
       expect(computeClusterSimilarity(exact, unrelated, "domain")).toBe(0);
+    });
+
+    test("domain strategy does not cluster unrelated sites under a shared ccTLD public suffix", () => {
+      const bbc = signal({ domain: "bbc.co.uk" });
+      const guardian = signal({ domain: "guardian.co.uk" });
+      const bbcNews = signal({ domain: "news.bbc.co.uk" });
+      const smh = signal({ domain: "smh.com.au" });
+      const abcAu = signal({ domain: "abc.net.au" });
+
+      // Different registrants under co.uk must NOT match (was 0.7 before fix)
+      expect(computeClusterSimilarity(bbc, guardian, "domain")).toBe(0);
+      // Same registrant under co.uk still matches at 0.7
+      expect(computeClusterSimilarity(bbc, bbcNews, "domain")).toBe(0.7);
+      // Different suffixes never match
+      expect(computeClusterSimilarity(smh, abcAu, "domain")).toBe(0);
+      // Exact match unaffected
+      expect(computeClusterSimilarity(bbc, bbc, "domain")).toBe(1);
+    });
+
+    test("registrableDomain handles suffix shortlist and plain TLDs", () => {
+      expect(registrableDomain("bbc.co.uk")).toBe("bbc.co.uk");
+      expect(registrableDomain("news.bbc.co.uk")).toBe("bbc.co.uk");
+      expect(registrableDomain("api.github.com")).toBe("github.com");
+      expect(registrableDomain("github.com")).toBe("github.com");
+      expect(registrableDomain("localhost")).toBe("localhost");
+      expect(registrableDomain("a.b.smh.com.au")).toBe("smh.com.au");
+      expect(registrableDomain("blog.example.co.jp")).toBe("example.co.jp");
+      // "update.com" is not a public suffix even though "update" looks generic
+      expect(registrableDomain("x.update.com")).toBe("update.com");
     });
 
     test("keywords strategy uses jaccard overlap", () => {

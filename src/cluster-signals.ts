@@ -72,14 +72,64 @@ export function buildClusterSignals(items: ContentItemRow[]): ClusterItemSignals
   });
 }
 
+/**
+ * Shortlist of common two-label public suffixes (ccTLD second-level
+ * registrations). Without this, the registrable domain of `bbc.co.uk` would
+ * be computed as `co.uk`, making every `*.co.uk` site a 0.7 domain match and
+ * falsely clustering unrelated publishers. Not the full public suffix list —
+ * just the suffixes most likely to appear in feed URLs.
+ */
+const MULTI_PART_PUBLIC_SUFFIXES = new Set([
+  // United Kingdom
+  "co.uk", "org.uk", "ac.uk", "gov.uk", "net.uk", "me.uk", "ltd.uk", "plc.uk",
+  // Japan
+  "co.jp", "or.jp", "ne.jp", "ac.jp", "go.jp", "ad.jp",
+  // Australia
+  "com.au", "net.au", "org.au", "edu.au", "gov.au", "id.au", "asn.au",
+  // New Zealand
+  "co.nz", "org.nz", "net.nz", "ac.nz", "govt.nz", "geek.nz",
+  // India
+  "co.in", "net.in", "org.in", "gen.in", "firm.in", "ac.in", "gov.in",
+  // Brazil
+  "com.br", "net.br", "org.br", "gov.br", "edu.br",
+  // China / Taiwan / Hong Kong
+  "com.cn", "net.cn", "org.cn", "gov.cn", "edu.cn",
+  "com.tw", "org.tw", "gov.tw", "edu.tw",
+  "com.hk", "org.hk", "edu.hk", "gov.hk",
+  // Korea
+  "co.kr", "or.kr", "go.kr", "ne.kr", "ac.kr",
+  // South Africa
+  "co.za", "org.za", "gov.za", "web.za", "ac.za",
+  // Mexico / Argentina
+  "com.mx", "org.mx", "gob.mx", "edu.mx",
+  "com.ar", "org.ar", "gob.ar", "edu.ar",
+  // Singapore / Malaysia / Indonesia
+  "com.sg", "org.sg", "edu.sg", "gov.sg",
+  "com.my", "org.my", "gov.my", "edu.my",
+  "co.id", "or.id", "go.id", "ac.id",
+  // Turkey / Ukraine / Poland
+  "com.tr", "org.tr", "gov.tr", "edu.tr",
+  "com.ua", "org.ua", "in.ua", "gov.ua",
+  "com.pl", "net.pl", "org.pl", "edu.pl",
+]);
+
+/**
+ * Best-effort registrable domain ("site" identity) for clustering: the label
+ * directly below the public suffix, using the shortlist above for two-label
+ * ccTLD suffixes and the plain TLD otherwise.
+ */
+export function registrableDomain(domain: string): string {
+  const parts = domain.split(".");
+  if (parts.length <= 2) return domain;
+  const lastTwo = parts.slice(-2).join(".");
+  if (MULTI_PART_PUBLIC_SUFFIXES.has(lastTwo)) return parts.slice(-3).join(".");
+  return lastTwo;
+}
+
 function domainSimilarity(a: ClusterItemSignals, b: ClusterItemSignals): number {
   if (!a.domain || !b.domain) return 0;
   if (a.domain === b.domain) return 1.0;
-  const aParts = a.domain.split(".");
-  const bParts = b.domain.split(".");
-  const aBase = aParts.slice(-2).join(".");
-  const bBase = bParts.slice(-2).join(".");
-  if (aBase === bBase) return 0.7;
+  if (registrableDomain(a.domain) === registrableDomain(b.domain)) return 0.7;
   return 0;
 }
 

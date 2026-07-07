@@ -74,8 +74,12 @@ export function isCliKnownOption(key: string): boolean {
   return knownOptionSet.has(key);
 }
 
-/** Options that are only valid for the serve command. */
-const SERVE_ONLY_OPTIONS = new Set(["config", "port", "chdir", "preset"]);
+/** camelCase twins created by normalizeCliParsedValues for kebab-case flags. */
+const CAMEL_CASE_ALIAS_KEYS = new Set(["listPresets", "rendererUrl", "gistId", "outputDir"]);
+
+function isCamelCaseAliasKey(key: string): boolean {
+  return CAMEL_CASE_ALIAS_KEYS.has(key);
+}
 
 export type CliParsedValues = Record<string, unknown> & {
   config?: string;
@@ -195,6 +199,19 @@ export function resolveCliServeErrors(
   }
 
   return null;
+}
+
+/**
+ * parseArgs runs with strict: false, so a string option given without a value
+ * (`pace --config`) parses as boolean `true` instead of erroring. Detect that
+ * so we fail with a clear message rather than e.g. treating `true` as a path.
+ */
+export function resolveCliMissingValueError(values: Record<string, unknown>): string | null {
+  const missing = Object.entries(CLI_PARSE_OPTIONS)
+    .filter(([key, spec]) => spec.type === "string" && values[key] === true)
+    .map(([key]) => "--" + key);
+  if (missing.length === 0) return null;
+  return `Option(s) missing required value: ${missing.join(", ")}\n`;
 }
 
 export function assertCliServeInvocation(
@@ -550,14 +567,31 @@ export function formatSkillList(skills: SkillEntry[]): string {
   return `${rows}\n\nRun \`pace skill <name>\` to print the full skill.`;
 }
 
-/** Reject serve-only flags when used with info/subcommands. */
-function rejectServeOnlyFlags(
+/**
+ * Options that may legitimately still be set when a subcommand runs: global
+ * info flags are handled (and exit) before dispatch, so allowing them here is
+ * only a safety net.
+ */
+const GLOBAL_INFO_OPTIONS = new Set(["help", "version", "listPresets", "list-presets"]);
+
+/**
+ * Reject options that are not valid for the current subcommand: serve-only
+ * flags, share-only flags, and flags unknown to the CLI entirely (parseArgs
+ * runs with strict: false, so `--bogus` silently lands in values otherwise).
+ */
+function rejectInvalidCommandOptions(
   values: CliParsedValues,
   usageBlock: string,
   exclude?: ReadonlySet<string>,
 ): void {
   const rejected = Object.keys(values).filter(
-    (key) => SERVE_ONLY_OPTIONS.has(key) && values[key] !== undefined && !exclude?.has(key),
+    (key) =>
+      values[key] !== undefined &&
+      !GLOBAL_INFO_OPTIONS.has(key) &&
+      !exclude?.has(key) &&
+      // Camel-case twins of kebab flags (gistId, rendererUrl, outputDir) are
+      // reported via their kebab originals, which are always set alongside.
+      !isCamelCaseAliasKey(key),
   );
   if (rejected.length > 0) {
     cliFailWithHelp(
@@ -609,6 +643,15 @@ async function runShareCommand(
 
   const sub = positionals[0];
   if (sub === "export") {
+    const gistOnly = ["renderer-url", "gist-id", "update", "public", "secret"].filter(
+      (key) => values[key] !== undefined,
+    );
+    if (gistOnly.length > 0) {
+      cliFailWithHelp(
+        `Option(s) only valid for share gist: ${gistOnly.map((k) => "--" + k).join(", ")}\n`,
+        usage,
+      );
+    }
     if (positionals.length > 2) {
       cliFailWithHelp(`Unknown argument: ${positionals[2]}\n`, usage);
     }
@@ -666,7 +709,10 @@ const CLI_COMMANDS: CliCommand[] = [
     name: "serve",
     summary: "Run the dashboard server (default)",
     usage: "",
-    async run(_positionals, values, ctx) {
+    async run(positionals, values, ctx) {
+      if (positionals.length > 0) {
+        cliFailWithHelp(`Unknown argument: ${positionals[0]}\n`, ctx.help);
+      }
       await bootstrapServeModule(values, ctx.deps);
     },
   },
@@ -677,7 +723,7 @@ const CLI_COMMANDS: CliCommand[] = [
     async run(positionals, values, ctx) {
       const sub = positionals[0];
       const usage = formatPresetsUsage();
-      rejectServeOnlyFlags(values, usage);
+      rejectInvalidCommandOptions(values, usage);
       if (sub === "list") {
         if (positionals.length > 1) {
           cliFailWithHelp(`Unknown subcommand: ${positionals[1]}\n`, usage);
@@ -698,7 +744,7 @@ const CLI_COMMANDS: CliCommand[] = [
     async run(positionals, values) {
       const sub = positionals[0];
       const usage = formatAdaptersUsage();
-      rejectServeOnlyFlags(values, usage);
+      rejectInvalidCommandOptions(values, usage);
       if (sub === "list") {
         cliExitOk(
           ADAPTER_TYPES.map((t) => `${t} - ${ADAPTER_DOCS[t].summary}`).join("\n"),
@@ -724,7 +770,7 @@ const CLI_COMMANDS: CliCommand[] = [
     async run(positionals, values) {
       const sub = positionals[0];
       const usage = formatTransformsUsage();
-      rejectServeOnlyFlags(values, usage);
+      rejectInvalidCommandOptions(values, usage);
       if (sub === "list") {
         cliExitOk(
           TRANSFORM_TYPES.map((t) => `${t} - ${TRANSFORM_DOCS[t].summary}`).join("\n"),
@@ -758,7 +804,7 @@ const CLI_COMMANDS: CliCommand[] = [
   pace skill <name>    Print the full skill document
 `,
     async run(positionals, values) {
-      rejectServeOnlyFlags(values, "Usage: pace skill [name]\n");
+      rejectInvalidCommandOptions(values, "Usage: pace skill [name]\n");
       const name = positionals[0];
       if (name === undefined) {
         const skills = listSkills();
@@ -781,9 +827,9 @@ const CLI_COMMANDS: CliCommand[] = [
     usage: formatConfigUsage(),
     async run(positionals, values) {
       const usage = formatConfigUsage();
-      // --config is valid for `config check`; exclude it from the serve-only rejection
+      // --config is valid for `config check`; exclude it from the invalid-option rejection
       const CONFIG_COMMAND_ALLOWED = new Set(["config"]);
-      rejectServeOnlyFlags(values, usage, CONFIG_COMMAND_ALLOWED);
+      rejectInvalidCommandOptions(values, usage, CONFIG_COMMAND_ALLOWED);
       const sub = positionals[0];
       if (sub === "check") {
         // Resolution order: positional path > --config > PACE_CONFIG > default
@@ -825,6 +871,9 @@ export async function runCli(argv: string[], deps: CliRunDeps): Promise<void> {
     strict: false,
   });
   const values = rawValues as CliParsedValues;
+
+  const missingValueError = resolveCliMissingValueError(values);
+  if (missingValueError !== null) cliFailWithHelp(missingValueError, help);
 
   normalizeCliParsedValues(values);
   applyCliChdir(values.chdir);

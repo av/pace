@@ -86,8 +86,6 @@ describe("pace share", () => {
         "export",
         "--output-dir",
         "dist/share",
-        "--renderer-url",
-        "http://127.0.0.1:7453",
       ],
       baseDeps({
         loadConfig: () => ({ adapters: [], layout: { direction: "row", children: [] } }),
