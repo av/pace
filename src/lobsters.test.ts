@@ -330,7 +330,7 @@ describe("lobsters", () => {
     expect(items).toHaveLength(1);
     expect(items[0].id).toBe("lobsters:valid1");
     expect(mocks.warnSpy).toHaveBeenCalledWith(
-      "lobsters: skipped 2 invalid element(s) in hottest (3 total; required: short_id, title, created_at, score, comment_count, comments_url, submitter_user)",
+      "lobsters: skipped 2 invalid element(s) in hottest (3 total; required: short_id, title, created_at)",
     );
   });
 
@@ -352,7 +352,49 @@ describe("lobsters", () => {
     expect(items).toHaveLength(1);
     expect(items[0].id).toBe("lobsters:tag-valid");
     expect(mocks.warnSpy).toHaveBeenCalledWith(
-      'lobsters: skipped 1 invalid element(s) in tag rust (2 total; required: short_id, title, created_at, score, comment_count, comments_url, submitter_user)',
+      'lobsters: skipped 1 invalid element(s) in tag rust (2 total; required: short_id, title, created_at)',
     );
+  });
+});
+
+describe("lobsters degraded payloads", () => {
+  test("degrades gracefully when optional item fields are missing", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      makeJsonResponse([
+        {
+          short_id: "bare1",
+          title: "Bare Story",
+          created_at: "2024-05-20T12:00:00Z",
+        },
+      ]),
+    );
+
+    const items = await lobstersAdapter.fetch(lobstersCfg({ feed: "hottest", limit: 5 }));
+
+    expect(items).toHaveLength(1);
+    expect(items[0].id).toBe("lobsters:bare1");
+    expect(items[0].url).toBe("https://lobste.rs/s/bare1");
+    expect(items[0].body).toContain("0 points");
+    expect(items[0].body).not.toContain("by ");
+    expect(Number.isNaN(items[0].timestamp.getTime())).toBe(false);
+  });
+
+  test("sorts hottest feed without crashing when scores are missing", async () => {
+    mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/t/rust.json")) {
+        return makeJsonResponse([
+          { short_id: "noscore", title: "No Score", created_at: "2024-05-21T12:00:00Z" },
+          makeLobstersItem({ short_id: "scored", title: "Scored", score: 10 }),
+        ]);
+      }
+      return makeJsonResponse([]);
+    });
+
+    const items = await lobstersAdapter.fetch(lobstersCfg({ tags: ["rust"], limit: 5 }));
+
+    expect(items).toHaveLength(2);
+    expect(items[0].id).toBe("lobsters:scored");
+    expect(items[1].id).toBe("lobsters:noscore");
   });
 });

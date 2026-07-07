@@ -29,10 +29,6 @@ const LOBSTERS_ITEM_REQUIRED_FIELDS = [
   "short_id",
   "title",
   "created_at",
-  "score",
-  "comment_count",
-  "comments_url",
-  "submitter_user",
 ] as const;
 
 /** Build lobsters source label from tags or feed type. */
@@ -52,38 +48,45 @@ export const resolveLobstersFeedType = createAliasedResolver<FeedType>({
 
 interface LobstersItem {
   short_id: string;
-  short_id_url: string;
+  short_id_url?: string;
   title: string;
-  url: string;
-  score: number;
-  comment_count: number;
-  comments_url: string;
-  submitter_user: string;
+  url?: string;
+  score?: number;
+  comment_count?: number;
+  comments_url?: string;
+  submitter_user?: string;
   created_at: string;
-  tags: string[];
+  tags?: string[];
   description?: string;
+}
+
+/** Canonical story URL fallback when the payload omits comments_url. */
+function lobstersCommentsUrl(item: LobstersItem): string {
+  return (
+    item.comments_url ?? item.short_id_url ?? `${LOBSTERS_BASE}/s/${item.short_id}`
+  );
 }
 
 function lobstersSortComparator(
   feedType: FeedType,
 ): (a: LobstersItem, b: LobstersItem) => number {
   if (feedType === "hottest") {
-    return (a, b) => b.score - a.score;
+    return (a, b) => (b.score ?? 0) - (a.score ?? 0);
   }
   if (feedType === "newest") {
     return (a, b) => compareIsoTimestamp(a.created_at, b.created_at, "desc");
   }
-  return (a, b) => b.comment_count - a.comment_count;
+  return (a, b) => (b.comment_count ?? 0) - (a.comment_count ?? 0);
 }
 
 function buildBody(item: LobstersItem): string {
   return joinTitle(
-    formatPoints(item.score),
-    formatBy(item.submitter_user),
-    formatComments(item.comment_count),
-    formatTags(item.tags),
+    formatPoints(item.score ?? 0),
+    item.submitter_user ? formatBy(item.submitter_user) : undefined,
+    formatComments(item.comment_count ?? 0),
+    formatTags(item.tags ?? []),
     item.url && !item.url.includes("lobste.rs")
-      ? formatDiscuss(item.comments_url)
+      ? formatDiscuss(lobstersCommentsUrl(item))
       : undefined,
   );
 }
@@ -104,7 +107,7 @@ const adapter: Adapter = {
     const finalizeOptions = {
       limit,
       minScore,
-      scoreOf: (item: LobstersItem) => item.score,
+      scoreOf: (item: LobstersItem) => item.score ?? 0,
       ...(isMultiSource
         ? {
             dedupeKey: (item: LobstersItem) => item.short_id,
@@ -135,7 +138,7 @@ const adapter: Adapter = {
       (item) => ({
       id: `lobsters:${item.short_id}`,
       title: decodeNumericFeedTitleOptional(item.title),
-      url: item.url || item.comments_url,
+      url: item.url || lobstersCommentsUrl(item),
       timestamp: new Date(item.created_at),
       body: buildBody(item),
     }),

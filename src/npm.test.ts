@@ -329,7 +329,57 @@ describe("npm", () => {
 
     expect(items).toEqual([]);
     expect(mocks.warnSpy).toHaveBeenCalledWith(
-      "npm: expected JSON object for broken (got array), treating as null",
+      'npm: expected array field "objects" for broken (field is missing), treating as empty',
     );
+  });
+
+  test("skips malformed result elements instead of crashing the fetch", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      makeJsonResponse({
+        objects: [
+          null,
+          "junk",
+          {},
+          { package: { name: "no-version" } },
+          { score: { final: 1 } },
+          {
+            package: {
+              name: "good-pkg",
+              version: "1.2.3",
+              date: "2024-01-15T10:00:00Z",
+              links: { npm: "https://www.npmjs.com/package/good-pkg" },
+            },
+            score: { final: 0.9, detail: { quality: 0.8, popularity: 0.7, maintenance: 0.9 } },
+          },
+        ],
+        total: 6,
+      }),
+    );
+
+    const items = await npmAdapter.fetch(npmCfg({ keywords: ["test"] }));
+
+    expect(items).toHaveLength(1);
+    expect(items[0].id).toBe("npm:good-pkg@1.2.3");
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "npm: skipped 5 invalid element(s) in test (6 total; required: package.name, package.version)",
+    );
+  });
+
+  test("degrades gracefully when a result has only identity fields", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      makeJsonResponse({
+        objects: [{ package: { name: "bare-pkg", version: "0.1.0" } }],
+        total: 1,
+      }),
+    );
+
+    const items = await npmAdapter.fetch(npmCfg({ keywords: ["test"] }));
+
+    expect(items).toHaveLength(1);
+    expect(items[0].id).toBe("npm:bare-pkg@0.1.0");
+    expect(items[0].url).toBe("https://www.npmjs.com/package/bare-pkg");
+    expect(items[0].title).toBe("bare-pkg");
+    expect(items[0].body).toBe("v0.1.0");
+    expect(Number.isNaN(items[0].timestamp.getTime())).toBe(false);
   });
 });

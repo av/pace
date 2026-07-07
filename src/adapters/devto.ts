@@ -29,34 +29,33 @@ const DEVTO_ARTICLE_REQUIRED_FIELDS = [
   "id",
   "title",
   "url",
-  "published_at",
-  "user",
+  "user.username",
 ] as const;
 
 interface DevToArticle {
   id: number;
   title: string;
   url: string;
-  description: string;
-  published_at: string;
-  reading_time_minutes: number;
-  positive_reactions_count: number;
-  comments_count: number;
+  description?: string;
+  published_at?: string;
+  reading_time_minutes?: number;
+  positive_reactions_count?: number;
+  comments_count?: number;
   user: {
     username: string;
-    name: string;
+    name?: string;
   };
-  tag_list: string[];
-  cover_image: string | null;
+  tag_list?: string[];
+  cover_image?: string | null;
 }
 
 function buildBody(article: DevToArticle): string {
   return joinTitle(
-    formatReactions(article.positive_reactions_count),
-    formatComments(article.comments_count),
-    formatReadingTime(article.reading_time_minutes),
+    formatReactions(article.positive_reactions_count ?? 0),
+    formatComments(article.comments_count ?? 0),
+    formatReadingTime(article.reading_time_minutes ?? 0),
     formatBy(formatAtHandle(article.user.username)),
-    formatTags(article.tag_list),
+    formatTags(article.tag_list ?? []),
     formatCover(article.cover_image),
   );
 }
@@ -169,8 +168,9 @@ const adapter: Adapter = {
         limit: perPage,
         dedupeKey: (article) => article.id,
         minScore: minReactions,
-        scoreOf: (article) => article.positive_reactions_count,
-        sort: (a, b) => b.positive_reactions_count - a.positive_reactions_count,
+        scoreOf: (article) => article.positive_reactions_count ?? 0,
+        sort: (a, b) =>
+          (b.positive_reactions_count ?? 0) - (a.positive_reactions_count ?? 0),
       },
     );
 
@@ -178,7 +178,7 @@ const adapter: Adapter = {
       id: `devto:${article.id}`,
       title: decodeNumericFeedTitle(article.title),
       url: article.url,
-      timestamp: new Date(article.published_at),
+      timestamp: article.published_at ? new Date(article.published_at) : new Date(),
       body: buildBody(article),
     }));
   },

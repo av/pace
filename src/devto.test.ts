@@ -352,7 +352,7 @@ describe("devto", () => {
     expect(items).toHaveLength(1);
     expect(items[0].id).toBe("devto:701");
     expect(mocks.warnSpy).toHaveBeenCalledWith(
-      'devto: skipped 2 invalid element(s) in tag "typescript" (3 total; required: id, title, url, published_at, user)',
+      'devto: skipped 2 invalid element(s) in tag "typescript" (3 total; required: id, title, url, user.username)',
     );
   });
 
@@ -376,7 +376,49 @@ describe("devto", () => {
     expect(items).toHaveLength(1);
     expect(items[0].id).toBe("devto:801");
     expect(mocks.warnSpy).toHaveBeenCalledWith(
-      'devto: skipped 1 invalid element(s) in user "testuser" (2 total; required: id, title, url, published_at, user)',
+      'devto: skipped 1 invalid element(s) in user "testuser" (2 total; required: id, title, url, user.username)',
     );
+  });
+});
+
+describe("devto degraded payloads", () => {
+  test("drops articles whose user lacks a username (dot-path required field)", async () => {
+    const valid = makeDevToArticle(901);
+    mocks.fetchMock.mockResolvedValue(
+      makeJsonResponse([
+        valid,
+        { ...makeDevToArticle(902), user: "not-an-object" },
+        { ...makeDevToArticle(903), user: { name: "No Handle" } },
+      ]),
+    );
+
+    const items = await devtoAdapter.fetch(devtoCfg({ tags: ["typescript"], limit: 5 }));
+
+    expect(items).toHaveLength(1);
+    expect(items[0].id).toBe("devto:901");
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      'devto: skipped 2 invalid element(s) in tag "typescript" (3 total; required: id, title, url, user.username)',
+    );
+  });
+
+  test("degrades gracefully when optional article fields are missing", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      makeJsonResponse([
+        {
+          id: 910,
+          title: "Bare Article",
+          url: "https://dev.to/bare",
+          user: { username: "bare" },
+        },
+      ]),
+    );
+
+    const items = await devtoAdapter.fetch(devtoCfg({ tags: ["typescript"], limit: 5 }));
+
+    expect(items).toHaveLength(1);
+    expect(items[0].id).toBe("devto:910");
+    expect(items[0].body).toContain("by @bare");
+    expect(items[0].body).toContain("0 reactions");
+    expect(Number.isNaN(items[0].timestamp.getTime())).toBe(false);
   });
 });

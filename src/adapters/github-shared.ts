@@ -21,7 +21,7 @@ import {
   fetchAtomFeed,
   fetchJson,
   buildGitHubApiHeaders,
-  jsonArrayOrEmpty,
+  jsonObjectArrayOrEmpty,
 } from "./fetch";
 import { fetchRepoTagline } from "./github-repo-meta";
 import { decodeNumericFeedTitle } from "./html";
@@ -30,13 +30,15 @@ import { aggregateParallelFeeds, sliceAndMap } from "./merge";
 import { capText, joinTitleWithTagline } from "./title";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
+export const GITHUB_RELEASE_REQUIRED_FIELDS = ["id"] as const;
+
 export interface GitHubRelease {
   id: number;
-  tag_name: string;
-  name: string | null;
-  html_url: string;
-  body: string | null;
-  published_at: string;
+  tag_name?: string | null;
+  name?: string | null;
+  html_url?: string | null;
+  body?: string | null;
+  published_at?: string | null;
 }
 
 export interface GitHubReposConfig {
@@ -155,10 +157,10 @@ function projectGitHubApiRelease(item: TaggedGHApiRelease): ContentItemProjectio
     id: `github:${repo}:${release.id}`,
     title: formatGitHubReleaseDisplayTitle(
       repo,
-      { title: release.name ?? release.tag_name },
+      { title: release.name ?? release.tag_name ?? "(untitled release)" },
       tagline,
     ),
-    url: release.html_url,
+    url: release.html_url ?? `https://github.com/${repo}/releases`,
     timestamp: item.timestamp,
     body: release.body ?? undefined,
   };
@@ -200,13 +202,18 @@ async function fetchGitHubApiReleasesRaw(
   const json = await fetchJson<unknown>(adapterName, url, repo, {
     headers: buildGitHubApiHeaders(token),
   });
-  const releases = jsonArrayOrEmpty<GitHubRelease>(adapterName, json, repo);
+  const releases = jsonObjectArrayOrEmpty<GitHubRelease>(
+    adapterName,
+    json,
+    repo,
+    GITHUB_RELEASE_REQUIRED_FIELDS,
+  );
   const tagline = await fetchRepoTagline(repo, adapterName, token);
   return sliceAndMap(releases, limit, (release) => ({
     release,
     repo,
     tagline,
-    timestamp: new Date(release.published_at),
+    timestamp: release.published_at ? new Date(release.published_at) : new Date(),
   }));
 }
 

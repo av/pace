@@ -7,7 +7,7 @@ import { joinTitle, joinTitleWithTagline } from "./title";
 
 import { mapToContentItems } from "./content-item";
 import { warnEmptyConfig } from "./empty-config";
-import { arrayFieldOrEmpty, fetchJson, jsonObjectOrNull } from "./fetch";
+import { fetchJson, objectArrayFieldOrEmpty } from "./fetch";
 import { decodeNumericFeedTitle } from "./html";
 import {
   clampAdapterLimit,
@@ -19,19 +19,16 @@ import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 const NPM_REGISTRY = "https://registry.npmjs.org";
 
-interface NpmSearchResult {
-  objects: NpmPackageResult[];
-  total: number;
-}
+const NPM_RESULT_REQUIRED_FIELDS = ["package.name", "package.version"] as const;
 
 interface NpmPackageResult {
   package: {
     name: string;
     version: string;
     description?: string;
-    date: string;
-    links: {
-      npm: string;
+    date?: string;
+    links?: {
+      npm?: string;
       homepage?: string;
       repository?: string;
     };
@@ -40,28 +37,35 @@ interface NpmPackageResult {
     };
     keywords?: string[];
   };
-  score: {
-    final: number;
-    detail: {
-      quality: number;
-      popularity: number;
-      maintenance: number;
+  score?: {
+    final?: number;
+    detail?: {
+      quality?: number;
+      popularity?: number;
+      maintenance?: number;
     };
   };
 }
 
+function formatScorePart(
+  label: string,
+  fraction: number | undefined,
+): string | undefined {
+  return fraction != null ? `${label}: ${formatPercent(fraction)}` : undefined;
+}
+
 function buildBody(result: NpmPackageResult): string {
   const pkg = result.package;
-  const scores = result.score.detail;
+  const scores = result.score?.detail;
 
   return joinTitle(
     `v${pkg.version}`,
     pkg.publisher?.username ? formatBy(pkg.publisher.username) : undefined,
-    `quality: ${formatPercent(scores.quality)}`,
-    `popularity: ${formatPercent(scores.popularity)}`,
-    `maintenance: ${formatPercent(scores.maintenance)}`,
+    formatScorePart("quality", scores?.quality),
+    formatScorePart("popularity", scores?.popularity),
+    formatScorePart("maintenance", scores?.maintenance),
     formatTags((pkg.keywords ?? []).slice(0, 5)),
-    pkg.links.repository ? `repo: ${pkg.links.repository}` : undefined,
+    pkg.links?.repository ? `repo: ${pkg.links.repository}` : undefined,
   );
 }
 
@@ -75,9 +79,13 @@ async function searchNpm(
   const raw = await fetchJson<unknown>("npm", url, context, {
     accept: "application/json",
   });
-  const json = jsonObjectOrNull<NpmSearchResult>("npm", raw, context, ["objects"]);
-  if (json == null) return [];
-  return arrayFieldOrEmpty<NpmPackageResult>("npm", json, "objects", context);
+  return objectArrayFieldOrEmpty<NpmPackageResult>(
+    "npm",
+    raw,
+    "objects",
+    context,
+    NPM_RESULT_REQUIRED_FIELDS,
+  );
 }
 
 type SortBy = "optimal" | "quality" | "popularity" | "maintenance";
@@ -159,8 +167,10 @@ const adapter: Adapter = {
           ? decodeNumericFeedTitle(result.package.description)
           : undefined,
       ),
-      url: result.package.links.npm,
-      timestamp: new Date(result.package.date),
+      url:
+        result.package.links?.npm ??
+        `https://www.npmjs.com/package/${result.package.name}`,
+      timestamp: result.package.date ? new Date(result.package.date) : new Date(),
       body: buildBody(result),
     }));
   },

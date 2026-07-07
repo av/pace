@@ -279,3 +279,45 @@ describe("github-releases", () => {
     );
   });
 });
+
+describe("github-releases malformed API payloads", () => {
+  test("skips malformed release elements instead of crashing the fetch", async () => {
+    const malformed = [
+      null,
+      "junk",
+      {},
+      { tag_name: "v9.9.9" },
+      makeGitHubRelease(),
+    ] as unknown as ReturnType<typeof makeGitHubRelease>[];
+    mocks.fetchMock.mockImplementation(async (url: string) =>
+      githubReleasesApiFetchMock(url, { releases: malformed }),
+    );
+
+    const items = await githubReleasesAdapter.fetch(
+      githubReleasesCfg({ repos: ["o/r"] }),
+    );
+
+    expect(items).toHaveLength(1);
+    expect(items[0].id).toBe("github:o/r:1");
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      "github-releases: skipped 4 invalid element(s) in o/r (5 total; required: id)",
+    );
+  });
+
+  test("degrades gracefully when a release has only an id", async () => {
+    const bare = [{ id: 77 }] as unknown as ReturnType<typeof makeGitHubRelease>[];
+    mocks.fetchMock.mockImplementation(async (url: string) =>
+      githubReleasesApiFetchMock(url, { releases: bare }),
+    );
+
+    const items = await githubReleasesAdapter.fetch(
+      githubReleasesCfg({ repos: ["o/r"] }),
+    );
+
+    expect(items).toHaveLength(1);
+    expect(items[0].id).toBe("github:o/r:77");
+    expect(items[0].url).toBe("https://github.com/o/r/releases");
+    expect(items[0].title).toBe("o/r: (untitled release)");
+    expect(Number.isNaN(items[0].timestamp.getTime())).toBe(false);
+  });
+});
