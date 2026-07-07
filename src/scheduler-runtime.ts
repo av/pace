@@ -173,33 +173,44 @@ async function runAdapter(scheduler: SchedulerState, entry: AdapterEntry): Promi
   const { name, panelIds, adapter, adapterConfig } = entry;
   return executeWithRunningGuard(entry, name, "adapter", async () => {
     const items = await adapter.fetch(adapterConfig);
-    if (items.length > 0) {
-      saveItemsToPanels(panelIds, items);
-      logScheduler(`${name} - fetched ${items.length} items`);
-    }
+    // Lock the target panels for the save -> transform -> replace span:
+    // transforms await mid-flight (e.g. LLM calls), and replacePanelItems
+    // rewrites the panel from a snapshot read before that await. Without the
+    // lock, a concurrent refresh of another source sharing a panel could save
+    // items during the await and have them wiped by the stale replace.
+    await scheduler.panelLocks.withLock(panelIds, async () => {
+      if (items.length > 0) {
+        saveItemsToPanels(panelIds, items);
+        logScheduler(`${name} - fetched ${items.length} items`);
+      }
 
-    const transforms = adapterConfig.transforms;
-    if (transforms && transforms.length > 0) {
-      await applyTransformsOnPanels(scheduler, panelIds, transforms, name);
-    }
+      const transforms = adapterConfig.transforms;
+      if (transforms && transforms.length > 0) {
+        await applyTransformsOnPanels(scheduler, panelIds, transforms, name);
+      }
+    });
   });
 }
 
 async function runPipelineJob(scheduler: SchedulerState, entry: PipelineEntry): Promise<RefreshResult> {
   const { config, panelIds } = entry;
   const name = config.name;
-  return executeWithRunningGuard(entry, name, "pipeline", async () => {
-    const items = gatherPipelineInputItems(scheduler, config.sources);
-    await runTransformsAndReplaceOnPanels(scheduler, panelIds, items, config.transforms, {
-      logLabel: `pipeline "${config.name}"`,
-      logMode: "always",
-      mapOutput: (transformed) =>
-        transformed.map((item) => ({
-          ...item,
-          id: `pipeline:${config.name}:${item.id}`,
-        })),
-    });
-  });
+  return executeWithRunningGuard(entry, name, "pipeline", () =>
+    // Same panel-lock rationale as runAdapter: the output panels are rewritten
+    // from a snapshot gathered before awaited transforms.
+    scheduler.panelLocks.withLock(panelIds, async () => {
+      const items = gatherPipelineInputItems(scheduler, config.sources);
+      await runTransformsAndReplaceOnPanels(scheduler, panelIds, items, config.transforms, {
+        logLabel: `pipeline "${config.name}"`,
+        logMode: "always",
+        mapOutput: (transformed) =>
+          transformed.map((item) => ({
+            ...item,
+            id: `pipeline:${config.name}:${item.id}`,
+          })),
+      });
+    }),
+  );
 }
 
 function pruneOldItems(): void {

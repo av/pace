@@ -1,4 +1,5 @@
 import type { TransformContext } from "./transforms";
+import { createKeyedMutex, type KeyedMutex } from "./keyed-mutex";
 
 export interface RunningGuarded {
   running: boolean;
@@ -29,6 +30,8 @@ export class SchedulerState {
   readonly pipelineEntries: PipelineEntry[] = [];
   transformCtx: TransformContext = { llmModel: null };
   sourceToReadKey = new Map<string, string>();
+  /** Serializes panel writes so concurrent refreshes of sources sharing a panel cannot lose updates. */
+  panelLocks: KeyedMutex = createKeyedMutex();
   pruneTimer: ReturnType<typeof setInterval> | null = null;
 
   isStarted(): boolean {
@@ -43,6 +46,7 @@ export class SchedulerState {
     this.pipelineEntries.length = 0;
     this.sourceToReadKey = new Map();
     this.transformCtx = { llmModel: null };
+    this.panelLocks = createKeyedMutex();
     if (this.pruneTimer) {
       clearInterval(this.pruneTimer);
       this.pruneTimer = null;
