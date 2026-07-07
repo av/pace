@@ -55,6 +55,25 @@ describe("coalesceFeedEntryDateStr", () => {
     expect(coalesceFeedEntryDateStr({})).toBe("");
     expect(coalesceFeedEntryDateStr({}, FEED_ENTRY_DATE_RSS_ORDER)).toBe("");
   });
+
+  test("extracts #text from date elements carrying XML attributes", () => {
+    // `<updated type="iso8601">...</updated>` parses to an object; must not
+    // stringify to "[object Object]".
+    expect(
+      coalesceFeedEntryDateStr({
+        updated: { "#text": "2024-02-01T00:00:00Z", "@_type": "iso8601" } as never,
+      }),
+    ).toBe("2024-02-01T00:00:00Z");
+  });
+
+  test("skips attribute-only date objects and falls through the order", () => {
+    expect(
+      coalesceFeedEntryDateStr({
+        pubDate: { "@_type": "iso8601" } as never,
+        updated: "2024-02-01",
+      }),
+    ).toBe("2024-02-01");
+  });
 });
 
 describe("parseFeedEntryTimestamp", () => {

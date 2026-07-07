@@ -270,12 +270,51 @@ describe("extractAtomLink", () => {
     expect(extractAtomLink(link)).toBe("https://example.com/page");
   });
 
-  test("falls back to first href when no alternate rel", () => {
+  test("returns empty when all links are non-page rels", () => {
     const link = [
       { "@_href": "https://example.com/first", "@_rel": "self" },
       { "@_href": "https://example.com/second", "@_rel": "enclosure" },
     ];
-    expect(extractAtomLink(link)).toBe("https://example.com/first");
+    expect(extractAtomLink(link)).toBe("");
+  });
+
+  test("single link object with rel=enclosure is not the item URL", () => {
+    expect(
+      extractAtomLink({
+        "@_href": "https://cdn.example/episode.mp3",
+        "@_rel": "enclosure",
+      }),
+    ).toBe("");
+    expect(
+      extractAtomLink({
+        "@_href": "https://example.com/feed.xml",
+        "@_rel": "self",
+      }),
+    ).toBe("");
+  });
+
+  test("prefers rel-less link over unknown rel, unknown rel over nothing", () => {
+    expect(
+      extractAtomLink([
+        { "@_href": "https://example.com/related", "@_rel": "related" },
+        { "@_href": "https://example.com/page" },
+      ]),
+    ).toBe("https://example.com/page");
+    expect(
+      extractAtomLink([
+        { "@_href": "https://example.com/self", "@_rel": "self" },
+        { "@_href": "https://example.com/related", "@_rel": "related" },
+      ]),
+    ).toBe("https://example.com/related");
+  });
+
+  test("skips alternate links without href", () => {
+    expect(
+      extractAtomLink([
+        { "@_rel": "alternate" },
+        { "@_href": "https://example.com/page" },
+      ]),
+    ).toBe("https://example.com/page");
   });
 });
 

@@ -194,12 +194,40 @@ export function shouldWarnLegitimatelyEmptyFeed<T>(
   return true;
 }
 
+/**
+ * Link rels that never point at the entry's web page. A lone
+ * `rel="enclosure"`/`rel="self"` link must not become the item URL.
+ */
+const NON_PAGE_LINK_RELS = new Set([
+  "enclosure",
+  "self",
+  "hub",
+  "edit",
+  "edit-media",
+  "replies",
+  "icon",
+  "license",
+  "via",
+  "first",
+  "last",
+  "next",
+  "previous",
+  "prev",
+]);
+
 export function extractAtomLink(link: AtomLinkField): string {
   if (!link) return "";
   if (typeof link === "string") return link;
-  if (Array.isArray(link)) {
-    const alt = link.find((l) => l["@_rel"] === "alternate");
-    return alt?.["@_href"] ?? link[0]?.["@_href"] ?? "";
-  }
-  return link["@_href"] ?? "";
+  const links = Array.isArray(link) ? link : [link];
+  // Atom spec: absent rel is equivalent to rel="alternate".
+  const alt = links.find(
+    (l) => l["@_rel"] === "alternate" && l["@_href"],
+  );
+  if (alt) return alt["@_href"] ?? "";
+  const noRel = links.find((l) => !l["@_rel"] && l["@_href"]);
+  if (noRel) return noRel["@_href"] ?? "";
+  const fallback = links.find(
+    (l) => l["@_href"] && !NON_PAGE_LINK_RELS.has(l["@_rel"] ?? ""),
+  );
+  return fallback?.["@_href"] ?? "";
 }

@@ -2,6 +2,7 @@ import {
   extractFeedEntryTitle,
   extractFeedItemBody,
   extractFeedRootTitle,
+  extractXmlText,
   type FeedItemBodyFields,
   type XmlTextField,
 } from "./atom";
@@ -19,8 +20,12 @@ export type FeedEntryDateField =
   | "updated"
   | "dc:date";
 
+/**
+ * Date fields may carry XML attributes (e.g. `<updated type="...">`), in which
+ * case the parser yields `{ "#text": ..., "@_type": ... }` instead of a string.
+ */
 export type FeedEntryDateFields = Partial<
-  Record<FeedEntryDateField, string | undefined>
+  Record<FeedEntryDateField, XmlTextField | undefined>
 >;
 
 /** RSS 2.0 / hybrid feeds: pubDate, then Atom-style updated/published. */
@@ -49,8 +54,10 @@ export function coalesceFeedEntryDateStr(
   order: FeedEntryDateField[] = FEED_ENTRY_DATE_RSS_ORDER,
 ): string {
   for (const key of order) {
-    const value = item[key];
-    if (value) return String(value);
+    // Route through extractXmlText: a date element with attributes parses to
+    // an object, and String() on it yields "[object Object]" -> now() fallback.
+    const value = extractXmlText(item[key]);
+    if (value) return value;
   }
   return "";
 }
