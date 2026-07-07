@@ -22,6 +22,39 @@ describe("decodeHtmlEntities", () => {
     expect(decodeHtmlEntities("&#65; &#x41;", { numeric: true })).toBe("A A");
     expect(decodeHtmlEntities("&#8364;", { numeric: true })).toBe("€");
   });
+
+  test("decodes astral-plane code points as real characters, not lone surrogates", () => {
+    expect(decodeHtmlEntities("&#128169;", { numeric: true })).toBe("\u{1F4A9}");
+    expect(decodeHtmlEntities("&#x1F600;", { numeric: true })).toBe("\u{1F600}");
+    expect(decodeHtmlEntities("&#X1F600;", { numeric: true })).toBe("\u{1F600}");
+  });
+
+  test("passes invalid numeric references through as literal text", () => {
+    expect(decodeHtmlEntities("&#x110000;", { numeric: true })).toBe("&#x110000;");
+    expect(decodeHtmlEntities("&#55296;", { numeric: true })).toBe("&#55296;"); // surrogate
+    expect(decodeHtmlEntities("&#0;", { numeric: true })).toBe("&#0;");
+    expect(decodeHtmlEntities("&#999999999999;", { numeric: true })).toBe(
+      "&#999999999999;",
+    );
+  });
+
+  test("does not double-decode escaped entities", () => {
+    expect(decodeHtmlEntities("&#38;lt;", { numeric: true })).toBe("&lt;");
+    expect(decodeHtmlEntities("&amp;lt;")).toBe("&lt;");
+    expect(decodeHtmlEntities("&amp;amp;")).toBe("&amp;");
+    expect(decodeHtmlEntities("&#38;#60;script&#38;#62;", { numeric: true })).toBe(
+      "&#60;script&#62;",
+    );
+  });
+
+  test("leaves unknown named entities untouched", () => {
+    expect(decodeHtmlEntities("&mdash; &bogus;")).toBe("&mdash; &bogus;");
+  });
+
+  test("nbsp is case-insensitive, other named entities are not", () => {
+    expect(decodeHtmlEntities("&NBSP;&Nbsp;")).toBe("  ");
+    expect(decodeHtmlEntities("&LT;&AMP;")).toBe("&LT;&AMP;");
+  });
 });
 
 describe("decodeNumericFeedTitle", () => {
