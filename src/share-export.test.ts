@@ -149,6 +149,48 @@ describe("static dashboard export", () => {
     );
   });
 
+  test("feed content containing ${...} text is not mistaken for an env placeholder", () => {
+    initDb();
+    saveItems("code-panel", [
+      makeContentItem({
+        id: "code-1",
+        title: "Understanding ${HOME} expansion in bash",
+        body: "Use ${{ github.token }} in workflows; JS has `${expr}` template literals.",
+        source: "code-feed",
+      }),
+    ]);
+
+    const config: AppConfig = {
+      adapters: [{ type: "rss", name: "code-feed", params: { url: "https://example.com/feed.xml" } }],
+      layout: {
+        direction: "row",
+        children: [{ panel: "Code", id: "code-panel", source: "code-feed" }],
+      },
+    };
+
+    const { html } = renderStaticDashboard(config);
+    expect(html).toContain("${HOME}");
+  });
+
+  test("rejects placeholders in nested layout nodes", () => {
+    const config: AppConfig = {
+      adapters: [],
+      layout: {
+        direction: "row",
+        children: [
+          {
+            direction: "column",
+            children: [{ panel: "Deep ${NESTED_TOKEN}", id: "deep-panel", source: "s" }],
+          },
+        ],
+      },
+    };
+
+    expect(() => renderStaticDashboard(config)).toThrow(
+      /share: static dashboard contains unresolved env placeholder \$\{NESTED_TOKEN\}/,
+    );
+  });
+
   test("rejects unresolved env placeholders in copied CSS", () => {
     const config: AppConfig = {
       adapters: [],

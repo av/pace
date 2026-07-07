@@ -34,10 +34,34 @@ export interface ExportStaticDashboardOptions extends RenderStaticDashboardOptio
   outputDir: string;
 }
 
-function assertNoUnresolvedEnvPlaceholders(...contents: string[]): void {
-  const match = contents.map((content) => content.match(/\$\{[^}]*\}/)).find(Boolean);
-  if (match) {
-    throw new Error(`share: static dashboard contains unresolved env placeholder ${match[0]}`);
+const ENV_PLACEHOLDER = /\$\{[^}]*\}/;
+
+function collectStrings(node: unknown, out: string[]): void {
+  if (typeof node === "string") {
+    out.push(node);
+  } else if (Array.isArray(node)) {
+    for (const child of node) collectStrings(child, out);
+  } else if (node && typeof node === "object") {
+    for (const value of Object.values(node)) collectStrings(value, out);
+  }
+}
+
+/**
+ * Guards against unresolved `${VAR}` config placeholders leaking into a shared
+ * artifact. Only config-derived strings (layout) and the bundled CSS are
+ * scanned — NOT the rendered HTML, which embeds untrusted feed content where
+ * `${...}` is legitimate text (shell snippets, JS template literals, etc.).
+ * Config loaded via loadConfig() already rejects unresolved placeholders; this
+ * covers programmatic AppConfig construction and customized CSS.
+ */
+function assertNoUnresolvedEnvPlaceholders(config: AppConfig, css: string): void {
+  const contents: string[] = [css];
+  collectStrings(config.layout, contents);
+  for (const content of contents) {
+    const match = content.match(ENV_PLACEHOLDER);
+    if (match) {
+      throw new Error(`share: static dashboard contains unresolved env placeholder ${match[0]}`);
+    }
   }
 }
 
@@ -54,6 +78,7 @@ export function renderStaticDashboard(
   const updatedAt = formatDashboardUpdatedAt(options.now);
   const panelData = options.panelData ?? loadStaticDashboardPanelData(config);
   const css = readBundledText(options.srcDir ?? DEFAULT_SRC_DIR, STATIC_DASHBOARD_CSS);
+  assertNoUnresolvedEnvPlaceholders(config, css);
   const html = renderDashboard({
     layout: config.layout,
     panelData,
@@ -62,7 +87,6 @@ export function renderStaticDashboard(
     mode: "static",
   });
 
-  assertNoUnresolvedEnvPlaceholders(html, css);
   return { html, css, updatedAt };
 }
 

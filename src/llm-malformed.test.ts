@@ -119,6 +119,32 @@ describe("mergeItems malformed responses", () => {
     expect(res).toEqual(items);
   });
 
+  test("id repeated across groups is kept only in the first group", async () => {
+    // Old code emitted "a" twice: once merged with b, once alone.
+    mockLlmText('[{"merged_ids":["a","b"],"title":"AB","summary":"s"},{"merged_ids":["a"],"title":"A again","summary":null}]');
+    const res = await mergeItems(fakeModel, items);
+    expect(res).toHaveLength(1);
+    expect(res[0].id).toBe("a+b");
+    expect(warningsMatching(/repeated 1 item id/)).toHaveLength(1);
+  });
+
+  test("id repeated within one group is deduplicated", async () => {
+    mockLlmText('[{"merged_ids":["a","a","b"],"title":"AB","summary":"s"}]');
+    const res = await mergeItems(fakeModel, items);
+    expect(res).toHaveLength(1);
+    expect(res[0].id).toBe("a+b");
+    expect(warningsMatching(/repeated 1 item id/)).toHaveLength(1);
+  });
+
+  test("later group fully consumed by earlier claims produces no output for it", async () => {
+    mockLlmText('[{"merged_ids":["a","b"],"title":"AB","summary":"s"},{"merged_ids":["b","a"],"title":"BA","summary":"x"}]');
+    const res = await mergeItems(fakeModel, items);
+    expect(res).toHaveLength(1);
+    expect(res[0].id).toBe("a+b");
+    expect(res[0].body).toBe("s");
+    expect(warningsMatching(/repeated 2 item id/)).toHaveLength(1);
+  });
+
   test("items omitted from every group warn about being dropped", async () => {
     mockLlmText('[{"merged_ids":["a"],"title":"A","summary":null}]');
     const res = await mergeItems(fakeModel, items);

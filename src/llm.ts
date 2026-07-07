@@ -252,13 +252,26 @@ function validateMergeGroups(result: unknown): MergeGroup[] | null {
 function applyMergeGroups(groups: MergeGroup[], items: ContentItem[]): ContentItem[] {
   const itemMap = new Map(items.map((item) => [item.id, item]));
   const result: ContentItem[] = [];
+  const claimedIds = new Set<string>();
   let unknownIdCount = 0;
+  let duplicateIdCount = 0;
 
   for (const group of groups) {
     // LLMs sometimes hallucinate ids that were never in the batch; drop them
     // so we never fabricate ghost items (url "", source "merged") from thin air.
-    const knownIds = group.merged_ids.filter((id) => itemMap.has(id));
-    unknownIdCount += group.merged_ids.length - knownIds.length;
+    // Ids repeated within a group or across groups are kept only on first use,
+    // so one input item never yields multiple output items.
+    const knownIds: string[] = [];
+    for (const id of group.merged_ids) {
+      if (!itemMap.has(id)) {
+        unknownIdCount++;
+      } else if (claimedIds.has(id)) {
+        duplicateIdCount++;
+      } else {
+        claimedIds.add(id);
+        knownIds.push(id);
+      }
+    }
     if (knownIds.length === 0) continue;
 
     if (knownIds.length === 1 && !group.summary) {
@@ -279,6 +292,9 @@ function applyMergeGroups(groups: MergeGroup[], items: ContentItem[]): ContentIt
 
   if (unknownIdCount > 0) {
     warnLlm(`merge response referenced ${unknownIdCount} unknown item id(s), ignored`);
+  }
+  if (duplicateIdCount > 0) {
+    warnLlm(`merge response repeated ${duplicateIdCount} item id(s), kept first occurrence only`);
   }
 
   const mentioned = new Set(groups.flatMap((group) => group.merged_ids));
