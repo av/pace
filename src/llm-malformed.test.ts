@@ -91,6 +91,48 @@ describe("mergeItems malformed responses", () => {
     const res = await mergeItems(fakeModel, items);
     expect(res).toEqual(items);
   });
+
+  test("hallucinated ids in merged_ids are dropped, no ghost items fabricated", async () => {
+    // Group of only unknown ids used to produce {url: "", source: "merged"} ghosts.
+    mockLlmText('[{"merged_ids":["ghost1","ghost2"],"title":"Ghost","summary":"g"},{"merged_ids":["a"],"title":"A","summary":null},{"merged_ids":["b"],"title":"B","summary":null}]');
+    const res = await mergeItems(fakeModel, items);
+    expect(res).toEqual(items);
+    expect(warningsMatching(/2 unknown item id/)).toHaveLength(1);
+  });
+
+  test("unknown id mixed into a real group is filtered from the merged id and metadata source", async () => {
+    // "ghost" listed first: old code took url/source/timestamp from the missing item.
+    mockLlmText('[{"merged_ids":["ghost","a","b"],"title":"Merged","summary":"s"}]');
+    const res = await mergeItems(fakeModel, items);
+    expect(res).toHaveLength(1);
+    expect(res[0].id).toBe("a+b");
+    expect(res[0].url).toBe(items[0].url);
+    expect(res[0].source).toBe(items[0].source);
+    expect(res[0].timestamp).toEqual(items[0].timestamp);
+    expect(res[0].body).toBe("s");
+    expect(warningsMatching(/1 unknown item id/)).toHaveLength(1);
+  });
+
+  test("group reduced to a single known id without summary keeps the original item", async () => {
+    mockLlmText('[{"merged_ids":["ghost","a"],"title":"Renamed","summary":null},{"merged_ids":["b"],"title":"B","summary":null}]');
+    const res = await mergeItems(fakeModel, items);
+    expect(res).toEqual(items);
+  });
+
+  test("items omitted from every group warn about being dropped", async () => {
+    mockLlmText('[{"merged_ids":["a"],"title":"A","summary":null}]');
+    const res = await mergeItems(fakeModel, items);
+    expect(res).toEqual([items[0]]);
+    expect(warningsMatching(/omitted 1 item/)).toHaveLength(1);
+  });
+
+  test("no warnings when every id is known and every item mentioned", async () => {
+    mockLlmText('[{"merged_ids":["a","b"],"title":"AB","summary":"both"}]');
+    const res = await mergeItems(fakeModel, items);
+    expect(res).toHaveLength(1);
+    expect(res[0].id).toBe("a+b");
+    expect(warningsMatching(/unknown item id|omitted/)).toHaveLength(0);
+  });
 });
 
 describe("filterItemsByLlm malformed responses", () => {

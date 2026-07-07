@@ -252,23 +252,39 @@ function validateMergeGroups(result: unknown): MergeGroup[] | null {
 function applyMergeGroups(groups: MergeGroup[], items: ContentItem[]): ContentItem[] {
   const itemMap = new Map(items.map((item) => [item.id, item]));
   const result: ContentItem[] = [];
+  let unknownIdCount = 0;
 
   for (const group of groups) {
-    if (group.merged_ids.length === 1 && !group.summary) {
-      const original = itemMap.get(group.merged_ids[0]);
-      if (original) result.push(original);
+    // LLMs sometimes hallucinate ids that were never in the batch; drop them
+    // so we never fabricate ghost items (url "", source "merged") from thin air.
+    const knownIds = group.merged_ids.filter((id) => itemMap.has(id));
+    unknownIdCount += group.merged_ids.length - knownIds.length;
+    if (knownIds.length === 0) continue;
+
+    if (knownIds.length === 1 && !group.summary) {
+      result.push(itemMap.get(knownIds[0])!);
       continue;
     }
 
-    const firstItem = itemMap.get(group.merged_ids[0]);
+    const firstItem = itemMap.get(knownIds[0])!;
     result.push({
-      id: group.merged_ids.join("+"),
+      id: knownIds.join("+"),
       title: group.title,
-      url: firstItem?.url ?? "",
-      source: firstItem?.source ?? "merged",
-      timestamp: firstItem?.timestamp ?? new Date(),
+      url: firstItem.url,
+      source: firstItem.source,
+      timestamp: firstItem.timestamp,
       body: group.summary ?? undefined,
     });
+  }
+
+  if (unknownIdCount > 0) {
+    warnLlm(`merge response referenced ${unknownIdCount} unknown item id(s), ignored`);
+  }
+
+  const mentioned = new Set(groups.flatMap((group) => group.merged_ids));
+  const droppedCount = items.filter((item) => !mentioned.has(item.id)).length;
+  if (droppedCount > 0) {
+    warnLlm(`merge response omitted ${droppedCount} item(s), dropped from output`);
   }
 
   return result;
