@@ -62,7 +62,7 @@ function getTopKeywordsClusterLabel(counts: Map<string, number>, total: number):
 export function generateClusterLabel(
   indices: number[],
   signals: ClusterItemSignals[],
-  clusterCount: number
+  clusterIndex: number
 ): string {
   const domainLabel = getMajorityClusterLabel(
     tallyCounts(indices, (idx) => [signals[idx].domain]),
@@ -83,5 +83,8 @@ export function generateClusterLabel(
   );
   if (sourceLabel) return sourceLabel;
 
-  return `Cluster ${clusterCount + 1}`;
+  // Numbered by the cluster's own position so multiple fallback-labeled
+  // clusters in one run get distinct labels (previously every fallback
+  // cluster shared the same `Cluster <total+1>` label).
+  return `Cluster ${clusterIndex + 1}`;
 }

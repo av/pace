@@ -26,6 +26,17 @@ export const CLUSTER_STOP_WORDS = new Set([
   "ycombinator", "lobste", "read", "min", "cover",
 ]);
 
+/**
+ * Strips leading `[Label] ` annotation prefixes previously added by the
+ * cluster transform (buildAnnotatedClusterResult). Transforms re-run over
+ * already-transformed panel items, so without this the annotation would
+ * accumulate (`[X] [X] body`) and stale label words would pollute the
+ * keyword signals of subsequent clustering runs.
+ */
+export function stripClusterAnnotationPrefixes(body: string): string {
+  return body.replace(/^(?:\s*\[[^\][\n]{1,80}\]\s+)+/, "");
+}
+
 export interface ClusterItemSignals {
   domain: string;
   keywords: Set<string>;
@@ -44,7 +55,7 @@ export function buildClusterSignals(items: ContentItemRow[]): ClusterItemSignals
   return items.map((item) => {
     const titleKeywords = extractClusterKeywords(item.title ?? "");
     const body = item.body ?? "";
-    const bodyClean = stripEngagementMetricCounts(body)
+    const bodyClean = stripEngagementMetricCounts(stripClusterAnnotationPrefixes(body))
       .replace(/https?:\/\/[^\s|]+/g, "")
       .replace(/\bby\s+\S+/g, "")
       .replace(/\btags?:\s*[^\n|]+/gi, "")

@@ -3,7 +3,10 @@ import { extractEngagementScore } from "./adapters/engagement";
 import { compareIsoTimestamp } from "./utils";
 import { generateClusterLabel } from "./cluster-label";
 import type { ClusterGroup } from "./cluster-graph";
-import type { ClusterItemSignals } from "./cluster-signals";
+import {
+  stripClusterAnnotationPrefixes,
+  type ClusterItemSignals,
+} from "./cluster-signals";
 
 export function buildAnnotatedClusterResult(
   items: ContentItemRow[],
@@ -14,24 +17,36 @@ export function buildAnnotatedClusterResult(
 ): ContentItemRow[] {
   const result: ContentItemRow[] = [];
 
-  for (const cluster of clusters) {
-    cluster.label = generateClusterLabel(cluster.indices, signals, clusters.length);
+  clusters.forEach((cluster, clusterIndex) => {
+    cluster.label = generateClusterLabel(cluster.indices, signals, clusterIndex);
     cluster.indices.sort(
       (a, b) => extractEngagementScore(items[b].body) - extractEngagementScore(items[a].body)
     );
     for (const idx of cluster.indices) {
       const item = items[idx];
       result.push(
-        annotate ? { ...item, body: `[${cluster.label}] ${item.body ?? ""}` } : item
+        annotate
+          ? {
+              ...item,
+              body: `[${cluster.label}] ${stripClusterAnnotationPrefixes(item.body ?? "")}`,
+            }
+          : item
       );
     }
-  }
+  });
 
   unclustered.sort((a, b) =>
     compareIsoTimestamp(items[a].timestamp, items[b].timestamp, "desc")
   );
   for (const idx of unclustered) {
-    result.push(items[idx]);
+    const item = items[idx];
+    if (annotate && item.body != null) {
+      // Remove stale labels from items whose previous cluster dissolved.
+      const stripped = stripClusterAnnotationPrefixes(item.body);
+      result.push(stripped === item.body ? item : { ...item, body: stripped });
+    } else {
+      result.push(item);
+    }
   }
 
   return result;
