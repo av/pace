@@ -25,6 +25,38 @@ describe("extractXmlText", () => {
     expect(extractXmlText({ "#text": "from text node" })).toBe("from text node");
     expect(extractXmlText({ __cdata: "from cdata" })).toBe("from cdata");
   });
+
+  test("stringifies numeric values from coercing parsers", () => {
+    expect(extractXmlText(1984 as unknown as string)).toBe("1984");
+    expect(extractXmlText({ "#text": 42 as unknown as string })).toBe("42");
+  });
+});
+
+describe("feed parser numeric text nodes", () => {
+  test("keeps numeric-looking titles, guids, and bodies as strings", () => {
+    const xml = [
+      "<rss><channel><title>2600</title>",
+      "<item><title>1984</title><link>https://x.com/a</link>",
+      "<description>42</description><guid>12345</guid>",
+      "<pubDate>Mon, 06 Jul 2026 10:00:00 GMT</pubDate></item>",
+      "</channel></rss>",
+    ].join("");
+    type Item = {
+      title?: string;
+      description?: string;
+      guid?: string;
+      pubDate?: string;
+    };
+    const parsed = parseFeedXml<{
+      rss: { channel: { title?: string; item: Item } };
+    }>(xml, "rss", "test");
+    const channel = parsed.rss.channel;
+    expect(channel.title).toBe("2600");
+    expect(channel.item.title).toBe("1984");
+    expect(channel.item.description).toBe("42");
+    expect(channel.item.guid).toBe("12345");
+    expect(extractXmlText(channel.item.title)).toBe("1984");
+  });
 });
 
 describe("normalizeXmlList", () => {

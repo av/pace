@@ -22,6 +22,11 @@ export type FeedItemBodyFields = {
 export const FEED_XML_PARSER_OPTIONS = {
   ignoreAttributes: false,
   attributeNamePrefix: "@_" as const,
+  // Keep text nodes as strings: the default (true) turns numeric-looking
+  // values into numbers, so a feed item titled "1984" became `(untitled)`,
+  // numeric guids/descriptions were dropped, and numeric channel titles
+  // lost the feed's source label.
+  parseTagValue: false,
 };
 
 export const feedXmlParser = new XMLParser(FEED_XML_PARSER_OPTIONS);
@@ -68,7 +73,10 @@ export function extractXmlText(
 ): string | undefined {
   if (field == null) return undefined;
   if (typeof field === "string") return field || undefined;
+  // Defense against parsers configured with numeric tag-value coercion.
+  if (typeof field === "number") return String(field);
   const text = field["#text"] ?? field.__cdata;
+  if (typeof text === "number") return String(text);
   return typeof text === "string" && text ? text : undefined;
 }
 
