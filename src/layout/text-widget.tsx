@@ -1,5 +1,3 @@
-/** @jsx jsx */
-import { jsx } from "hono/jsx";
 import type { FC } from "hono/jsx";
 import { raw } from "hono/utils/html";
 import type { TextWidgetConfig } from "./types";

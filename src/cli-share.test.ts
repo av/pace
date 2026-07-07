@@ -154,7 +154,7 @@ describe("pace share", () => {
             backend: "gist",
             gistUrl: "https://gist.github.com/me/abc123",
             shareUrl: "https://gisthost.github.io/?abc123",
-            gistId: options.gistId,
+            gistId: options.gistId ?? "generated",
           };
         },
       }),
@@ -186,7 +186,7 @@ describe("pace share", () => {
             backend: "gist",
             gistUrl: "https://gist.github.com/me/existing",
             shareUrl: "https://gisthost.github.io/?existing",
-            gistId: options.gistId,
+            gistId: options.gistId ?? "generated",
           };
         },
       }),

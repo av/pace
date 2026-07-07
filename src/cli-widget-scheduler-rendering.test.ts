@@ -490,7 +490,7 @@ describe("rendering: widgets have no refresh buttons", () => {
     const html = renderDashboard({ layout, panelData: new Map(), updatedAt: "now" });
     expect(html).toContain("image-widget");
     expect(html).not.toContain("refresh-btn");
-    expect(html).not.toContain('<form method="POST"');
+    expect(html).not.toContain('<form method="post"');
   });
 
   test("text widget does not have refresh button", () => {
@@ -500,7 +500,7 @@ describe("rendering: widgets have no refresh buttons", () => {
     const html = renderDashboard({ layout, panelData: new Map(), updatedAt: "now" });
     expect(html).toContain("text-widget");
     expect(html).not.toContain("refresh-btn");
-    expect(html).not.toContain('<form method="POST"');
+    expect(html).not.toContain('<form method="post"');
   });
 
   test("iframe widget does not have refresh button", () => {
@@ -510,7 +510,7 @@ describe("rendering: widgets have no refresh buttons", () => {
     const html = renderDashboard({ layout, panelData: new Map(), updatedAt: "now" });
     expect(html).toContain("iframe-panel");
     expect(html).not.toContain("refresh-btn");
-    expect(html).not.toContain('<form method="POST"');
+    expect(html).not.toContain('<form method="post"');
   });
 
   test("regular panel DOES have refresh button", () => {
@@ -522,7 +522,7 @@ describe("rendering: widgets have no refresh buttons", () => {
     ]);
     const html = renderDashboard({ layout, panelData, updatedAt: "now" });
     expect(html).toContain("refresh-btn");
-    expect(html).toContain('<form method="POST"');
+    expect(html).toContain('<form method="post"');
   });
 
   test("counter panel DOES have refresh button", () => {
@@ -538,7 +538,7 @@ describe("rendering: widgets have no refresh buttons", () => {
     ]);
     const html = renderDashboard({ layout, panelData, updatedAt: "now" });
     expect(html).toContain("refresh-btn");
-    expect(html).toContain('<form method="POST"');
+    expect(html).toContain('<form method="post"');
   });
 
 });

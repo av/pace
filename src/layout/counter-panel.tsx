@@ -1,5 +1,3 @@
-/** @jsx jsx */
-import { jsx } from "hono/jsx";
 import type { FC } from "hono/jsx";
 import type { DashboardRenderMode, PanelConfig, PanelData } from "./types";
 import { resolvePanelId } from "./types";
@@ -119,7 +117,7 @@ export const CounterPanel: FC<{ node: PanelConfig; panelData: Map<string, PanelD
           <div class="panel-actions">
             {lastRefreshedAt && <span class="panel-refreshed">{relativeTime(lastRefreshedAt)}</span>}
             {mode === "interactive" && (
-              <form method="POST" action={`${basePath}/refresh/${encodeURIComponent(panelId)}`}>
+              <form method="post" action={`${basePath}/refresh/${encodeURIComponent(panelId)}`}>
                 <button type="submit" class="refresh-btn" title="Refresh" aria-label="Refresh">{"↻"}</button>
               </form>
             )}

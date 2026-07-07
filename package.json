@@ -6,7 +6,9 @@
   },
   "scripts": {
     "dev": "bun run src/cli.ts serve",
-    "start": "bun run dev"
+    "start": "bun run dev",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
   },
   "dependencies": {
     "@mariozechner/pi-ai": "^0.73.0",
@@ -19,6 +21,7 @@
   "devDependencies": {
     "@types/bun": "latest",
     "@types/js-yaml": "^4.0.9",
-    "@types/sanitize-html": "^2.16.1"
+    "@types/sanitize-html": "^2.16.1",
+    "typescript": "^6.0.3"
   }
 }

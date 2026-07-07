@@ -39,7 +39,7 @@ describe("renderDashboard", () => {
     expect(html).toContain("just now");
     expect(html).toContain('<span class="item-source">mysrc</span>');
     expect(html).not.toContain("item-summary-label");
-    expect(html).toContain('<form method="POST"');
+    expect(html).toContain('<form method="post"');
     expectDashboardRefreshAction(html, resolvePanelId(panelCfg("My Panel", "mysrc")));
   });
 

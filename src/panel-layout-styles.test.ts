@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import yaml from "js-yaml";
 import { validateParsedConfig } from "./config-validate";
+import { DEFAULT_LAYOUT } from "./config/domain";
 import { renderDashboard, type PanelData } from "./layout";
 import { collectPanels, resolvePanelId } from "./layout/types";
 import { makeContentItemRow as makeItem } from "./test/content-items";
@@ -127,7 +128,7 @@ describe("widgets-gallery weather counter row HTML structure", () => {
   it("renders Berlin, New York, and Tokyo counter panels with headers and actions", () => {
     const raw = readFileSync(galleryPath, "utf-8");
     const parsed = yaml.load(raw) as Record<string, unknown>;
-    const validated = validateParsedConfig(parsed);
+    const validated = validateParsedConfig(parsed, DEFAULT_LAYOUT);
 
     const panels = collectPanels(validated.layout);
     const weatherPanels = panels.filter((p) => p.display === "counter");

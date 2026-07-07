@@ -1,5 +1,3 @@
-/** @jsx jsx */
-import { jsx } from "hono/jsx";
 import type { FC } from "hono/jsx";
 import type { DashboardRenderMode, LayoutNodeConfig, PanelData } from "./types";
 import { isImageWidget, isTextWidget, isIframe, isPanel, isContainer } from "./types";

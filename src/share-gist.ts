@@ -14,7 +14,7 @@ export interface GistPublishOptions {
   public?: boolean;
   renderer?: string;
   description?: string;
-  fetchImpl?: typeof fetch;
+  fetchImpl?: (url: string | URL | Request, init?: RequestInit) => Promise<Response>;
 }
 
 export interface GistPublishResult {

@@ -251,7 +251,7 @@ describe("counter panel with bad data", () => {
       { title: "Bad 3", body: "{{double braces}}" },
     ]);
 
-    const result = CounterPanel({ node: panelNode, panelData });
+    const result = CounterPanel({ node: panelNode, panelData, mode: "interactive" });
     const html = typeof result === "string" ? result : result?.toString() ?? "";
     // When all bodies are unparseable, parseCounterBody returns null for each,
     // so cards array is empty, and "No data yet" empty state renders
@@ -263,7 +263,7 @@ describe("counter panel with bad data", () => {
       { title: "Stars", body: JSON.stringify({ value: 42 }) },
     ]);
 
-    const result = CounterPanel({ node: panelNode, panelData });
+    const result = CounterPanel({ node: panelNode, panelData, mode: "interactive" });
     const html = typeof result === "string" ? result : result?.toString() ?? "";
     expect(html).toContain("42");
     expect(html).toContain("Stars"); // item.title is used as the card label
@@ -275,7 +275,7 @@ describe("counter panel with bad data", () => {
       { title: "Long Val", body: JSON.stringify({ value: longValue }) },
     ]);
 
-    const result = CounterPanel({ node: panelNode, panelData });
+    const result = CounterPanel({ node: panelNode, panelData, mode: "interactive" });
     const html = typeof result === "string" ? result : result?.toString() ?? "";
     // abbreviateNumber calls String() on non-numbers, so the long string passes through
     expect(html).toContain("stat-card");
@@ -291,7 +291,7 @@ describe("counter panel with bad data", () => {
     }));
     const panelData = makePanelData(items);
 
-    const result = CounterPanel({ node: panelNode, panelData });
+    const result = CounterPanel({ node: panelNode, panelData, mode: "interactive" });
     const html = typeof result === "string" ? result : result?.toString() ?? "";
     // All 120 items should render as stat cards
     const statCardCount = (html.match(/stat-card/g) || []).length;
@@ -310,7 +310,7 @@ describe("counter panel with bad data", () => {
       { title: "Also Good", body: JSON.stringify({ value: 20 }) },
     ]);
 
-    const result = CounterPanel({ node: panelNode, panelData });
+    const result = CounterPanel({ node: panelNode, panelData, mode: "interactive" });
     const html = typeof result === "string" ? result : result?.toString() ?? "";
     expect(html).toContain("Good");
     expect(html).toContain("Also Good");
@@ -321,7 +321,7 @@ describe("counter panel with bad data", () => {
   test("empty items array renders empty state", () => {
     const panelData = makePanelData([]);
 
-    const result = CounterPanel({ node: panelNode, panelData });
+    const result = CounterPanel({ node: panelNode, panelData, mode: "interactive" });
     const html = typeof result === "string" ? result : result?.toString() ?? "";
     expect(html).toContain("No data yet");
   });
@@ -329,7 +329,7 @@ describe("counter panel with bad data", () => {
   test("panel not found in panelData renders empty state", () => {
     const panelData = new Map(); // empty map, panel key not present
 
-    const result = CounterPanel({ node: panelNode, panelData });
+    const result = CounterPanel({ node: panelNode, panelData, mode: "interactive" });
     const html = typeof result === "string" ? result : result?.toString() ?? "";
     expect(html).toContain("No data yet");
   });

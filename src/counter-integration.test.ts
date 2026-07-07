@@ -33,7 +33,7 @@ describe("counter panel refresh button", () => {
     // Refresh button is present
     expect(html).toContain('class="refresh-btn"');
     expect(html).toContain('type="submit"');
-    expect(html).toContain('<form method="POST"');
+    expect(html).toContain('<form method="post"');
   });
 
   test("counter panel refresh action uses resolvePanelId-derived URL", () => {

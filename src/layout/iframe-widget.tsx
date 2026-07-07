@@ -1,5 +1,3 @@
-/** @jsx jsx */
-import { jsx } from "hono/jsx";
 import type { FC } from "hono/jsx";
 import type { IframeWidgetConfig } from "./types";
 import { flexStyle } from "./flex-styles";

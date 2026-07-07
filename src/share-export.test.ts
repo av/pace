@@ -96,7 +96,7 @@ describe("static dashboard export", () => {
     expect(html).not.toContain("<form");
     expect(html).not.toContain("refresh-btn");
     expect(html).not.toContain("/refresh/");
-    expect(html).not.toContain('method="POST"');
+    expect(html).not.toContain('method="post"');
   });
 
   test("does not serialize adapter or LLM secrets from config", () => {
