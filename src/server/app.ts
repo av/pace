@@ -15,7 +15,15 @@ export function createServerApp(
 ): Hono {
   const app = new Hono();
   app.use("*", securityHeadersMiddleware());
-  registerBundledStatic(app, BUNDLED_STATIC, options.srcDir);
-  registerServerRoutes(app, deps);
+
+  const routes = new Hono();
+  registerBundledStatic(routes, BUNDLED_STATIC, options.srcDir);
+  registerServerRoutes(routes, deps);
+
+  app.route("/", routes);
+  // Also serve everything under the configured base path so deployments work
+  // whether or not the reverse proxy strips the prefix before forwarding.
+  if (deps.basePath) app.route(deps.basePath, routes);
+
   return app;
 }

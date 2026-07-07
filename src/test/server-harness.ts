@@ -22,6 +22,7 @@ export function makeServerRouteDeps(
     panelIdToRefreshSourceNames:
       rest.panelIdToRefreshSourceNames ?? maps.panelIdToRefreshSourceNames,
     refreshSources: rest.refreshSources ?? (async () => []),
+    basePath: rest.basePath ?? "",
   };
 }
 
