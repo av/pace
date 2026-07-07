@@ -243,6 +243,27 @@ function validateLayoutContainer(node: Record<string, unknown>, path: string): v
 
 const LOCALHOST_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
+/**
+ * Non-throwing variant of {@link validateSafeUrl}: true only for https URLs,
+ * or http URLs pointing at localhost. Used as a render-time guard by the
+ * iframe/image widgets — programmatic AppConfig (library embedding, share
+ * export, test harnesses) can bypass config validation, so widget src/href
+ * emission must not trust `node.iframe` / `node.image` blindly (javascript:,
+ * data:, vbscript: scheme injection), and unparseable values must not throw
+ * mid-render.
+ */
+export function isSafeEmbedUrl(url: unknown): url is string {
+  if (typeof url !== "string" || url.length === 0) return false;
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+  if (parsed.protocol === "https:") return true;
+  return parsed.protocol === "http:" && LOCALHOST_HOSTS.has(parsed.hostname);
+}
+
 export function validateSafeUrl(url: unknown, path: string): void {
   if (typeof url !== "string" || url.length === 0) {
     throw new Error(`config: ${path} must be a non-empty URL string`);

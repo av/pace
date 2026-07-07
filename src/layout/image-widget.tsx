@@ -2,6 +2,7 @@ import type { FC } from "hono/jsx";
 import type { ImageWidgetConfig } from "./types";
 import { safeLinkUrl } from "../utils";
 import { flexStyle } from "./flex-styles";
+import { isSafeEmbedUrl } from "../config-validate";
 
 export const ImageWidget: FC<{ node: ImageWidgetConfig }> = ({ node }) => {
   const containerStyle = [
@@ -24,9 +25,22 @@ export const ImageWidget: FC<{ node: ImageWidgetConfig }> = ({ node }) => {
     ? "width:100%; height:100%;"
     : "max-width:100%; max-height:100%;";
 
+  // Render-time guard mirroring config validation: programmatic AppConfig can
+  // bypass validateSafeUrl, so never emit an img src with a disallowed scheme
+  // (javascript:, data:, ...).
+  const safeSrc = isSafeEmbedUrl(node.image) ? node.image : null;
+  if (safeSrc === null) {
+    console.warn(`layout: image src blocked (disallowed scheme or invalid URL): ${node.image}`);
+    return (
+      <div class="flex-panel" style={containerStyle}>
+        <div class="image-widget" />
+      </div>
+    );
+  }
+
   const img = (
     <img
-      src={node.image}
+      src={safeSrc}
       alt={alt}
       style={`object-fit:${objectFit}; ${sizeStyle}`}
       loading="lazy"

@@ -2,6 +2,7 @@ import { describe, it, expect } from "bun:test";
 import { renderDashboard, type PanelData } from "./layout";
 import { makeContentItemRow as makeItem } from "./test/content-items";
 import { flexCfg, panelCfg } from "./test/layout-cfg";
+import { spyConsole } from "./test/console-spy";
 
 // ---------------------------------------------------------------------------
 // Helper: render a single layout node and return the HTML string
@@ -179,9 +180,15 @@ describe("IframeWidget accessibility", () => {
     expect(html).toContain('title="Embedded content from weather.example.com"');
   });
 
-  it("falls back to localhost hostname for invalid URLs", () => {
-    const html = renderWidget({ iframe: "/relative/path" });
-    expect(html).toContain('title="Embedded content from localhost"');
+  it("blocks invalid (relative) URLs instead of rendering an iframe", async () => {
+    // Config validation has always rejected relative iframe URLs; the render
+    // layer now blocks them too (render-time src guard) instead of emitting
+    // an iframe with a synthetic localhost title.
+    await spyConsole(["warn"], async () => {
+      const html = renderWidget({ iframe: "/relative/path" });
+      expect(html).not.toContain("<iframe");
+      expect(html).toContain("Embedded content blocked");
+    });
   });
 
   it("has role=region on the iframe container", () => {

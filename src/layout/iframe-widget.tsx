@@ -1,7 +1,7 @@
 import type { FC } from "hono/jsx";
 import type { IframeWidgetConfig } from "./types";
 import { flexStyle } from "./flex-styles";
-import { sanitizeSandboxTokens } from "../config-validate";
+import { isSafeEmbedUrl, sanitizeSandboxTokens } from "../config-validate";
 
 const DEFAULT_SANDBOX = "allow-scripts allow-same-origin";
 
@@ -37,10 +37,32 @@ export const IframeWidget: FC<{ node: IframeWidgetConfig }> = ({ node }) => {
     ? `aspect-ratio:${aspectRatio}; flex:none`
     : undefined;
 
-  const iframeTitle = node.title ?? `Embedded content from ${new URL(node.iframe, "https://localhost").hostname}`;
+  // Render-time guard: config validation enforces this for YAML configs, but
+  // programmatic AppConfig can reach the renderer unvalidated. Never emit an
+  // iframe src with a disallowed scheme (javascript:, data:, ...) and never
+  // let an unparseable URL throw mid-render (new URL below) and 500 the whole
+  // dashboard.
+  const safeSrc = isSafeEmbedUrl(node.iframe) ? node.iframe : null;
+  if (safeSrc === null) {
+    console.warn(`layout: iframe src blocked (disallowed scheme or invalid URL): ${node.iframe}`);
+    return (
+      <div class="flex-panel" style={containerStyle}>
+        {node.title && (
+          <div class="panel-header">
+            <h2 title={node.title}>{node.title}</h2>
+          </div>
+        )}
+        <div class="iframe-panel" style={iframePanelStyle} role="region" aria-label={node.title ?? "Embedded content"}>
+          <p>Embedded content blocked: URL is not an allowed https/localhost address.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const iframeTitle = node.title ?? `Embedded content from ${new URL(safeSrc).hostname}`;
 
   const iframeAttrs: Record<string, string> = {
-    src: node.iframe,
+    src: safeSrc,
     title: iframeTitle,
     sandbox,
     referrerpolicy: "no-referrer",
