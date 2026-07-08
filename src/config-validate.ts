@@ -539,9 +539,9 @@ function validatePanelSourceRefs(
   adapterTypesByName?: Map<string, string>,
   pipelineSourcesByName?: Map<string, string[]>,
 ): void {
-  // Warn when multiple panels reference the same adapter source.
-  // Items are keyed by id in the DB, so shared sources cause panel_id to be
-  // overwritten by the last panel that saves, leaving earlier panels empty.
+  // Note when multiple panels reference the same adapter source. The DB keys
+  // items by (id, panel_id), so each panel keeps its own copy - this is
+  // supported, but the duplication is worth surfacing to the user.
   const sourceToPanelNames = new Map<string, string[]>();
   for (const panel of panels) {
     const sources = normalizeSource(panel.source);
@@ -556,9 +556,8 @@ function validatePanelSourceRefs(
     if (panelNames.length > 1) {
       warnConfig(
         `multiple panels share source "${source}" (${panelNames.map((n) => `"${n}"`).join(", ")}); ` +
-        `the DB keys items by id, so each refresh MOVES the items to whichever of these panels ` +
-        `saved last and the other panels lose them. ` +
-        `Define separate adapters with different names to feed each panel independently`,
+        `each panel stores its own copy of the items, so they refresh together and duplicate ` +
+        `storage. Define separate adapters with different names to configure them independently`,
       );
     }
   }

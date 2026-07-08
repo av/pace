@@ -358,21 +358,29 @@ test("saveItems handles items with empty url (falls back to id for dedup key)", 
   expect(ids).toEqual(["nu1", "nu2"]);
 });
 
-test("saveItems upsert by id updates panel_id (and all fields) from last save even cross-panel", () => {
+test("saveItems upsert is scoped per panel: cross-panel save inserts a copy instead of moving", () => {
   initDb();
   const first = makeItem({ id: "upsert1", url: "https://ex.com/upsert/a", timestamp: new Date("2020-01-01"), title: "first" });
   saveItems("panelA", [first]);
   const second = makeItem({ id: "upsert1", url: "https://ex.com/upsert/b", timestamp: new Date("2020-01-02"), title: "second" });
   saveItems("panelB", [second]);
   const dbh = getDb();
-  const row = dbh
-    .prepare("SELECT id, panel_id, title, url, fetched_at FROM content_items WHERE id = ?")
-    .get("upsert1") as ContentItemUpsertRow | undefined;
-  expect(row).toBeTruthy();
-  expect(row!.panel_id).toBe("panelB");
-  expect(row!.title).toBe("second");
-  expect(row!.url).toBe("https://ex.com/upsert/b");
-  expect(row!.fetched_at).toBeTruthy();
+  const rows = dbh
+    .prepare("SELECT id, panel_id, title, url, fetched_at FROM content_items WHERE id = ? ORDER BY panel_id")
+    .all("upsert1") as ContentItemUpsertRow[];
+  expect(rows.length).toBe(2);
+  expect(rows[0]).toMatchObject({ panel_id: "panelA", title: "first", url: "https://ex.com/upsert/a" });
+  expect(rows[1]).toMatchObject({ panel_id: "panelB", title: "second", url: "https://ex.com/upsert/b" });
+
+  // Same-panel re-save still updates in place (the common single-panel case).
+  const third = makeItem({ id: "upsert1", url: "https://ex.com/upsert/c", timestamp: new Date("2020-01-03"), title: "third" });
+  saveItems("panelA", [third]);
+  const updated = dbh
+    .prepare("SELECT title, url, fetched_at FROM content_items WHERE id = ? AND panel_id = ?")
+    .get("upsert1", "panelA") as ContentItemUpsertRow;
+  expect(updated.title).toBe("third");
+  expect(updated.url).toBe("https://ex.com/upsert/c");
+  expect(updated.fetched_at).toBeTruthy();
 });
 
 test("initDb failure uses errorMessage in thrown message", async () => {

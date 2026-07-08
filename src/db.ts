@@ -132,13 +132,30 @@ export function getDb(): Database {
   return db!;
 }
 
-export function initDb(): void {
-  const db = getDb();
+/**
+ * Rebuild content_items with a composite (id, panel_id) primary key.
+ *
+ * The original schema made `id` the sole primary key, so saveItems' upsert
+ * (`panel_id = excluded.panel_id`) MOVED an item between panels whenever one
+ * source fed two panels - each refresh stole the rows for whichever panel
+ * saved last. With the composite key each panel owns its own copy of a row.
+ * SQLite cannot alter a primary key in place, so legacy databases are
+ * rebuilt via the documented copy/drop/rename dance inside one transaction.
+ */
+function migrateToCompositePrimaryKey(
+  db: Database,
+  cols: { name: string; pk: number }[],
+): void {
+  // Fresh tables (and already-migrated ones) have panel_id as pk ordinal 2.
+  // Legacy tables have pk solely on id; the panel column may still carry its
+  // pre-rename name `adapter_name` when `cols` was captured before the rename.
+  const panelCol = cols.find((c) => c.name === "panel_id" || c.name === "adapter_name");
+  if (!panelCol || panelCol.pk !== 0) return;
 
-  try {
+  const tx = db.transaction(() => {
     db.exec(`
-      CREATE TABLE IF NOT EXISTS content_items (
-        id TEXT NOT NULL PRIMARY KEY,
+      CREATE TABLE content_items_new (
+        id TEXT NOT NULL,
         panel_id TEXT NOT NULL,
         title TEXT NOT NULL,
         url TEXT NOT NULL,
@@ -146,11 +163,48 @@ export function initDb(): void {
         body TEXT,
         timestamp TEXT NOT NULL,
         fetched_at TEXT NOT NULL DEFAULT (datetime('now')),
-        summary TEXT
+        summary TEXT,
+        origins TEXT,
+        applied_transforms TEXT,
+        score REAL,
+        PRIMARY KEY (id, panel_id)
+      )
+    `);
+    db.exec(`
+      INSERT INTO content_items_new
+        (id, panel_id, title, url, source, body, timestamp, fetched_at, summary, origins, applied_transforms, score)
+      SELECT id, panel_id, title, url, source, body, timestamp, fetched_at, summary, origins, applied_transforms, score
+      FROM content_items
+    `);
+    db.exec("DROP TABLE content_items");
+    db.exec("ALTER TABLE content_items_new RENAME TO content_items");
+  });
+  tx();
+}
+
+export function initDb(): void {
+  const db = getDb();
+
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS content_items (
+        id TEXT NOT NULL,
+        panel_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        url TEXT NOT NULL,
+        source TEXT NOT NULL,
+        body TEXT,
+        timestamp TEXT NOT NULL,
+        fetched_at TEXT NOT NULL DEFAULT (datetime('now')),
+        summary TEXT,
+        PRIMARY KEY (id, panel_id)
       )
     `);
 
-    const cols = db.prepare("PRAGMA table_info(content_items)").all() as { name: string }[];
+    const cols = db.prepare("PRAGMA table_info(content_items)").all() as {
+      name: string;
+      pk: number;
+    }[];
     if (cols.some((c) => c.name === "adapter_name")) {
       db.exec("ALTER TABLE content_items RENAME COLUMN adapter_name TO panel_id");
       db.exec("DROP INDEX IF EXISTS idx_content_items_adapter");
@@ -164,6 +218,8 @@ export function initDb(): void {
     if (!cols.some((c) => c.name === "score")) {
       db.exec("ALTER TABLE content_items ADD COLUMN score REAL");
     }
+
+    migrateToCompositePrimaryKey(db, cols);
 
     db.exec(`
       CREATE INDEX IF NOT EXISTS idx_content_items_panel
@@ -184,8 +240,7 @@ export function saveItems(panelId: string, items: ContentItem[]): void {
   const stmt = db.prepare(`
     INSERT INTO content_items (id, panel_id, title, url, source, body, timestamp, fetched_at, origins)
     VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)
-    ON CONFLICT(id) DO UPDATE SET
-      panel_id = excluded.panel_id,
+    ON CONFLICT(id, panel_id) DO UPDATE SET
       title = excluded.title,
       url = excluded.url,
       source = excluded.source,
@@ -212,12 +267,19 @@ function dedupWinnerSubquery(panelFilter: string): string {
   // item and its pipeline copy (`pipeline:<name>:<id>`, see PIPELINE_ID_PREFIX
   // in scheduler-runtime.ts) share url/timestamp/fetched_at, so the tie must
   // prefer the pipeline copy - it carries the transformed/enriched fields.
-  return `id IN (
-    SELECT id FROM (
-      SELECT id,
+  //
+  // Rows are keyed by rowid, not id: with the composite (id, panel_id)
+  // primary key, one source feeding two panels stores the same id on both
+  // panels, so an `id IN (...)` membership test would leak the sibling
+  // panel's copy past the subquery's panel filter (and collapse legitimate
+  // per-panel copies in the unfiltered all-panels view). The final
+  // panel_id ASC leg keeps ties deterministic across those copies.
+  return `rowid IN (
+    SELECT rowid FROM (
+      SELECT rowid,
         ROW_NUMBER() OVER (
           PARTITION BY ${DEDUP_GROUP_EXPR}
-          ORDER BY timestamp DESC, fetched_at DESC, (id LIKE 'pipeline:%') DESC, id ASC
+          ORDER BY timestamp DESC, fetched_at DESC, (id LIKE 'pipeline:%') DESC, id ASC, panel_id ASC
         ) AS rn
       FROM content_items
       ${panelFilter}
