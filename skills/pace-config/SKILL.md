@@ -643,6 +643,21 @@ docker run -d -p 7453:7453 \
 
 The `provider` value is passed to [pi-ai](https://github.com/badlogic/pi-mono); supported providers include anthropic, openai, google, groq, mistral, and others -- see pi-ai docs for the full list.
 
+## Server config (optional)
+
+An optional top-level `server` block accepts exactly two fields (anything else is a validation error):
+
+```yaml
+server:
+  base_path: /pace     # serve under a URL prefix behind a reverse proxy (default: none)
+  retention_days: 30   # days to keep fetched items in SQLite; 0 disables pruning (default: 30)
+```
+
+- `base_path` (string): for deployments under a subpath like `https://example.com/pace/`. Normalized on load (leading `/` added, trailing `/` stripped). The server responds at both the prefix and the root, so it works whether or not the proxy strips the prefix.
+- `retention_days` (non-negative integer): items last fetched more than this many days ago are pruned at startup and every 24 hours. `0` keeps everything.
+
+Port and config path are NOT config fields: use `--port`/`$PORT` and `--config`/`--preset`/`$PACE_CONFIG`.
+
 ## Worked example
 
 **User says:** "I want to follow AI/ML research, Rust programming news, and new open-source releases. I don't care about hiring posts."

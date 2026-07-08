@@ -305,4 +305,10 @@ layout:
 #   #   source: counter
 #   #   display: counter
 
+# Optional server settings (both fields optional):
+#
+# server:
+#   base_path: /pace     # serve under a URL prefix behind a reverse proxy (default: none)
+#   retention_days: 30   # days to keep fetched items in SQLite; 0 disables pruning (default: 30)
+
 # see skills/pace-config/SKILL.md for the full reference (adapters, transforms, pipelines, layout, LLM config and examples).

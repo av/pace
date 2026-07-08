@@ -128,6 +128,39 @@ docker run -d \
 
 Validate before serving: `pace config check config.yaml`
 
+## Server Configuration
+
+Port and config path come from the CLI or environment:
+
+- `pace serve --port 8080` (or `-p 8080`), or the `PORT` env var. Default: `7453`.
+- `pace serve --config config.yaml`, `--preset <name>`, or the `PACE_CONFIG` env var.
+
+An optional top-level `server` block in `config.yaml` controls server behavior. It accepts exactly two fields:
+
+```yaml
+server:
+  base_path: /pace     # serve the dashboard under a URL prefix (default: none)
+  retention_days: 30   # days to keep fetched items in SQLite (default: 30; 0 disables pruning)
+```
+
+### `server.base_path` - reverse proxy subpath
+
+Set `base_path` when pace runs behind a reverse proxy under a subpath (for example `https://example.com/pace/`). Pages, static assets, and refresh redirects are all generated with the prefix. The value is normalized on load: a leading `/` is added if missing and a trailing `/` is stripped (`pace/` becomes `/pace`).
+
+Pace answers both at the prefix and at the root, so it works whether or not your proxy strips the prefix before forwarding:
+
+```nginx
+# Prefix preserved by the proxy:
+location /pace/ { proxy_pass http://127.0.0.1:7453; }
+
+# Prefix stripped by the proxy:
+location /pace/ { proxy_pass http://127.0.0.1:7453/; }
+```
+
+### `server.retention_days` - item retention
+
+Fetched items live in SQLite so panels stay populated across restarts and upstream outages. Items last fetched more than `retention_days` days ago are pruned at startup and then once every 24 hours. Set `0` to disable pruning entirely (the log notes when pruning is disabled). Must be a non-negative integer; the default is 30.
+
 ## Share a Snapshot
 
 Pace can turn the current dashboard into static files, so you can share a dashboard without exposing or operating a public pace server.
