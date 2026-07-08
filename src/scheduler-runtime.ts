@@ -49,6 +49,10 @@ export interface SourceRefreshHealth {
   lastError?: string;
   lastSuccessAt?: string;
   lastFailureAt?: string;
+  /** Wall-clock duration (ms, integer) of the most recent completed run. */
+  lastDurationMs?: number;
+  /** Items produced by the most recent successful run (fetched for adapters, gathered inputs for pipelines). */
+  lastItemCount?: number;
 }
 
 /** Aggregate refresh health across all scheduled sources. */
@@ -93,18 +97,22 @@ async function executeWithRunningGuard(
   entry: RunningGuarded,
   name: string,
   kind: RefreshResult["kind"],
-  work: () => Promise<void>,
+  work: () => Promise<number | void>,
 ): Promise<RefreshResult> {
   if (entry.running) return { kind, name, status: "skipped" };
   entry.running = true;
+  const startedAt = performance.now();
   try {
-    await work();
+    const itemCount = await work();
+    entry.lastDurationMs = Math.round(performance.now() - startedAt);
     // Clear any stale failure so health reporting reflects the LATEST
     // completed run, not the last failure ever seen.
     entry.lastError = undefined;
     entry.lastSuccessAt = new Date().toISOString();
+    if (typeof itemCount === "number") entry.lastItemCount = itemCount;
     return { kind, name, status: "ok" };
   } catch (err) {
+    entry.lastDurationMs = Math.round(performance.now() - startedAt);
     const msg = errorMessage(err);
     warnRefreshFailure(name, err);
     entry.lastError = msg;
@@ -332,6 +340,7 @@ async function runAdapter(scheduler: SchedulerState, entry: AdapterEntry): Promi
         await applyTransformsOnPanels(scheduler, panelIds, transforms, name);
       }
     });
+    return items.length;
   });
 }
 
@@ -359,6 +368,7 @@ async function runPipelineJob(scheduler: SchedulerState, entry: PipelineEntry): 
         // and wipe the panel).
         retainPanelItem: (item) => !item.id.startsWith(ownOutputPrefix),
       });
+      return items.length;
     }),
   );
 }
@@ -432,6 +442,8 @@ function sourceHealth(
     ...(entry.lastError !== undefined && { lastError: entry.lastError }),
     ...(entry.lastSuccessAt !== undefined && { lastSuccessAt: entry.lastSuccessAt }),
     ...(entry.lastFailureAt !== undefined && { lastFailureAt: entry.lastFailureAt }),
+    ...(entry.lastDurationMs !== undefined && { lastDurationMs: entry.lastDurationMs }),
+    ...(entry.lastItemCount !== undefined && { lastItemCount: entry.lastItemCount }),
   };
 }
 

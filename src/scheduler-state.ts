@@ -9,6 +9,10 @@ export interface RunningGuarded {
   lastSuccessAt?: string;
   /** ISO timestamp of the most recent failed run. */
   lastFailureAt?: string;
+  /** Wall-clock duration (ms, integer) of the most recent completed run. */
+  lastDurationMs?: number;
+  /** Items produced by the most recent successful run (fetched for adapters, gathered inputs for pipelines). */
+  lastItemCount?: number;
 }
 
 export interface TimedEntryBase extends RunningGuarded {

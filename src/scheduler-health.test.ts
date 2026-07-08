@@ -76,6 +76,10 @@ describe("scheduler refresh health", () => {
       expect(source.status).toBe("ok");
       expect(source.lastError).toBeUndefined();
       expect(typeof source.lastSuccessAt).toBe("string");
+      // Completed runs report duration and item count.
+      expect(Number.isInteger(source.lastDurationMs)).toBe(true);
+      expect(source.lastDurationMs!).toBeGreaterThanOrEqual(0);
+      expect(source.lastItemCount).toBe(1);
     });
   });
 
@@ -112,6 +116,10 @@ describe("scheduler refresh health", () => {
       expect(typeof source.lastFailureAt).toBe("string");
       // The earlier success timestamp is retained for context.
       expect(typeof source.lastSuccessAt).toBe("string");
+      // Duration reflects the latest (failed) run; item count is retained
+      // from the last SUCCESSFUL run for context.
+      expect(Number.isInteger(source.lastDurationMs)).toBe(true);
+      expect(source.lastItemCount).toBe(1);
     });
   });
 
@@ -185,7 +193,11 @@ describe("scheduler refresh health", () => {
       // An explicit refresh completes the pipeline run and flips it to ok.
       await refreshTestSources(["curated"]);
       const refreshed = getTestRefreshHealth();
-      expect(refreshed.sources.find((source) => source.kind === "pipeline")?.status).toBe("ok");
+      const done = refreshed.sources.find((source) => source.kind === "pipeline")!;
+      expect(done.status).toBe("ok");
+      // Pipeline item count = gathered input items (one hn item).
+      expect(done.lastItemCount).toBe(1);
+      expect(Number.isInteger(done.lastDurationMs)).toBe(true);
     });
   });
 });
