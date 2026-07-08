@@ -566,3 +566,45 @@ describe("counter vs regular panel rendering symmetry", () => {
     expect(html).toContain('<h2 title="List View">List View</h2>');
   });
 });
+
+// -- Section 6: Malformed counter values (remote JSON can yield anything) --
+
+describe("counter panel with malformed values", () => {
+  function renderWith(body: unknown): string {
+    const node = panelCfg("Stats", "counter", { display: "counter" });
+    const item = makeItem({ title: "Metric", body: JSON.stringify(body) });
+    const panelData = new Map<string, PanelData>([["Stats", { items: [item] }]]);
+    return renderDashboard({ layout: flexCfg("row", [node]), panelData, updatedAt: "now" });
+  }
+
+  test("object value renders fallback, not [object Object]", () => {
+    const html = renderWith({ value: { nested: 1 } });
+    expect(html).not.toContain("[object Object]");
+    expect(html).toContain("—");
+    expect(html).toContain('aria-label="Metric, unavailable"');
+  });
+
+  test("null value renders fallback, not null/NaN", () => {
+    const html = renderWith({ value: null, unit: "reqs" });
+    expect(html).not.toContain(">null<");
+    expect(html).toContain("—");
+  });
+
+  test("array value renders fallback", () => {
+    const html = renderWith({ value: [1, 2, 3] });
+    expect(html).toContain("—");
+    expect(html).not.toContain("1,2,3");
+  });
+
+  test("numeric string value abbreviates and yields trend vs numeric previous", () => {
+    const html = renderWith({ value: "42000", previous: 41000 });
+    expect(html).toContain("42k");
+    expect(html).toContain("stat-trend-up");
+  });
+
+  test("short status string still renders as-is", () => {
+    const html = renderWith({ value: "UP" });
+    expect(html).toContain("UP");
+    expect(html).not.toContain("—");
+  });
+});

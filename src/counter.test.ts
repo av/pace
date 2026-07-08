@@ -2,7 +2,7 @@ import { describe, test, expect, spyOn, beforeEach, afterEach, mock } from "bun:
 import { resolveJsonPath, parseJsonPath, interpolateEnvVars } from "./adapters/counter";
 import adapter from "./adapters/counter";
 import type { AdapterConfig, ContentItem } from "./adapters/types";
-import { abbreviateNumber, parseCounterBody } from "./layout/counter-panel";
+import { abbreviateNumber, coerceCounterNumber, formatCounterValue, COUNTER_VALUE_FALLBACK, parseCounterBody } from "./layout/counter-panel";
 import { renderDashboard } from "./layout/dashboard";
 import { flexCfg, panelCfg } from "./test/layout-cfg";
 import { makeContentItemRow } from "./test/content-items";
@@ -576,6 +576,70 @@ describe("counter panel rendering", () => {
     test("handles NaN and Infinity", () => {
       expect(abbreviateNumber(NaN)).toBe("NaN");
       expect(abbreviateNumber(Infinity)).toBe("Infinity");
+    });
+
+    test("abbreviates billions and trillions", () => {
+      expect(abbreviateNumber(1_500_000_000)).toBe("1.5B");
+      expect(abbreviateNumber(2_000_000_000_000)).toBe("2T");
+      expect(abbreviateNumber(-3_200_000_000)).toBe("-3.2B");
+    });
+
+    test("uses exponential notation beyond trillions", () => {
+      expect(abbreviateNumber(1e21)).toBe("1.0e21");
+      expect(abbreviateNumber(1e15)).toBe("1.0e15");
+      expect(abbreviateNumber(999_000_000_000_000)).toBe("999T");
+    });
+  });
+
+  describe("coerceCounterNumber", () => {
+    test("passes through finite numbers", () => {
+      expect(coerceCounterNumber(42)).toBe(42);
+      expect(coerceCounterNumber(-1.5)).toBe(-1.5);
+      expect(coerceCounterNumber(0)).toBe(0);
+    });
+
+    test("parses numeric strings", () => {
+      expect(coerceCounterNumber("42000")).toBe(42000);
+      expect(coerceCounterNumber("  3.14 ")).toBe(3.14);
+      expect(coerceCounterNumber("1e3")).toBe(1000);
+    });
+
+    test("rejects everything else", () => {
+      expect(coerceCounterNumber(NaN)).toBeNull();
+      expect(coerceCounterNumber(Infinity)).toBeNull();
+      expect(coerceCounterNumber("")).toBeNull();
+      expect(coerceCounterNumber("   ")).toBeNull();
+      expect(coerceCounterNumber("UP")).toBeNull();
+      expect(coerceCounterNumber(null)).toBeNull();
+      expect(coerceCounterNumber(undefined)).toBeNull();
+      expect(coerceCounterNumber({})).toBeNull();
+      expect(coerceCounterNumber([1])).toBeNull();
+      expect(coerceCounterNumber(true)).toBeNull();
+    });
+  });
+
+  describe("formatCounterValue", () => {
+    test("abbreviates finite numbers and numeric strings", () => {
+      expect(formatCounterValue(1500000)).toEqual({ display: "1.5M", full: "1500000" });
+      expect(formatCounterValue("42000")).toEqual({ display: "42k", full: "42000" });
+    });
+
+    test("shows short non-numeric strings and booleans as-is", () => {
+      expect(formatCounterValue("UP")).toEqual({ display: "UP", full: "UP" });
+      expect(formatCounterValue(" healthy ")).toEqual({ display: "healthy", full: "healthy" });
+      expect(formatCounterValue(true)).toEqual({ display: "true", full: "true" });
+      expect(formatCounterValue(false)).toEqual({ display: "false", full: "false" });
+    });
+
+    test("falls back for objects, arrays, null, NaN, Infinity", () => {
+      for (const bad of [{}, { a: 1 }, [1, 2], null, undefined, NaN, Infinity, -Infinity]) {
+        expect(formatCounterValue(bad)).toEqual({ display: COUNTER_VALUE_FALLBACK, full: "unavailable" });
+      }
+    });
+
+    test("falls back for empty and overlong strings", () => {
+      expect(formatCounterValue("")).toEqual({ display: COUNTER_VALUE_FALLBACK, full: "unavailable" });
+      expect(formatCounterValue("x".repeat(41))).toEqual({ display: COUNTER_VALUE_FALLBACK, full: "unavailable" });
     });
   });
 });

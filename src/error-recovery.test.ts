@@ -277,11 +277,12 @@ describe("counter panel with bad data", () => {
 
     const result = CounterPanel({ node: panelNode, panelData, mode: "interactive" });
     const html = typeof result === "string" ? result : result?.toString() ?? "";
-    // abbreviateNumber calls String() on non-numbers, so the long string passes through
+    // Overlong strings are replaced with a fallback placeholder instead of
+    // dumping 10k characters into the stat card (formatCounterValue caps string length)
     expect(html).toContain("stat-card");
     expect(html).toContain("Long Val");
-    // The value is the full string (abbreviateNumber returns String(value) for non-numbers)
-    expect(html).toContain(longValue);
+    expect(html).not.toContain(longValue);
+    expect(html).toContain("—");
   });
 
   test("100+ counter items all render as stat cards", () => {

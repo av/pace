@@ -38,6 +38,16 @@ export function abbreviateNumber(value: unknown): string {
   const abs = Math.abs(value);
   const sign = value < 0 ? "-" : "";
 
+  if (abs >= 1e15) {
+    // Beyond trillions, digit strings become unreadable; use exponential.
+    return value.toExponential(1).replace("e+", "e");
+  }
+  if (abs >= 1e12) {
+    return `${sign}${formatAbbreviated(abs / 1e12)}T`;
+  }
+  if (abs >= 1e9) {
+    return `${sign}${formatAbbreviated(abs / 1e9)}B`;
+  }
   if (abs >= 1_000_000) {
     return `${sign}${formatAbbreviated(abs / 1_000_000)}M`;
   }
@@ -53,13 +63,63 @@ export function abbreviateNumber(value: unknown): string {
   return String(value);
 }
 
+/** Placeholder shown when a counter value cannot be rendered meaningfully. */
+export const COUNTER_VALUE_FALLBACK = "—";
+
+const MAX_COUNTER_STRING_LENGTH = 40;
+
+/**
+ * Coerce a counter value (arbitrary remote JSON via json_path) to a finite
+ * number when possible: numbers pass through, numeric strings ("42", "1e3")
+ * are parsed. Everything else returns null.
+ */
+export function coerceCounterNumber(value: unknown): number | null {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (trimmed === "") return null;
+    const n = Number(trimmed);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+/**
+ * Format an arbitrary counter value for display. Finite numbers (including
+ * numeric strings) are abbreviated; short non-numeric strings and booleans
+ * are shown as-is (e.g. a status endpoint returning "UP"); anything else
+ * (objects, arrays, null, NaN, Infinity, overlong strings) falls back to a
+ * placeholder instead of rendering "[object Object]"/"NaN".
+ */
+export function formatCounterValue(value: unknown): { display: string; full: string } {
+  const num = coerceCounterNumber(value);
+  if (num !== null) {
+    return { display: abbreviateNumber(num), full: String(num) };
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (trimmed !== "" && trimmed.length <= MAX_COUNTER_STRING_LENGTH) {
+      return { display: trimmed, full: trimmed };
+    }
+    return { display: COUNTER_VALUE_FALLBACK, full: "unavailable" };
+  }
+  if (typeof value === "boolean") {
+    return { display: String(value), full: String(value) };
+  }
+  return { display: COUNTER_VALUE_FALLBACK, full: "unavailable" };
+}
+
 type TrendDirection = "up" | "down" | "flat" | "none";
 
 function getTrend(current: unknown, previous: unknown): TrendDirection {
   if (previous === undefined || previous === null) return "none";
-  if (typeof current !== "number" || typeof previous !== "number") return "none";
-  if (current > previous) return "up";
-  if (current < previous) return "down";
+  const cur = coerceCounterNumber(current);
+  const prev = coerceCounterNumber(previous);
+  if (cur === null || prev === null) return "none";
+  if (cur > prev) return "up";
+  if (cur < prev) return "down";
   return "flat";
 }
 
@@ -77,10 +137,8 @@ const TrendArrow: FC<{ trend: TrendDirection }> = ({ trend }) => {
 
 const StatCard: FC<{ label: string; data: CounterBody }> = ({ label, data }) => {
   const trend = getTrend(data.value, data.previous);
-  const displayValue = abbreviateNumber(data.value);
+  const { display: displayValue, full: fullValue } = formatCounterValue(data.value);
   const trendText = TREND_TEXT[trend] ?? "";
-  // Use the raw value (not abbreviated) in aria-label so screen readers convey the full number
-  const fullValue = String(data.value);
   const ariaLabel = [label, fullValue, data.unit, trendText].filter(Boolean).join(", ");
 
   return (
