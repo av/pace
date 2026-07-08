@@ -273,3 +273,92 @@ describe("display:counter source-mismatch warning", () => {
     expect(warningsContaining(warnSpy, "display: counter")).toHaveLength(0);
   });
 });
+
+describe("duplicate bookmark entry warning", () => {
+  let warnSpy: ReturnType<typeof spyOn>;
+
+  beforeEach(() => {
+    warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    warnSpy.mockRestore();
+  });
+
+  function bookmarksConfig(items: unknown[]) {
+    return {
+      adapters: [{ type: "bookmarks", name: "links", params: { items } }],
+      layout: layoutWith({ panel: "links", source: "links" }),
+    };
+  }
+
+  test("warns when two entries share title and url", () => {
+    validateParsedConfig(
+      bookmarksConfig([
+        { title: "Docs", url: "https://example.com/docs" },
+        { title: "Blog", url: "https://example.com/blog" },
+        { title: "Docs", url: "https://example.com/docs" },
+      ]),
+      DEFAULT_LAYOUT,
+    );
+
+    const warnings = warningsContaining(warnSpy, "only one row will be shown");
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("items[2]");
+    expect(warnings[0]).toContain("items[0]");
+  });
+
+  test("warns when titles differ only in case/spacing (same slug) with same url", () => {
+    validateParsedConfig(
+      bookmarksConfig([
+        { title: "My Link", url: "https://example.com" },
+        { title: "my   link", url: "https://example.com" },
+      ]),
+      DEFAULT_LAYOUT,
+    );
+
+    expect(warningsContaining(warnSpy, "only one row will be shown")).toHaveLength(1);
+  });
+
+  test("warns once per extra duplicate, each pointing at the first occurrence", () => {
+    validateParsedConfig(
+      bookmarksConfig([
+        { title: "Docs", url: "https://example.com/docs" },
+        { title: "Docs", url: "https://example.com/docs" },
+        { title: "Docs", url: "https://example.com/docs" },
+      ]),
+      DEFAULT_LAYOUT,
+    );
+
+    const warnings = warningsContaining(warnSpy, "only one row will be shown");
+    expect(warnings).toHaveLength(2);
+    expect(warnings[0]).toContain("items[1]");
+    expect(warnings[0]).toContain("items[0]");
+    expect(warnings[1]).toContain("items[2]");
+    expect(warnings[1]).toContain("items[0]");
+  });
+
+  test("same title with different urls does not warn", () => {
+    validateParsedConfig(
+      bookmarksConfig([
+        { title: "Docs", url: "https://example.com/a" },
+        { title: "Docs", url: "https://example.com/b" },
+      ]),
+      DEFAULT_LAYOUT,
+    );
+
+    expect(warningsContaining(warnSpy, "only one row will be shown")).toHaveLength(0);
+  });
+
+  test("same url with different titles does not warn", () => {
+    validateParsedConfig(
+      bookmarksConfig([
+        { title: "Docs", url: "https://example.com" },
+        { title: "Blog", url: "https://example.com" },
+      ]),
+      DEFAULT_LAYOUT,
+    );
+
+    expect(warningsContaining(warnSpy, "only one row will be shown")).toHaveLength(0);
+  });
+});

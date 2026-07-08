@@ -15,7 +15,7 @@ import {
 } from "./config/types";
 import { warnConfig } from "./config-warn";
 import { validateTransforms } from "./transform-validate";
-import { getAdapterName } from "./utils";
+import { getAdapterName, simpleHash, slugify } from "./utils";
 import {
   describeValue,
   validateAllowedKeys,
@@ -131,6 +131,9 @@ function validateBookmarksParams(params: Record<string, unknown>, path: string):
     throw new Error(`config: ${path}.params.items is required for bookmarks adapter`);
   }
   validateNonEmptyArray(params.items, `${path}.params.items`);
+  // Bookmark ids are derived from slugify(title) + simpleHash(url); entries
+  // that collide on both silently collapse to a single dashboard row.
+  const seenIds = new Map<string, number>();
   for (let i = 0; i < (params.items as unknown[]).length; i++) {
     const item = (params.items as unknown[])[i];
     const itemPath = `${path}.params.items[${i}]`;
@@ -141,6 +144,17 @@ function validateBookmarksParams(params: Record<string, unknown>, path: string):
     validateNonEmptyString(item.url, `${itemPath}.url`);
     if (typeof item.url === "string") {
       validateSafeUrl(item.url, `${itemPath}.url`);
+    }
+    if (typeof item.title === "string" && typeof item.url === "string") {
+      const idKey = `${slugify(item.title)}-${simpleHash(item.url)}`;
+      const firstIndex = seenIds.get(idKey);
+      if (firstIndex === undefined) {
+        seenIds.set(idKey, i);
+      } else {
+        warnConfig(
+          `${itemPath} duplicates ${path}.params.items[${firstIndex}] (title and url produce the same item id); only one row will be shown`,
+        );
+      }
     }
   }
 }
