@@ -89,6 +89,8 @@ docker run -d -p 7453:7453 -v pace-data:/app/data ghcr.io/av/pace:latest
 
 Open http://localhost:7453. Health check: `curl http://localhost:7453/health` returns `{"status":"ok"}`.
 
+The container runs pace as the unprivileged `bun` user (uid 1000). It starts as root only long enough for the entrypoint to `chown` `/app/data` — data volumes created by older (root-running) images keep working with no manual migration — then permanently drops privileges. Files in a bind-mounted data directory are re-owned to uid 1000 on startup; to skip the chown and manage permissions yourself, start the container with `--user 1000:1000` (the data directory must then already be writable by that uid).
+
 ### With a preset
 
 Use `--preset` (or `-P`) with Docker or source commands, for example `--preset tech-news`. See the "## Presets" section for the full list.
