@@ -239,6 +239,11 @@ export function applyCliConfigEnv(
   values: Pick<CliParsedValues, "config" | "preset">,
   deps: CliConfigDeps,
 ): void {
+  if (values.preset && values.config) {
+    // Previously --preset was silently ignored when --config was also given;
+    // make the conflict explicit so users aren't surprised by which one won.
+    cliDie("cli: --preset and --config are mutually exclusive; pass only one");
+  }
   if (values.preset && !values.config) {
     const resolved = deps.resolvePreset(values.preset);
     if (!resolved) {

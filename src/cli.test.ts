@@ -55,6 +55,40 @@ describe("cli-help", () => {
     expect(values.listPresets).toBe(false);
   });
 
+  test("applyCliConfigEnv rejects --preset combined with --config", () => {
+    let exitCode: number | undefined;
+    let stderr = "";
+    const origExit = process.exit;
+    const origError = console.error;
+    const origConfig = process.env.PACE_CONFIG;
+    try {
+      process.exit = ((code?: number) => {
+        exitCode = code ?? 0;
+        throw new Error("cliDie");
+      }) as typeof process.exit;
+      console.error = (msg: string) => {
+        stderr = String(msg);
+      };
+      expect(() =>
+        applyCliConfigEnv(
+          { preset: "tech-news", config: "/tmp/my.yaml" },
+          {
+            resolvePreset: () => "/presets/tech-news.yaml",
+            listPresets: () => ["tech-news"],
+            tryReadRegularFile: () => "ok",
+          },
+        ),
+      ).toThrow("cliDie");
+      expect(exitCode).toBe(1);
+      expect(stderr).toBe("cli: --preset and --config are mutually exclusive; pass only one");
+    } finally {
+      process.exit = origExit;
+      console.error = origError;
+      if (origConfig === undefined) delete process.env.PACE_CONFIG;
+      else process.env.PACE_CONFIG = origConfig;
+    }
+  });
+
   test("applyCliConfigEnv sets PACE_CONFIG from preset and validates explicit config", () => {
     const orig = process.env.PACE_CONFIG;
     try {

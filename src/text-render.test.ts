@@ -13,6 +13,23 @@ describe("text-render", () => {
       expect(sanitize(input)).toBe(input);
     });
 
+    test("forces rel=noopener on target=_blank links missing it", () => {
+      const input = '<a href="https://example.com" target="_blank">link</a>';
+      expect(sanitize(input)).toBe(
+        '<a href="https://example.com" target="_blank" rel="noopener">link</a>',
+      );
+    });
+
+    test("merges noopener into an existing rel on targeted links", () => {
+      const input = '<a href="https://example.com" target="_blank" rel="nofollow">link</a>';
+      expect(sanitize(input)).toContain('rel="nofollow noopener"');
+    });
+
+    test("does not add rel to links without a target", () => {
+      const input = '<a href="https://example.com">link</a>';
+      expect(sanitize(input)).toBe(input);
+    });
+
     test("allows images with src and alt", () => {
       const input = '<img src="https://example.com/img.png" alt="photo" />';
       const result = sanitize(input);

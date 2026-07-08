@@ -60,6 +60,20 @@ describe("db: pruneOldItems guard", () => {
     expect(getRawItemsByPanel("ret-p1")).toHaveLength(1);
   });
 
+  test("composite (id, panel_id) copies prune independently per panel", () => {
+    const db = dbMod.getDb();
+    // Same item id saved to two panels -> two rows under the composite PK.
+    saveItems("ret-pa", [makeContentItem({ id: "shared-1" })]);
+    saveItems("ret-pb", [makeContentItem({ id: "shared-1" })]);
+    // Only panel A's copy is stale.
+    db.prepare(
+      "UPDATE content_items SET fetched_at = datetime('now', '-10 days') WHERE id = ? AND panel_id = ?",
+    ).run("shared-1", "ret-pa");
+    expect(pruneOldItems(7)).toBe(1);
+    expect(getRawItemsByPanel("ret-pa")).toHaveLength(0);
+    expect(getRawItemsByPanel("ret-pb").map((r) => r.id)).toEqual(["shared-1"]);
+  });
+
   test("valid days still prunes aged rows only", () => {
     const db = dbMod.getDb();
     saveItems("ret-p2", [makeContentItem({ id: "old-1" }), makeContentItem({ id: "new-1" })]);

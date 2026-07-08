@@ -16,6 +16,20 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
   },
   allowedSchemes: ["https", "http"],
   disallowedTagsMode: "discard",
+  transformTags: {
+    // A link that opens a new browsing context must not hand the target page
+    // a window.opener reference (reverse tabnabbing). Modern browsers imply
+    // noopener for target="_blank", but feed content may use other targets
+    // and older engines don't - force it whenever target is present.
+    a: (tagName, attribs) => {
+      if (attribs.target !== undefined) {
+        const rel = new Set((attribs.rel ?? "").split(/\s+/).filter(Boolean));
+        rel.add("noopener");
+        attribs.rel = [...rel].join(" ");
+      }
+      return { tagName, attribs };
+    },
+  },
 };
 
 /** Sanitize HTML string using the project allowlist. */
