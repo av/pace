@@ -107,7 +107,7 @@ export async function handleRefreshPanel(c: Context, deps: ServerRouteDeps): Pro
       // Non-browser clients (curl, scripts, health checks) keep the 502 body.
       if (isBrowserNavigationRequest(c.req.raw.headers)) {
         return c.redirect(
-          `${deps.basePath}/?failed=${encodeSourceNames(failures.map((result) => result.name))}`,
+          `${dashboardRootPath(deps.basePath)}?failed=${encodeSourceNames(failures.map((result) => result.name))}`,
           303,
         );
       }
@@ -116,13 +116,22 @@ export async function handleRefreshPanel(c: Context, deps: ServerRouteDeps): Pro
     const skips = collectRefreshSkips(results);
     if (skips.length > 0) {
       return c.redirect(
-        `${deps.basePath}/?skipped=${encodeSourceNames(skips.map((result) => result.name))}`,
+        `${dashboardRootPath(deps.basePath)}?skipped=${encodeSourceNames(skips.map((result) => result.name))}`,
         303,
       );
     }
   }
 
-  return c.redirect(deps.basePath + "/", 303);
+  return c.redirect(dashboardRootPath(deps.basePath), 303);
+}
+
+/**
+ * Canonical dashboard root for redirects: the base path itself ("/pace"), or
+ * "/" when no base path is configured. Redirecting straight to the canonical
+ * form avoids a second hop through the trailing-slash 308 canonicalizer.
+ */
+function dashboardRootPath(basePath: string): string {
+  return basePath === "" ? "/" : basePath;
 }
 
 /**

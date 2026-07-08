@@ -92,7 +92,7 @@ describe("failed refresh end-to-end", () => {
       headers: { "sec-fetch-mode": "navigate", "sec-fetch-site": "same-origin" },
     });
     expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe("/pace/?failed=hackernews");
+    expect(res.headers.get("location")).toBe("/pace?failed=hackernews");
   });
 
   test("dashboard renders the error banner as role=alert with error class", async () => {

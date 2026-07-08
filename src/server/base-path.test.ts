@@ -60,7 +60,7 @@ describe("server with base_path", () => {
     const res = await requestServerRoute(app, "/refresh/tech-panel", { method: "POST" });
 
     expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe("/pace/");
+    expect(res.headers.get("location")).toBe("/pace");
   });
 
   test("refresh redirects to plain root when no base path configured", async () => {
@@ -89,7 +89,7 @@ describe("server with base_path", () => {
       method: "POST",
     });
     expect(refresh.status).toBe(303);
-    expect(refresh.headers.get("location")).toBe("/pace/");
+    expect(refresh.headers.get("location")).toBe("/pace");
   });
 
   test("unprefixed routes keep working when a base path is set (stripping proxy)", async () => {
@@ -102,7 +102,7 @@ describe("server with base_path", () => {
     expect(css.status).toBe(200);
   });
 
-  test("trailing-slash prefix root redirects to the prefix root (refresh redirect target)", async () => {
+  test("trailing-slash prefix root redirects to the prefix root (safety net)", async () => {
     const app = makeApp("/pace");
 
     // Bare trailing slash — what a reverse proxy typically forwards.
@@ -110,8 +110,9 @@ describe("server with base_path", () => {
     expect(bare.status).toBe(308);
     expect(bare.headers.get("location")).toBe("/pace");
 
-    // The refresh flow redirects browsers to `${basePath}/?failed=...`; the
-    // banner query params must survive the canonicalization hop.
+    // Refresh redirects now target the canonical `${basePath}` directly, but
+    // the 308 canonicalizer stays as a safety net for external links and
+    // proxies; banner query params must survive the hop.
     const banner = await requestServerRoute(app, "/pace/?failed=hn%2Creddit");
     expect(banner.status).toBe(308);
     expect(banner.headers.get("location")).toBe("/pace?failed=hn%2Creddit");

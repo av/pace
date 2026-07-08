@@ -189,6 +189,6 @@ describe("skipped refresh end-to-end", () => {
     });
     const res = await requestRefreshPanel(createTestServerApp(deps), "tech");
     expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe("/pace/?skipped=hackernews");
+    expect(res.headers.get("location")).toBe("/pace?skipped=hackernews");
   });
 });
