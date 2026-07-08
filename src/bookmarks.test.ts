@@ -33,7 +33,7 @@ describe("bookmarks adapter", () => {
     expect(result).toHaveLength(3);
 
     // Check first item
-    expect(result[0].id).toBe("bookmarks:linear-0");
+    expect(result[0].id).toBe("bookmarks:linear-gb1xpj");
     expect(result[0].title).toBe("Linear");
     expect(result[0].url).toBe("https://linear.app");
     expect(result[0].source).toBe("bookmarks:work");
@@ -41,12 +41,12 @@ describe("bookmarks adapter", () => {
     expect(result[0].timestamp).toBeInstanceOf(Date);
 
     // Check second item - tagged, no description
-    expect(result[1].id).toBe("bookmarks:figma-1");
+    expect(result[1].id).toBe("bookmarks:figma-lbc8jg");
     expect(result[1].source).toBe("bookmarks:design");
     expect(result[1].body).toBeUndefined();
 
     // Check third item - no tags, no description
-    expect(result[2].id).toBe("bookmarks:arxiv-cs-lg-2");
+    expect(result[2].id).toBe("bookmarks:arxiv-cs-lg-gx766m");
     expect(result[2].source).toBe("bookmarks");
     expect(result[2].body).toBeUndefined();
   });
@@ -153,17 +153,17 @@ describe("bookmarks adapter", () => {
     expect(result[0].body).toBeUndefined();
   });
 
-  test("unicode-only titles produce stable IDs with index suffix", async () => {
+  test("unicode-only titles produce stable IDs with url-hash suffix", async () => {
     const result = await adapter.fetch(makeConfig([
       { title: "Bibliothek", url: "https://example.com/1" },
       { title: "中文标题", url: "https://example.com/2" },
       { title: "日本語タイトル", url: "https://example.com/3" },
     ]));
     expect(result).toHaveLength(3);
-    expect(result[0].id).toBe("bookmarks:bibliothek-0");
-    // Unicode-only titles get empty slugs, index prevents collision
-    expect(result[1].id).toBe("bookmarks:-1");
-    expect(result[2].id).toBe("bookmarks:-2");
+    expect(result[0].id).toBe("bookmarks:bibliothek-16mxgds");
+    // Unicode-only titles get empty slugs, the url hash prevents collision
+    expect(result[1].id).toBe("bookmarks:-16mxgdt");
+    expect(result[2].id).toBe("bookmarks:-16mxgdu");
     // Titles are preserved as-is
     expect(result[1].title).toBe("中文标题");
     expect(result[2].title).toBe("日本語タイトル");
@@ -188,8 +188,8 @@ describe("bookmarks adapter", () => {
     ]));
     expect(result).toHaveLength(1);
     expect(result[0].title).toBe(longTitle);
-    // slug is truncated to 40 chars by slugify
-    expect(result[0].id.length).toBeLessThanOrEqual("bookmarks:".length + 40 + "-0".length);
+    // slug is truncated to 40 chars by slugify; hash suffix is base36 (<= 7 chars)
+    expect(result[0].id.length).toBeLessThanOrEqual("bookmarks:".length + 40 + "-".length + 7);
   });
 
   test("URL with query params, fragments, and special characters accepted", async () => {

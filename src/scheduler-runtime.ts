@@ -6,6 +6,7 @@ import { compareIsoTimestamp, errorMessage, getAdapterName } from "./utils";
 import type { Model, Api } from "@mariozechner/pi-ai";
 import {
   type ContentItemRow,
+  type SaveItemsOptions,
   saveItems,
   getPipelineInputItemsByPanel,
   getRawItemsByPanel,
@@ -167,8 +168,12 @@ function panelIdsForSource(sourceName: string, panelMap: SourcePanelMap): string
   return panelMap.sourceToPanels.get(sourceName) ?? [sourceName];
 }
 
-function saveItemsToPanels(panelIds: string[], items: ContentItem[]): void {
-  for (const pid of panelIds) saveItems(pid, items);
+function saveItemsToPanels(
+  panelIds: string[],
+  items: ContentItem[],
+  options?: SaveItemsOptions,
+): void {
+  for (const pid of panelIds) saveItems(pid, items, options);
 }
 
 function replaceItemsOnPanels(panelIds: string[], items: ContentItemRow[]): void {
@@ -296,7 +301,12 @@ async function runAdapter(scheduler: SchedulerState, entry: AdapterEntry): Promi
     // items during the await and have them wiped by the stale replace.
     await scheduler.panelLocks.withLock(panelIds, async () => {
       if (items.length > 0) {
-        saveItemsToPanels(panelIds, items);
+        // Declarative adapters fabricate `now`-based timestamps every fetch;
+        // preserving the stored timestamp on upsert keeps items aging
+        // naturally instead of re-stamping to "just now" each refresh.
+        saveItemsToPanels(panelIds, items, {
+          preserveStoredTimestamps: adapter.declarative === true,
+        });
         logScheduler(`${name} - fetched ${items.length} items`);
       }
 

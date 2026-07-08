@@ -242,8 +242,25 @@ export function initDb(): void {
   }
 }
 
-export function saveItems(panelId: string, items: ContentItem[]): void {
+export interface SaveItemsOptions {
+  /**
+   * Keep the already-stored timestamp when a row is updated (new rows still
+   * use the incoming timestamp). Declarative adapters (e.g. bookmarks)
+   * fabricate `now`-based timestamps on every fetch; without this, each
+   * refresh re-stamps every item to "just now" and the panel never ages.
+   */
+  preserveStoredTimestamps?: boolean;
+}
+
+export function saveItems(
+  panelId: string,
+  items: ContentItem[],
+  options: SaveItemsOptions = {},
+): void {
   const db = getDb();
+  const timestampUpdate = options.preserveStoredTimestamps
+    ? ""
+    : "timestamp = excluded.timestamp,";
   const stmt = db.prepare(`
     INSERT INTO content_items (id, panel_id, title, url, source, body, timestamp, fetched_at, origins)
     VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)
@@ -252,7 +269,7 @@ export function saveItems(panelId: string, items: ContentItem[]): void {
       url = excluded.url,
       source = excluded.source,
       body = excluded.body,
-      timestamp = excluded.timestamp,
+      ${timestampUpdate}
       fetched_at = datetime('now'),
       origins = excluded.origins
   `);

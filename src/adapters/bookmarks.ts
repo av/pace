@@ -1,6 +1,6 @@
 import { mapToContentItemsPerSource, type ContentItemProjection } from "./content-item";
 import { warnAdapter, warnEmptyConfig } from "./empty-config";
-import { slugify } from "../utils";
+import { simpleHash, slugify } from "../utils";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 export interface BookmarkEntry {
@@ -25,8 +25,10 @@ function bookmarkSource(entry: BookmarkEntry): string {
 const adapter: Adapter = {
   name: "bookmarks",
   // Items come entirely from config; the scheduler prunes `bookmarks:`-prefixed
-  // rows not present in the latest fetch so removed/reordered entries (ids
-  // embed the config index) don't linger or duplicate on the panel.
+  // rows not present in the latest fetch so removed/renamed entries don't
+  // linger on the panel. Ids embed a hash of the URL (not the config index),
+  // so reordering entries keeps ids stable and per-item state (summaries,
+  // scores, first-seen timestamps) survives.
   declarative: true,
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
     const items = config.params?.items;
@@ -76,7 +78,13 @@ const adapter: Adapter = {
       valid,
       (v) => bookmarkSource(v.entry),
       (v): ContentItemProjection => ({
-        id: `bookmarks:${slugify(v.entry.title)}-${v.index}`,
+        // URL-hash id: stable across config reorders (unlike an embedded
+        // index), so upserts hit the same row and DB-side state survives.
+        // The timestamp below (now - index) only orders the FIRST insert of
+        // each entry; declarative saves preserve stored timestamps on
+        // conflict (see saveItems preserveStoredTimestamps), so refreshes
+        // stop re-stamping every bookmark to "just now".
+        id: `bookmarks:${slugify(v.entry.title)}-${simpleHash(v.entry.url)}`,
         title: v.entry.title,
         url: v.entry.url,
         timestamp: new Date(nowMs - v.index),

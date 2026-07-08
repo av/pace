@@ -114,9 +114,9 @@ describe("declarative adapter pruning (scheduler)", () => {
       runtimeA.stopScheduler();
       expect(dbMod.getRawItemsByPanel("linksPanel")).toHaveLength(2);
 
-      // Restart with the two bookmarks swapped: index-embedded ids change
-      // (linear-0/figma-1 -> figma-0/linear-1), so upsert alone would leave
-      // FOUR rows on the panel.
+      // Restart with the two bookmarks swapped: url-hash ids are stable, so
+      // the swap upserts the SAME two rows (with legacy index-embedded ids
+      // this relied on pruning to drop the stale copies).
       const second = bookmarksConfig([FIGMA, LINEAR]);
       const runtimeB = createSchedulerRuntime();
       runtimeB.startScheduler(second, adapters(), sourcePanelMapFromConfig(second), null);
@@ -125,7 +125,10 @@ describe("declarative adapter pruning (scheduler)", () => {
 
       const rows = dbMod.getRawItemsByPanel("linksPanel");
       expect(rows).toHaveLength(2);
-      expect(rows.map((r) => r.id).sort()).toEqual(["bookmarks:figma-0", "bookmarks:linear-1"]);
+      expect(rows.map((r) => r.id).sort()).toEqual([
+        "bookmarks:figma-lbc8jg",
+        "bookmarks:linear-gb1xpj",
+      ]);
     });
   });
 
@@ -170,7 +173,7 @@ describe("declarative adapter pruning (scheduler)", () => {
       (config.adapters[0].params as { items: unknown[] }).items = [LINEAR];
       await refreshTestSources(["marks"]);
       const ids = dbMod.getRawItemsByPanel("shared").map((r) => r.id).sort();
-      expect(ids).toEqual(["bookmarks:linear-0", "rss:one"]);
+      expect(ids).toEqual(["bookmarks:linear-gb1xpj", "rss:one"]);
     });
   });
 
@@ -218,5 +221,107 @@ describe("declarative adapter pruning (scheduler)", () => {
       await refreshTestSources(["feed"]);
       expect(dbMod.getRawItemsByPanel("feedPanel")).toHaveLength(2);
     });
+  });
+
+  test("bookmark timestamps are NOT re-stamped to now on refresh", async () => {
+    const config = bookmarksConfig([LINEAR, FIGMA]);
+    await spyConsole(["log"], async () => {
+      startTestScheduler(config, adapters(), sourcePanelMapFromConfig(config), null);
+      await waitForAsync();
+      const before = new Map(
+        dbMod.getRawItemsByPanel("linksPanel").map((r) => [r.id, r.timestamp]),
+      );
+      expect(before.size).toBe(2);
+
+      // Backdate stored timestamps to simulate an aged panel, then refresh:
+      // the adapter fabricates fresh now-based timestamps every fetch, but
+      // the declarative save must keep the stored (first-seen) ones.
+      const aged = "2026-01-01T00:00:00.000Z";
+      dbMod
+        .getDb()
+        .prepare("UPDATE content_items SET timestamp = ? WHERE panel_id = 'linksPanel'")
+        .run(aged);
+      await refreshTestSources(["marks"]);
+
+      const rows = dbMod.getRawItemsByPanel("linksPanel");
+      expect(rows).toHaveLength(2);
+      for (const row of rows) expect(row.timestamp).toBe(aged);
+    });
+  });
+
+  test("summaries survive a config reorder across restart (stable url-hash ids)", async () => {
+    const first = bookmarksConfig([LINEAR, FIGMA]);
+    await spyConsole(["log"], async () => {
+      const runtimeA = createSchedulerRuntime();
+      runtimeA.startScheduler(first, adapters(), sourcePanelMapFromConfig(first), null);
+      await waitForAsync();
+      runtimeA.stopScheduler();
+
+      // An LLM transform stored a summary against the Linear row.
+      dbMod
+        .getDb()
+        .prepare("UPDATE content_items SET summary = ? WHERE id = ?")
+        .run("Issue tracker for teams", "bookmarks:linear-gb1xpj");
+
+      // Restart with the bookmarks reordered: ids are unchanged, so the
+      // upsert hits the same row and the summary is retained (index-embedded
+      // ids would have pruned the row and re-inserted it summary-less).
+      const second = bookmarksConfig([FIGMA, LINEAR]);
+      const runtimeB = createSchedulerRuntime();
+      runtimeB.startScheduler(second, adapters(), sourcePanelMapFromConfig(second), null);
+      await waitForAsync();
+      runtimeB.stopScheduler();
+
+      const rows = dbMod.getRawItemsByPanel("linksPanel");
+      expect(rows).toHaveLength(2);
+      const linear = rows.find((r) => r.id === "bookmarks:linear-gb1xpj");
+      expect(linear?.summary).toBe("Issue tracker for teams");
+    });
+  });
+});
+
+describe("saveItems preserveStoredTimestamps (db)", () => {
+  installTempDbHooks({ prefix: "pace-preserve-ts-" });
+
+  const item = (timestamp: string) =>
+    makeContentItem({
+      id: "bookmarks:x-abc",
+      title: "X",
+      url: "https://x",
+      source: "s",
+      timestamp: new Date(timestamp),
+    });
+
+  test("update keeps the stored timestamp; other fields still refresh", () => {
+    dbMod.saveItems("p1", [item("2026-01-01T00:00:00.000Z")]);
+    dbMod.saveItems(
+      "p1",
+      [
+        makeContentItem({
+          id: "bookmarks:x-abc",
+          title: "X2",
+          url: "https://x",
+          source: "s",
+          timestamp: new Date("2026-06-01T00:00:00.000Z"),
+        }),
+      ],
+      { preserveStoredTimestamps: true },
+    );
+    const [row] = dbMod.getRawItemsByPanel("p1");
+    expect(row.timestamp).toBe("2026-01-01T00:00:00.000Z");
+    expect(row.title).toBe("X2");
+  });
+
+  test("without the option the incoming timestamp overwrites (default unchanged)", () => {
+    dbMod.saveItems("p1", [item("2026-01-01T00:00:00.000Z")]);
+    dbMod.saveItems("p1", [item("2026-06-01T00:00:00.000Z")]);
+    const [row] = dbMod.getRawItemsByPanel("p1");
+    expect(row.timestamp).toBe("2026-06-01T00:00:00.000Z");
+  });
+
+  test("new rows still get the incoming timestamp under the option", () => {
+    dbMod.saveItems("p1", [item("2026-01-01T00:00:00.000Z")], { preserveStoredTimestamps: true });
+    const [row] = dbMod.getRawItemsByPanel("p1");
+    expect(row.timestamp).toBe("2026-01-01T00:00:00.000Z");
   });
 });

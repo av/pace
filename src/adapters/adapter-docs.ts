@@ -536,7 +536,7 @@ params:
 
   bookmarks: {
     summary:
-      "Displays curated bookmark links defined in config. The list is authoritative: entries removed or reordered in config disappear from the panel on the next refresh.",
+      "Displays curated bookmark links defined in config. The list is authoritative: entries removed from config disappear from the panel on the next refresh. Each bookmark keeps its first-seen timestamp, so newly added entries surface at the top while existing ones age naturally.",
     example: `type: bookmarks
 params:
   items:
