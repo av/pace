@@ -89,6 +89,29 @@ export function compareIsoTimestamp(
   return direction === "asc" ? -descCmp : descCmp;
 }
 
+/**
+ * Future timestamps within this window pass through unclamped, so legitimate
+ * marginal clock skew between the feed's server and ours isn't visibly
+ * re-stamped to the fetch time.
+ */
+export const FUTURE_TIMESTAMP_TOLERANCE_MS = 5 * 60_000;
+
+/**
+ * Clamp a future-dated ISO timestamp to `now`.
+ *
+ * Feeds with skewed clocks (or bogus scheduled-post dates) otherwise
+ * sort-pin their items to the top of every panel and pipeline input until
+ * the date ages in — `compareIsoTimestamp` desc puts them first
+ * indefinitely, and they render as "just now" forever. Unparseable
+ * timestamps pass through unchanged (callers already tolerate them).
+ */
+export function clampFutureTimestamp(timestamp: string, now = Date.now()): string {
+  const then = new Date(timestamp).getTime();
+  if (isNaN(then)) return timestamp;
+  if (then <= now + FUTURE_TIMESTAMP_TOLERANCE_MS) return timestamp;
+  return new Date(now).toISOString();
+}
+
 /** Human-readable relative age for dashboard timestamps (minutes/hours/days ago). */
 export function relativeTime(timestamp: string, now = Date.now()): string {
   const then = new Date(timestamp).getTime();

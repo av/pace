@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import type { ContentItem, ContentItemFields } from "./adapters/types";
 import type { DashboardPanel } from "./layout/types";
 import { warnDbClose } from "./db-warn";
-import { errorMessage } from "./utils";
+import { clampFutureTimestamp, errorMessage } from "./utils";
 
 let db: Database | null = null;
 let currentDbPath: string | null = null;
@@ -62,7 +62,14 @@ export function coreContentItemFields(source: CoreContentItemSource): CoreConten
     url: source.url,
     source: source.source,
     body: source.body ?? null,
-    timestamp: source.timestamp instanceof Date ? source.timestamp.toISOString() : source.timestamp,
+    // Clamp future-dated timestamps (clock-skewed feeds) so they can't
+    // sort-pin to the top of panels and pipeline input indefinitely. Stored
+    // rows are clamped at save time, so on rewrite paths (replacePanelItems,
+    // contentItemToRow) this is a no-op backstop — except for future-dated
+    // rows persisted by pre-clamp versions, which get fixed once here.
+    timestamp: clampFutureTimestamp(
+      source.timestamp instanceof Date ? source.timestamp.toISOString() : source.timestamp,
+    ),
   };
 }
 
@@ -250,11 +257,29 @@ export function saveItems(panelId: string, items: ContentItem[]): void {
       origins = excluded.origins
   `);
 
+  // The future-timestamp clamp (see coreContentItemFields) must be STABLE
+  // across refreshes: while the feed keeps serving the same future date,
+  // re-clamping to a fresh "now" on every upsert would re-pin the item to
+  // the top of the panel each cycle. If a sane (non-future) timestamp is
+  // already stored for this row, it wins over a freshly clamped one.
+  const existingTsStmt = db.prepare(
+    `SELECT timestamp FROM content_items WHERE id = ? AND panel_id = ?`,
+  );
+  const now = Date.now();
+
   runPanelItemsTx(panelId, items.length, "save", () => {
     for (const item of items) {
       runItemOp(panelId, item, "save", () => {
+        const iso = item.timestamp instanceof Date ? item.timestamp.toISOString() : item.timestamp;
+        let timestamp = clampFutureTimestamp(iso, now);
+        if (timestamp !== iso) {
+          const existing = existingTsStmt.get(item.id, panelId) as { timestamp: string } | null;
+          if (existing && clampFutureTimestamp(existing.timestamp, now) === existing.timestamp) {
+            timestamp = existing.timestamp;
+          }
+        }
         const origins = JSON.stringify([item.source]);
-        stmt.run(...bindCoreContentItemParams(panelId, item), origins);
+        stmt.run(...bindCoreContentItemParams(panelId, { ...item, timestamp }), origins);
       });
     }
   });
