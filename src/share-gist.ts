@@ -3,6 +3,12 @@ import { errorMessage } from "./utils";
 export const DEFAULT_GIST_RENDERER = "https://gisthost.github.io/";
 export const DEFAULT_GIST_FILENAME = "index.html";
 
+/**
+ * Upper bound for the GitHub API request. `pace share` runs interactively in
+ * the CLI; without a timeout a hung connection would stall the command forever.
+ */
+export const GIST_PUBLISH_TIMEOUT_MS = 30_000;
+
 export interface StaticDashboardArtifact {
   html: string;
   css: string;
@@ -40,7 +46,10 @@ export function renderGistShareUrl(gistId: string, renderer = DEFAULT_GIST_RENDE
 }
 
 function gistToken(explicit?: string): string {
-  const token = explicit ?? process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN;
+  // Trim so an accidentally quoted/padded env value ("  ghp_x \n") still works,
+  // and a whitespace-only value is reported as missing instead of sending a
+  // malformed Authorization header that GitHub rejects with an opaque 401.
+  const token = (explicit ?? process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN)?.trim();
   if (!token) {
     throw new Error("share: GitHub token required (set GITHUB_TOKEN or GH_TOKEN)");
   }
@@ -66,6 +75,28 @@ function gistEndpoint(gistId?: string): { method: "POST" | "PATCH"; url: string 
     return { method: "PATCH", url: `https://api.github.com/gists/${encodeURIComponent(gistId)}` };
   }
   return { method: "POST", url: "https://api.github.com/gists" };
+}
+
+/** True for the abort error produced by AbortSignal.timeout(). */
+function isTimeoutError(err: unknown): boolean {
+  return (
+    err instanceof Error &&
+    (err.name === "TimeoutError" ||
+      (err.name === "AbortError" && /time/i.test(err.message)))
+  );
+}
+
+/** Actionable next step for the GitHub API statuses users actually hit. */
+function gistStatusHint(status: number, gistId?: string): string {
+  if (status === 401) return " (check your GitHub token)";
+  if (status === 403) return " (token lacks the \"gist\" scope, or rate limited)";
+  if (status === 404) {
+    return gistId
+      ? ` (gist "${gistId}" not found — check --gist-id and that the token owns it)`
+      : " (token lacks the \"gist\" scope)";
+  }
+  if (status === 422) return " (GitHub rejected the gist content; it may exceed gist size limits)";
+  return "";
 }
 
 function parseGistResponse(payload: GitHubGistResponse, fallbackId?: string): { id: string; url: string } {
@@ -97,15 +128,22 @@ export async function publishGistArtifact(
         "X-GitHub-Api-Version": "2022-11-28",
       },
       body: gistRequestBody(artifact, options),
+      signal: AbortSignal.timeout(GIST_PUBLISH_TIMEOUT_MS),
     });
   } catch (err) {
+    if (isTimeoutError(err)) {
+      throw new Error(
+        `share: GitHub Gist publish timed out after ${GIST_PUBLISH_TIMEOUT_MS}ms`,
+      );
+    }
     throw new Error(`share: failed to publish GitHub Gist: ${errorMessage(err)}`);
   }
 
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
     const suffix = detail ? `: ${detail.slice(0, 300)}` : "";
-    throw new Error(`share: GitHub Gist publish failed with ${response.status}${suffix}`);
+    const hint = gistStatusHint(response.status, options.gistId);
+    throw new Error(`share: GitHub Gist publish failed with ${response.status}${suffix}${hint}`);
   }
 
   let payload: GitHubGistResponse;

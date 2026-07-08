@@ -834,6 +834,44 @@ layout:
     expect(() => loadConfig()).toThrow(/config: llm\.typo_field is not a valid llm field/);
   });
 
+  test("accepts llm.timeout_seconds", () => {
+    const yaml = `
+llm:
+  provider: openai
+  model: gpt-4o-mini
+  api_key: sk-test
+  timeout_seconds: 300
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(yaml);
+    expect(loadConfig().llm?.timeout_seconds).toBe(300);
+  });
+
+  test("rejects non-positive or non-numeric llm.timeout_seconds", () => {
+    for (const bad of ["0", "-5", '"2m"']) {
+      const yaml = `
+llm:
+  provider: openai
+  model: gpt-4o-mini
+  api_key: sk-test
+  timeout_seconds: ${bad}
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+      setConfig(yaml);
+      expect(() => loadConfig()).toThrow(
+        /config: llm\.timeout_seconds must be a positive number/,
+      );
+    }
+  });
+
   test("rejects unknown top-level key", () => {
     const yaml = `
 foo: bar

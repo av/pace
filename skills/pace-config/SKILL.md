@@ -643,6 +643,17 @@ docker run -d -p 7453:7453 \
 
 The `provider` value is passed to [pi-ai](https://github.com/badlogic/pi-mono); supported providers include anthropic, openai, google, groq, mistral, and others -- see pi-ai docs for the full list.
 
+Optional: `timeout_seconds` caps each LLM completion (default 120). Raise it for slow local models (e.g. Ollama on modest hardware); a completion that exceeds it is abandoned and the items pass through unchanged.
+
+```yaml
+llm:
+  provider: ollama
+  model: llama3.1
+  api_key: unused
+  base_url: http://localhost:11434/v1
+  timeout_seconds: 300
+```
+
 ## Server config (optional)
 
 An optional top-level `server` block accepts exactly two fields (anything else is a validation error):

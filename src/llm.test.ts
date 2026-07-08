@@ -1,9 +1,11 @@
-import { describe, test, expect, spyOn } from "bun:test";
+import { describe, test, expect, spyOn, afterEach } from "bun:test";
 import { spyConsole } from "./test/console-spy";
 import {
   stripJsonCodeFences,
   safeComplete,
   createModel,
+  llmCompleteTimeoutMs,
+  LLM_COMPLETE_TIMEOUT_MS,
   summarizeItem,
   summarizeItems,
   mergeItems,
@@ -232,6 +234,46 @@ describe("llm", () => {
       };
       const res = await safeComplete(fakeThrowingModel, ctx);
       expect(res).toBe(null);
+    });
+  });
+
+  describe("llm.timeout_seconds", () => {
+    afterEach(() => {
+      // Reset process-wide timeout state for other tests.
+      createModel({});
+      expect(llmCompleteTimeoutMs()).toBe(LLM_COMPLETE_TIMEOUT_MS);
+    });
+
+    test("createModel sets the configured timeout and resets it when absent", () => {
+      createModel({ timeout_seconds: 300 });
+      expect(llmCompleteTimeoutMs()).toBe(300_000);
+      createModel({});
+      expect(llmCompleteTimeoutMs()).toBe(LLM_COMPLETE_TIMEOUT_MS);
+    });
+
+    test("safeComplete uses the config-provided timeout when no explicit override", async () => {
+      const completeSpy = spyOn(piAi, "complete").mockImplementation(
+        (_model, _ctx, options) =>
+          new Promise((_resolve, reject) => {
+            options?.signal?.addEventListener("abort", () =>
+              reject(options.signal!.reason),
+            );
+          }),
+      );
+      try {
+        createModel({ timeout_seconds: 0.02 });
+        await spyConsole(["warn"], async ({ warn: warnSpy }) => {
+          const ctx: piAi.Context = {
+            systemPrompt: "test",
+            messages: [{ role: "user", content: "hi", timestamp: Date.now() }],
+          };
+          const res = await safeComplete(fakeThrowingModel, ctx);
+          expect(res).toBe(null);
+          expect(warnSpy).toHaveBeenCalledWith("llm: complete timed out after 20ms");
+        });
+      } finally {
+        completeSpy.mockRestore();
+      }
     });
   });
 

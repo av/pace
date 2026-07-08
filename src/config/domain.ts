@@ -107,6 +107,8 @@ export interface LlmConfig {
   api_key?: string;
   base_url?: string;
   interests?: string[];
+  /** Seconds allowed per LLM completion (default 120); raise for slow local models. */
+  timeout_seconds?: number;
 }
 
 export interface IngestAdapterConfig extends AdapterConfig {

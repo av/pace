@@ -33,6 +33,14 @@ const PROVIDER_ENV_KEYS: Record<string, string> = {
  * Create a pi-ai Model from config. Returns null if config is incomplete.
  */
 export function createModel(config: LlmConfig): Model<Api> | null {
+  // Applies even when the model config is incomplete: the timeout is
+  // process-wide state, and re-creating a model must never leave a stale
+  // value from a previous config behind.
+  configuredTimeoutMs =
+    config.timeout_seconds !== undefined
+      ? config.timeout_seconds * 1000
+      : LLM_COMPLETE_TIMEOUT_MS;
+
   if (!config.provider || !config.model || !config.api_key) return null;
 
   const envKey = PROVIDER_ENV_KEYS[config.provider];
@@ -76,6 +84,18 @@ export function stripJsonCodeFences(text: string): string {
  */
 export const LLM_COMPLETE_TIMEOUT_MS = 120_000;
 
+/**
+ * Effective completion timeout: `llm.timeout_seconds` from config (set by
+ * `createModel`) or the 120s default. Module-level because batch transform
+ * helpers call `safeComplete` without threading config through.
+ */
+let configuredTimeoutMs = LLM_COMPLETE_TIMEOUT_MS;
+
+/** Current effective LLM completion timeout in ms (for tests/diagnostics). */
+export function llmCompleteTimeoutMs(): number {
+  return configuredTimeoutMs;
+}
+
 /** True for the abort error produced by AbortSignal.timeout(). */
 function isTimeoutError(err: unknown): boolean {
   return (
@@ -89,11 +109,12 @@ function isTimeoutError(err: unknown): boolean {
 export async function safeComplete(
   model: Model<Api>,
   context: Context,
-  timeoutMs: number = LLM_COMPLETE_TIMEOUT_MS,
+  timeoutMs?: number,
 ): Promise<string | null> {
+  const effectiveTimeoutMs = timeoutMs ?? configuredTimeoutMs;
   try {
     const response = await complete(model, context, {
-      signal: AbortSignal.timeout(timeoutMs),
+      signal: AbortSignal.timeout(effectiveTimeoutMs),
     });
     const text = response.content
       .filter((b): b is { type: "text"; text: string } => b.type === "text")
@@ -102,7 +123,7 @@ export async function safeComplete(
     return text || null;
   } catch (err: unknown) {
     if (isTimeoutError(err)) {
-      warnLlm(`complete timed out after ${timeoutMs}ms`);
+      warnLlm(`complete timed out after ${effectiveTimeoutMs}ms`);
     } else {
       warnLlm("complete failed", err);
     }
