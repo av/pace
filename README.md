@@ -161,6 +161,10 @@ location /pace/ { proxy_pass http://127.0.0.1:7453/; }
 
 Fetched items live in SQLite so panels stay populated across restarts and upstream outages. Items last fetched more than `retention_days` days ago are pruned at startup and then once every 24 hours. Set `0` to disable pruning entirely (the log notes when pruning is disabled). Must be a non-negative integer; the default is 30.
 
+### Database schema migration (after v0.6.5)
+
+Versions newer than v0.6.5 store one copy of an item per panel (composite `(id, panel_id)` primary key), so a source feeding two panels no longer moves its items to whichever panel refreshed last. Existing databases are migrated automatically and transactionally the first time a newer pace starts. The migration is **one-way**: after it runs, v0.6.5 and older binaries fail on refresh with an SQLite `ON CONFLICT clause does not match` error against the migrated database. To downgrade, delete `data/pace.db` (it is a cache — contents are re-fetched on the next refresh) or restore a pre-upgrade copy.
+
 ## Share a Snapshot
 
 Pace can turn the current dashboard into static files, so you can share a dashboard without exposing or operating a public pace server.

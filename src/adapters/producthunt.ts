@@ -57,6 +57,11 @@ const RE_ENRICH_COMMENTS = /commentsCount":\s*(\d+)/;
 const RE_ENRICH_TOPIC =
   /data-test="topic[^"]*"[^>]*>([^<]+)<|href="\/topics\/([^"]+)"/gi;
 const RE_ENRICH_PROFILE = /href="\/@([a-zA-Z0-9_]{2,30})"/gi;
+// Product pages embed Apollo-state JSON with a `"makers":[...]` array whose
+// entries carry `"username":"..."`. Prefer that over scanning the whole page
+// for /@handle anchors, which also match commenters, hunters and nav links.
+const RE_MAKERS_JSON = /"makers"\s*:\s*\[([^\]]*)\]/;
+const RE_JSON_USERNAME = /"username"\s*:\s*"([a-zA-Z0-9_]{2,30})"/g;
 
 const EXCLUDED_MAKER_HANDLES = new Set(["producthunt", "product_hunt"]);
 
@@ -122,12 +127,20 @@ function extractTopics(html: string): string[] {
 }
 
 function extractMakers(html: string): string[] {
+  const jsonMakers = RE_MAKERS_JSON.exec(html);
+  const rawHandles = jsonMakers
+    ? [...jsonMakers[1].matchAll(RE_JSON_USERNAME)].map((m) => m[1])
+    : [...html.matchAll(RE_ENRICH_PROFILE)].map((m) => m[1]);
   const handles = [...new Set(
-    [...html.matchAll(RE_ENRICH_PROFILE)]
-      .map((m) => m[1])
+    rawHandles
       .filter(Boolean)
       .filter((h) => !EXCLUDED_MAKER_HANDLES.has(h.toLowerCase())),
   )].slice(0, 3);
+  if (handles.length === 0 && jsonMakers) {
+    // Structured block present but empty/unparsable — don't fall back to the
+    // page-wide anchor scan: it would report commenters as makers.
+    return [];
+  }
   return handles.map((h) => `@${h}`);
 }
 

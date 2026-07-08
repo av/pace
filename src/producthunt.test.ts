@@ -188,6 +188,40 @@ describe("producthunt", () => {
     expect(items[0].body).toContain("site: https://www.producthunt.com/r/test-product-123456");
   });
 
+  test("with enrich prefers embedded makers JSON over page-wide /@handle anchors", async () => {
+    const html = `<html><body>
+      <div>Upvote • 10 points</div>
+      <nav><a href="/@commenter_guy">@commenter_guy</a></nav>
+      <script>var s = {"makers":[{"id":"1","username":"realmaker"}],"commentsCount": 3};</script>
+      <a href="/@another_commenter">@another_commenter</a>
+    </body></html>`;
+    mocks.fetchMock.mockImplementation(async (url: string) =>
+      String(url).includes("producthunt.com/feed")
+        ? makeXmlResponse(productHuntFeedFixture())
+        : makeTextResponse(html));
+
+    const items = await producthuntAdapter.fetch(producthuntCfg({ enrich: true }));
+
+    expect(items[0].body).toContain("by @realmaker");
+    expect(items[0].body).not.toContain("commenter");
+  });
+
+  test("with enrich an empty makers JSON block suppresses the anchor fallback (commenters are not makers)", async () => {
+    const html = `<html><body>
+      <div>Upvote • 10 points</div>
+      <script>var s = {"makers":[],"commentsCount": 3};</script>
+      <a href="/@some_commenter">@some_commenter</a>
+    </body></html>`;
+    mocks.fetchMock.mockImplementation(async (url: string) =>
+      String(url).includes("producthunt.com/feed")
+        ? makeXmlResponse(productHuntFeedFixture())
+        : makeTextResponse(html));
+
+    const items = await producthuntAdapter.fetch(producthuntCfg({ enrich: true }));
+
+    expect(items[0].body).not.toContain("by @");
+  });
+
   test("with enrich decodes HTML entities in topic labels", async () => {
     mocks.fetchMock.mockImplementation(async (url: string) => {
       const u = String(url);

@@ -161,9 +161,15 @@ function gatherPipelineInputItems(
   // a shared panel: without this filter each cycle re-transforms
   // already-transformed items (duplicate LLM work) and re-prefixes ids
   // without bound (pipeline:x:pipeline:y:pipeline:x:...).
-  let items: ContentItemRow[] = [];
+  // Two sources can resolve to the same read key (e.g. both adapters feed
+  // one shared panel), so read each distinct read key exactly once —
+  // otherwise every row on that panel is duplicated per source.
+  const readKeys = new Set<string>();
   for (const source of sources) {
-    const readKey = scheduler.sourceToReadKey.get(source) ?? source;
+    readKeys.add(scheduler.sourceToReadKey.get(source) ?? source);
+  }
+  let items: ContentItemRow[] = [];
+  for (const readKey of readKeys) {
     items = items.concat(getPipelineInputItemsByPanel(readKey));
   }
   items.sort((a, b) => compareIsoTimestamp(a.timestamp, b.timestamp, "desc"));
