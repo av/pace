@@ -81,7 +81,11 @@ export function parseJsonPath(path: string): (string | number)[] {
 /** Interpolate ${ENV_VAR} references in a string. */
 export function interpolateEnvVars(value: string): string {
   return value.replace(/\$\{([^}]+)\}/g, (_, varName) => {
-    return process.env[varName] ?? "";
+    // Bun's process.env exposes Object.prototype members (toString, constructor,
+    // ...) as inherited lookups; only accept actual string env values so
+    // "${toString}" doesn't inject function source into outgoing headers.
+    const resolved = process.env[varName];
+    return typeof resolved === "string" ? resolved : "";
   });
 }
 

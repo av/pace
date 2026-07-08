@@ -492,6 +492,15 @@ describe("interpolateEnvVars adversarial tests", () => {
     expect(result).toBe(process.env.PATH!);
   });
 
+  test("${toString} / Object.prototype names do not leak function source", () => {
+    // Bun's process.env exposes Object.prototype members as inherited lookups;
+    // a header value like "${toString}" must expand to "" (unset), not inject
+    // "function toString() { [native code] }" into an outgoing header.
+    for (const name of ["toString", "constructor", "hasOwnProperty", "valueOf", "__proto__"]) {
+      expect(interpolateEnvVars("X-Auth: ${" + name + "}")).toBe("X-Auth: ");
+    }
+  });
+
   test("nested ${${NESTED}} - only outer braces matched", () => {
     // The regex [^}]+ won't match the inner ${, because it stops at first }
     const result = interpolateEnvVars("${${SEC_TEST_INNER}}");
