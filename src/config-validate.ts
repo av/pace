@@ -556,7 +556,8 @@ function validatePanelSourceRefs(
     if (panelNames.length > 1) {
       warnConfig(
         `multiple panels share source "${source}" (${panelNames.map((n) => `"${n}"`).join(", ")}); ` +
-        `items will only appear in one panel because the DB keys items by id. ` +
+        `the DB keys items by id, so each refresh MOVES the items to whichever of these panels ` +
+        `saved last and the other panels lose them. ` +
         `Define separate adapters with different names to feed each panel independently`,
       );
     }

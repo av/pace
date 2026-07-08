@@ -4,7 +4,7 @@ import {
   formatRefreshSkippedNotice,
   type RefreshResult,
 } from "../refresh-result";
-import { resolveSkippedNotice } from "./routes";
+import { encodeSkippedNames, rawQueryParam, resolveSkippedNotice } from "./routes";
 import { singlePanelLayout, testAppLayout } from "../test/app-config";
 import { installTempDbHooks } from "../test/temp-db";
 import {
@@ -63,6 +63,35 @@ describe("resolveSkippedNotice", () => {
 
   test("returns undefined when no names are known", () => {
     expect(resolveSkippedNotice("bogus,also-bogus", sourceMap)).toBeUndefined();
+  });
+
+  test("name containing a comma roundtrips via %2C encoding", () => {
+    const commaMap = new Map([["p", ["tech, science", "reddit"]]]);
+    const encoded = encodeSkippedNames(["tech, science", "reddit"]);
+    expect(encoded).toBe("tech%2C%20science,reddit");
+    expect(resolveSkippedNotice(encoded, commaMap)).toBe(
+      formatRefreshSkippedNotice(["tech, science", "reddit"]),
+    );
+  });
+
+  test("malformed percent-escape parts are dropped, valid ones kept", () => {
+    expect(resolveSkippedNotice("%E0%A4%A,hackernews", sourceMap)).toBe(
+      formatRefreshSkippedNotice(["hackernews"]),
+    );
+  });
+});
+
+describe("rawQueryParam", () => {
+  test("returns the raw, still-encoded value", () => {
+    expect(rawQueryParam("http://x/?skipped=a%2Cb,c", "skipped")).toBe("a%2Cb,c");
+  });
+
+  test("handles multiple params, fragments, and absence", () => {
+    expect(rawQueryParam("http://x/?a=1&skipped=v&b=2", "skipped")).toBe("v");
+    expect(rawQueryParam("http://x/?skipped=v#frag", "skipped")).toBe("v");
+    expect(rawQueryParam("http://x/?skipped", "skipped")).toBe("");
+    expect(rawQueryParam("http://x/?other=1", "skipped")).toBeUndefined();
+    expect(rawQueryParam("http://x/", "skipped")).toBeUndefined();
   });
 });
 
@@ -125,6 +154,27 @@ describe("skipped refresh end-to-end", () => {
     const html = await res.text();
     expect(html).not.toContain("refresh-notice");
     expect(html).not.toContain("onerror");
+  });
+
+  test("comma-containing source name roundtrips redirect -> dashboard notice", async () => {
+    const deps = makeServerRouteDeps({
+      layout: testAppLayout(singlePanelLayout("Tech", "hackernews", { id: "tech-panel" })),
+      panelNameToId: new Map([["tech", "tech-panel"]]),
+      panelIdToRefreshSourceNames: new Map([["tech-panel", ["tech, science", "reddit"]]]),
+      refreshSources: async () => [
+        { kind: "adapter", name: "tech, science", status: "skipped" },
+        { kind: "adapter", name: "reddit", status: "skipped" },
+      ],
+    });
+    const app = createTestServerApp(deps);
+    const res = await requestRefreshPanel(app, "tech");
+    expect(res.status).toBe(303);
+    const location = res.headers.get("location")!;
+    expect(location).toBe("/?skipped=tech%2C%20science,reddit");
+
+    const dashboard = await requestServerRoute(app, location);
+    const html = await dashboard.text();
+    expect(html).toContain("Refresh already in progress for tech, science, reddit");
   });
 
   test("skipped redirect respects basePath", async () => {
