@@ -181,6 +181,50 @@ describe("llm", () => {
       });
     });
 
+    test("passes an abort signal with a timeout to complete", async () => {
+      const completeSpy = spyOn(piAi, "complete").mockResolvedValue({
+        content: [{ type: "text", text: "ok" }],
+      } as Awaited<ReturnType<typeof piAi.complete>>);
+      try {
+        const ctx: piAi.Context = {
+          systemPrompt: "test",
+          messages: [{ role: "user", content: "hi", timestamp: Date.now() }],
+        };
+        const res = await safeComplete(fakeThrowingModel, ctx);
+        expect(res).toBe("ok");
+        const options = completeSpy.mock.calls[0][2] as piAi.StreamOptions | undefined;
+        expect(options?.signal).toBeInstanceOf(AbortSignal);
+        expect(options?.signal?.aborted).toBe(false);
+      } finally {
+        completeSpy.mockRestore();
+      }
+    });
+
+    test("hung provider that honors the signal times out to null with a warn", async () => {
+      const completeSpy = spyOn(piAi, "complete").mockImplementation(
+        (_model, _ctx, options) =>
+          new Promise((_resolve, reject) => {
+            options?.signal?.addEventListener("abort", () =>
+              reject(options.signal!.reason),
+            );
+          }),
+      );
+      try {
+        await spyConsole(["warn"], async ({ warn: warnSpy }) => {
+          const ctx: piAi.Context = {
+            systemPrompt: "test",
+            messages: [{ role: "user", content: "hi", timestamp: Date.now() }],
+          };
+          const res = await safeComplete(fakeThrowingModel, ctx, 20);
+          expect(res).toBe(null);
+          expect(warnSpy).toHaveBeenCalledTimes(1);
+          expect(warnSpy).toHaveBeenCalledWith("llm: complete timed out after 20ms");
+        });
+      } finally {
+        completeSpy.mockRestore();
+      }
+    });
+
     test("empty context returns null", async () => {
       const ctx: piAi.Context = {
         systemPrompt: "",

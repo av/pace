@@ -68,20 +68,44 @@ export function stripJsonCodeFences(text: string): string {
   return text.replace(/```json?\s*/g, "").replace(/```/g, "").trim();
 }
 
-/** complete() + text blocks; null on failure. */
+/**
+ * Upper bound for a single LLM completion. Batch transforms run inside the
+ * scheduler's per-panel refresh slot; without a timeout a hung provider
+ * (e.g. a stalled local Ollama) would block that panel's refreshes forever.
+ * Generous because batch summarize/merge calls over dozens of items are slow.
+ */
+export const LLM_COMPLETE_TIMEOUT_MS = 120_000;
+
+/** True for the abort error produced by AbortSignal.timeout(). */
+function isTimeoutError(err: unknown): boolean {
+  return (
+    err instanceof Error &&
+    (err.name === "TimeoutError" ||
+      (err.name === "AbortError" && /time/i.test(err.message)))
+  );
+}
+
+/** complete() + text blocks; null on failure or timeout. */
 export async function safeComplete(
   model: Model<Api>,
-  context: Context
+  context: Context,
+  timeoutMs: number = LLM_COMPLETE_TIMEOUT_MS,
 ): Promise<string | null> {
   try {
-    const response = await complete(model, context);
+    const response = await complete(model, context, {
+      signal: AbortSignal.timeout(timeoutMs),
+    });
     const text = response.content
       .filter((b): b is { type: "text"; text: string } => b.type === "text")
       .map((b) => b.text)
       .join("");
     return text || null;
   } catch (err: unknown) {
-    warnLlm("complete failed", err);
+    if (isTimeoutError(err)) {
+      warnLlm(`complete timed out after ${timeoutMs}ms`);
+    } else {
+      warnLlm("complete failed", err);
+    }
     return null;
   }
 }
