@@ -5,6 +5,7 @@ import { formatDashboardUpdatedAt, renderDashboard } from "../layout";
 import {
   collectRefreshFailures,
   collectRefreshSkips,
+  formatRefreshFailedNotice,
   formatRefreshPanelFailureBody,
   formatRefreshSkippedNotice,
   type RefreshResult,
@@ -63,6 +64,22 @@ export function resolveCrossSiteRefreshRejection(
   return null;
 }
 
+/**
+ * True when the request is a browser navigation (form submit / address bar),
+ * as opposed to a non-browser client like curl or a script.
+ *
+ * Browsers attach `Sec-Fetch-Mode: navigate` to form posts; older engines at
+ * least send an Accept header preferring text/html. Non-browser clients
+ * typically send neither.
+ */
+export function isBrowserNavigationRequest(
+  headers: { get(name: string): string | null },
+): boolean {
+  const mode = headers.get("sec-fetch-mode")?.toLowerCase();
+  if (mode) return mode === "navigate";
+  return headers.get("accept")?.toLowerCase().includes("text/html") ?? false;
+}
+
 export async function handleRefreshPanel(c: Context, deps: ServerRouteDeps): Promise<Response> {
   const rejection = resolveCrossSiteRefreshRejection(c.req.raw.headers);
   if (rejection) return c.text(`Forbidden: ${rejection}\n`, 403);
@@ -79,12 +96,21 @@ export async function handleRefreshPanel(c: Context, deps: ServerRouteDeps): Pro
     const results = await deps.refreshSources(binding.sourceNames);
     const failures = collectRefreshFailures(results);
     if (failures.length > 0) {
+      // A browser user clicking the panel refresh button should land back on
+      // the dashboard with an error banner, not on a dead text/plain page.
+      // Non-browser clients (curl, scripts, health checks) keep the 502 body.
+      if (isBrowserNavigationRequest(c.req.raw.headers)) {
+        return c.redirect(
+          `${deps.basePath}/?failed=${encodeSourceNames(failures.map((result) => result.name))}`,
+          303,
+        );
+      }
       return c.text(formatRefreshPanelFailureBody(failures), 502);
     }
     const skips = collectRefreshSkips(results);
     if (skips.length > 0) {
       return c.redirect(
-        `${deps.basePath}/?skipped=${encodeSkippedNames(skips.map((result) => result.name))}`,
+        `${deps.basePath}/?skipped=${encodeSourceNames(skips.map((result) => result.name))}`,
         303,
       );
     }
@@ -94,12 +120,12 @@ export async function handleRefreshPanel(c: Context, deps: ServerRouteDeps): Pro
 }
 
 /**
- * Encode skipped source names for the `?skipped=` query param. Names are
- * free-form (may contain commas), so each name is percent-encoded
+ * Encode source names for the `?skipped=` / `?failed=` query params. Names
+ * are free-form (may contain commas), so each name is percent-encoded
  * individually and the encoded parts are joined with literal commas — a
  * comma inside a name stays `%2C` and survives the roundtrip.
  */
-export function encodeSkippedNames(names: string[]): string {
+export function encodeSourceNames(names: string[]): string {
   return names.map((name) => encodeURIComponent(name)).join(",");
 }
 
@@ -120,8 +146,8 @@ export function rawQueryParam(url: string, key: string): string | undefined {
   return undefined;
 }
 
-/** Decode one `?skipped=` part; malformed percent-escapes yield null. */
-function decodeSkippedName(part: string): string | null {
+/** Decode one query-param part; malformed percent-escapes yield null. */
+function decodeSourceName(part: string): string | null {
   try {
     return decodeURIComponent(part);
   } catch {
@@ -143,17 +169,38 @@ export function resolveSkippedNotice(
   skippedParam: string | undefined,
   panelIdToRefreshSourceNames: ReadonlyMap<string, string[]>,
 ): string | undefined {
-  if (!skippedParam) return undefined;
+  const names = resolveKnownSourceNames(skippedParam, panelIdToRefreshSourceNames);
+  if (names.length === 0) return undefined;
+  return formatRefreshSkippedNotice(names);
+}
+
+/**
+ * Resolve the `?failed=` query param into a dashboard error notice; same
+ * validation rules as {@link resolveSkippedNotice}.
+ */
+export function resolveFailedNotice(
+  failedParam: string | undefined,
+  panelIdToRefreshSourceNames: ReadonlyMap<string, string[]>,
+): string | undefined {
+  const names = resolveKnownSourceNames(failedParam, panelIdToRefreshSourceNames);
+  if (names.length === 0) return undefined;
+  return formatRefreshFailedNotice(names);
+}
+
+/** Split, decode, and filter a raw comma-joined name param to configured refresh source names. */
+function resolveKnownSourceNames(
+  rawParam: string | undefined,
+  panelIdToRefreshSourceNames: ReadonlyMap<string, string[]>,
+): string[] {
+  if (!rawParam) return [];
   const known = new Set<string>();
   for (const names of panelIdToRefreshSourceNames.values()) {
     for (const name of names) known.add(name);
   }
-  const names = skippedParam
+  return rawParam
     .split(",")
-    .map((part) => decodeSkippedName(part.trim()))
+    .map((part) => decodeSourceName(part.trim()))
     .filter((name): name is string => name !== null && known.has(name));
-  if (names.length === 0) return undefined;
-  return formatRefreshSkippedNotice(names);
 }
 
 export function registerServerRoutes(app: Hono, deps: ServerRouteDeps): void {
@@ -162,15 +209,21 @@ export function registerServerRoutes(app: Hono, deps: ServerRouteDeps): void {
   app.get("/", async (c) => {
     const panelData = loadDashboardPanelDataMap(deps.dashboardPanels);
 
+    const failedNotice = resolveFailedNotice(
+      rawQueryParam(c.req.url, "failed"),
+      deps.panelIdToRefreshSourceNames,
+    );
+    const notice = failedNotice ?? resolveSkippedNotice(
+      rawQueryParam(c.req.url, "skipped"),
+      deps.panelIdToRefreshSourceNames,
+    );
     const content = renderDashboard({
       layout: deps.layout,
       panelData,
       updatedAt: formatDashboardUpdatedAt(),
       basePath: deps.basePath,
-      notice: resolveSkippedNotice(
-        rawQueryParam(c.req.url, "skipped"),
-        deps.panelIdToRefreshSourceNames,
-      ),
+      notice,
+      noticeTone: failedNotice ? "error" : "info",
     });
     return c.html(content);
   });

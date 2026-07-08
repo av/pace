@@ -36,6 +36,11 @@ export function formatRefreshSkippedNotice(names: ReadonlyArray<string>): string
   return `Refresh already in progress for ${names.join(", ")} — showing existing data.`;
 }
 
+/** Build the dashboard notice shown when refresh sources failed (browser flow). */
+export function formatRefreshFailedNotice(names: ReadonlyArray<string>): string {
+  return `Refresh failed for ${names.join(", ")} — check server logs; showing existing data.`;
+}
+
 /** Build 502 response body when one or more refresh sources fail. */
 export function formatRefreshPanelFailureBody(failures: ReadonlyArray<RefreshResult>): string {
   const details = failures

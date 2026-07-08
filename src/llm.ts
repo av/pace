@@ -11,6 +11,7 @@ import type { LlmConfig } from "./config/types";
 import type { ContentItem } from "./adapters/types";
 import { capText } from "./adapters/title";
 import { warnLlm } from "./llm-warn";
+import { isTimeoutError } from "./utils";
 
 const KNOWN_PROVIDERS = new Set<string>(getProviders());
 
@@ -94,15 +95,6 @@ let configuredTimeoutMs = LLM_COMPLETE_TIMEOUT_MS;
 /** Current effective LLM completion timeout in ms (for tests/diagnostics). */
 export function llmCompleteTimeoutMs(): number {
   return configuredTimeoutMs;
-}
-
-/** True for the abort error produced by AbortSignal.timeout(). */
-function isTimeoutError(err: unknown): boolean {
-  return (
-    err instanceof Error &&
-    (err.name === "TimeoutError" ||
-      (err.name === "AbortError" && /time/i.test(err.message)))
-  );
 }
 
 /** complete() + text blocks; null on failure or timeout. */

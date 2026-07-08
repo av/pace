@@ -4,7 +4,7 @@ import {
   formatRefreshSkippedNotice,
   type RefreshResult,
 } from "../refresh-result";
-import { encodeSkippedNames, rawQueryParam, resolveSkippedNotice } from "./routes";
+import { encodeSourceNames, rawQueryParam, resolveSkippedNotice } from "./routes";
 import { singlePanelLayout, testAppLayout } from "../test/app-config";
 import { installTempDbHooks } from "../test/temp-db";
 import {
@@ -67,7 +67,7 @@ describe("resolveSkippedNotice", () => {
 
   test("name containing a comma roundtrips via %2C encoding", () => {
     const commaMap = new Map([["p", ["tech, science", "reddit"]]]);
-    const encoded = encodeSkippedNames(["tech, science", "reddit"]);
+    const encoded = encodeSourceNames(["tech, science", "reddit"]);
     expect(encoded).toBe("tech%2C%20science,reddit");
     expect(resolveSkippedNotice(encoded, commaMap)).toBe(
       formatRefreshSkippedNotice(["tech, science", "reddit"]),

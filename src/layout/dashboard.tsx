@@ -17,9 +17,11 @@ interface DashboardProps {
   mode?: DashboardRenderMode;
   basePath?: string;
   notice?: string;
+  /** "error" renders the notice as an alert (refresh failure); default "info". */
+  noticeTone?: "info" | "error";
 }
 
-const Dashboard: FC<DashboardProps> = ({ layout, panelData, updatedAt, cssHref, mode = "interactive", basePath = "", notice }) => (
+const Dashboard: FC<DashboardProps> = ({ layout, panelData, updatedAt, cssHref, mode = "interactive", basePath = "", notice, noticeTone = "info" }) => (
   <html lang="en">
     <head>
       <meta charset="utf-8" />
@@ -30,9 +32,13 @@ const Dashboard: FC<DashboardProps> = ({ layout, panelData, updatedAt, cssHref, 
     <body>
       {notice ? (
         <div
-          class="refresh-notice"
-          role="status"
-          style="padding:0.5rem 1rem;font-size:0.85rem;opacity:0.8;"
+          class={noticeTone === "error" ? "refresh-notice refresh-notice-error" : "refresh-notice"}
+          role={noticeTone === "error" ? "alert" : "status"}
+          style={
+            noticeTone === "error"
+              ? "padding:0.5rem 1rem;font-size:0.85rem;color:#b94a48;"
+              : "padding:0.5rem 1rem;font-size:0.85rem;opacity:0.8;"
+          }
         >
           {notice}
         </div>

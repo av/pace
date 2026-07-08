@@ -1,4 +1,4 @@
-import { errorMessage } from "./utils";
+import { errorMessage, isTimeoutError } from "./utils";
 
 export const DEFAULT_GIST_RENDERER = "https://gisthost.github.io/";
 export const DEFAULT_GIST_FILENAME = "index.html";
@@ -75,15 +75,6 @@ function gistEndpoint(gistId?: string): { method: "POST" | "PATCH"; url: string 
     return { method: "PATCH", url: `https://api.github.com/gists/${encodeURIComponent(gistId)}` };
   }
   return { method: "POST", url: "https://api.github.com/gists" };
-}
-
-/** True for the abort error produced by AbortSignal.timeout(). */
-function isTimeoutError(err: unknown): boolean {
-  return (
-    err instanceof Error &&
-    (err.name === "TimeoutError" ||
-      (err.name === "AbortError" && /time/i.test(err.message)))
-  );
 }
 
 /** Actionable next step for the GitHub API statuses users actually hit. */

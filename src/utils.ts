@@ -9,6 +9,15 @@ function hasStringMessage(err: unknown): err is { message: string } {
   );
 }
 
+/** True for the abort error produced by AbortSignal.timeout(). */
+export function isTimeoutError(err: unknown): boolean {
+  return (
+    err instanceof Error &&
+    (err.name === "TimeoutError" ||
+      (err.name === "AbortError" && /time/i.test(err.message)))
+  );
+}
+
 export function errorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
   if (hasStringMessage(err)) return err.message;
