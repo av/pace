@@ -9,6 +9,7 @@ import {
   PIPELINE_INITIAL_DELAY_MS,
   DEFAULT_REFRESH_INTERVAL_MIN,
   MIN_REFRESH_INTERVAL_MIN,
+  DEFAULT_DRAIN_TIMEOUT_MS,
 } from "./scheduler-runtime";
 
 export type { RefreshResult } from "./refresh-result";
@@ -20,6 +21,7 @@ export {
   PIPELINE_INITIAL_DELAY_MS,
   DEFAULT_REFRESH_INTERVAL_MIN,
   MIN_REFRESH_INTERVAL_MIN,
+  DEFAULT_DRAIN_TIMEOUT_MS,
 };
 
 const defaultRuntime = createSchedulerRuntime();
@@ -39,4 +41,9 @@ export function stopScheduler(): void {
 
 export async function refreshSources(sourceNames: string[]): Promise<RefreshResult[]> {
   return defaultRuntime.refreshSources(sourceNames);
+}
+
+/** Wait (bounded) for in-flight refreshes to settle; see SchedulerRuntime.drainInFlight. */
+export async function drainScheduler(timeoutMs?: number): Promise<void> {
+  return defaultRuntime.drainInFlight(timeoutMs);
 }

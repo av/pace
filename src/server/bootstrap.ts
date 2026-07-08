@@ -9,6 +9,7 @@ import { createModel } from "../llm";
 import {
   startScheduler,
   stopScheduler,
+  drainScheduler,
   refreshSources,
   type SourcePanelMap,
 } from "../scheduler";
@@ -16,6 +17,14 @@ import { parsePort, getAdapterName } from "../utils";
 import { normalizeBasePath } from "../config/domain";
 import { logServerListening } from "../server-log";
 import { createServerApp } from "./app";
+
+/** How long shutdown waits for in-flight refreshes before closing the DB. */
+export const SHUTDOWN_DRAIN_TIMEOUT_MS = 10_000;
+
+export type HttpServerHandle = {
+  /** Stop accepting new connections; may resolve once in-flight requests end. */
+  stop: () => void | Promise<void>;
+};
 
 export type BootstrapServerDeps = {
   loadConfig: () => AppConfig;
@@ -27,11 +36,15 @@ export type BootstrapServerDeps = {
   buildLayoutRuntimeMaps: typeof buildLayoutRuntimeMaps;
   startScheduler: typeof startScheduler;
   stopScheduler: typeof stopScheduler;
+  drainScheduler: typeof drainScheduler;
   refreshSources: typeof refreshSources;
   createServerApp: typeof createServerApp;
   resolvePort: () => number;
-  registerShutdown: (handler: () => void) => void;
-  startHttpServer: (port: number, fetch: (req: Request) => Response | Promise<Response>) => void;
+  registerShutdown: (handler: () => Promise<void>) => void;
+  startHttpServer: (
+    port: number,
+    fetch: (req: Request) => Response | Promise<Response>,
+  ) => HttpServerHandle;
   logServerListening: typeof logServerListening;
   exitProcess: (code: number) => void;
 };
@@ -47,6 +60,7 @@ export function defaultBootstrapServerDeps(): BootstrapServerDeps {
     buildLayoutRuntimeMaps,
     startScheduler,
     stopScheduler,
+    drainScheduler,
     refreshSources,
     createServerApp,
     resolvePort: () => parsePort(process.env.PORT),
@@ -56,7 +70,8 @@ export function defaultBootstrapServerDeps(): BootstrapServerDeps {
       }
     },
     startHttpServer: (port, fetch) => {
-      Bun.serve({ port, fetch });
+      const server = Bun.serve({ port, fetch });
+      return { stop: () => server.stop() };
     },
     logServerListening,
     exitProcess: (code) => process.exit(code),
@@ -101,13 +116,28 @@ export async function bootstrapServer(
 
   const port = deps.resolvePort();
 
-  const shutdown = () => {
+  let httpServer: HttpServerHandle | null = null;
+  let shuttingDown = false;
+  const shutdown = async (): Promise<void> => {
+    // Idempotent: SIGTERM and SIGINT (or a repeated Ctrl+C) must not run the
+    // teardown twice - the second closeDb/exit would race the first.
+    if (shuttingDown) return;
+    shuttingDown = true;
+    // Order matters: stop timers so no new refreshes start, stop accepting
+    // HTTP connections, wait (bounded) for in-flight refreshes, THEN close
+    // the DB so nothing writes to a closed handle. Exit last.
     deps.stopScheduler();
+    try {
+      await httpServer?.stop();
+    } catch {
+      // Never let a listener-stop failure block DB close and exit.
+    }
+    await deps.drainScheduler(SHUTDOWN_DRAIN_TIMEOUT_MS);
     deps.closeDb();
     deps.exitProcess(0);
   };
   deps.registerShutdown(shutdown);
 
-  deps.startHttpServer(port, app.fetch);
+  httpServer = deps.startHttpServer(port, app.fetch);
   deps.logServerListening(port);
 }

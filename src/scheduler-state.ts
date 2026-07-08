@@ -33,6 +33,12 @@ export class SchedulerState {
   /** Serializes panel writes so concurrent refreshes of sources sharing a panel cannot lose updates. */
   panelLocks: KeyedMutex = createKeyedMutex();
   pruneTimer: ReturnType<typeof setInterval> | null = null;
+  /**
+   * Refresh runs currently executing (adapter fetches, pipeline jobs).
+   * Entries remove themselves on settle. Deliberately NOT cleared by reset():
+   * shutdown stops timers first and then drains what was already in flight.
+   */
+  readonly inFlight = new Set<Promise<unknown>>();
 
   isStarted(): boolean {
     return this.adapterEntries.length > 0 || this.pipelineEntries.length > 0 || this.pruneTimer !== null;

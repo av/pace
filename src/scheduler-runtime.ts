@@ -48,6 +48,23 @@ export interface SchedulerRuntime {
   ): void;
   stopScheduler(): void;
   refreshSources(sourceNames: string[]): Promise<RefreshResult[]>;
+  /**
+   * Wait (up to timeoutMs) for refresh runs already in flight to settle.
+   * Call after stopScheduler() during shutdown so the DB is not closed under
+   * an active refresh. Resolves immediately when nothing is running.
+   */
+  drainInFlight(timeoutMs?: number): Promise<void>;
+}
+
+export const DEFAULT_DRAIN_TIMEOUT_MS = 10_000;
+
+/** Register a refresh run for shutdown draining; removes itself on settle. */
+function trackInFlight(state: SchedulerState, promise: Promise<RefreshResult>): Promise<RefreshResult> {
+  state.inFlight.add(promise);
+  // executeWithRunningGuard never rejects, but guard anyway so tracking can
+  // never surface an unhandled rejection.
+  void promise.catch(() => {}).finally(() => state.inFlight.delete(promise));
+  return promise;
 }
 
 async function executeWithRunningGuard(
@@ -376,7 +393,7 @@ export function createSchedulerRuntime(state: SchedulerState = createSchedulerSt
           running: false,
         };
 
-        scheduleTimedEntryRefresh(entry, (e) => runAdapter(state, e));
+        scheduleTimedEntryRefresh(entry, (e) => trackInFlight(state, runAdapter(state, e)));
         state.adapterEntries.push(entry);
 
         logScheduledRefresh(name, intervalMin);
@@ -396,7 +413,7 @@ export function createSchedulerRuntime(state: SchedulerState = createSchedulerSt
             running: false,
           };
 
-          scheduleTimedEntryRefresh(entry, (e) => runPipelineJob(state, e), {
+          scheduleTimedEntryRefresh(entry, (e) => trackInFlight(state, runPipelineJob(state, e)), {
             initialDelayMs: PIPELINE_INITIAL_DELAY_MS,
           });
 
@@ -421,10 +438,30 @@ export function createSchedulerRuntime(state: SchedulerState = createSchedulerSt
     async refreshSources(sourceNames: string[]): Promise<RefreshResult[]> {
       const { adapters, pipelines } = planRefresh(state, sourceNames);
 
-      const adapterResults = await Promise.all(adapters.map((entry) => runAdapter(state, entry)));
-      const pipelineResults = await Promise.all(pipelines.map((entry) => runPipelineJob(state, entry)));
+      const adapterResults = await Promise.all(
+        adapters.map((entry) => trackInFlight(state, runAdapter(state, entry))),
+      );
+      const pipelineResults = await Promise.all(
+        pipelines.map((entry) => trackInFlight(state, runPipelineJob(state, entry))),
+      );
 
       return adapterResults.concat(pipelineResults);
+    },
+
+    async drainInFlight(timeoutMs: number = DEFAULT_DRAIN_TIMEOUT_MS): Promise<void> {
+      // Snapshot: timers are expected to be stopped already, and in-flight
+      // runs cannot enqueue new refreshes, so nothing new appears mid-drain.
+      const pending = [...state.inFlight];
+      if (pending.length === 0) return;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const timeout = new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, Math.max(0, timeoutMs));
+      });
+      try {
+        await Promise.race([Promise.allSettled(pending).then(() => undefined), timeout]);
+      } finally {
+        clearTimeout(timer);
+      }
     },
   };
 }

@@ -6,13 +6,13 @@ import { bootstrapServer, type BootstrapServerDeps } from "./bootstrap";
 
 type TrackedBootstrapDeps = BootstrapServerDeps & {
   calls: string[];
-  shutdownHandlers: Array<() => void>;
+  shutdownHandlers: Array<() => Promise<void>>;
   served: { port: number; fetch: (req: Request) => Response | Promise<Response> } | null;
 };
 
 function trackBootstrapDeps(deps: BootstrapServerDeps): TrackedBootstrapDeps {
   const calls: string[] = [];
-  const shutdownHandlers: Array<() => void> = [];
+  const shutdownHandlers: Array<() => Promise<void>> = [];
   let served: { port: number; fetch: (req: Request) => Response | Promise<Response> } | null = null;
 
   const tracked = {
@@ -52,6 +52,10 @@ function trackBootstrapDeps(deps: BootstrapServerDeps): TrackedBootstrapDeps {
       calls.push("stopScheduler");
       deps.stopScheduler();
     },
+    drainScheduler: async (timeoutMs) => {
+      calls.push("drainScheduler");
+      return deps.drainScheduler(timeoutMs);
+    },
     refreshSources: async (...args) => {
       calls.push("refreshSources");
       return deps.refreshSources(...args);
@@ -72,7 +76,13 @@ function trackBootstrapDeps(deps: BootstrapServerDeps): TrackedBootstrapDeps {
     startHttpServer: (port, fetch) => {
       calls.push("startHttpServer");
       tracked.served = { port, fetch };
-      deps.startHttpServer(port, fetch);
+      const handle = deps.startHttpServer(port, fetch);
+      return {
+        stop: () => {
+          calls.push("httpServerStop");
+          return handle.stop();
+        },
+      };
     },
     logServerListening: (port) => {
       calls.push(`logServerListening:${port}`);
@@ -111,11 +121,12 @@ function baseBootstrapDeps(): BootstrapServerDeps {
     buildLayoutRuntimeMaps,
     startScheduler: () => {},
     stopScheduler: () => {},
+    drainScheduler: async () => {},
     refreshSources: async () => [],
     createServerApp: () => new Hono(),
     resolvePort: () => 8123,
     registerShutdown: () => {},
-    startHttpServer: () => {},
+    startHttpServer: () => ({ stop: () => {} }),
     logServerListening: () => {},
     exitProcess: () => {},
   };
@@ -147,9 +158,77 @@ describe("bootstrapServer", () => {
     const deps = trackBootstrapDeps(baseBootstrapDeps());
     await bootstrapServer(deps);
 
-    deps.shutdownHandlers[0]!();
+    await deps.shutdownHandlers[0]!();
 
     expect(deps.calls).toContain("stopScheduler");
+    expect(deps.calls).toContain("closeDb");
+    expect(deps.calls).toContain("exitProcess:0");
+  });
+
+  test("shutdown orders teardown: stop scheduler, stop http, drain, close db, exit", async () => {
+    const deps = trackBootstrapDeps(baseBootstrapDeps());
+    await bootstrapServer(deps);
+
+    deps.calls.length = 0;
+    await deps.shutdownHandlers[0]!();
+
+    expect(deps.calls).toEqual([
+      "stopScheduler",
+      "httpServerStop",
+      "drainScheduler",
+      "closeDb",
+      "exitProcess:0",
+    ]);
+  });
+
+  test("shutdown waits for in-flight refreshes to drain before closing db", async () => {
+    let releaseDrain: () => void = () => {};
+    const drainGate = new Promise<void>((resolve) => {
+      releaseDrain = resolve;
+    });
+    const deps = trackBootstrapDeps({
+      ...baseBootstrapDeps(),
+      drainScheduler: async () => drainGate,
+    });
+    await bootstrapServer(deps);
+
+    const shutdownDone = deps.shutdownHandlers[0]!();
+    await Promise.resolve();
+    expect(deps.calls).not.toContain("closeDb");
+    expect(deps.calls).not.toContain("exitProcess:0");
+
+    releaseDrain();
+    await shutdownDone;
+    expect(deps.calls).toContain("closeDb");
+    expect(deps.calls).toContain("exitProcess:0");
+  });
+
+  test("shutdown is idempotent across repeated signals", async () => {
+    const deps = trackBootstrapDeps(baseBootstrapDeps());
+    await bootstrapServer(deps);
+
+    const handler = deps.shutdownHandlers[0]!;
+    await Promise.all([handler(), handler()]);
+    await handler();
+
+    expect(deps.calls.filter((c) => c === "closeDb")).toHaveLength(1);
+    expect(deps.calls.filter((c) => c === "exitProcess:0")).toHaveLength(1);
+    expect(deps.calls.filter((c) => c === "stopScheduler")).toHaveLength(1);
+  });
+
+  test("shutdown proceeds to close db when stopping the http server fails", async () => {
+    const deps = trackBootstrapDeps({
+      ...baseBootstrapDeps(),
+      startHttpServer: () => ({
+        stop: () => {
+          throw new Error("listener already gone");
+        },
+      }),
+    });
+    await bootstrapServer(deps);
+
+    await deps.shutdownHandlers[0]!();
+
     expect(deps.calls).toContain("closeDb");
     expect(deps.calls).toContain("exitProcess:0");
   });
