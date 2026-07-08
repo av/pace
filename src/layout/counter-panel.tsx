@@ -29,6 +29,17 @@ function formatAbbreviated(n: number): string {
   return rounded % 1 === 0 ? rounded.toFixed(0) : rounded.toFixed(1);
 }
 
+/**
+ * Abbreviation tiers, largest first. `min` is the threshold at which the tier
+ * kicks in (the "k" tier only starts at 10 000 so 4-digit values stay exact).
+ */
+const ABBREVIATION_TIERS: ReadonlyArray<{ divisor: number; suffix: string; min: number }> = [
+  { divisor: 1e12, suffix: "T", min: 1e12 },
+  { divisor: 1e9, suffix: "B", min: 1e9 },
+  { divisor: 1e6, suffix: "M", min: 1e6 },
+  { divisor: 1e3, suffix: "k", min: 10_000 },
+];
+
 /** Abbreviate large numbers: 1234 -> "1.2k", 1500000 -> "1.5M". */
 export function abbreviateNumber(value: unknown): string {
   if (typeof value !== "number" || !Number.isFinite(value)) {
@@ -42,22 +53,21 @@ export function abbreviateNumber(value: unknown): string {
     // Beyond trillions, digit strings become unreadable; use exponential.
     return value.toExponential(1).replace("e+", "e");
   }
-  if (abs >= 1e12) {
-    return `${sign}${formatAbbreviated(abs / 1e12)}T`;
-  }
-  if (abs >= 1e9) {
-    return `${sign}${formatAbbreviated(abs / 1e9)}B`;
-  }
-  if (abs >= 1_000_000) {
-    return `${sign}${formatAbbreviated(abs / 1_000_000)}M`;
-  }
-  if (abs >= 10_000) {
-    // If rounding to 1 decimal in "k" would produce >= 1000k, promote to M
-    const inK = Math.round(abs / 100) / 10;
-    if (inK >= 1000) {
-      return `${sign}${formatAbbreviated(abs / 1_000_000)}M`;
+
+  for (let i = 0; i < ABBREVIATION_TIERS.length; i++) {
+    const tier = ABBREVIATION_TIERS[i]!;
+    if (abs < tier.min) continue;
+    // If rounding to 1 decimal in this tier would display >= 1000 (e.g.
+    // 999.95M -> "1000M"), promote to the next tier up instead ("1B").
+    if (Math.round((abs / tier.divisor) * 10) >= 10_000) {
+      const up = ABBREVIATION_TIERS[i - 1];
+      if (!up) {
+        // 999.95T+ rounds past "1000T"; T is the top tier, so go exponential.
+        return value.toExponential(1).replace("e+", "e");
+      }
+      return `${sign}${formatAbbreviated(abs / up.divisor)}${up.suffix}`;
     }
-    return `${sign}${formatAbbreviated(abs / 1_000)}k`;
+    return `${sign}${formatAbbreviated(abs / tier.divisor)}${tier.suffix}`;
   }
 
   return String(value);

@@ -589,6 +589,24 @@ describe("counter panel rendering", () => {
       expect(abbreviateNumber(1e15)).toBe("1.0e15");
       expect(abbreviateNumber(999_000_000_000_000)).toBe("999T");
     });
+
+    test("promotes to the next tier when rounding would display >= 1000", () => {
+      // k -> M (previously handled)
+      expect(abbreviateNumber(999_950)).toBe("1M");
+      expect(abbreviateNumber(999_949)).toBe("999.9k");
+      // M -> B (previously rendered "1000M")
+      expect(abbreviateNumber(999_950_000)).toBe("1B");
+      expect(abbreviateNumber(999_949_999)).toBe("999.9M");
+      // B -> T (previously rendered "1000B")
+      expect(abbreviateNumber(999_950_000_000)).toBe("1T");
+      expect(abbreviateNumber(999_949_999_999)).toBe("999.9B");
+      // T -> exponential (previously rendered "1000T")
+      expect(abbreviateNumber(999_950_000_000_000)).toBe("1.0e15");
+      expect(abbreviateNumber(999_949_999_999_999)).toBe("999.9T");
+      // Negative values promote too
+      expect(abbreviateNumber(-999_950_000)).toBe("-1B");
+      expect(abbreviateNumber(-999_950_000_000_000)).toBe("-1.0e15");
+    });
   });
 
   describe("coerceCounterNumber", () => {
