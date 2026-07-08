@@ -102,6 +102,21 @@ describe("server with base_path", () => {
     expect(css.status).toBe(200);
   });
 
+  test("trailing-slash prefix root redirects to the prefix root (refresh redirect target)", async () => {
+    const app = makeApp("/pace");
+
+    // Bare trailing slash — what a reverse proxy typically forwards.
+    const bare = await requestServerRoute(app, "/pace/");
+    expect(bare.status).toBe(308);
+    expect(bare.headers.get("location")).toBe("/pace");
+
+    // The refresh flow redirects browsers to `${basePath}/?failed=...`; the
+    // banner query params must survive the canonicalization hop.
+    const banner = await requestServerRoute(app, "/pace/?failed=hn%2Creddit");
+    expect(banner.status).toBe(308);
+    expect(banner.headers.get("location")).toBe("/pace?failed=hn%2Creddit");
+  });
+
   test("unknown paths under the prefix still 404", async () => {
     const app = makeApp("/pace");
     const res = await requestServerRoute(app, "/pace/nope");

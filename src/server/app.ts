@@ -23,7 +23,18 @@ export function createServerApp(
   app.route("/", routes);
   // Also serve everything under the configured base path so deployments work
   // whether or not the reverse proxy strips the prefix before forwarding.
-  if (deps.basePath) app.route(deps.basePath, routes);
+  if (deps.basePath) {
+    app.route(deps.basePath, routes);
+    // `app.route("/pace", routes)` matches "/pace" but NOT "/pace/", while
+    // both the refresh redirect (`${basePath}/?failed=...`) and typical
+    // reverse-proxy configs produce the trailing-slash form. Canonicalize it
+    // to the prefix root, preserving the query string (banner params) and,
+    // via 308, the request method.
+    app.all(`${deps.basePath}/`, (c) => {
+      const url = new URL(c.req.url);
+      return c.redirect(deps.basePath + url.search, 308);
+    });
+  }
 
   return app;
 }
