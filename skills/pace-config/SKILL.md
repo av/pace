@@ -656,7 +656,7 @@ llm:
 
 ## Server config (optional)
 
-An optional top-level `server` block accepts exactly two fields (anything else is a validation error):
+An optional top-level `server` block controls server behavior (unknown fields are a validation error):
 
 ```yaml
 server:

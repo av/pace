@@ -305,7 +305,7 @@ layout:
 #   #   source: counter
 #   #   display: counter
 
-# Optional server settings (both fields optional):
+# Optional server settings:
 #
 # server:
 #   base_path: /pace     # serve under a URL prefix behind a reverse proxy (default: none)

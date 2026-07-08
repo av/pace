@@ -89,7 +89,7 @@ docker run -d -p 7453:7453 -v pace-data:/app/data ghcr.io/av/pace:latest
 
 Open http://localhost:7453. Health check: `curl http://localhost:7453/health` returns `{"status":"ok"}`.
 
-The container runs pace as the unprivileged `bun` user (uid 1000). It starts as root only long enough for the entrypoint to `chown` `/app/data` — data volumes created by older (root-running) images keep working with no manual migration — then permanently drops privileges. Files in a bind-mounted data directory are re-owned to uid 1000 on first startup (skipped on later boots once the directory itself is owned by uid 1000, so large data directories don't pay a recursive chown on every start); to skip the chown and manage permissions yourself, start the container with `--user 1000:1000` (the data directory must then already be writable by that uid).
+The container runs pace as the unprivileged `bun` user (uid 1000). The entrypoint starts as root only long enough to ensure `/app/data` is owned by uid 1000 (a recursive `chown` that runs only when ownership is wrong, so it happens at most once per data directory), then permanently drops privileges. To manage permissions yourself, start the container with `--user 1000:1000` — the entrypoint then skips the chown, and the data directory must already be writable by that uid.
 
 ### With a preset
 
@@ -137,7 +137,7 @@ Port and config path come from the CLI or environment:
 - `pace serve --port 8080` (or `-p 8080`), or the `PORT` env var. Default: `7453`.
 - `pace serve --config config.yaml`, `--preset <name>`, or the `PACE_CONFIG` env var.
 
-An optional top-level `server` block in `config.yaml` controls server behavior. It accepts exactly two fields:
+An optional top-level `server` block in `config.yaml` controls server behavior (unknown fields are rejected at validation):
 
 ```yaml
 server:
@@ -163,6 +163,8 @@ location /pace/ { proxy_pass http://127.0.0.1:7453/; }
 
 Fetched items live in SQLite so panels stay populated across restarts and upstream outages. Items last fetched more than `retention_days` days ago are pruned at startup and then once every 24 hours. Set `0` to disable pruning entirely (the log notes when pruning is disabled). Must be a non-negative integer; the default is 30.
 
+The database (`data/pace.db`) is a cache: deleting it is always safe, and contents are re-fetched on the next refresh. The schema is migrated automatically on startup when a newer pace version changes it; to downgrade across a schema change, delete the database or restore a pre-upgrade copy (see the [changelog](CHANGELOG.md) for version specifics).
+
 ### `/health` - liveness and refresh health
 
 `GET /health` returns JSON with an overall `status` and per-source refresh detail:
@@ -178,10 +180,6 @@ Fetched items live in SQLite so panels stay populated across restarts and upstre
 ```
 
 `status` is `degraded` when any source's latest completed run failed; per-source `status` is `ok`, `failing`, or `pending` (no run completed yet, e.g. right after startup). Per-source extras appear once available: `lastError` (message from the most recent failure), `lastDurationMs` (duration of the latest completed run, success or failure), and `lastItemCount` (items produced by the latest successful run — fetched items for adapters, gathered input items for pipelines — retained through later failures as context). The HTTP status stays `200` as long as the server is up — it serves cached data even when upstreams fail, and a restart would not fix a bad upstream — so container healthchecks keep passing while monitors can alert on the body.
-
-### Database schema migration (after v0.6.5)
-
-Versions newer than v0.6.5 store one copy of an item per panel (composite `(id, panel_id)` primary key), so a source feeding two panels no longer moves its items to whichever panel refreshed last. Existing databases are migrated automatically and transactionally the first time a newer pace starts. The migration is **one-way**: after it runs, v0.6.5 and older binaries fail on refresh with an SQLite `ON CONFLICT clause does not match` error against the migrated database. To downgrade, delete `data/pace.db` (it is a cache — contents are re-fetched on the next refresh) or restore a pre-upgrade copy.
 
 ## Share a Snapshot
 
