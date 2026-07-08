@@ -1,4 +1,4 @@
-# Release Notes (unreleased, since v0.6.5)
+# Release Notes — v0.6.6 (since v0.6.5)
 
 ## BREAKING: one-way database schema migration
 
