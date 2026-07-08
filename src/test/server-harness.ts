@@ -23,6 +23,7 @@ export function makeServerRouteDeps(
       rest.panelIdToRefreshSourceNames ?? maps.panelIdToRefreshSourceNames,
     refreshSources: rest.refreshSources ?? (async () => []),
     basePath: rest.basePath ?? "",
+    ...(rest.getRefreshHealth !== undefined && { getRefreshHealth: rest.getRefreshHealth }),
   };
 }
 

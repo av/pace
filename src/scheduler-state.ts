@@ -3,7 +3,12 @@ import { createKeyedMutex, type KeyedMutex } from "./keyed-mutex";
 
 export interface RunningGuarded {
   running: boolean;
+  /** Error message from the most recent completed run, cleared on success. */
   lastError?: string;
+  /** ISO timestamp of the most recent successful run. */
+  lastSuccessAt?: string;
+  /** ISO timestamp of the most recent failed run. */
+  lastFailureAt?: string;
 }
 
 export interface TimedEntryBase extends RunningGuarded {

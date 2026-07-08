@@ -6,6 +6,8 @@ import {
   createSchedulerRuntime,
   type SchedulerRuntime,
   type SourcePanelMap,
+  type RefreshHealth,
+  type SourceRefreshHealth,
   PIPELINE_INITIAL_DELAY_MS,
   DEFAULT_REFRESH_INTERVAL_MIN,
   MIN_REFRESH_INTERVAL_MIN,
@@ -18,6 +20,8 @@ export {
   createSchedulerRuntime,
   type SchedulerRuntime,
   type SourcePanelMap,
+  type RefreshHealth,
+  type SourceRefreshHealth,
   PIPELINE_INITIAL_DELAY_MS,
   DEFAULT_REFRESH_INTERVAL_MIN,
   MIN_REFRESH_INTERVAL_MIN,
@@ -41,6 +45,11 @@ export function stopScheduler(): void {
 
 export async function refreshSources(sourceNames: string[]): Promise<RefreshResult[]> {
   return defaultRuntime.refreshSources(sourceNames);
+}
+
+/** Per-source refresh health snapshot; see SchedulerRuntime.getRefreshHealth. */
+export function getRefreshHealth(): RefreshHealth {
+  return defaultRuntime.getRefreshHealth();
 }
 
 /** Wait (bounded) for in-flight refreshes to settle; see SchedulerRuntime.drainInFlight. */

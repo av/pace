@@ -113,7 +113,7 @@ describe("GET / dashboard", () => {
 });
 
 describe("GET /health", () => {
-  test("returns ok JSON payload", async () => {
+  test("returns bare ok payload when no refresh-health provider is wired", async () => {
     const layout = testAppLayout(singlePanelLayout("Tech", "hackernews"));
     const app = createTestServerApp(makeServerRouteDeps({ layout }));
     const res = await requestServerRoute(app, "/health");
@@ -121,6 +121,59 @@ describe("GET /health", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toMatch(/application\/json/);
     expect(await res.json()).toEqual({ status: "ok" });
+  });
+
+  test("reports ok with per-source detail when all sources are healthy", async () => {
+    const layout = testAppLayout(singlePanelLayout("Tech", "hackernews"));
+    const app = createTestServerApp(
+      makeServerRouteDeps({
+        layout,
+        getRefreshHealth: () => ({
+          status: "ok",
+          sources: [
+            { kind: "adapter", name: "hackernews", status: "ok", lastSuccessAt: "2026-07-08T00:00:00.000Z" },
+          ],
+        }),
+      }),
+    );
+    const res = await requestServerRoute(app, "/health");
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      status: "ok",
+      sources: [
+        { kind: "adapter", name: "hackernews", status: "ok", lastSuccessAt: "2026-07-08T00:00:00.000Z" },
+      ],
+    });
+  });
+
+  test("stays HTTP 200 but reports degraded with failing source detail", async () => {
+    const layout = testAppLayout(singlePanelLayout("Tech", "hackernews"));
+    const app = createTestServerApp(
+      makeServerRouteDeps({
+        layout,
+        getRefreshHealth: () => ({
+          status: "degraded",
+          sources: [
+            {
+              kind: "adapter",
+              name: "hackernews",
+              status: "failing",
+              lastError: "HTTP 503",
+              lastFailureAt: "2026-07-08T00:05:00.000Z",
+            },
+          ],
+        }),
+      }),
+    );
+    const res = await requestServerRoute(app, "/health");
+
+    // Liveness stays 200 - the server is up and serving cached data.
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { status: string; sources: Array<{ status: string; lastError?: string }> };
+    expect(body.status).toBe("degraded");
+    expect(body.sources[0]?.status).toBe("failing");
+    expect(body.sources[0]?.lastError).toBe("HTTP 503");
   });
 });
 

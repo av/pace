@@ -161,6 +161,22 @@ location /pace/ { proxy_pass http://127.0.0.1:7453/; }
 
 Fetched items live in SQLite so panels stay populated across restarts and upstream outages. Items last fetched more than `retention_days` days ago are pruned at startup and then once every 24 hours. Set `0` to disable pruning entirely (the log notes when pruning is disabled). Must be a non-negative integer; the default is 30.
 
+### `/health` - liveness and refresh health
+
+`GET /health` returns JSON with an overall `status` and per-source refresh detail:
+
+```json
+{
+  "status": "degraded",
+  "sources": [
+    { "kind": "adapter", "name": "hackernews", "status": "ok", "lastSuccessAt": "2026-07-08T00:00:00.000Z" },
+    { "kind": "adapter", "name": "myfeed", "status": "failing", "lastError": "rss: error fetching ...", "lastFailureAt": "2026-07-08T00:05:00.000Z" }
+  ]
+}
+```
+
+`status` is `degraded` when any source's latest completed run failed; per-source `status` is `ok`, `failing`, or `pending` (no run completed yet, e.g. right after startup). The HTTP status stays `200` as long as the server is up — it serves cached data even when upstreams fail, and a restart would not fix a bad upstream — so container healthchecks keep passing while monitors can alert on the body.
+
 ### Database schema migration (after v0.6.5)
 
 Versions newer than v0.6.5 store one copy of an item per panel (composite `(id, panel_id)` primary key), so a source feeding two panels no longer moves its items to whichever panel refreshed last. Existing databases are migrated automatically and transactionally the first time a newer pace starts. The migration is **one-way**: after it runs, v0.6.5 and older binaries fail on refresh with an SQLite `ON CONFLICT clause does not match` error against the migrated database. To downgrade, delete `data/pace.db` (it is a cache — contents are re-fetched on the next refresh) or restore a pre-upgrade copy.

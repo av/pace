@@ -123,6 +123,7 @@ function baseBootstrapDeps(): BootstrapServerDeps {
     stopScheduler: () => {},
     drainScheduler: async () => {},
     refreshSources: async () => [],
+    getRefreshHealth: () => ({ status: "ok", sources: [] }),
     createServerApp: () => new Hono(),
     resolvePort: () => 8123,
     registerShutdown: () => {},

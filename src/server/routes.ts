@@ -14,6 +14,7 @@ import {
   formatUnknownRefreshPanelBody,
   resolveRefreshPanelBinding,
 } from "./refresh-panel";
+import type { RefreshHealth } from "../scheduler-runtime";
 
 export type RefreshSourcesFn = (sourceNames: string[]) => Promise<RefreshResult[]>;
 
@@ -24,6 +25,11 @@ export type ServerRouteDeps = {
   panelIdToRefreshSourceNames: Map<string, string[]>;
   refreshSources: RefreshSourcesFn;
   basePath: string;
+  /**
+   * Refresh-health snapshot for /health. Optional so embedders without a
+   * scheduler keep the bare liveness payload.
+   */
+  getRefreshHealth?: () => RefreshHealth;
 };
 
 /**
@@ -204,7 +210,15 @@ function resolveKnownSourceNames(
 }
 
 export function registerServerRoutes(app: Hono, deps: ServerRouteDeps): void {
-  app.get("/health", (c) => c.json({ status: "ok" }));
+  // Liveness stays HTTP 200 even when sources are failing — the server is up
+  // and serving cached data, and restarting it would not fix a bad upstream.
+  // Refresh problems are surfaced in the body ("degraded" + per-source detail)
+  // so monitors can alert on content instead of a lying bare "ok".
+  app.get("/health", (c) => {
+    if (!deps.getRefreshHealth) return c.json({ status: "ok" });
+    const refresh = deps.getRefreshHealth();
+    return c.json({ status: refresh.status, sources: refresh.sources });
+  });
 
   app.get("/", async (c) => {
     const panelData = loadDashboardPanelDataMap(deps.dashboardPanels);

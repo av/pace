@@ -5,6 +5,7 @@ import type { Model, Api } from "@mariozechner/pi-ai";
 import type { RefreshResult } from "../refresh-result";
 import {
   createSchedulerRuntime,
+  type RefreshHealth,
   type SchedulerRuntime,
   type SourcePanelMap,
 } from "../scheduler";
@@ -48,4 +49,8 @@ export function stopTestScheduler(): void {
 
 export async function refreshTestSources(sourceNames: string[]): Promise<RefreshResult[]> {
   return schedulerTestRuntime().refreshSources(sourceNames);
+}
+
+export function getTestRefreshHealth(): RefreshHealth {
+  return schedulerTestRuntime().getRefreshHealth();
 }

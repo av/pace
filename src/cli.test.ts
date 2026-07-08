@@ -529,7 +529,18 @@ describe("cli serve", () => {
       expectSecurityHeaders(dashboard.hd);
       const health = await requestCliServeHealth(harness);
       expect(health.status).toBe(200);
-      expect(health.body).toEqual({ status: "ok" });
+      const healthBody = health.body as { status: string; sources: Array<{ name: string; status: string }> };
+      // Live server may or may not have completed a refresh yet, and fixture
+      // sources can fail — health must report honestly either way.
+      expect(["ok", "degraded"]).toContain(healthBody.status);
+      expect(Array.isArray(healthBody.sources)).toBe(true);
+      expect(healthBody.sources.length).toBeGreaterThan(0);
+      for (const source of healthBody.sources) {
+        expect(["ok", "failing", "pending"]).toContain(source.status);
+      }
+      expect(healthBody.status).toBe(
+        healthBody.sources.some((source) => source.status === "failing") ? "degraded" : "ok",
+      );
       const styles = await requestCliServeStyles(harness);
       expect(styles.status).toBe(200);
       expect(styles.hd["cache-control"] || "").toContain("max-age=3600");

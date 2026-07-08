@@ -38,6 +38,24 @@ export interface SourcePanelMap {
   sourceToReadKey: Map<string, string>;
 }
 
+/** Health of one scheduled refresh source, derived from its latest completed run. */
+export interface SourceRefreshHealth {
+  kind: RefreshResult["kind"];
+  name: string;
+  /** "pending" = no run has completed yet (e.g. right after startup). */
+  status: "ok" | "failing" | "pending";
+  lastError?: string;
+  lastSuccessAt?: string;
+  lastFailureAt?: string;
+}
+
+/** Aggregate refresh health across all scheduled sources. */
+export interface RefreshHealth {
+  /** "degraded" when at least one source's latest completed run failed. */
+  status: "ok" | "degraded";
+  sources: SourceRefreshHealth[];
+}
+
 export interface SchedulerRuntime {
   readonly state: SchedulerState;
   startScheduler(
@@ -48,6 +66,8 @@ export interface SchedulerRuntime {
   ): void;
   stopScheduler(): void;
   refreshSources(sourceNames: string[]): Promise<RefreshResult[]>;
+  /** Snapshot per-source refresh health (latest completed run per source). */
+  getRefreshHealth(): RefreshHealth;
   /**
    * Wait (up to timeoutMs) for refresh runs already in flight to settle.
    * Call after stopScheduler() during shutdown so the DB is not closed under
@@ -77,11 +97,16 @@ async function executeWithRunningGuard(
   entry.running = true;
   try {
     await work();
+    // Clear any stale failure so health reporting reflects the LATEST
+    // completed run, not the last failure ever seen.
+    entry.lastError = undefined;
+    entry.lastSuccessAt = new Date().toISOString();
     return { kind, name, status: "ok" };
   } catch (err) {
     const msg = errorMessage(err);
     warnRefreshFailure(name, err);
     entry.lastError = msg;
+    entry.lastFailureAt = new Date().toISOString();
     return { kind, name, status: "failed", error: msg };
   } finally {
     entry.running = false;
@@ -362,6 +387,26 @@ function planRefresh(scheduler: SchedulerState, sourceNames: readonly string[]):
   };
 }
 
+function sourceHealth(
+  kind: RefreshResult["kind"],
+  name: string,
+  entry: RunningGuarded,
+): SourceRefreshHealth {
+  const status: SourceRefreshHealth["status"] = entry.lastError
+    ? "failing"
+    : entry.lastSuccessAt
+      ? "ok"
+      : "pending";
+  return {
+    kind,
+    name,
+    status,
+    ...(entry.lastError !== undefined && { lastError: entry.lastError }),
+    ...(entry.lastSuccessAt !== undefined && { lastSuccessAt: entry.lastSuccessAt }),
+    ...(entry.lastFailureAt !== undefined && { lastFailureAt: entry.lastFailureAt }),
+  };
+}
+
 function clearScheduledTimers(entry: TimedEntryBase): void {
   if (entry.timer) clearInterval(entry.timer);
   if (entry.initialTimer) clearTimeout(entry.initialTimer);
@@ -463,6 +508,17 @@ export function createSchedulerRuntime(state: SchedulerState = createSchedulerSt
       );
 
       return adapterResults.concat(pipelineResults);
+    },
+
+    getRefreshHealth(): RefreshHealth {
+      const sources: SourceRefreshHealth[] = [
+        ...state.adapterEntries.map((entry) => sourceHealth("adapter", entry.name, entry)),
+        ...state.pipelineEntries.map((entry) => sourceHealth("pipeline", entry.config.name, entry)),
+      ];
+      return {
+        status: sources.some((source) => source.status === "failing") ? "degraded" : "ok",
+        sources,
+      };
     },
 
     async drainInFlight(timeoutMs: number = DEFAULT_DRAIN_TIMEOUT_MS): Promise<void> {

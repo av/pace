@@ -11,6 +11,7 @@ import {
   stopScheduler,
   drainScheduler,
   refreshSources,
+  getRefreshHealth,
   type SourcePanelMap,
 } from "../scheduler";
 import { parsePort, getAdapterName } from "../utils";
@@ -38,6 +39,7 @@ export type BootstrapServerDeps = {
   stopScheduler: typeof stopScheduler;
   drainScheduler: typeof drainScheduler;
   refreshSources: typeof refreshSources;
+  getRefreshHealth: typeof getRefreshHealth;
   createServerApp: typeof createServerApp;
   resolvePort: () => number;
   registerShutdown: (handler: () => Promise<void>) => void;
@@ -62,6 +64,7 @@ export function defaultBootstrapServerDeps(): BootstrapServerDeps {
     stopScheduler,
     drainScheduler,
     refreshSources,
+    getRefreshHealth,
     createServerApp,
     resolvePort: () => parsePort(process.env.PORT),
     registerShutdown: (handler) => {
@@ -133,6 +136,7 @@ export async function bootstrapServer(
     panelIdToRefreshSourceNames,
     refreshSources: deps.refreshSources,
     basePath,
+    getRefreshHealth: deps.getRefreshHealth,
   });
 
   const port = deps.resolvePort();
