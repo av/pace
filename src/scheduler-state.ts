@@ -22,6 +22,13 @@ export interface AdapterEntry extends TimedEntryBase {
   name: string;
   adapterConfig: import("./config/types").IngestAdapterConfig;
   adapter: import("./adapters/types").Adapter;
+  /**
+   * Panels where this declarative adapter may prune its stale `${name}:` rows
+   * after a fetch. Excludes panels shared with another source of the same
+   * adapter type (their id namespaces collide, so pruning would delete the
+   * sibling's rows). Empty for non-declarative adapters.
+   */
+  prunePanelIds: string[];
 }
 
 export interface PipelineEntry extends TimedEntryBase {

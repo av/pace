@@ -24,6 +24,10 @@ function bookmarkSource(entry: BookmarkEntry): string {
 
 const adapter: Adapter = {
   name: "bookmarks",
+  // Items come entirely from config; the scheduler prunes `bookmarks:`-prefixed
+  // rows not present in the latest fetch so removed/reordered entries (ids
+  // embed the config index) don't linger or duplicate on the panel.
+  declarative: true,
   async fetch(config: AdapterConfig): Promise<ContentItem[]> {
     const items = config.params?.items;
 

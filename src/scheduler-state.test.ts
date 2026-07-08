@@ -17,6 +17,7 @@ describe("SchedulerState", () => {
         adapterConfig: { type: "test" },
         adapter: makeMockAdapter([]),
         intervalMs: 1000,
+        prunePanelIds: [],
         timer: null,
         running: false,
       });
@@ -46,6 +47,7 @@ describe("SchedulerState", () => {
       adapterConfig: { type: "test" },
       adapter: makeMockAdapter([]),
       intervalMs: 1000,
+      prunePanelIds: [],
       timer: setInterval(() => {}, 1000),
       running: false,
     });

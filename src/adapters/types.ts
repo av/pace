@@ -26,4 +26,14 @@ export interface Adapter {
    * Return `[]` for empty params or zero-entry responses. Warn and skip only optional enrichment.
    */
   fetch(config: AdapterConfig): Promise<ContentItem[]>;
+  /**
+   * Declarative adapters (e.g. bookmarks) derive their items entirely from
+   * config, so each fetch result is the COMPLETE set: after saving, the
+   * scheduler prunes rows with the `${name}:` id prefix that are absent from
+   * the fetched set (entries removed/reordered/renamed in config must not
+   * linger). Requires all item ids to be namespaced `${name}:...`. Leave
+   * unset for network adapters, where `[]` can mean a transient empty
+   * response and cached rows must be retained.
+   */
+  declarative?: boolean;
 }

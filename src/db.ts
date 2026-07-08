@@ -414,6 +414,38 @@ export function getPipelineInputItemsByPanel(panelId: string): ContentItemRow[] 
   return getDedupedItems(panelId, undefined, { excludePipelineOutput: true });
 }
 
+/**
+ * Delete rows on a panel whose id starts with `idPrefix` but is absent from
+ * `keepIds`. Used for declarative adapters (config-defined item lists, e.g.
+ * bookmarks): their fetch result IS the complete set, so rows left behind by
+ * removed, reordered, or renamed config entries must not linger on the panel.
+ * Prefix matching is positional (substr, not LIKE — no wildcard surprises),
+ * so pipeline copies (`pipeline:<name>:<idPrefix>...`) never match.
+ * Returns the number of deleted rows.
+ */
+export function prunePanelItemsByIdPrefix(
+  panelId: string,
+  idPrefix: string,
+  keepIds: ReadonlySet<string>,
+): number {
+  const db = getDb();
+  const rows = db
+    .prepare("SELECT id FROM content_items WHERE panel_id = ? AND substr(id, 1, ?) = ?")
+    .all(panelId, idPrefix.length, idPrefix) as { id: string }[];
+  const stale = rows.filter((r) => !keepIds.has(r.id));
+  if (stale.length === 0) return 0;
+  const del = db.prepare("DELETE FROM content_items WHERE panel_id = ? AND id = ?");
+  const tx = db.transaction(() => {
+    for (const row of stale) del.run(panelId, row.id);
+  });
+  try {
+    tx();
+  } catch (e: unknown) {
+    rethrowDbTxError(e, `db: failed to prune ${stale.length} stale items for panel ${panelId}`);
+  }
+  return stale.length;
+}
+
 export function replacePanelItems(panelId: string, items: ContentItemRow[]): void {
   const db = getDb();
 

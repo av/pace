@@ -10,8 +10,8 @@ COPY tsconfig.json config.example.yaml ./
 COPY presets/ /app/presets/
 COPY skills/ ./skills/
 
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
+COPY docker-entrypoint.sh docker-healthcheck.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh /usr/local/bin/docker-healthcheck.sh \
   && mkdir -p /app/data \
   && chown bun:bun /app/data
 
@@ -19,8 +19,10 @@ EXPOSE 7453
 
 # Liveness probe against /health (200 even when a source is degraded - cached
 # data is still served; non-200/unreachable means the server itself is dead).
+# The script drops to the unprivileged bun user (the container's default user
+# is root; the entrypoint only drops privileges for PID 1).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD bun -e 'fetch(`http://127.0.0.1:${process.env.PORT || 7453}/health`).then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))'
+  CMD ["docker-healthcheck.sh"]
 
 # Starts as root only to chown /app/data (legacy root-owned volumes from
 # older images), then drops to the unprivileged `bun` user via setpriv.

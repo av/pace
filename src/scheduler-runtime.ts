@@ -10,6 +10,7 @@ import {
   getPipelineInputItemsByPanel,
   getRawItemsByPanel,
   replacePanelItems,
+  prunePanelItemsByIdPrefix,
   pruneOldItems as dbPruneOldItems,
 } from "./db";
 import type { AppConfig, TransformConfig } from "./config/types";
@@ -299,6 +300,23 @@ async function runAdapter(scheduler: SchedulerState, entry: AdapterEntry): Promi
         logScheduler(`${name} - fetched ${items.length} items`);
       }
 
+      // Declarative adapters (config-defined lists, e.g. bookmarks): the
+      // fetch result is the complete set, so prune this adapter's rows that
+      // are no longer in it — removed/reordered/renamed config entries would
+      // otherwise linger (and, with index-embedded ids, duplicate) forever
+      // under upsert-only saveItems. Runs even when the fetch is empty:
+      // clearing the config list must clear the panel.
+      if (adapter.declarative && entry.prunePanelIds.length > 0) {
+        const keepIds = new Set(items.map((item) => item.id));
+        const idPrefix = `${adapter.name}:`;
+        for (const pid of entry.prunePanelIds) {
+          const removed = prunePanelItemsByIdPrefix(pid, idPrefix, keepIds);
+          if (removed > 0) {
+            logScheduler(`${name} - pruned ${removed} stale item(s) removed from config`);
+          }
+        }
+      }
+
       const transforms = adapterConfig.transforms;
       if (transforms && transforms.length > 0) {
         await applyTransformsOnPanels(scheduler, panelIds, transforms, name);
@@ -437,6 +455,20 @@ export function createSchedulerRuntime(state: SchedulerState = createSchedulerSt
       state.transformCtx = { llmModel: model ?? null, llmConfig: config.llm };
       state.sourceToReadKey = panelMap.sourceToReadKey;
 
+      // Declarative pruning is per adapter TYPE (`${type}:` id prefix), so two
+      // sources of the same declarative type feeding one panel would prune
+      // each other's rows. Count declarative sources per (type, panel) and
+      // withhold pruning on contested panels.
+      const declarativePanelSources = new Map<string, number>();
+      for (const adapterCfg of config.adapters) {
+        const adapter = adapters.get(adapterCfg.type);
+        if (!adapter?.declarative) continue;
+        for (const pid of panelIdsForSource(getAdapterName(adapterCfg), panelMap)) {
+          const key = `${adapterCfg.type} ${pid}`;
+          declarativePanelSources.set(key, (declarativePanelSources.get(key) ?? 0) + 1);
+        }
+      }
+
       for (const adapterCfg of config.adapters) {
         const adapter = adapters.get(adapterCfg.type);
         if (!adapter) continue;
@@ -444,6 +476,19 @@ export function createSchedulerRuntime(state: SchedulerState = createSchedulerSt
         const name = getAdapterName(adapterCfg);
         const panelIds = panelIdsForSource(name, panelMap);
         const { intervalMin, intervalMs } = computeRefreshInterval(adapterCfg.refresh_interval);
+
+        let prunePanelIds: string[] = [];
+        if (adapter.declarative) {
+          prunePanelIds = panelIds.filter(
+            (pid) => declarativePanelSources.get(`${adapterCfg.type} ${pid}`) === 1,
+          );
+          const contested = panelIds.filter((pid) => !prunePanelIds.includes(pid));
+          if (contested.length > 0) {
+            logScheduler(
+              `${name} - panel(s) ${contested.join(", ")} shared with another "${adapterCfg.type}" source; stale-item pruning disabled there (id namespaces collide)`,
+            );
+          }
+        }
 
         const entry: AdapterEntry = {
           name,
@@ -453,6 +498,7 @@ export function createSchedulerRuntime(state: SchedulerState = createSchedulerSt
           intervalMs,
           timer: null,
           running: false,
+          prunePanelIds,
         };
 
         scheduleTimedEntryRefresh(entry, (e) => trackInFlight(state, runAdapter(state, e)));
