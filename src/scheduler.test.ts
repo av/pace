@@ -307,6 +307,54 @@ describe("scheduler", () => {
     expect(out).toEqual(["pipeline:curated:h1", "pipeline:curated:r1"]);
   });
 
+  test("gatherPipelineInputItems dedupes same-id copies living on two different read-key panels", async () => {
+    // Composite (id, panel_id) storage: one adapter feeding two panels keeps
+    // a per-panel copy of each item. A pipeline sourcing two adapters whose
+    // read keys are those panels saw both copies; with a count-limited
+    // transform the duplicate crowded out a real item (x1 twice, r1 dropped).
+    const shared = makeContentItem({
+      id: "x1",
+      title: "Shared item",
+      url: "https://x/1",
+      source: "hn",
+      timestamp: new Date("2024-06-02T12:00:00.000Z"),
+    });
+    dbMod.saveItems("panelA", [shared]);
+    dbMod.saveItems("panelB", [
+      shared,
+      makeContentItem({
+        id: "r1",
+        title: "RSS item",
+        url: "https://rss/1",
+        source: "rss",
+        timestamp: new Date("2024-06-01T12:00:00.000Z"),
+      }),
+    ]);
+    const config = testAppConfig(
+      {
+        adapters: [],
+        pipelines: [{
+          name: "curated",
+          sources: ["hn", "rss"],
+          transforms: [{ type: "latest", count: 2 }],
+        }],
+      },
+      {
+        direction: "column",
+        panels: [
+          { panel: "a", source: "hn", id: "panelA" },
+          { panel: "b", source: "rss", id: "panelB" },
+          { panel: "pipe", source: "curated", id: "out" },
+        ],
+      },
+    );
+    const pm = sourcePanelMapFromConfig(config);
+    startTestScheduler(config, new Map(), pm, null);
+    await refreshTestSources(["curated"]);
+    const out = dbMod.getAllItemsByPanel("out").map((r) => r.id).sort();
+    expect(out).toEqual(["pipeline:curated:r1", "pipeline:curated:x1"]);
+  });
+
   test("runPipelineJob does not re-transform its own output when it shares a panel with its source (no pipeline:x:pipeline:x id growth)", async () => {
     // Panel lists both the adapter and the pipeline consuming it, so the
     // adapter's read key is the shared panel and the pipeline's previous

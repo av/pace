@@ -173,7 +173,18 @@ function gatherPipelineInputItems(
     items = items.concat(getPipelineInputItemsByPanel(readKey));
   }
   items.sort((a, b) => compareIsoTimestamp(a.timestamp, b.timestamp, "desc"));
-  return items;
+  // Composite (id, panel_id) storage means the SAME item can live as a copy
+  // on two different read-key panels (e.g. one adapter feeding two panels
+  // that two pipeline sources resolve to). Keep only the newest copy per id
+  // so count-limited transforms don't spend slots on duplicates.
+  const seenIds = new Set<string>();
+  const deduped: ContentItemRow[] = [];
+  for (const item of items) {
+    if (seenIds.has(item.id)) continue;
+    seenIds.add(item.id);
+    deduped.push(item);
+  }
+  return deduped;
 }
 
 type TransformLogMode = "when-changed" | "always";

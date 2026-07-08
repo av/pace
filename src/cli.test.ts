@@ -38,6 +38,7 @@ describe("cli-help", () => {
     expect(isCliFatalStartupError("config: bad yaml")).toBe(true);
     expect(isCliFatalStartupError("scheduler: boom")).toBe(true);
     expect(isCliFatalStartupError("index: failed to read styles.css")).toBe(true);
+    expect(isCliFatalStartupError("server: port 3000 is already in use")).toBe(true);
     expect(isCliFatalStartupError("cli: failed to chdir")).toBe(false);
     expect(isCliFatalStartupError("unexpected")).toBe(false);
   });

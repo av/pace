@@ -216,6 +216,58 @@ describe("bootstrapServer", () => {
     expect(deps.calls.filter((c) => c === "stopScheduler")).toHaveLength(1);
   });
 
+  test("bind failure tears down scheduler and db, then throws a server:-prefixed error", async () => {
+    const addrInUse = Object.assign(
+      new Error("Failed to start server. Is port 8123 in use?"),
+      { code: "EADDRINUSE" },
+    );
+    const deps = trackBootstrapDeps({
+      ...baseBootstrapDeps(),
+      startHttpServer: () => {
+        throw addrInUse;
+      },
+    });
+
+    let thrown: unknown = null;
+    try {
+      await bootstrapServer(deps);
+    } catch (err) {
+      thrown = err;
+    }
+
+    expect(thrown).toBeInstanceOf(Error);
+    expect((thrown as Error).message).toBe(
+      "server: port 8123 is already in use (choose a free port via --port or the PORT env var)",
+    );
+    // Startup half-completed: refresh timers and the DB handle must not
+    // outlive the failed bind.
+    const tail = deps.calls.slice(deps.calls.indexOf("startHttpServer") + 1);
+    expect(tail).toEqual(["stopScheduler", "drainScheduler", "closeDb"]);
+    expect(deps.calls).not.toContain("logServerListening:8123");
+  });
+
+  test("non-EADDRINUSE bind failure throws server:-prefixed error with the underlying reason", async () => {
+    const deps = trackBootstrapDeps({
+      ...baseBootstrapDeps(),
+      startHttpServer: () => {
+        throw new Error("permission denied 0.0.0.0:80");
+      },
+      resolvePort: () => 80,
+    });
+
+    let thrown: unknown = null;
+    try {
+      await bootstrapServer(deps);
+    } catch (err) {
+      thrown = err;
+    }
+
+    expect((thrown as Error).message).toBe(
+      "server: failed to start HTTP server on port 80: permission denied 0.0.0.0:80",
+    );
+    expect(deps.calls).toContain("closeDb");
+  });
+
   test("shutdown proceeds to close db when stopping the http server fails", async () => {
     const deps = trackBootstrapDeps({
       ...baseBootstrapDeps(),

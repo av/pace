@@ -25,7 +25,7 @@ import {
 import type { AppConfig } from "./config/types";
 import type { GistPublishResult } from "./share-gist";
 
-export const CLI_FATAL_ERROR_PREFIXES = ["config:", "scheduler:", "index:"] as const;
+export const CLI_FATAL_ERROR_PREFIXES = ["config:", "scheduler:", "index:", "server:"] as const;
 
 export function isCliFatalStartupError(message: string): boolean {
   return CLI_FATAL_ERROR_PREFIXES.some((p) => message.startsWith(p));

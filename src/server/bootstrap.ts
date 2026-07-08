@@ -78,6 +78,27 @@ export function defaultBootstrapServerDeps(): BootstrapServerDeps {
   };
 }
 
+function isAddrInUseError(err: unknown): boolean {
+  if (err && typeof err === "object" && "code" in err && err.code === "EADDRINUSE") {
+    return true;
+  }
+  return err instanceof Error && /EADDRINUSE|address (already )?in use|port .* in use/i.test(err.message);
+}
+
+/**
+ * Wrap an HTTP bind failure in a `server:`-prefixed error so the CLI prints a
+ * clean fatal message (see CLI_FATAL_ERROR_PREFIXES) instead of a raw stack.
+ */
+export function serverBindError(err: unknown, port: number): Error {
+  const reason = err instanceof Error ? err.message : String(err);
+  if (isAddrInUseError(err)) {
+    return new Error(
+      `server: port ${port} is already in use (choose a free port via --port or the PORT env var)`,
+    );
+  }
+  return new Error(`server: failed to start HTTP server on port ${port}: ${reason}`);
+}
+
 /** Load config, init persistence, start scheduler, and bind the dashboard HTTP server. */
 export async function bootstrapServer(
   overrides: Partial<BootstrapServerDeps> = {},
@@ -138,6 +159,16 @@ export async function bootstrapServer(
   };
   deps.registerShutdown(shutdown);
 
-  httpServer = deps.startHttpServer(port, app.fetch);
+  try {
+    httpServer = deps.startHttpServer(port, app.fetch);
+  } catch (err) {
+    // The scheduler is already running and the DB is open; tear both down
+    // (same order as shutdown) so a failed bind doesn't leave refresh timers
+    // alive or the DB handle open behind the propagated error.
+    deps.stopScheduler();
+    await deps.drainScheduler(SHUTDOWN_DRAIN_TIMEOUT_MS);
+    deps.closeDb();
+    throw serverBindError(err, port);
+  }
   deps.logServerListening(port);
 }
