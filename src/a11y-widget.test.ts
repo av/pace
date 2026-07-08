@@ -50,6 +50,26 @@ describe("ImageWidget accessibility", () => {
     expect(html).toContain('aria-label="https://example.com"');
   });
 
+  it("treats whitespace-only alt as decorative (normalized to empty, aria-hidden when unlinked)", () => {
+    const html = renderWidget({ image: "https://example.com/decorative.png", alt: "   " });
+    expect(html).toContain('alt=""');
+    expect(html).toContain('aria-hidden="true"');
+  });
+
+  it("provides aria-label on link wrapper when image alt is whitespace-only", () => {
+    const html = renderWidget({ image: "https://example.com/logo.png", alt: " \t ", link: "https://example.com" });
+    expect(html).toContain('alt=""');
+    expect(html).toContain('aria-label="https://example.com"');
+    const imgMatch = html.match(/<img[^>]*>/);
+    expect(imgMatch![0]).not.toContain("aria-hidden");
+  });
+
+  it("preserves alt text with surrounding whitespace when it has real content", () => {
+    const html = renderWidget({ image: "https://example.com/photo.png", alt: " Sunset " });
+    expect(html).toContain('alt=" Sunset "');
+    expect(html).not.toContain("aria-hidden");
+  });
+
   it("does NOT add aria-label on link wrapper when image has non-empty alt", () => {
     const html = renderWidget({ image: "https://example.com/logo.png", alt: "Company Logo", link: "https://example.com" });
     // The alt text serves as the accessible name; no extra aria-label needed

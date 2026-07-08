@@ -13,7 +13,11 @@ export const ImageWidget: FC<{ node: ImageWidgetConfig }> = ({ node }) => {
     .join(" ");
 
   const objectFit = node.object_fit ?? "contain";
-  const alt = node.alt ?? "";
+  // Whitespace-only alt ("   ") is as meaningless to assistive tech as an empty
+  // one, but would otherwise dodge the decorative handling below (no aria-hidden,
+  // and a linked image would get no aria-label fallback) — normalize it to "".
+  const rawAlt = node.alt ?? "";
+  const alt = rawAlt.trim() ? rawAlt : "";
 
   // Decorative images (empty alt) get aria-hidden so assistive tech skips them entirely
   const isDecorative = !alt;
