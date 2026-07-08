@@ -11,6 +11,7 @@ import {
   type LlmConfig,
   type PanelConfig,
   type PipelineConfig,
+  type ServerConfig,
 } from "./config/types";
 import { warnConfig } from "./config-warn";
 import { validateTransforms } from "./transform-validate";
@@ -725,7 +726,7 @@ export interface ValidatedConfigSections {
   pipelines: PipelineConfig[];
   layout: LayoutNodeConfig;
   llm: LlmConfig | undefined;
-  server: { base_path?: string } | undefined;
+  server: ServerConfig | undefined;
 }
 
 /** Validate resolved config object (post-YAML/env); shared by loadConfig. */
@@ -773,14 +774,22 @@ export function validateParsedConfig(
   validateLayout(layout, sourceNames, adapterTypesByName, pipelineSourcesByName);
   validateLlmConfig(resolved.llm);
 
-  const server = resolved.server as { base_path?: string } | undefined;
+  const server = resolved.server as ServerConfig | undefined;
   if (server !== undefined) {
     if (!isRecord(server)) {
       throw new Error(`config: server must be an object (got ${describeValue(server)})`);
     }
-    validateAllowedKeys(server, ["base_path"], (key) => `server.${key} is not a valid server field`);
+    validateAllowedKeys(server, ["base_path", "retention_days"], (key) => `server.${key} is not a valid server field`);
     if (server.base_path !== undefined && typeof server.base_path !== "string") {
       throw new Error(`config: server.base_path must be a string (got ${describeValue(server.base_path)})`);
+    }
+    if (server.retention_days !== undefined) {
+      const days = server.retention_days;
+      if (typeof days !== "number" || !Number.isInteger(days) || days < 0) {
+        throw new Error(
+          `config: server.retention_days must be a non-negative integer (days to keep items; 0 disables pruning) (got ${describeValue(days)})`,
+        );
+      }
     }
   }
 

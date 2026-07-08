@@ -369,6 +369,12 @@ export function closeDb(): void {
 }
 
 export function pruneOldItems(days: number = 30): number {
+  // Guard the cutoff: a negative/NaN value builds an invalid SQLite modifier
+  // (e.g. "--5 days" or "-NaN days"), making datetime() NULL and the DELETE a
+  // silent no-op - retention would quietly stop working. Fail loudly instead.
+  if (!Number.isFinite(days) || days <= 0) {
+    throw new Error(`db: pruneOldItems days must be a positive finite number (got ${days})`);
+  }
   const db = getDb();
   const res = db.prepare(`DELETE FROM content_items WHERE fetched_at < datetime('now', ?)`).run(`-${days} days`);
   return res.changes;

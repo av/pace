@@ -125,6 +125,11 @@ export interface PipelineConfig {
 
 export interface ServerConfig {
   base_path?: string;
+  /**
+   * How many days of fetched items to keep in the database (default 30).
+   * Must be a positive integer, or 0 to disable pruning entirely.
+   */
+  retention_days?: number;
 }
 
 export interface AppConfig {

@@ -276,11 +276,13 @@ async function runPipelineJob(scheduler: SchedulerState, entry: PipelineEntry): 
   );
 }
 
-function pruneOldItems(): void {
+export const DEFAULT_RETENTION_DAYS = 30;
+
+function pruneOldItems(retentionDays: number): void {
   try {
-    const changes = dbPruneOldItems(30);
+    const changes = dbPruneOldItems(retentionDays);
     if (changes > 0) {
-      logScheduler(`pruned ${changes} items older than 30 days`);
+      logScheduler(`pruned ${changes} items older than ${retentionDays} days`);
     }
   } catch (err) {
     warnPruneFailure(err);
@@ -403,8 +405,13 @@ export function createSchedulerRuntime(state: SchedulerState = createSchedulerSt
         }
       }
 
-      pruneOldItems();
-      state.pruneTimer = setInterval(pruneOldItems, 24 * 60 * 60 * 1000);
+      const retentionDays = config.server?.retention_days ?? DEFAULT_RETENTION_DAYS;
+      if (retentionDays > 0) {
+        pruneOldItems(retentionDays);
+        state.pruneTimer = setInterval(() => pruneOldItems(retentionDays), 24 * 60 * 60 * 1000);
+      } else {
+        logScheduler("item pruning disabled (server.retention_days: 0)");
+      }
     },
 
     stopScheduler(): void {
