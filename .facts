@@ -308,6 +308,9 @@
 - label: flex:0 layout nodes get height:auto so they shrink to content instead of claiming the parent's full height
   command: grep -q "flex:none; height:auto;" src/layout/flex-styles.ts
   tags: [implemented]
+- label: Responsive media widgets remain usable across viewport sizes: desktop image and iframe flex items are capped at 70vh so tall media cannot collapse following panels, while phone layouts render images at intrinsic aspect ratio, remove the desktop cap, retain configured iframe height, and keep following content page-scrollable
+  command: bun test src/media-widget-responsive.test.ts
+  tags: [spec, implemented, responsive-media]
 
 # sharing
 

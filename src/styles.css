@@ -150,6 +150,8 @@ a:hover {
 
   .flex-container {
     flex-direction: column !important;
+    width: 100%;
+    max-width: 100%;
   }
 
   .flex-panel > .panel > .panel-body,
@@ -397,6 +399,36 @@ a:hover {
 
 .image-widget img {
   display: block;
+}
+
+@media (min-width: 769px) {
+  /* A configured portrait/tall widget must not consume the fixed desktop
+     canvas and collapse later siblings beyond reach. */
+  .flex-panel:has(> .image-widget),
+  .flex-panel:has(> .iframe-panel) {
+    max-height: 70vh;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Natural-height mobile flex items otherwise leave percentage-height images
+     with a zero-height containing block. Preserve the image's own aspect ratio. */
+  .flex-panel:has(> .image-widget) {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .image-widget {
+    height: auto;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .image-widget img {
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+  }
 }
 
 .text-widget {
