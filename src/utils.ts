@@ -45,6 +45,7 @@ const SAFE_LINK_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
 export function safeLinkUrl(url: string, warnContext = "layout"): string | null {
   const parsed = tryParseUrl(url, warnContext, "safeUrl");
   if (!parsed) return null;
+  if (parsed.username || parsed.password) return null;
   return SAFE_LINK_PROTOCOLS.has(parsed.protocol) ? url : null;
 }
 
@@ -69,9 +70,13 @@ const SENSITIVE_QUERY_KEYS_COMPACT = new Set([
   "xamzsignature",
 ]);
 
-/** Redact credential-like query values in URLs embedded in diagnostic text. */
-export function redactSensitiveQueryValues(text: string): string {
-  return text.replace(
+/** Redact basic-auth userinfo and credential-like query values in diagnostic URLs. */
+export function redactSensitiveUrlCredentials(text: string): string {
+  const withoutUserinfo = text.replace(
+    /\b(https?:\/\/)[^/?#\s@]+@/gi,
+    "$1[REDACTED]@",
+  );
+  return withoutUserinfo.replace(
     /([?&])([^&#=\s]+)=([^&#\s]*)/g,
     (match, separator: string, rawKey: string) => {
       let key = rawKey;

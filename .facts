@@ -181,6 +181,9 @@
 - label: Shared adapter HTTP errors redact sensitive URL query values before reaching scheduler logs, health responses, or refresh error bodies, while preserving the URL host, path, query key names, nonsensitive query values, and HTTP status for diagnosis
   command: bun test src/fetch.test.ts --test-name-pattern 'redacts sensitive query credentials from fetch errors'
   tags: [spec, implemented, url-secret-redaction]
+- label: URL diagnostics never expose embedded basic-auth userinfo: safe URL config fields reject username/password without echoing them, and shared adapter fetch errors replace runtime userinfo while preserving scheme, host, path, safe query detail, and status
+  command: bun test src/url-credential-diagnostics.test.ts
+  tags: [spec, implemented, url-userinfo-redaction]
 
 # code-quality
 - transforms.ts ContentItemRow handling uses only the current panel_id field name (post DB rename from adapter_name column); the two obsolete .adapter_name references (in contentItemToRow and cluster signal extraction) have been removed so rows always conform to the ContentItemRow interface and source fallback uses panel_id when applicable (verifiable by: ! grep -q "adapter_name" src/transforms.ts ) @implemented

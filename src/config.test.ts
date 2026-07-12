@@ -1677,12 +1677,14 @@ layout:
 
     test("rejects http with userinfo targeting non-localhost", () => {
       expect(() => validateSafeUrl("http://localhost@evil.com/api", "test")).toThrow(
-        /config: test has disallowed scheme "http"/,
+        /config: test must not include URL username or password/,
       );
     });
 
-    test("accepts https with userinfo", () => {
-      expect(() => validateSafeUrl("https://user:pass@example.com/api", "test")).not.toThrow();
+    test("rejects https with userinfo without echoing credentials", () => {
+      expect(() => validateSafeUrl("https://user:pass@example.com/api", "test")).toThrow(
+        "config: test must not include URL username or password",
+      );
     });
 
     test("rejects blob: URI", () => {

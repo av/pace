@@ -9,7 +9,7 @@ import {
   shouldWarnLegitimatelyEmptyFeed,
   type XmlTextField,
 } from "./atom";
-import { errorMessage, redactSensitiveQueryValues } from "../utils";
+import { errorMessage, redactSensitiveUrlCredentials } from "../utils";
 import {
   warnEmptyFeedEntries,
   warnMalformedArrayField,
@@ -79,13 +79,13 @@ async function fetchOkResponse(
   context: string,
   options: FetchWithTimeoutOptions,
 ): Promise<Response> {
-  const safeContext = redactSensitiveQueryValues(context);
+  const safeContext = redactSensitiveUrlCredentials(context);
   let res: Response;
   try {
     res = await fetchWithTimeout(url, options);
   } catch (err) {
     throw new Error(
-      `${prefix}: error fetching ${safeContext}: ${redactSensitiveQueryValues(errorMessage(err))}`,
+      `${prefix}: error fetching ${safeContext}: ${redactSensitiveUrlCredentials(errorMessage(err))}`,
     );
   }
 
@@ -105,13 +105,13 @@ async function fetchBody<T>(
   options: FetchWithTimeoutOptions,
   read: FetchBodyReader<T>,
 ): Promise<T> {
-  const safeContext = redactSensitiveQueryValues(context);
+  const safeContext = redactSensitiveUrlCredentials(context);
   const res = await fetchOkResponse(prefix, url, context, options);
   try {
     return await read(res);
   } catch (err) {
     throw new Error(
-      `${prefix}: error reading ${safeContext}: ${redactSensitiveQueryValues(errorMessage(err))}`,
+      `${prefix}: error reading ${safeContext}: ${redactSensitiveUrlCredentials(errorMessage(err))}`,
     );
   }
 }

@@ -43,17 +43,16 @@ describe("validateSafeUrl adversarial bypasses", () => {
   });
 
   // -- URL authority confusion --
-  test("http://evil.com@localhost - userinfo trick passes (hostname is localhost)", () => {
-    // The URL parser treats evil.com as the username, localhost as host.
-    // The actual HTTP request would go to localhost. This is not a real bypass
-    // since the request targets localhost, but it is confusing.
-    // Document current behavior: this is ALLOWED because hostname IS localhost.
-    expect(() => validateSafeUrl("http://evil.com@localhost", "t")).not.toThrow();
+  test("rejects userinfo targeting localhost", () => {
+    expect(() => validateSafeUrl("http://evil.com@localhost", "t")).toThrow(
+      /must not include URL username or password/,
+    );
   });
 
-  test("http://evil.com@localhost:3000 - userinfo with port also passes", () => {
-    // Same as above; request goes to localhost:3000
-    expect(() => validateSafeUrl("http://evil.com@localhost:3000", "t")).not.toThrow();
+  test("rejects userinfo targeting localhost with port", () => {
+    expect(() => validateSafeUrl("http://evil.com@localhost:3000", "t")).toThrow(
+      /must not include URL username or password/,
+    );
   });
 
   test("rejects http://localhost.evil.com (subdomain confusion)", () => {

@@ -275,6 +275,7 @@ export function isSafeEmbedUrl(url: unknown): url is string {
   } catch {
     return false;
   }
+  if (parsed.username || parsed.password) return false;
   if (parsed.protocol === "https:") return true;
   return parsed.protocol === "http:" && LOCALHOST_HOSTS.has(parsed.hostname);
 }
@@ -288,6 +289,9 @@ export function validateSafeUrl(url: unknown, path: string): void {
     parsed = new URL(url);
   } catch {
     throw new Error(`config: ${path} is not a valid URL`);
+  }
+  if (parsed.username || parsed.password) {
+    throw new Error(`config: ${path} must not include URL username or password`);
   }
   if (parsed.protocol === "https:") return;
   if (parsed.protocol === "http:" && LOCALHOST_HOSTS.has(parsed.hostname)) return;
