@@ -1,11 +1,19 @@
 import type { FC } from "hono/jsx";
 import { raw } from "hono/utils/html";
-import type { TextWidgetConfig } from "./types";
+import type { DashboardRenderMode, TextWidgetConfig } from "./types";
 import { flexStyle } from "./flex-styles";
-import { sanitize, renderMarkdown, renderPlain } from "./text-render";
+import { renderMarkdown, renderPlain, renderStaticRichText, sanitize } from "./text-render";
 
-export const TextWidget: FC<{ node: TextWidgetConfig }> = ({ node }) => {
+export const TextWidget: FC<{ node: TextWidgetConfig; mode?: DashboardRenderMode }> = ({ node, mode = "interactive" }) => {
   const format = node.format ?? "plain";
+  const rendered = format === "plain"
+    ? renderPlain(node.text)
+    : format === "markdown"
+      ? renderMarkdown(node.text)
+      : sanitize(node.text);
+  const content = mode === "static" && format !== "plain"
+    ? renderStaticRichText(rendered)
+    : rendered;
 
   return (
     <div class="flex-panel" style={flexStyle(node.flex)}>
@@ -16,13 +24,7 @@ export const TextWidget: FC<{ node: TextWidgetConfig }> = ({ node }) => {
           </div>
         )}
         <div class="text-widget-body" tabindex={0} role="region" aria-label={node.title ?? "Text content"}>
-          {raw(
-            format === "plain"
-              ? renderPlain(node.text)
-              : format === "markdown"
-                ? renderMarkdown(node.text)
-                : sanitize(node.text)
-          )}
+          {raw(content)}
         </div>
       </div>
     </div>

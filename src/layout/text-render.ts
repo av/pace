@@ -43,6 +43,29 @@ export function renderMarkdown(text: string): string {
   return sanitize(raw);
 }
 
+const STATIC_RICH_TEXT_OPTIONS: sanitizeHtml.IOptions = {
+  ...SANITIZE_OPTIONS,
+  allowedTags: [...(SANITIZE_OPTIONS.allowedTags as string[]), "span"],
+  transformTags: {
+    ...SANITIZE_OPTIONS.transformTags,
+    img: (_tagName, attribs) => {
+      const alt = (attribs.alt ?? "").trim();
+      return {
+        tagName: "span",
+        attribs: {},
+        text: alt
+          ? `[Image: ${alt} — not included in static snapshots]`
+          : "[Image not included in static snapshots]",
+      };
+    },
+  },
+};
+
+/** Replace rich-text images with visible context for non-fetching static snapshots. */
+export function renderStaticRichText(sanitizedHtml: string): string {
+  return sanitizeHtml(sanitizedHtml, STATIC_RICH_TEXT_OPTIONS);
+}
+
 /** Escape HTML special characters. */
 function escapeHtml(str: string): string {
   return str

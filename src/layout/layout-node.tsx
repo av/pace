@@ -10,7 +10,7 @@ import { TextWidget } from "./text-widget";
 
 export const LayoutNode: FC<{ node: LayoutNodeConfig; panelData: Map<string, PanelData>; mode: DashboardRenderMode; basePath?: string }> = ({ node, panelData, mode, basePath = "" }) => {
   if (isImageWidget(node)) return <ImageWidget node={node} mode={mode} />;
-  if (isTextWidget(node)) return <TextWidget node={node} />;
+  if (isTextWidget(node)) return <TextWidget node={node} mode={mode} />;
   if (isIframe(node)) return <IframeWidget node={node} mode={mode} />;
 
   if (isPanel(node)) {

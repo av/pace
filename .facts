@@ -323,6 +323,9 @@
 - label: Static Dashboard exports render remote image Widgets as non-fetching placeholders that preserve meaningful alt context and provide an explicit safe link; interactive Dashboards continue rendering the configured image and link
   command: bun test src/share-export.test.ts --test-name-pattern 'replaces remote image with an offline-safe contextual link'
   tags: [spec, implemented, offline-image-placeholder]
+- label: Static Dashboard exports replace remote images inside Markdown or HTML Text Widgets with visible non-fetching omission text that preserves meaningful alt context; interactive Dashboards continue rendering the sanitized images
+  command: bun test src/share-export.test.ts --test-name-pattern 'replaces rich-text images with offline alt context'
+  tags: [spec, implemented, offline-rich-text-images]
 
 ## backends
 - The GitHub Gist Share Storage Backend stores Static Dashboard artifacts in a public or secret gist using a GitHub token supplied by the user's environment @implemented

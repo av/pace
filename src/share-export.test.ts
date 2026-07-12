@@ -186,6 +186,41 @@ describe("static dashboard export", () => {
     expect(interactiveHtml).not.toContain("Image content is not included");
   });
 
+  test("replaces rich-text images with offline alt context", () => {
+    const config: AppConfig = {
+      adapters: [],
+      layout: {
+        direction: "column",
+        children: [
+          {
+            text: "![Network topology](https://cdn.example.com/topology.png)",
+            format: "markdown",
+            title: "Runbook",
+          },
+          {
+            text: '<p>Status:</p><img src="https://cdn.example.com/status.png" alt="Service status chart">',
+            format: "html",
+            title: "Status",
+          },
+        ],
+      },
+    };
+
+    const { html: staticHtml } = renderStaticDashboard(config);
+    expect(staticHtml).not.toContain("<img");
+    expect(staticHtml).toContain("[Image: Network topology — not included in static snapshots]");
+    expect(staticHtml).toContain("[Image: Service status chart — not included in static snapshots]");
+
+    const interactiveHtml = renderDashboard({
+      layout: config.layout,
+      panelData: new Map(),
+      updatedAt: "2026-07-12 12:00:00",
+    });
+    expect(interactiveHtml).toContain('<img src="https://cdn.example.com/topology.png"');
+    expect(interactiveHtml).toContain('<img src="https://cdn.example.com/status.png"');
+    expect(interactiveHtml).not.toContain("not included in static snapshots");
+  });
+
   test("does not serialize adapter or LLM secrets from config", () => {
     initDb();
     saveItems("secret-panel", [
