@@ -11,7 +11,7 @@ import { TextWidget } from "./text-widget";
 export const LayoutNode: FC<{ node: LayoutNodeConfig; panelData: Map<string, PanelData>; mode: DashboardRenderMode; basePath?: string }> = ({ node, panelData, mode, basePath = "" }) => {
   if (isImageWidget(node)) return <ImageWidget node={node} />;
   if (isTextWidget(node)) return <TextWidget node={node} />;
-  if (isIframe(node)) return <IframeWidget node={node} />;
+  if (isIframe(node)) return <IframeWidget node={node} mode={mode} />;
 
   if (isPanel(node)) {
     if (node.display === "counter") {

@@ -518,6 +518,23 @@ a:hover {
   display: block;
 }
 
+.iframe-static-placeholder {
+  animation: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.iframe-static-placeholder a {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
 .counter-panel {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { AppConfig } from "./config/types";
 import { initDb, saveItems } from "./db";
-import type { PanelData } from "./layout";
+import { renderDashboard, type PanelData } from "./layout";
 import {
   exportStaticDashboard,
   renderStaticDashboard,
@@ -129,6 +129,31 @@ describe("static dashboard export", () => {
     expect(html).toContain('<span class="panel-refreshed">2026-06-21 09:08Z</span>');
     expect(html).toContain('<span class="item-time">2026-06-20 07:06Z</span>');
     expect(html).not.toContain("ago");
+  });
+
+  test("replaces live iframe with an offline-safe source link", () => {
+    const config: AppConfig = {
+      adapters: [],
+      layout: {
+        direction: "row",
+        children: [{ iframe: "https://status.example.com/live", title: "Live Status" }],
+      },
+    };
+
+    const { html: staticHtml } = renderStaticDashboard(config);
+    expect(staticHtml).not.toContain("<iframe");
+    expect(staticHtml).toContain("Embedded content is not included in static snapshots.");
+    expect(staticHtml).toContain('href="https://status.example.com/live"');
+    expect(staticHtml).toContain('rel="noopener noreferrer"');
+
+    const interactiveHtml = renderDashboard({
+      layout: config.layout,
+      panelData: new Map(),
+      updatedAt: "2026-07-12 12:00:00",
+    });
+    expect(interactiveHtml).toContain('<iframe src="https://status.example.com/live"');
+    expect(interactiveHtml).toContain('sandbox="allow-scripts allow-same-origin"');
+    expect(interactiveHtml).not.toContain("Embedded content is not included");
   });
 
   test("does not serialize adapter or LLM secrets from config", () => {

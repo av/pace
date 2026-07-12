@@ -317,6 +317,9 @@
 - label: Static Dashboard snapshots render item timestamps and panel refresh timestamps as stable absolute UTC values instead of frozen relative ages; interactive Dashboards retain relative ages
   command: bun test src/share-export.test.ts --test-name-pattern 'renders stable absolute UTC timestamps instead of frozen relative ages'
   tags: [spec, implemented, static-absolute-time]
+- label: Static Dashboard exports render iframe Widgets as non-fetching placeholders that explain live embedded content is not included and provide a safe explicit source link; interactive Dashboards continue rendering the sandboxed iframe
+  command: bun test src/share-export.test.ts --test-name-pattern 'replaces live iframe with an offline-safe source link'
+  tags: [spec, implemented, offline-iframe-placeholder]
 
 ## backends
 - The GitHub Gist Share Storage Backend stores Static Dashboard artifacts in a public or secret gist using a GitHub token supplied by the user's environment @implemented

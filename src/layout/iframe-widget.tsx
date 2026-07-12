@@ -1,15 +1,11 @@
 import type { FC } from "hono/jsx";
-import type { IframeWidgetConfig } from "./types";
+import type { DashboardRenderMode, IframeWidgetConfig } from "./types";
 import { flexStyle } from "./flex-styles";
 import { isSafeEmbedUrl, sanitizeSandboxTokens } from "../config-validate";
 
 const DEFAULT_SANDBOX = "allow-scripts allow-same-origin";
 
-export const IframeWidget: FC<{ node: IframeWidgetConfig }> = ({ node }) => {
-  const sandbox = node.sandbox
-    ? sanitizeSandboxTokens(node.sandbox, "iframe.sandbox")
-    : DEFAULT_SANDBOX;
-
+export const IframeWidget: FC<{ node: IframeWidgetConfig; mode?: DashboardRenderMode }> = ({ node, mode = "interactive" }) => {
   // Sizing priority: height > aspect_ratio > default 16/9
   const aspectRatio = node.height ? undefined : (node.aspect_ratio ?? "16/9");
 
@@ -60,6 +56,31 @@ export const IframeWidget: FC<{ node: IframeWidgetConfig }> = ({ node }) => {
   }
 
   const iframeTitle = node.title ?? `Embedded content from ${new URL(safeSrc).hostname}`;
+
+  if (mode === "static") {
+    return (
+      <div class="flex-panel" style={containerStyle}>
+        {node.title && (
+          <div class="panel-header">
+            <h2 title={node.title}>{node.title}</h2>
+          </div>
+        )}
+        <div
+          class="iframe-panel iframe-static-placeholder"
+          style={iframePanelStyle}
+          role="region"
+          aria-label={iframeTitle}
+        >
+          <p>Embedded content is not included in static snapshots.</p>
+          <a href={safeSrc} target="_blank" rel="noopener noreferrer">Open embedded source</a>
+        </div>
+      </div>
+    );
+  }
+
+  const sandbox = node.sandbox
+    ? sanitizeSandboxTokens(node.sandbox, "iframe.sandbox")
+    : DEFAULT_SANDBOX;
 
   const iframeAttrs: Record<string, string> = {
     src: safeSrc,
