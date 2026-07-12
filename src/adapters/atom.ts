@@ -1,6 +1,7 @@
 import { XMLParser } from "fast-xml-parser";
 import { errorMessage } from "../utils";
 import { warnMalformedFeedField } from "./empty-config";
+import { decodeHtmlEntities } from "./html";
 
 export type AtomLinkField =
   | string
@@ -215,19 +216,23 @@ const NON_PAGE_LINK_RELS = new Set([
   "prev",
 ]);
 
+function decodeFeedLink(link: string | undefined): string {
+  return decodeHtmlEntities(link ?? "", { numeric: true });
+}
+
 export function extractAtomLink(link: AtomLinkField): string {
   if (!link) return "";
-  if (typeof link === "string") return link;
+  if (typeof link === "string") return decodeFeedLink(link);
   const links = Array.isArray(link) ? link : [link];
   // Atom spec: absent rel is equivalent to rel="alternate".
   const alt = links.find(
     (l) => l["@_rel"] === "alternate" && l["@_href"],
   );
-  if (alt) return alt["@_href"] ?? "";
+  if (alt) return decodeFeedLink(alt["@_href"]);
   const noRel = links.find((l) => !l["@_rel"] && l["@_href"]);
-  if (noRel) return noRel["@_href"] ?? "";
+  if (noRel) return decodeFeedLink(noRel["@_href"]);
   const fallback = links.find(
     (l) => l["@_href"] && !NON_PAGE_LINK_RELS.has(l["@_rel"] ?? ""),
   );
-  return fallback?.["@_href"] ?? "";
+  return decodeFeedLink(fallback?.["@_href"]);
 }

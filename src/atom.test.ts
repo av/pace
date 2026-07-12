@@ -256,6 +256,20 @@ describe("extractAtomLink", () => {
     );
   });
 
+  test("decodes numeric XML entities in Atom links", () => {
+    expect(
+      extractAtomLink("https://example.com/episode?source=rss&#038;medium=feed"),
+    ).toBe("https://example.com/episode?source=rss&medium=feed");
+    expect(
+      extractAtomLink({
+        "@_href": "https://example.com/post?source=atom&#x26;medium=feed",
+      }),
+    ).toBe("https://example.com/post?source=atom&medium=feed");
+    expect(
+      extractAtomLink("https://example.com/episode?literal=&amp;#038;"),
+    ).toBe("https://example.com/episode?literal=&#038;");
+  });
+
   test("reads href from a single Atom link object", () => {
     expect(extractAtomLink({ "@_href": "https://a.example/x" })).toBe(
       "https://a.example/x",

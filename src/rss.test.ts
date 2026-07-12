@@ -94,6 +94,39 @@ describe("rss", () => {
     ]);
   });
 
+  test("decodes numeric XML entities in RSS and Atom links", async () => {
+    mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      if (String(input).endsWith("feed.atom")) {
+        return makeXmlResponse(`<?xml version="1.0"?>
+          <feed xmlns="http://www.w3.org/2005/Atom">
+            <title>Entity Atom</title>
+            <entry><title>Atom entry</title>
+              <link href="https://example.com/atom?source=atom&#x26;medium=feed" />
+            </entry>
+          </feed>`);
+      }
+      return makeXmlResponse(`<?xml version="1.0"?>
+        <rss version="2.0"><channel><title>Entity RSS</title>
+          <item><title>RSS entry</title>
+            <link>https://example.com/rss?source=rss&#038;medium=feed</link>
+          </item>
+        </channel></rss>`);
+    });
+
+    const items = await rssAdapter.fetch(rssCfg({
+      urls: ["https://feeds.example.com/feed.rss", "https://feeds.example.com/feed.atom"],
+    }));
+
+    expect(items.map(({ url }) => url).sort()).toEqual([
+      "https://example.com/atom?source=atom&medium=feed",
+      "https://example.com/rss?source=rss&medium=feed",
+    ]);
+    expect(items.map(({ id }) => id).sort()).toEqual([
+      "rss:https://example.com/atom?source=atom&medium=feed",
+      "rss:https://example.com/rss?source=rss&medium=feed",
+    ]);
+  });
+
   test("merges multiple urls (RSS + Atom)", async () => {
     const items = await rssAdapter.fetch(
       rssCfg({ urls: ["https://ex.com/rss", "https://ex.com/atom"] }),
