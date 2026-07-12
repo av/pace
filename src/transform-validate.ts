@@ -93,7 +93,10 @@ function validateFilterExcludeFields(transform: Record<string, unknown>, path: s
 
 /** Per-type field validators; explicit entry for every TransformType (undefined = allowed-keys only). */
 export const TRANSFORM_VALIDATORS = {
-  latest: (transform, path) => validatePositiveInteger(transform.count, `${path}.count`),
+  latest: (transform, path) => {
+    validatePositiveInteger(transform.count, `${path}.count`);
+    validateOptionalPositiveInteger(transform.per_source, `${path}.per_source`);
+  },
   filter: validateFilterExcludeFields,
   exclude: validateFilterExcludeFields,
   sort: (transform, path) => {

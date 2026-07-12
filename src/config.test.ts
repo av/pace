@@ -739,6 +739,26 @@ layout:
     expect(() => loadConfig()).toThrow(/config: adapters\[0\].transforms\[0\].count must be a positive integer/);
   });
 
+  test("rejects latest non-positive per_source cap", () => {
+    const yaml = `
+adapters:
+  - type: rss
+    transforms:
+      - type: latest
+        count: 20
+        per_source: 0
+layout:
+  direction: row
+  children:
+    - panel: p
+      source: all
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: adapters\[0\].transforms\[0\].per_source must be a positive integer/,
+    );
+  });
+
   test("rejects dedupe keep on url strategy", () => {
     const yaml = `
 adapters:

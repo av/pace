@@ -25,8 +25,20 @@ export type LatestTransformConfig = Extract<TransformConfig, { type: "latest" }>
 
 export function applyLatest(
   items: ContentItemRow[],
-  { count }: LatestTransformConfig
+  { count, per_source: perSource }: LatestTransformConfig
 ): ContentItemRow[] {
+  if (perSource !== undefined) {
+    const sourceCounts = new Map<string, number>();
+    const result: ContentItemRow[] = [];
+    for (const item of items) {
+      const seen = sourceCounts.get(item.source) ?? 0;
+      if (seen >= perSource) continue;
+      sourceCounts.set(item.source, seen + 1);
+      result.push(item);
+      if (result.length === count) break;
+    }
+    return result;
+  }
   return sliceToLimit(items, count);
 }
 
@@ -173,4 +185,3 @@ export function applyDedupe(items: ContentItemRow[], config: DedupeTransformConf
       return applyDedupeTitleSimilarity(items, opts.threshold, opts.keep, opts.shouldLog);
   }
 }
-

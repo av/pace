@@ -31,6 +31,9 @@
 - label: The daily-brief headline adapter caps BBC World and Ars Technica independently at ten items before merging and deduplication, yielding a fresh up-to-20-item source-balanced mix without keyword-score ties filling remaining slots from the first configured feed
   command: bun test src/preset-config-validity.test.ts --test-name-pattern 'daily-brief balances world and technology headline fixtures'
   tags: [spec, implemented, daily-brief-source-balance]
+- label: The daily-brief digest keeps at most six items from any one rendered source while selecting its twenty newest deduped items, preserving room for BBC, Ars Technica, Hacker News, and Wikipedia when all are available without changing latest behavior for other configs
+  command: bun test src/preset-config-validity.test.ts --test-name-pattern 'daily-brief caps digest dominance while retaining four-source diversity'
+  tags: [spec, implemented, daily-digest-source-cap]
 
 ## validation
 - label: layout panel source objects accept only adapter and params; refresh_interval on layout.source is rejected with config: error directing users to adapters[]

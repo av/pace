@@ -418,6 +418,48 @@ it("daily-brief balances world and technology headline fixtures", async () => {
   }
 });
 
+it("daily-brief caps digest dominance while retaining four-source diversity", async () => {
+  const parsed = loadPresetYaml("daily-brief");
+  const validated = validateParsedConfig(parsed, DEFAULT_LAYOUT);
+  const digest = validated.pipelines.find(({ name }) => name === "briefing-digest");
+  if (!digest) throw new Error("daily-brief is missing briefing-digest pipeline");
+
+  const sources = [
+    ["wikipedia:news", 4],
+    ["BBC News", 10],
+    ["hackernews:top", 10],
+    ["Ars Technica", 10],
+  ] as const;
+  let sequence = 0;
+  const rows = sources.flatMap(([source, count], sourceIndex) =>
+    Array.from({ length: count }, (_, index) => {
+      const marker = String.fromCharCode(0x4e00 + sequence++).repeat(20);
+      return makeItem({
+        id: `${sourceIndex}-${index}`,
+        title: marker,
+        source,
+        body: null,
+        url: `https://source-${sourceIndex}.example/item-${index}`,
+        timestamp: new Date(
+          Date.UTC(2026, 6, 12, 23 - sourceIndex, 59 - index),
+        ).toISOString(),
+      });
+    }),
+  );
+
+  const transformed = await runPipeline(rows, digest.transforms, { llmModel: null });
+  const counts = Object.groupBy(transformed, ({ source }) => source);
+  expect(digest.transforms.at(-1)).toEqual({ type: "latest", count: 20, per_source: 6 });
+  expect(transformed).toHaveLength(20);
+  expect(Object.keys(counts).sort()).toEqual([
+    "Ars Technica",
+    "BBC News",
+    "hackernews:top",
+    "wikipedia:news",
+  ]);
+  expect(Math.max(...Object.values(counts).map((items) => items?.length ?? 0))).toBe(6);
+});
+
 // ============================================================
 // 3. config.example.yaml Validity
 // ============================================================

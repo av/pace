@@ -54,7 +54,7 @@ export function isDedupeStrategy(value: string): value is DedupeStrategy {
 }
 
 export type TransformConfig =
-  | { type: "latest"; count: number }
+  | { type: "latest"; count: number; per_source?: number }
   | { type: "filter"; keywords: string[]; fields?: KeywordField[] }
   | { type: "exclude"; keywords: string[]; fields?: KeywordField[] }
   | { type: "sort"; field: SortField; direction?: SortDirection }

@@ -5,7 +5,7 @@ export type KeywordScoreEntryField = (typeof KEYWORD_SCORE_ENTRY_FIELDS)[number]
 
 /** Canonical transform field keys (excludes discriminant `type`); single source for validation + types. */
 export const TRANSFORM_FIELD_KEYS = {
-  latest: ["count"],
+  latest: ["count", "per_source"],
   filter: ["keywords", "fields"],
   exclude: ["keywords", "fields"],
   sort: ["field", "direction"],

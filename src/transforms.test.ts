@@ -89,7 +89,7 @@ describe("transforms - runPipeline basics", () => {
 
   test("TRANSFORM_FIELD_KEYS aligns with TransformConfig and validation allowed-keys", () => {
     const exemplars: Record<TransformConfig["type"], TransformConfig> = {
-      latest: { type: "latest", count: 1 },
+      latest: { type: "latest", count: 1, per_source: 1 },
       filter: { type: "filter", keywords: ["a"], fields: ["title"] },
       exclude: { type: "exclude", keywords: ["a"], fields: ["body"] },
       sort: { type: "sort", field: "title", direction: "asc" },
@@ -154,6 +154,22 @@ describe("transforms - runPipeline basics", () => {
     const steps: TransformConfig[] = [{ type: "latest", count: 2 }];
     const result = await runPipeline(items, steps, ctx);
     expect(result.map(r => r.id)).toEqual(["a", "b"]);
+  });
+
+  test("latest transform optionally caps items per source", async () => {
+    const items = [
+      makeRow({ id: "a1", source: "a" }),
+      makeRow({ id: "a2", source: "a" }),
+      makeRow({ id: "a3", source: "a" }),
+      makeRow({ id: "b1", source: "b" }),
+      makeRow({ id: "c1", source: "c" }),
+    ];
+    const result = await runPipeline(
+      items,
+      [{ type: "latest", count: 4, per_source: 2 }],
+      ctx,
+    );
+    expect(result.map(({ id }) => id)).toEqual(["a1", "a2", "b1", "c1"]);
   });
 });
 

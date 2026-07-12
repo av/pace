@@ -110,6 +110,7 @@ pipelines:
         annotate: true
       - type: latest
         count: 20
+        per_source: 6
 
 # --- Cross-source dedupe + interest ranking pipeline (uncomment and add llm config to enable) ---
 #

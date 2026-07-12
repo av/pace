@@ -19,12 +19,17 @@ export const TRANSFORM_DOCS: Record<TransformType, TransformDoc> = {
   latest: {
     summary: "Keep only the N most recent items.",
     example: `type: latest
-count: 20`,
+count: 20
+per_source: 6`,
     params: {
       count: {
         type: "positive integer",
         required: true,
         description: "Maximum number of items to retain (kept in original order).",
+      },
+      per_source: {
+        type: "positive integer",
+        description: "Optional maximum retained per item source, preventing one source from filling the result.",
       },
     },
   },
