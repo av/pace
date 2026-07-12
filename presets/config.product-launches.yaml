@@ -115,6 +115,7 @@ pipelines:
           - term: "hiring|job|career|salary"
             weight: -20
             regex: true
+        min_score: 1
         annotate: false
       # Blend engagement with recency - surface what's trending now.
       - type: time-decay

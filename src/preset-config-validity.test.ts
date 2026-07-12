@@ -19,6 +19,7 @@ import {
 import { isAdapterType, ADAPTER_PARAM_KEYS } from "./adapters/params";
 import { DEFAULT_LAYOUT } from "./config/domain";
 import { makeContentItemRow as makeItem } from "./test/content-items";
+import { applyKeywordScore } from "./transform-rank";
 
 const ROOT = join(import.meta.dir, "..");
 const PRESETS_DIR = join(ROOT, "presets");
@@ -337,6 +338,25 @@ it("release-tracker uses reader-facing panel headings with stable IDs", () => {
   ]);
   expect(html).toContain('<h2 title="Dependency Releases">Dependency Releases</h2>');
   expect(html).toContain('action="/refresh/releases"');
+});
+
+it("product-launches filters community posts for launch intent", () => {
+  const parsed = loadPresetYaml("product-launches");
+  const validated = validateParsedConfig(parsed, DEFAULT_LAYOUT);
+  const community = validated.pipelines.find(({ name }) => name === "community");
+  const keywordScore = community?.transforms.find(({ type }) => type === "keyword-score");
+  if (!keywordScore || keywordScore.type !== "keyword-score") {
+    throw new Error("product-launches community pipeline is missing keyword-score");
+  }
+
+  expect(keywordScore.min_score).toBe(1);
+  const result = applyKeywordScore([
+    makeItem({ id: "launch", title: "I built and launched a new demo" }),
+    makeItem({ id: "generic", title: "CSS color palette notes" }),
+    makeItem({ id: "hiring", title: "Hiring: developer career and salary guide" }),
+  ], keywordScore);
+
+  expect(result.map(({ id }) => id)).toEqual(["launch"]);
 });
 
 // ============================================================

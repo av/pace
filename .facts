@@ -22,6 +22,9 @@
 - label: The release-tracker preset uses dependency-maintenance headings for releases, discussion, and trending repositories instead of generic/internal labels, with explicit IDs preserving refresh routes and stored panel identity
   command: bun test src/preset-config-validity.test.ts --test-name-pattern 'release-tracker uses reader-facing panel headings with stable IDs'
   tags: [spec, implemented, release-preset-headings]
+- label: The product-launches community pipeline requires a positive launch-intent keyword score before recency ranking, so generic community posts and negatively weighted hiring/job posts do not occupy launch discovery slots
+  command: bun test src/preset-config-validity.test.ts --test-name-pattern 'product-launches filters community posts for launch intent'
+  tags: [spec, implemented, product-launch-intent]
 
 ## validation
 - label: layout panel source objects accept only adapter and params; refresh_interval on layout.source is rejected with config: error directing users to adapters[]
