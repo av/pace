@@ -4,13 +4,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { AppConfig } from "./config/types";
 import { initDb, saveItems } from "./db";
+import type { PanelData } from "./layout";
 import {
   exportStaticDashboard,
   renderStaticDashboard,
   STATIC_DASHBOARD_CSS,
   STATIC_DASHBOARD_HTML,
 } from "./share-export";
-import { makeContentItem } from "./test/content-items";
+import { makeContentItem, makeContentItemRow } from "./test/content-items";
 import { installTempDbHooks } from "./test/temp-db";
 
 describe("static dashboard export", () => {
@@ -97,6 +98,37 @@ describe("static dashboard export", () => {
     expect(html).not.toContain("refresh-btn");
     expect(html).not.toContain("/refresh/");
     expect(html).not.toContain('method="post"');
+  });
+
+  test("renders stable absolute UTC timestamps instead of frozen relative ages", () => {
+    const config: AppConfig = {
+      adapters: [{ type: "rss", name: "news" }],
+      layout: {
+        direction: "row",
+        children: [{ panel: "News", id: "news-panel", source: "news" }],
+      },
+    };
+    const panelData = new Map<string, PanelData>([
+      ["News", {
+        panelId: "news-panel",
+        lastRefreshedAt: "2026-06-21T09:08:07.000Z",
+        items: [makeContentItemRow({
+          id: "dated-story",
+          title: "Dated Story",
+          source: "news",
+          timestamp: "2026-06-20T07:06:05.000Z",
+        })],
+      }],
+    ]);
+
+    const { html } = renderStaticDashboard(config, {
+      panelData,
+      now: new Date("2026-07-22T10:11:12.000Z"),
+    });
+
+    expect(html).toContain('<span class="panel-refreshed">2026-06-21 09:08Z</span>');
+    expect(html).toContain('<span class="item-time">2026-06-20 07:06Z</span>');
+    expect(html).not.toContain("ago");
   });
 
   test("does not serialize adapter or LLM secrets from config", () => {

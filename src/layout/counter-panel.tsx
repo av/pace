@@ -1,7 +1,7 @@
 import type { FC } from "hono/jsx";
 import type { DashboardRenderMode, PanelConfig, PanelData } from "./types";
 import { resolvePanelId } from "./types";
-import { relativeTime } from "../utils";
+import { absoluteUtcTime, relativeTime } from "../utils";
 import { flexStyle } from "./flex-styles";
 
 interface CounterBody {
@@ -183,7 +183,11 @@ export const CounterPanel: FC<{ node: PanelConfig; panelData: Map<string, PanelD
         <div class="panel-header">
           <h2 title={node.panel}>{node.panel}</h2>
           <div class="panel-actions">
-            {lastRefreshedAt && <span class="panel-refreshed">{relativeTime(lastRefreshedAt)}</span>}
+            {lastRefreshedAt && (
+              <span class="panel-refreshed">
+                {mode === "static" ? absoluteUtcTime(lastRefreshedAt) : relativeTime(lastRefreshedAt)}
+              </span>
+            )}
             {mode === "interactive" && (
               <form method="post" action={`${basePath}/refresh/${encodeURIComponent(panelId)}`}>
                 <button type="submit" class="refresh-btn" title="Refresh" aria-label="Refresh">{"↻"}</button>

@@ -1,7 +1,7 @@
 import type { FC } from "hono/jsx";
 import type { ContentItemRow, DashboardRenderMode, PanelConfig, PanelData } from "./types";
 import { resolvePanelId } from "./types";
-import { relativeTime, safeLinkUrl } from "../utils";
+import { absoluteUtcTime, relativeTime, safeLinkUrl } from "../utils";
 import { flexStyle } from "./flex-styles";
 import { stripHtml } from "../adapters/html";
 
@@ -65,7 +65,11 @@ const SourcePill: FC<{ source: string }> = ({ source }) => {
   return <span class={cls ? `item-source ${cls}` : "item-source"}>{source}</span>;
 };
 
-const ContentItemCard: FC<{ item: ContentItemRow }> = ({ item }) => {
+function displayTimestamp(timestamp: string, mode: DashboardRenderMode): string {
+  return mode === "static" ? absoluteUtcTime(timestamp) : relativeTime(timestamp);
+}
+
+const ContentItemCard: FC<{ item: ContentItemRow; mode: DashboardRenderMode }> = ({ item, mode }) => {
   const href = safeLinkUrl(item.url);
   const origins = parseOrigins(item.origins);
   const merged = origins.length > 1;
@@ -83,7 +87,7 @@ const ContentItemCard: FC<{ item: ContentItemRow }> = ({ item }) => {
           : <SourcePill source={item.source} />
         }
         {merged && <span class="item-merged">{origins.length} sources</span>}
-        <span class="item-time">{relativeTime(item.timestamp)}</span>
+        <span class="item-time">{displayTimestamp(item.timestamp, mode)}</span>
       </div>
       {item.summary ? (
         <div class="item-summary">
@@ -110,7 +114,7 @@ export const Panel: FC<{ node: PanelConfig; panelData: Map<string, PanelData>; m
         <div class="panel-header">
           <h2 title={node.panel}>{node.panel}</h2>
           <div class="panel-actions">
-            {lastRefreshedAt && <span class="panel-refreshed">{relativeTime(lastRefreshedAt)}</span>}
+            {lastRefreshedAt && <span class="panel-refreshed">{displayTimestamp(lastRefreshedAt, mode)}</span>}
             {mode === "interactive" && (
               <form method="post" action={`${basePath}/refresh/${encodeURIComponent(panelId)}`}>
                 <button type="submit" class="refresh-btn" title="Refresh" aria-label="Refresh">↻</button>
@@ -120,7 +124,7 @@ export const Panel: FC<{ node: PanelConfig; panelData: Map<string, PanelData>; m
         </div>
         <div class="panel-body">
           {items.length > 0
-            ? items.map((item: ContentItemRow) => <ContentItemCard item={item} />)
+            ? items.map((item: ContentItemRow) => <ContentItemCard item={item} mode={mode} />)
             : <div class="empty-state">No content yet</div>
           }
         </div>

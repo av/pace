@@ -126,6 +126,13 @@ export function relativeTime(timestamp: string, now = Date.now()): string {
   return `${days}d ago`;
 }
 
+/** Stable compact UTC timestamp for static snapshots that may be viewed later. */
+export function absoluteUtcTime(timestamp: string): string {
+  const date = new Date(timestamp);
+  if (isNaN(date.getTime())) return "";
+  return `${date.toISOString().slice(0, 16).replace("T", " ")}Z`;
+}
+
 /** Return at most `limit` items from the start of the array. */
 export function sliceToLimit<T>(items: readonly T[], limit: number): T[] {
   return items.slice(0, limit);

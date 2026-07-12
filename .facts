@@ -300,6 +300,9 @@
 - Static Dashboards are read-only: refresh controls, forms, and routes that require a running pace server are omitted or rendered inert in the exported artifact @implemented
 - Static Dashboard export can write to a local directory without using a remote Share Backend, so users can inspect the artifact before publishing @implemented
 - The CLI exposes pace share export [dir] and pace share gist; share export supports output directories, share gist supports renderer URL, gist ID updates, and visibility, and both commands route failures through share: errors @implemented
+- label: Static Dashboard snapshots render item timestamps and panel refresh timestamps as stable absolute UTC values instead of frozen relative ages; interactive Dashboards retain relative ages
+  command: bun test src/share-export.test.ts --test-name-pattern 'renders stable absolute UTC timestamps instead of frozen relative ages'
+  tags: [spec, implemented, static-absolute-time]
 
 ## backends
 - The GitHub Gist Share Storage Backend stores Static Dashboard artifacts in a public or secret gist using a GitHub token supplied by the user's environment @implemented
