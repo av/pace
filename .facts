@@ -79,6 +79,11 @@
   command: bun test src/rss.test.ts --test-name-pattern 'resolves relative entry links against the feed URL'
   tags: [spec, implemented, rss-relative-links]
 
+## counter
+- label: When a Counter primary metric succeeds but its optional compare_url fails, the adapter still returns the current value and emits exactly one warning that identifies compare_url, preserves redacted endpoint/status diagnostics, and does not expose credential values
+  command: bun test src/counter.test.ts --test-name-pattern 'emits one redacted compare_url warning and keeps current value'
+  tags: [spec, implemented, counter-compare-warning]
+
 # rendering
 - The Dashboard is fully server-rendered HTML with no client-side JavaScript; it works in any browser, including on mobile, and updates require a page reload or explicit refresh
 - label: LayoutNodeConfig is a union of five variants: FlexContainerConfig, PanelConfig, ImageWidgetConfig, TextWidgetConfig, and IframeWidgetConfig; each discriminated by a unique key (direction+children, panel, image, text, iframe)

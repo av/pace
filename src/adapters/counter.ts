@@ -1,5 +1,4 @@
 import { fetchJson, tryOptionalFetch } from "./fetch";
-import { warnAdapter } from "./empty-config";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 /**
@@ -131,13 +130,16 @@ const adapter: Adapter = {
     let previous: unknown = undefined;
     if (compareUrl) {
       const compareResult = await tryOptionalFetch("counter", "compare_url", async () => {
-        const compareData = await fetchJson<unknown>("counter", compareUrl, compareUrl, { headers });
+        const compareData = await fetchJson<unknown>(
+          "counter",
+          compareUrl,
+          `compare_url ${compareUrl}`,
+          { headers },
+        );
         return resolveJsonPath(compareData, comparePath);
       });
       if (compareResult !== null) {
         previous = compareResult;
-      } else {
-        warnAdapter("counter", `compare_url fetch failed, continuing without trend data`);
       }
     }
 

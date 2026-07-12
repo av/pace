@@ -224,19 +224,19 @@ describe("counter adapter", () => {
       expect(html).toContain("trending up");
     });
 
-    test("continues without previous when compare_url fails", async () => {
+    test("emits one redacted compare_url warning and keeps current value", async () => {
       fetchSpy = spyOn(globalThis, "fetch")
         .mockResolvedValueOnce(
           new Response(JSON.stringify({ value: 100 }), { status: 200 }),
         )
-        .mockRejectedValueOnce(new Error("network error"));
+        .mockResolvedValueOnce(new Response("unavailable", { status: 503 }));
 
       const config: AdapterConfig = {
         type: "counter",
         params: {
           url: "https://example.com/api",
           json_path: "value",
-          compare_url: "https://example.com/api?old",
+          compare_url: "https://example.com/api?access_token=compare-secret&window=24h",
         },
       };
 
@@ -245,7 +245,10 @@ describe("counter adapter", () => {
       const body = JSON.parse(result[0].body!);
       expect(body.value).toBe(100);
       expect(body.previous).toBeUndefined();
-      expect(warnSpy).toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(warnSpy).toHaveBeenCalledWith(
+        "counter: failed to fetch compare_url https://example.com/api?access_token=[REDACTED]&window=24h: HTTP error 503",
+      );
     });
 
     test("throws on missing url param", async () => {
