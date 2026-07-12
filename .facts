@@ -53,6 +53,9 @@
 - label: RSS and Atom entry page links decode decimal and hexadecimal XML character references exactly once before relative resolution, deduplication, IDs, and rendering, so query separators remain query separators instead of becoming URL fragments
   command: bun test src/rss.test.ts src/atom.test.ts --test-name-pattern 'decodes numeric XML entities in.*links'
   tags: [spec, implemented, feed-link-entities]
+- label: Wikipedia most_read items carry the UTC date of the previous-day readership snapshot instead of fetch time, so daily-brief renders truthful age metadata and does not label yesterday's popularity data as just now
+  command: bun test src/wikipedia.test.ts --test-name-pattern 'timestamps most_read items as the previous-day snapshot'
+  tags: [spec, implemented, wikipedia-snapshot-freshness]
 
 ## contract
 - label: refresh_interval belongs on IngestAdapterConfig (adapters[] ingest YAML), not on AdapterConfig passed to Adapter.fetch

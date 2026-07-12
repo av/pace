@@ -64,6 +64,21 @@ describe("wikipedia", () => {
     expect(items[0].body).toContain("A test article");
   });
 
+  test("timestamps most_read items as the previous-day snapshot", async () => {
+    mocks.fetchMock.mockResolvedValue(makeJsonResponse(makeFeaturedResponse()));
+
+    const items = await wikipediaAdapter.fetch(wikiCfg({ mode: "most_read" }));
+    const requestUrl = fetchMockCallUrl(mocks.fetchMock);
+    const match = requestUrl.match(/\/featured\/(\d{4})\/(\d{2})\/(\d{2})$/);
+    expect(match).not.toBeNull();
+    const [, year, month, day] = match!;
+    const expected = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day) - 1));
+
+    expect(items).not.toHaveLength(0);
+    expect(items.every(({ timestamp }) => timestamp.getTime() === expected.getTime())).toBe(true);
+    expect(Date.now() - items[0].timestamp.getTime()).toBeGreaterThanOrEqual(24 * 60 * 60 * 1000);
+  });
+
   test("fetches featured article of the day", async () => {
     mocks.fetchMock.mockResolvedValue(
       makeJsonResponse(makeFeaturedResponse()),

@@ -127,7 +127,11 @@ async function fetchFeaturedFeed(
   return jsonObjectOrNull<WikiFeaturedResponse>("wikipedia", raw, "featured feed");
 }
 
-function extractMostRead(data: WikiFeaturedResponse, limit?: number): ContentItem[] {
+function extractMostRead(
+  data: WikiFeaturedResponse,
+  snapshotDate: Date,
+  limit?: number,
+): ContentItem[] {
   const articles = optionalObjectArrayFieldOrEmpty<WikiMostReadArticle>(
     "wikipedia",
     data.mostread,
@@ -143,7 +147,7 @@ function extractMostRead(data: WikiFeaturedResponse, limit?: number): ContentIte
       id: `wikipedia:mostread:${article.title}`,
       title: decodeNumericFeedTitle(article.title.replace(/_/g, " ")),
       url: article.content_urls.desktop.page,
-      timestamp: new Date(),
+      timestamp: new Date(snapshotDate),
       body: buildBody(article),
     }),
   );
@@ -238,10 +242,15 @@ function resolveModes(config: AdapterConfig): Mode[] {
   return resolved.length > 0 ? resolved : ["most_read"];
 }
 
-function extractForMode(data: WikiFeaturedResponse, mode: Mode, limit?: number): ContentItem[] {
+function extractForMode(
+  data: WikiFeaturedResponse,
+  mode: Mode,
+  mostReadSnapshotDate: Date,
+  limit?: number,
+): ContentItem[] {
   switch (mode) {
     case "most_read":
-      return extractMostRead(data, limit);
+      return extractMostRead(data, mostReadSnapshotDate, limit);
     case "featured":
       return extractFeatured(data);
     case "on_this_day":
@@ -261,12 +270,18 @@ const adapter: Adapter = {
     const modes = resolveModes(config);
 
     const { year, month, day } = todayParts();
+    // The featured feed's mostread section reports the prior UTC day's views.
+    const mostReadSnapshotDate = new Date(Date.UTC(
+      Number(year),
+      Number(month) - 1,
+      Number(day) - 1,
+    ));
     const data = await fetchFeaturedFeed(language, year, month, day);
     if (data == null) return [];
 
     if (modes.length === 1) {
       const mode = modes[0];
-      const items = extractForMode(data, mode, limit);
+      const items = extractForMode(data, mode, mostReadSnapshotDate, limit);
       if (
         items.length === 0 &&
         (mode === "most_read" || mode === "featured")
@@ -284,7 +299,7 @@ const adapter: Adapter = {
 
     return aggregateMappedFeeds(
       modes,
-      (mode) => extractForMode(data, mode),
+      (mode) => extractForMode(data, mode, mostReadSnapshotDate),
       {
         limit,
         dedupeKey: (item) => item.url,
