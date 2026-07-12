@@ -222,6 +222,14 @@ a:hover {
   border-color: var(--border-light);
 }
 
+@media (pointer: coarse) {
+  .refresh-btn {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0.5rem;
+  }
+}
+
 .panel-body {
   padding: 0;
 }
