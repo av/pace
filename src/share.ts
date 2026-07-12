@@ -40,5 +40,7 @@ export async function publishStaticDashboardToGist(
 }
 
 export function formatExportStaticDashboardResult(result: StaticDashboardArtifact): string {
-  return `exported: ${result.outputDir}\nhtml: ${result.htmlPath}\ncss: ${result.cssPath}`;
+  const lines = [`exported: ${result.outputDir}`, `html: ${result.htmlPath}`];
+  if (result.cssPath) lines.push(`css: ${result.cssPath}`);
+  return lines.join("\n");
 }

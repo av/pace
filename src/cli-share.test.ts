@@ -132,6 +132,30 @@ describe("pace share", () => {
     expect(calls).toEqual([{ outputDir: "snapshot-dir" }]);
   });
 
+  test("share export single-file delegates the flag and reports one artifact", async () => {
+    const calls: unknown[] = [];
+    const result = await runCliWithDeps(
+      ["share", "export", "portable", "--single-file"],
+      baseDeps({
+        loadConfig: () => ({ adapters: [], layout: { direction: "row", children: [] } }),
+        exportStaticDashboard: (_config, options) => {
+          calls.push(options);
+          return {
+            outputDir: options.outputDir,
+            htmlPath: `${options.outputDir}/index.html`,
+            files: ["index.html"],
+            updatedAt: "2026-07-12 12:00:00",
+          };
+        },
+      }),
+    );
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe("exported: portable\nhtml: portable/index.html\n");
+    expect(result.stderr).toBe("");
+    expect(calls).toEqual([{ outputDir: "portable", singleFile: true }]);
+  });
+
   test("share gist delegates update and visibility options to dependency", async () => {
     const calls: unknown[] = [];
     const result = await runCliWithDeps(

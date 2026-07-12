@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { AppConfig } from "./config/types";
@@ -51,6 +51,7 @@ describe("static dashboard export", () => {
         now: new Date("2026-06-22T10:11:12Z"),
       });
       const html = readFileSync(artifact.htmlPath, "utf-8");
+      if (!artifact.cssPath) throw new Error("default export is missing styles.css");
       const css = readFileSync(artifact.cssPath, "utf-8");
 
       expect(artifact.files).toEqual([STATIC_DASHBOARD_HTML, STATIC_DASHBOARD_CSS]);
@@ -62,6 +63,27 @@ describe("static dashboard export", () => {
       expect(html).toContain("2026-06-22 10:11:12 UTC");
       expect(css).toContain(".flex-root");
       expect(css).toContain(".panel");
+    });
+  });
+
+  test("single-file export inlines CSS and has no stylesheet dependency", () => {
+    const config: AppConfig = {
+      adapters: [],
+      layout: { direction: "row", children: [{ text: "Portable briefing" }] },
+    };
+
+    withTempDir((outputDir) => {
+      const artifact = exportStaticDashboard(config, { outputDir, singleFile: true });
+      const html = readFileSync(artifact.htmlPath, "utf8");
+
+      expect(artifact.files).toEqual([STATIC_DASHBOARD_HTML]);
+      expect(artifact.cssPath).toBeUndefined();
+      expect(existsSync(join(outputDir, STATIC_DASHBOARD_CSS))).toBe(false);
+      expect(html).toContain("<style>");
+      expect(html).toContain(".flex-root");
+      expect(html).not.toContain('rel="stylesheet"');
+      expect(html).not.toContain('href="styles.css"');
+      expect(html).toContain("Portable briefing");
     });
   });
 

@@ -59,6 +59,7 @@ export const CLI_PARSE_OPTIONS = {
   public: { type: "boolean" },
   secret: { type: "boolean" },
   "output-dir": { type: "string", short: "o" },
+  "single-file": { type: "boolean" },
   help: { type: "boolean", short: "h" },
   version: { type: "boolean", short: "v" },
 } as const;
@@ -93,6 +94,7 @@ export type CliParsedValues = Record<string, unknown> & {
   public?: boolean;
   secret?: boolean;
   outputDir?: string;
+  singleFile?: boolean;
 };
 
 /** Map kebab-case flags from parseArgs (e.g. list-presets) onto camelCase fields. */
@@ -108,6 +110,9 @@ export function normalizeCliParsedValues(values: CliParsedValues): void {
   }
   if (typeof values["output-dir"] === "string") {
     values.outputDir = values["output-dir"];
+  }
+  if (values["single-file"] !== undefined) {
+    values.singleFile = normalizeParamBoolean(values, "single-file");
   }
 }
 
@@ -364,6 +369,7 @@ Subcommands:
 
 Options:
   -o, --output-dir <dir>    Directory for local export
+      --single-file         Inline CSS into index.html for one-file sharing
       --gist-id <id>        Update an existing Gist instead of creating one
       --update <id>         Alias for --gist-id
       --public              Create a public Gist
@@ -619,6 +625,8 @@ const SHARE_OPTION_KEYS = new Set([
   "secret",
   "output-dir",
   "outputDir",
+  "single-file",
+  "singleFile",
 ]);
 
 function rejectNonShareOptions(values: CliParsedValues, usageBlock: string): void {
@@ -669,7 +677,10 @@ async function runShareCommand(
       applyCliConfigEnv(values, ctx.deps);
       const runExport = ctx.deps.exportStaticDashboard ?? exportStaticDashboard;
       const readConfig = ctx.deps.loadConfig ?? loadConfig;
-      result = runExport(readConfig(), { outputDir });
+      result = runExport(readConfig(), {
+        outputDir,
+        ...(values.singleFile ? { singleFile: true } : {}),
+      });
     } catch (err) {
       cliDie(normalizeShareError(err));
     }
@@ -686,6 +697,9 @@ async function runShareCommand(
     }
     if (values.outputDir !== undefined) {
       cliFailWithHelp("Use share export for local output; share gist publishes in memory\n", usage);
+    }
+    if (values.singleFile) {
+      cliFailWithHelp("Option only valid for share export: --single-file\n", usage);
     }
     let result: GistPublishResult;
     try {

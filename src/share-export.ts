@@ -13,7 +13,7 @@ export const STATIC_DASHBOARD_CSS = "styles.css";
 export interface StaticDashboardArtifact {
   outputDir: string;
   htmlPath: string;
-  cssPath: string;
+  cssPath?: string;
   files: string[];
   updatedAt: string;
 }
@@ -22,6 +22,7 @@ export interface RenderStaticDashboardOptions {
   now?: Date;
   srcDir?: string;
   panelData?: Map<string, PanelData>;
+  singleFile?: boolean;
 }
 
 export interface RenderedStaticDashboard {
@@ -79,13 +80,19 @@ export function renderStaticDashboard(
   const panelData = options.panelData ?? loadStaticDashboardPanelData(config);
   const css = readBundledText(options.srcDir ?? DEFAULT_SRC_DIR, STATIC_DASHBOARD_CSS);
   assertNoUnresolvedEnvPlaceholders(config, css);
-  const html = renderDashboard({
+  let html = renderDashboard({
     layout: config.layout,
     panelData,
     updatedAt,
     cssHref: STATIC_DASHBOARD_CSS,
     mode: "static",
   });
+  if (options.singleFile) {
+    html = html.replace(
+      `<link rel="stylesheet" href="${STATIC_DASHBOARD_CSS}"/>`,
+      `<style>${css.replace(/<\/style/gi, "<\\/style")}</style>`,
+    );
+  }
 
   return { html, css, updatedAt };
 }
@@ -101,13 +108,15 @@ export function exportStaticDashboard(
     const htmlPath = join(options.outputDir, STATIC_DASHBOARD_HTML);
     const cssPath = join(options.outputDir, STATIC_DASHBOARD_CSS);
     writeFileSync(htmlPath, rendered.html);
-    writeFileSync(cssPath, rendered.css);
+    if (!options.singleFile) writeFileSync(cssPath, rendered.css);
 
     return {
       outputDir: options.outputDir,
       htmlPath,
-      cssPath,
-      files: [STATIC_DASHBOARD_HTML, STATIC_DASHBOARD_CSS],
+      cssPath: options.singleFile ? undefined : cssPath,
+      files: options.singleFile
+        ? [STATIC_DASHBOARD_HTML]
+        : [STATIC_DASHBOARD_HTML, STATIC_DASHBOARD_CSS],
       updatedAt: rendered.updatedAt,
     };
   } catch (err) {

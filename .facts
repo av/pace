@@ -337,6 +337,9 @@
   tags: [spec, implemented, responsive-media]
 
 # sharing
+- label: pace share export --single-file writes one self-contained index.html with bundled CSS inlined and no stylesheet dependency, while default export remains the compatible index.html plus styles.css pair
+  command: bun test src/share-export.test.ts src/cli-share.test.ts --test-name-pattern 'single-file'
+  tags: [spec, implemented, single-file-share]
 
 ## static-dashboards
 - Publishing a Static Dashboard does not require the user to expose or operate a public pace web server @implemented
