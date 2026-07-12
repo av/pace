@@ -248,6 +248,12 @@ fetch_content: true`,
         description:
           "When true, fetch each item's URL before summarizing and pass the extracted page text to the LLM as additional context. Already-summarized items are skipped. Falls back silently per-item on fetch failure.",
       },
+      fetch_content_allow_private: {
+        type: "boolean",
+        default: "false",
+        description:
+          "Permit fetch_content to contact loopback, private, or link-local networks. Enable only for trusted item URLs in local development; every redirect hop is checked.",
+      },
     },
     note: "Degrades to pass-through without llm config",
   },

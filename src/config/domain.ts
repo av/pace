@@ -62,7 +62,7 @@ export type TransformConfig =
   | { type: "keyword-score"; keywords: KeywordScoreEntry[]; min_score?: number; annotate?: boolean }
   | { type: "time-decay"; half_life?: string; engagement_weight?: number; recency_weight?: number; decay?: DecayType; annotate?: boolean; min_score?: number }
   | { type: "cluster"; strategy?: ClusterStrategy; min_cluster_size?: number; max_clusters?: number; similarity_threshold?: number; annotate?: boolean }
-  | { type: "llm-summarize"; fetch_content?: boolean }
+  | { type: "llm-summarize"; fetch_content?: boolean; fetch_content_allow_private?: boolean }
   | { type: "llm-filter"; criteria: string }
   | { type: "llm-rank"; interests?: string[] }
   | { type: "llm-merge"; prompt?: string };

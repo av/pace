@@ -61,6 +61,7 @@ async function summarizeRows(
   model: Model<Api>,
   items: ContentItemRow[],
   fetchContent = false,
+  fetchContentAllowPrivate = false,
 ): Promise<ContentItemRow[]> {
   const pending = items.filter((row) => !row.summary);
   if (pending.length === 0) return items;
@@ -69,6 +70,7 @@ async function summarizeRows(
   if (fetchContent) {
     const content = await fetchItemContents(
       pending.map((row) => ({ id: row.id, url: row.url })),
+      { allowPrivateNetwork: fetchContentAllowPrivate },
     );
     fetchedContent = content;
     const unavailableCount = pending.reduce(
@@ -149,7 +151,12 @@ type LlmTransformType = Extract<TransformType, `llm-${string}`>;
 export const llmTransforms = {
   "llm-summarize": (items, config, ctx) => {
     const cfg = config as Extract<TransformConfig, { type: "llm-summarize" }>;
-    return withLlmModel(items, ctx, (model, rows) => summarizeRows(model, rows, cfg.fetch_content ?? false));
+    return withLlmModel(items, ctx, (model, rows) => summarizeRows(
+      model,
+      rows,
+      cfg.fetch_content ?? false,
+      cfg.fetch_content_allow_private ?? false,
+    ));
   },
 
   "llm-filter": (items, config, ctx) =>

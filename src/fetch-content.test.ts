@@ -146,8 +146,8 @@ describe("fetch_content in llm-summarize", () => {
 
   test("reports partial enrichment failure once with aggregate counts", async () => {
     const fetchMock = makeFetchMock();
-    fetchMock.mockImplementation((url: string) => Promise.resolve(
-      url.endsWith("/ok")
+    fetchMock.mockImplementation((url: string | URL) => Promise.resolve(
+      String(url).endsWith("/ok")
         ? makeHtmlResponse("<p>Available article</p>")
         : makeHtmlResponse("binary", "application/octet-stream"),
     ));
@@ -167,6 +167,44 @@ describe("fetch_content in llm-summarize", () => {
     expect(warnSpy).toHaveBeenCalledWith(
       "llm: fetch_content unavailable for 2 of 3 pending item(s); summaries will use available item metadata",
     );
+  });
+
+  test("private network destinations are blocked by default, including redirect hops", async () => {
+    const fetchMock = makeFetchMock();
+    fetchMock.mockResolvedValue(Response.redirect("http://127.0.0.1:17480/secret", 302));
+    const items = [
+      makeRow({ id: "a", url: "http://127.0.0.1:17480/direct", summary: null }),
+      makeRow({ id: "b", url: "http://93.184.216.34/public-redirect", summary: null }),
+      makeRow({ id: "c", url: "http://169.254.169.254/latest/meta-data", summary: null }),
+    ];
+    await runPipeline(items, [{ type: "llm-summarize", fetch_content: true }], {
+      llmModel: fakeModel,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0][0])).toBe("http://93.184.216.34/public-redirect");
+    expect(warnSpy).toHaveBeenCalledWith(
+      "llm: fetch_content unavailable for 3 of 3 pending item(s); summaries will use available item metadata",
+    );
+  });
+
+  test("private network fetches require the explicit local-development opt-in", async () => {
+    const fetchMock = makeFetchMock();
+    fetchMock.mockResolvedValue(makeHtmlResponse("<p>Trusted local article</p>"));
+    const items = [makeRow({ id: "a", url: "http://127.0.0.1:17480/article", summary: null })];
+    await runPipeline(
+      items,
+      [{
+        type: "llm-summarize",
+        fetch_content: true,
+        fetch_content_allow_private: true,
+      }],
+      { llmModel: fakeModel },
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const callArg = completeSpy.mock.calls[0][1] as { messages: Array<{ content: string }> };
+    expect(callArg.messages[0].content).toContain("Trusted local article");
   });
 
   test("skips fetch for items with empty url", async () => {

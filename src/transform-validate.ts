@@ -130,7 +130,10 @@ export const TRANSFORM_VALIDATORS = {
     validateOptionalUnitNumber(transform.similarity_threshold, `${path}.similarity_threshold`);
     validateOptionalBoolean(transform.annotate, `${path}.annotate`);
   },
-  "llm-summarize": (transform, path) => validateOptionalBoolean(transform.fetch_content, `${path}.fetch_content`),
+  "llm-summarize": (transform, path) => {
+    validateOptionalBoolean(transform.fetch_content, `${path}.fetch_content`);
+    validateOptionalBoolean(transform.fetch_content_allow_private, `${path}.fetch_content_allow_private`);
+  },
   "llm-filter": (transform, path) => validateNonEmptyString(transform.criteria, `${path}.criteria`),
   "llm-rank": (transform, path) => validateOptionalStringList(transform.interests, `${path}.interests`),
   "llm-merge": (transform, path) => validateOptionalNonEmptyString(transform.prompt, `${path}.prompt`),

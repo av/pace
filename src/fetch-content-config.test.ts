@@ -8,6 +8,21 @@ describe("config validation: fetch_content on llm-summarize", () => {
     ).not.toThrow();
   });
 
+  test("accepts private network opt-in on llm-summarize", () => {
+    expect(() => validateTransforms([{
+      type: "llm-summarize",
+      fetch_content: true,
+      fetch_content_allow_private: true,
+    }], "transforms")).not.toThrow();
+  });
+
+  test("rejects non-boolean private network opt-in", () => {
+    expect(() => validateTransforms([{
+      type: "llm-summarize",
+      fetch_content_allow_private: "yes",
+    }], "transforms")).toThrow(/fetch_content_allow_private/);
+  });
+
   test("accepts fetch_content: false on llm-summarize", () => {
     expect(() =>
       validateTransforms([{ type: "llm-summarize", fetch_content: false }], "transforms"),

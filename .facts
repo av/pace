@@ -406,3 +406,6 @@
 - label: Every LLM completion created from Pace configuration uses that configuration api_key explicitly, including custom OpenAI-compatible providers without provider environment variables
   command: bun test src/llm.test.ts --test-name-pattern 'configured API key'
   tags: [spec, pace-use-case-custom-provider-api-key, implemented]
+- label: LLM fetch_content blocks loopback, private, and link-local destinations and redirect hops by default, while an explicit transform opt-in permits trusted private-network development sources
+  command: bun test src/fetch-content.test.ts src/fetch-content-config.test.ts --test-name-pattern 'private network'
+  tags: [spec, pace-use-case-fetch-content-ssrf, implemented]
