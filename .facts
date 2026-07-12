@@ -320,6 +320,9 @@
 - label: Static Dashboard exports render iframe Widgets as non-fetching placeholders that explain live embedded content is not included and provide a safe explicit source link; interactive Dashboards continue rendering the sandboxed iframe
   command: bun test src/share-export.test.ts --test-name-pattern 'replaces live iframe with an offline-safe source link'
   tags: [spec, implemented, offline-iframe-placeholder]
+- label: Static Dashboard exports render remote image Widgets as non-fetching placeholders that preserve meaningful alt context and provide an explicit safe link; interactive Dashboards continue rendering the configured image and link
+  command: bun test src/share-export.test.ts --test-name-pattern 'replaces remote image with an offline-safe contextual link'
+  tags: [spec, implemented, offline-image-placeholder]
 
 ## backends
 - The GitHub Gist Share Storage Backend stores Static Dashboard artifacts in a public or secret gist using a GitHub token supplied by the user's environment @implemented

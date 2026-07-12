@@ -9,7 +9,7 @@ import { IframeWidget } from "./iframe-widget";
 import { TextWidget } from "./text-widget";
 
 export const LayoutNode: FC<{ node: LayoutNodeConfig; panelData: Map<string, PanelData>; mode: DashboardRenderMode; basePath?: string }> = ({ node, panelData, mode, basePath = "" }) => {
-  if (isImageWidget(node)) return <ImageWidget node={node} />;
+  if (isImageWidget(node)) return <ImageWidget node={node} mode={mode} />;
   if (isTextWidget(node)) return <TextWidget node={node} />;
   if (isIframe(node)) return <IframeWidget node={node} mode={mode} />;
 

@@ -1,10 +1,10 @@
 import type { FC } from "hono/jsx";
-import type { ImageWidgetConfig } from "./types";
+import type { DashboardRenderMode, ImageWidgetConfig } from "./types";
 import { safeLinkUrl } from "../utils";
 import { flexStyle } from "./flex-styles";
 import { isSafeEmbedUrl } from "../config-validate";
 
-export const ImageWidget: FC<{ node: ImageWidgetConfig }> = ({ node }) => {
+export const ImageWidget: FC<{ node: ImageWidgetConfig; mode?: DashboardRenderMode }> = ({ node, mode = "interactive" }) => {
   const containerStyle = [
     flexStyle(node.flex),
     node.max_height ? `max-height:${node.max_height}` : undefined,
@@ -42,6 +42,29 @@ export const ImageWidget: FC<{ node: ImageWidgetConfig }> = ({ node }) => {
     );
   }
 
+  const href = node.link ? safeLinkUrl(node.link) : null;
+
+  if (mode === "static") {
+    const staticHref = href ?? safeSrc;
+    return (
+      <div class="flex-panel" style={containerStyle}>
+        <div
+          class="image-widget image-static-placeholder"
+          role="region"
+          aria-label={alt || "Image content"}
+        >
+          <p>
+            {alt ? <strong>{alt}: </strong> : null}
+            Image content is not included in static snapshots.
+          </p>
+          <a href={staticHref} target="_blank" rel="noopener noreferrer">
+            {href ? "Open related link" : "Open image source"}
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   const img = (
     <img
       src={safeSrc}
@@ -52,7 +75,6 @@ export const ImageWidget: FC<{ node: ImageWidgetConfig }> = ({ node }) => {
     />
   );
 
-  const href = node.link ? safeLinkUrl(node.link) : null;
   // When alt is empty (decorative) and a link wraps the image, provide an aria-label
   // so screen readers can still announce the link destination.
   const linkLabel = href && !alt ? node.link : undefined;

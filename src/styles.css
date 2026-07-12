@@ -518,7 +518,8 @@ a:hover {
   display: block;
 }
 
-.iframe-static-placeholder {
+.iframe-static-placeholder,
+.image-static-placeholder {
   animation: none;
   display: flex;
   align-items: center;
@@ -530,7 +531,8 @@ a:hover {
   text-align: center;
 }
 
-.iframe-static-placeholder a {
+.iframe-static-placeholder a,
+.image-static-placeholder a {
   color: var(--text-primary);
   text-decoration: underline;
 }

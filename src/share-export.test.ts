@@ -156,6 +156,36 @@ describe("static dashboard export", () => {
     expect(interactiveHtml).not.toContain("Embedded content is not included");
   });
 
+  test("replaces remote image with an offline-safe contextual link", () => {
+    const config: AppConfig = {
+      adapters: [],
+      layout: {
+        direction: "row",
+        children: [{
+          image: "https://cdn.example.com/architecture.png",
+          alt: "Production architecture diagram",
+          link: "https://docs.example.com/architecture",
+        }],
+      },
+    };
+
+    const { html: staticHtml } = renderStaticDashboard(config);
+    expect(staticHtml).not.toContain("<img");
+    expect(staticHtml).toContain("Production architecture diagram");
+    expect(staticHtml).toContain("Image content is not included in static snapshots.");
+    expect(staticHtml).toContain('href="https://docs.example.com/architecture"');
+
+    const interactiveHtml = renderDashboard({
+      layout: config.layout,
+      panelData: new Map(),
+      updatedAt: "2026-07-12 12:00:00",
+    });
+    expect(interactiveHtml).toContain('<img src="https://cdn.example.com/architecture.png"');
+    expect(interactiveHtml).toContain('alt="Production architecture diagram"');
+    expect(interactiveHtml).toContain('href="https://docs.example.com/architecture"');
+    expect(interactiveHtml).not.toContain("Image content is not included");
+  });
+
   test("does not serialize adapter or LLM secrets from config", () => {
     initDb();
     saveItems("secret-panel", [
