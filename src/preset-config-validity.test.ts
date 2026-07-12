@@ -237,8 +237,8 @@ describe("Preset layout rendering", () => {
       it("contains all declared panel names as headings", () => {
         const panels = collectPanels(validated.layout);
         for (const panel of panels) {
-          // Panel names appear as <h2>Panel Name</h2>
-          expect(html).toContain(panel.panel);
+          // JSX escapes ampersands in reader-facing headings.
+          expect(html).toContain(panel.panel.replaceAll("&", "&amp;"));
         }
       });
 
@@ -273,6 +273,28 @@ describe("Preset layout rendering", () => {
       });
     });
   }
+});
+
+it("tech-news uses reader-facing panel headings with stable IDs", () => {
+  const parsed = loadPresetYaml("tech-news");
+  const validated = validateParsedConfig(parsed, DEFAULT_LAYOUT);
+  const html = renderDashboard({
+    layout: validated.layout,
+    panelData: mockPanelData(validated.layout),
+    updatedAt: "2026-07-12 12:00:00",
+  });
+
+  expect(
+    collectPanels(validated.layout).map(({ panel, id }) => [panel, id]),
+  ).toEqual([
+    ["Front Page", "frontpage"],
+    ["Fediverse", "fediverse"],
+    ["Releases", "releases"],
+    ["News & Blogs", "news-and-blogs"],
+    ["Reference", "reference"],
+  ]);
+  expect(html).toContain('<h2 title="News &amp; Blogs">News &amp; Blogs</h2>');
+  expect(html).toContain('action="/refresh/news-and-blogs"');
 });
 
 // ============================================================

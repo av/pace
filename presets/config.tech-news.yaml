@@ -161,7 +161,8 @@ pipelines:
 layout:
   direction: row
   children:
-    - panel: frontpage
+    - panel: Front Page
+      id: frontpage
       flex: 2
       source: frontpage
       limit: 30
@@ -169,12 +170,14 @@ layout:
     - direction: column
       flex: 1
       children:
-        - panel: fediverse
+        - panel: Fediverse
+          id: fediverse
           flex: 1
           source: lemmy
           limit: 15
 
-        - panel: releases
+        - panel: Releases
+          id: releases
           flex: 1
           source: github-releases
           limit: 10
@@ -182,12 +185,14 @@ layout:
     - direction: column
       flex: 1
       children:
-        - panel: news-and-blogs
+        - panel: News & Blogs
+          id: news-and-blogs
           flex: 3
           source: rss
           limit: 20
 
-        - panel: reference
+        - panel: Reference
+          id: reference
           flex: 1
           source: reference
           limit: 5

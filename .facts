@@ -13,6 +13,9 @@
 
 ## presets
 - Users can start with a ready-made configuration using --preset tech-news (or ml-ai, academic-papers, product-launches, etc.) instead of writing their own config.yaml
+- label: The tech-news preset presents reader-facing panel headings instead of lowercase internal slugs, while explicit panel IDs keep refresh routes and stored panel identity stable
+  command: bun test src/preset-config-validity.test.ts --test-name-pattern 'tech-news uses reader-facing panel headings with stable IDs'
+  tags: [spec, implemented, tech-news-headings]
 
 ## validation
 - label: layout panel source objects accept only adapter and params; refresh_interval on layout.source is rejected with config: error directing users to adapters[]
