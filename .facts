@@ -400,3 +400,6 @@
 - label: When optional LLM full-text enrichment is unavailable for pending items, Pace logs one credential-free aggregate warning and continues summarizing from available item metadata
   command: bun test src/fetch-content.test.ts
   tags: [spec, pace-use-case-content-enrichment-diagnostics, implemented]
+- label: LLM completion diagnostics classify provider response failures by actionable HTTP status without logging provider-controlled error text, and report responses containing no text
+  command: bun test src/llm.test.ts --test-name-pattern 'provider response diagnostics'
+  tags: [spec, pace-use-case-safe-llm-provider-errors, implemented]

@@ -11,7 +11,7 @@ import type { LlmConfig } from "./config/types";
 import type { ContentItem } from "./adapters/types";
 import { capText } from "./adapters/title";
 import { warnLlm } from "./llm-warn";
-import { isTimeoutError } from "./utils";
+import { errorMessage, isTimeoutError } from "./utils";
 
 const KNOWN_PROVIDERS = new Set<string>(getProviders());
 
@@ -97,6 +97,20 @@ export function llmCompleteTimeoutMs(): number {
   return configuredTimeoutMs;
 }
 
+/** Classify provider-controlled failures without echoing response bodies or credentials. */
+function safeProviderFailureDiagnostic(message: string): string {
+  const status = message.match(/\b([45]\d{2})\b/)?.[1];
+  if (status === "401") return "provider authentication failed (HTTP 401)";
+  if (status === "403") return "provider access forbidden (HTTP 403)";
+  if (status === "408") return "provider request timed out (HTTP 408)";
+  if (status === "429") return "provider rate limited request (HTTP 429)";
+  if (status?.startsWith("5")) return `provider server error (HTTP ${status})`;
+  if (status) return `provider request failed (HTTP ${status})`;
+  if (/api[ _-]?key[^\n]*required/i.test(message)) return "provider API key is required";
+  if (/rate[ _-]?limit/i.test(message)) return "provider rate limited request";
+  return "provider request failed";
+}
+
 /** complete() + text blocks; null on failure or timeout. */
 export async function safeComplete(
   model: Model<Api>,
@@ -108,16 +122,26 @@ export async function safeComplete(
     const response = await complete(model, context, {
       signal: AbortSignal.timeout(effectiveTimeoutMs),
     });
+    if (response.stopReason === "error") {
+      warnLlm(
+        `complete failed: ${safeProviderFailureDiagnostic(response.errorMessage ?? "")}`,
+      );
+      return null;
+    }
     const text = response.content
       .filter((b): b is { type: "text"; text: string } => b.type === "text")
       .map((b) => b.text)
       .join("");
-    return text || null;
+    if (!text) {
+      warnLlm("complete returned no text");
+      return null;
+    }
+    return text;
   } catch (err: unknown) {
     if (isTimeoutError(err)) {
       warnLlm(`complete timed out after ${effectiveTimeoutMs}ms`);
     } else {
-      warnLlm("complete failed", err);
+      warnLlm(`complete failed: ${safeProviderFailureDiagnostic(errorMessage(err))}`);
     }
     return null;
   }
