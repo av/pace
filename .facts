@@ -388,3 +388,8 @@
 - label: Large static snapshots mark their document mode and use browser-native off-screen panel rendering containment, keeping every panel and item in the portable HTML while avoiding initial layout and paint work for panels outside the viewport
   command: bun test src/share-export.test.ts --test-name-pattern 'contains off-screen panels without dropping snapshot content'
   tags: [spec, implemented, large-static-rendering]
+
+# security
+- label: Diagnostic errors redact credential-like URL fragment values before they reach logs, health responses, or refresh responses
+  command: bun test src/url-credential-diagnostics.test.ts
+  tags: [spec, pace-use-case-url-fragment-redaction, implemented]

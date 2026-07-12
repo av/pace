@@ -70,14 +70,14 @@ const SENSITIVE_QUERY_KEYS_COMPACT = new Set([
   "xamzsignature",
 ]);
 
-/** Redact basic-auth userinfo and credential-like query values in diagnostic URLs. */
+/** Redact basic-auth userinfo and credential-like query/fragment values in diagnostic URLs. */
 export function redactSensitiveUrlCredentials(text: string): string {
   const withoutUserinfo = text.replace(
     /\b(https?:\/\/)[^/?#\s@]+@/gi,
     "$1[REDACTED]@",
   );
   return withoutUserinfo.replace(
-    /([?&])([^&#=\s]+)=([^&#\s]*)/g,
+    /([?&#])([^&#=\s]+)=([^&#\s]*)/g,
     (match, separator: string, rawKey: string) => {
       let key = rawKey;
       try {

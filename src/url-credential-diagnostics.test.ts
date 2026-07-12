@@ -30,4 +30,16 @@ describe("URL credential diagnostics", () => {
       "rss: failed to fetch https://[REDACTED]@example.com/private/feed.xml?region=eu: HTTP error 503",
     );
   });
+
+  test("GitHub repo diagnostic context redacts credential-like URL fragments", async () => {
+    spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("bad request", { status: 400 }),
+    );
+    const repo = "everlier/missing#access_token=fragment-secret&view=releases";
+    const url = `https://api.github.com/repos/${repo}/releases?per_page=1`;
+
+    await expect(fetchText("github-releases", url, repo)).rejects.toThrow(
+      "github-releases: failed to fetch everlier/missing#access_token=[REDACTED]&view=releases: HTTP error 400",
+    );
+  });
 });
