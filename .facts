@@ -116,6 +116,9 @@
 - label: On coarse-pointer devices, panel refresh controls provide at least a 44 by 44 CSS-pixel touch target; fine-pointer desktop controls retain their compact default size
   command: bun test src/mobile-touch-styles.test.ts
   tags: [spec, implemented, mobile-touch-target]
+- label: At phone widths, deeply nested Layout containers and Panels stack at natural height with page-level vertical scrolling so every populated Panel and the footer are reachable; desktop retains its fixed-height canvas and internal Panel scrolling
+  command: bun test src/mobile-nested-layout-styles.test.ts
+  tags: [spec, implemented, mobile-page-scroll]
 
 # packaging
 

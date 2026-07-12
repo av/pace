@@ -128,8 +128,33 @@ a:hover {
 }
 
 @media (max-width: 768px) {
+  html,
+  body {
+    height: auto;
+    overflow: visible;
+  }
+
+  .flex-root,
+  .flex-container,
+  .flex-panel,
+  .flex-panel > .panel {
+    height: auto;
+    overflow: visible;
+  }
+
+  .flex-root,
+  .flex-container,
+  .flex-panel {
+    flex: none !important;
+  }
+
   .flex-container {
     flex-direction: column !important;
+  }
+
+  .flex-panel > .panel > .panel-body,
+  .flex-panel > .panel > .counter-panel {
+    overflow-y: visible;
   }
 }
 
