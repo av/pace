@@ -393,3 +393,10 @@
 - label: Diagnostic errors redact credential-like URL fragment values before they reach logs, health responses, or refresh responses
   command: bun test src/url-credential-diagnostics.test.ts
   tags: [spec, pace-use-case-url-fragment-redaction, implemented]
+
+# transforms
+
+## llm
+- label: When optional LLM full-text enrichment is unavailable for pending items, Pace logs one credential-free aggregate warning and continues summarizing from available item metadata
+  command: bun test src/fetch-content.test.ts
+  tags: [spec, pace-use-case-content-enrichment-diagnostics, implemented]

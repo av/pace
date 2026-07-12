@@ -42,14 +42,17 @@ function makeHtmlResponse(html: string, contentType = "text/html; charset=utf-8"
 
 describe("fetch_content in llm-summarize", () => {
   let completeSpy: ReturnType<typeof spyOn>;
+  let warnSpy: ReturnType<typeof spyOn>;
 
   beforeEach(() => {
+    warnSpy = spyOn(console, "warn").mockImplementation(() => {});
     completeSpy = spyOn(piAi, "complete").mockResolvedValue({
       content: [{ type: "text", text: '[{"id":"a","summary":"Fetched summary."}]' }],
     } as Awaited<ReturnType<typeof piAi.complete>>);
   });
 
   afterEach(() => {
+    warnSpy.mockRestore();
     completeSpy.mockRestore();
     restoreFetch();
   });
@@ -73,6 +76,7 @@ describe("fetch_content in llm-summarize", () => {
     expect(callArg.messages[0].content).toContain("Article text");
 
     expect(result[0]?.summary).toBe("Fetched summary.");
+    expect(warnSpy).not.toHaveBeenCalled();
   });
 
   test("skips fetch for items that already have a summary", async () => {
@@ -101,7 +105,13 @@ describe("fetch_content in llm-summarize", () => {
       content: [{ type: "text", text: '[{"id":"a","summary":"Title-based summary."}]' }],
     } as Awaited<ReturnType<typeof piAi.complete>>);
 
-    const items = [makeRow({ id: "a", url: "https://fail.example.com", summary: null })];
+    const items = [
+      makeRow({
+        id: "a",
+        url: "https://fail.example.com/article?api_key=query-secret#access_token=fragment-secret",
+        summary: null,
+      }),
+    ];
     const result = await runPipeline(
       items,
       [{ type: "llm-summarize", fetch_content: true }],
@@ -111,6 +121,11 @@ describe("fetch_content in llm-summarize", () => {
     // LLM still called; summary still written (without fetch content)
     expect(completeSpy).toHaveBeenCalledTimes(1);
     expect(result[0]?.summary).toBe("Title-based summary.");
+    expect(warnSpy).toHaveBeenCalledWith(
+      "llm: fetch_content unavailable for 1 of 1 pending item(s); summaries will use available item metadata",
+    );
+    expect(warnSpy.mock.calls.flat().join(" ")).not.toContain("query-secret");
+    expect(warnSpy.mock.calls.flat().join(" ")).not.toContain("fragment-secret");
   });
 
   test("falls back when content-type is not text/html or text/plain", async () => {
@@ -127,6 +142,31 @@ describe("fetch_content in llm-summarize", () => {
     // LLM called but without `content:` in message (no fetched text available)
     const callArg = completeSpy.mock.calls[0][1] as { messages: Array<{ content: string }> };
     expect(callArg.messages[0].content).not.toContain("| content:");
+  });
+
+  test("reports partial enrichment failure once with aggregate counts", async () => {
+    const fetchMock = makeFetchMock();
+    fetchMock.mockImplementation((url: string) => Promise.resolve(
+      url.endsWith("/ok")
+        ? makeHtmlResponse("<p>Available article</p>")
+        : makeHtmlResponse("binary", "application/octet-stream"),
+    ));
+
+    const items = [
+      makeRow({ id: "a", url: "https://example.com/ok", summary: null }),
+      makeRow({ id: "b", url: "https://example.com/bad-1?api_key=secret", summary: null }),
+      makeRow({ id: "c", url: "https://example.com/bad-2#token=secret", summary: null }),
+    ];
+    await runPipeline(
+      items,
+      [{ type: "llm-summarize", fetch_content: true }],
+      { llmModel: fakeModel },
+    );
+
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy).toHaveBeenCalledWith(
+      "llm: fetch_content unavailable for 2 of 3 pending item(s); summaries will use available item metadata",
+    );
   });
 
   test("skips fetch for items with empty url", async () => {

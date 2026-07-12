@@ -11,6 +11,7 @@ import {
 import { sortByInputOrder } from "./dedupe";
 import { summarizeItems, lensItemsWithScores, mergeItems, filterItemsByLlm } from "./llm";
 import { fetchItemContents } from "./fetch-content";
+import { warnLlm } from "./llm-warn";
 
 export interface TransformContext {
   llmModel: Model<Api> | null;
@@ -66,9 +67,19 @@ async function summarizeRows(
 
   let fetchedContent: Map<string, string> | undefined;
   if (fetchContent) {
-    fetchedContent = await fetchItemContents(
+    const content = await fetchItemContents(
       pending.map((row) => ({ id: row.id, url: row.url })),
     );
+    fetchedContent = content;
+    const unavailableCount = pending.reduce(
+      (count, row) => count + (content.has(row.id) ? 0 : 1),
+      0,
+    );
+    if (unavailableCount > 0) {
+      warnLlm(
+        `fetch_content unavailable for ${unavailableCount} of ${pending.length} pending item(s); summaries will use available item metadata`,
+      );
+    }
   }
 
   const updated = await mapRowsThroughLlm(
