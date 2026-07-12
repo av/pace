@@ -172,12 +172,14 @@ layout:
     - direction: column
       flex: 2
       children:
-        - panel: papers-categories
+        - panel: Recent Papers by Category
+          id: papers-categories
           flex: 1
           source: arxiv-categories
           limit: 30
 
-        - panel: papers-search
+        - panel: Focused Paper Search
+          id: papers-search
           flex: 1
           source: arxiv-search
           limit: 15
@@ -185,17 +187,20 @@ layout:
     - direction: column
       flex: 1
       children:
-        - panel: discussion
+        - panel: Research Discussion
+          id: discussion
           flex: 1
           source: discussion
           limit: 15
 
-        - panel: science-writing
+        - panel: Science Writing
+          id: science-writing
           flex: 1
           source: science-writing
           limit: 10
 
-        - panel: questions
+        - panel: Theory Questions
+          id: questions
           flex: 1
           source: stackexchange
           limit: 10

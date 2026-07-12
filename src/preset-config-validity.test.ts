@@ -297,6 +297,28 @@ it("tech-news uses reader-facing panel headings with stable IDs", () => {
   expect(html).toContain('action="/refresh/news-and-blogs"');
 });
 
+it("academic-papers uses reader-facing panel headings with stable IDs", () => {
+  const parsed = loadPresetYaml("academic-papers");
+  const validated = validateParsedConfig(parsed, DEFAULT_LAYOUT);
+  const html = renderDashboard({
+    layout: validated.layout,
+    panelData: mockPanelData(validated.layout),
+    updatedAt: "2026-07-12 12:00:00",
+  });
+
+  expect(
+    collectPanels(validated.layout).map(({ panel, id }) => [panel, id]),
+  ).toEqual([
+    ["Recent Papers by Category", "papers-categories"],
+    ["Focused Paper Search", "papers-search"],
+    ["Research Discussion", "discussion"],
+    ["Science Writing", "science-writing"],
+    ["Theory Questions", "questions"],
+  ]);
+  expect(html).toContain('<h2 title="Recent Papers by Category">Recent Papers by Category</h2>');
+  expect(html).toContain('action="/refresh/papers-categories"');
+});
+
 // ============================================================
 // 3. config.example.yaml Validity
 // ============================================================

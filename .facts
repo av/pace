@@ -16,6 +16,9 @@
 - label: The tech-news preset presents reader-facing panel headings instead of lowercase internal slugs, while explicit panel IDs keep refresh routes and stored panel identity stable
   command: bun test src/preset-config-validity.test.ts --test-name-pattern 'tech-news uses reader-facing panel headings with stable IDs'
   tags: [spec, implemented, tech-news-headings]
+- label: The academic-papers preset presents descriptive research-oriented panel headings instead of internal lowercase slugs, while explicit IDs preserve existing refresh routes and stored panel identity
+  command: bun test src/preset-config-validity.test.ts --test-name-pattern 'academic-papers uses reader-facing panel headings with stable IDs'
+  tags: [spec, implemented, academic-preset-headings]
 
 ## validation
 - label: layout panel source objects accept only adapter and params; refresh_interval on layout.source is rejected with config: error directing users to adapters[]
