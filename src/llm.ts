@@ -91,6 +91,7 @@ export function stripJsonCodeFences(text: string): string {
  * Generous because batch summarize/merge calls over dozens of items are slow.
  */
 export const LLM_COMPLETE_TIMEOUT_MS = 120_000;
+export const LLM_PROVIDER_MAX_RETRIES = 2;
 
 /**
  * Effective completion timeout: `llm.timeout_seconds` from config (set by
@@ -118,6 +119,25 @@ function safeProviderFailureDiagnostic(message: string): string {
   return "provider request failed";
 }
 
+function providerHttpStatus(message: string): number | undefined {
+  const match = message.match(/\b([45]\d{2})\b/)?.[1];
+  return match ? Number(match) : undefined;
+}
+
+function isRetryableProviderStatus(status: number | undefined): status is number {
+  return status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
+}
+
+function retryDelay(attempt: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, 250 * 2 ** attempt);
+    signal.addEventListener("abort", () => {
+      clearTimeout(timer);
+      reject(signal.reason);
+    }, { once: true });
+  });
+}
+
 /** complete() + text blocks; null on failure or timeout. */
 export async function safeComplete(
   model: Model<Api>,
@@ -125,12 +145,22 @@ export async function safeComplete(
   timeoutMs?: number,
 ): Promise<string | null> {
   const effectiveTimeoutMs = timeoutMs ?? configuredTimeoutMs;
-  try {
-    const response = await complete(model, context, {
-      signal: AbortSignal.timeout(effectiveTimeoutMs),
-      apiKey: CONFIGURED_MODEL_API_KEYS.get(model),
-    });
+  const transientResponseStatuses: number[] = [];
+  const signal = AbortSignal.timeout(effectiveTimeoutMs);
+  for (let attempt = 0; attempt <= LLM_PROVIDER_MAX_RETRIES; attempt++) {
+    try {
+      const response = await complete(model, context, {
+        signal,
+        apiKey: CONFIGURED_MODEL_API_KEYS.get(model),
+        maxRetries: 0,
+      });
     if (response.stopReason === "error") {
+      const status = providerHttpStatus(response.errorMessage ?? "");
+      if (attempt < LLM_PROVIDER_MAX_RETRIES && isRetryableProviderStatus(status)) {
+        transientResponseStatuses.push(status);
+        await retryDelay(attempt, signal);
+        continue;
+      }
       warnLlm(
         `complete failed: ${safeProviderFailureDiagnostic(response.errorMessage ?? "")}`,
       );
@@ -144,15 +174,30 @@ export async function safeComplete(
       warnLlm("complete returned no text");
       return null;
     }
-    return text;
-  } catch (err: unknown) {
-    if (isTimeoutError(err)) {
-      warnLlm(`complete timed out after ${effectiveTimeoutMs}ms`);
-    } else {
-      warnLlm(`complete failed: ${safeProviderFailureDiagnostic(errorMessage(err))}`);
+    if (transientResponseStatuses.length > 0) {
+      const statuses = transientResponseStatuses.map((status) => `HTTP ${status}`).join(", ");
+      warnLlm(
+        `complete recovered after ${transientResponseStatuses.length} transient provider response(s) (${statuses})`,
+      );
     }
-    return null;
+    return text;
+    } catch (err: unknown) {
+      if (isTimeoutError(err)) {
+        warnLlm(`complete timed out after ${effectiveTimeoutMs}ms`);
+      } else {
+        const message = errorMessage(err);
+        const status = providerHttpStatus(message);
+        if (attempt < LLM_PROVIDER_MAX_RETRIES && isRetryableProviderStatus(status)) {
+          transientResponseStatuses.push(status);
+          await retryDelay(attempt, signal);
+          continue;
+        }
+        warnLlm(`complete failed: ${safeProviderFailureDiagnostic(message)}`);
+      }
+      return null;
+    }
   }
+  return null;
 }
 
 /** One-line item summary for batch LLM prompts. */

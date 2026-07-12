@@ -412,3 +412,6 @@
 - label: When fetch_content blocks private-network destinations, Pace emits a credential-free aggregate security warning that identifies the trusted-source opt-in without exposing target URLs
   command: bun test src/fetch-content.test.ts --test-name-pattern 'adversarial private network'
   tags: [spec, pace-use-case-fetch-content-ssrf-diagnostics, implemented]
+- label: LLM completions use a bounded two-retry provider budget and log one safe aggregate warning after recovering from transient HTTP responses
+  command: bun test src/llm.test.ts --test-name-pattern 'transient provider retries'
+  tags: [spec, pace-use-case-llm-retry-visibility, implemented]

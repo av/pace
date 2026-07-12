@@ -6,6 +6,7 @@ import {
   createModel,
   llmCompleteTimeoutMs,
   LLM_COMPLETE_TIMEOUT_MS,
+  LLM_PROVIDER_MAX_RETRIES,
   summarizeItem,
   summarizeItems,
   mergeItems,
@@ -193,12 +194,12 @@ describe("llm", () => {
         .mockResolvedValueOnce({
           content: [],
           stopReason: "error",
-          errorMessage: "429 retry https://provider.test?access_token=reflected-rate-secret",
+          errorMessage: "403 denied https://provider.test?access_token=reflected-access-secret",
         } as unknown as Awaited<ReturnType<typeof piAi.complete>>)
         .mockResolvedValueOnce({
           content: [],
           stopReason: "error",
-          errorMessage: "503 backend failed with credential=reflected-server-secret",
+          errorMessage: "400 bad request with credential=reflected-request-secret",
         } as unknown as Awaited<ReturnType<typeof piAi.complete>>);
       try {
         await spyConsole(["warn"], async ({ warn: warnSpy }) => {
@@ -211,8 +212,8 @@ describe("llm", () => {
           expect(await safeComplete(fakeThrowingModel, ctx)).toBe(null);
           expect(warnSpy.mock.calls.map((call: unknown[]) => call[0])).toEqual([
             "llm: complete failed: provider authentication failed (HTTP 401)",
-            "llm: complete failed: provider rate limited request (HTTP 429)",
-            "llm: complete failed: provider server error (HTTP 503)",
+            "llm: complete failed: provider access forbidden (HTTP 403)",
+            "llm: complete failed: provider request failed (HTTP 400)",
           ]);
           expect(warnSpy.mock.calls.flat().join(" ")).not.toContain("reflected-");
         });
@@ -255,6 +256,29 @@ describe("llm", () => {
             "llm: complete failed: provider rate limited request (HTTP 429)",
           );
           expect(warnSpy.mock.calls.flat().join(" ")).not.toContain("thrown-secret");
+        });
+      } finally {
+        completeSpy.mockRestore();
+      }
+    });
+
+    test("transient provider retries are bounded and reported after recovery", async () => {
+      const completeSpy = spyOn(piAi, "complete")
+        .mockResolvedValueOnce({ content: [], stopReason: "error", errorMessage: "429 busy" } as unknown as Awaited<ReturnType<typeof piAi.complete>>)
+        .mockResolvedValueOnce({ content: [], stopReason: "error", errorMessage: "503 unavailable" } as unknown as Awaited<ReturnType<typeof piAi.complete>>)
+        .mockResolvedValueOnce({ content: [{ type: "text", text: "recovered" }], stopReason: "stop" } as unknown as Awaited<ReturnType<typeof piAi.complete>>);
+      try {
+        await spyConsole(["warn"], async ({ warn: warnSpy }) => {
+          const ctx: piAi.Context = {
+            systemPrompt: "test",
+            messages: [{ role: "user", content: "hi", timestamp: Date.now() }],
+          };
+          expect(await safeComplete(fakeThrowingModel, ctx)).toBe("recovered");
+          expect(completeSpy).toHaveBeenCalledTimes(3);
+          expect(completeSpy.mock.calls.every((call) => call[2]?.maxRetries === 0)).toBe(true);
+          expect(warnSpy).toHaveBeenCalledWith(
+            "llm: complete recovered after 2 transient provider response(s) (HTTP 429, HTTP 503)",
+          );
         });
       } finally {
         completeSpy.mockRestore();
