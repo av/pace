@@ -48,6 +48,50 @@ export function safeLinkUrl(url: string, warnContext = "layout"): string | null 
   return SAFE_LINK_PROTOCOLS.has(parsed.protocol) ? url : null;
 }
 
+const SENSITIVE_QUERY_KEY_PART = /(?:^|[_-])(?:api[_-]?key|access[_-]?token|auth(?:orization)?|auth[_-]?token|bearer[_-]?token|client[_-]?secret|credential|key|passw(?:or)?d|secret|sig(?:nature)?|token)(?:$|[_-])/i;
+const SENSITIVE_QUERY_KEYS_COMPACT = new Set([
+  "apikey",
+  "accesstoken",
+  "authorization",
+  "authtoken",
+  "bearertoken",
+  "clientsecret",
+  "credential",
+  "key",
+  "password",
+  "passwd",
+  "secret",
+  "signature",
+  "sig",
+  "token",
+  "xamzcredential",
+  "xamzsecuritytoken",
+  "xamzsignature",
+]);
+
+/** Redact credential-like query values in URLs embedded in diagnostic text. */
+export function redactSensitiveQueryValues(text: string): string {
+  return text.replace(
+    /([?&])([^&#=\s]+)=([^&#\s]*)/g,
+    (match, separator: string, rawKey: string) => {
+      let key = rawKey;
+      try {
+        key = decodeURIComponent(rawKey);
+      } catch {
+        // Keep malformed keys diagnosable; the raw-key checks below still apply.
+      }
+      const compact = key.toLowerCase().replace(/[^a-z0-9]/g, "");
+      if (
+        !SENSITIVE_QUERY_KEY_PART.test(key)
+        && !SENSITIVE_QUERY_KEYS_COMPACT.has(compact)
+      ) {
+        return match;
+      }
+      return `${separator}${rawKey}=[REDACTED]`;
+    },
+  );
+}
+
 /** Lowercase hostname with leading `www.` removed. */
 export function normalizeHostname(hostname: string): string {
   return hostname.toLowerCase().replace(/^www\./, "");

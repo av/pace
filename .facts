@@ -170,6 +170,9 @@
 - label: When refresh health is degraded, the Dashboard shows an error notice naming failing Sources while continuing to render their cached Items; a later successful refresh removes the automatic notice
   command: bun test src/server.test.ts --test-name-pattern 'shows degraded source notice with cached content and clears it after recovery'
   tags: [spec, implemented, cached-failure-notice]
+- label: Shared adapter HTTP errors redact sensitive URL query values before reaching scheduler logs, health responses, or refresh error bodies, while preserving the URL host, path, query key names, nonsensitive query values, and HTTP status for diagnosis
+  command: bun test src/fetch.test.ts --test-name-pattern 'redacts sensitive query credentials from fetch errors'
+  tags: [spec, implemented, url-secret-redaction]
 
 # code-quality
 - transforms.ts ContentItemRow handling uses only the current panel_id field name (post DB rename from adapter_name column); the two obsolete .adapter_name references (in contentItemToRow and cluster signal extraction) have been removed so rows always conform to the ContentItemRow interface and source fallback uses panel_id when applicable (verifiable by: ! grep -q "adapter_name" src/transforms.ts ) @implemented

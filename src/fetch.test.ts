@@ -154,6 +154,22 @@ describe("fetchText", () => {
     );
   });
 
+  test("redacts sensitive query credentials from fetch errors", async () => {
+    const url = "https://api.example.com/feed?api_key=top-secret&region=eu&X-Amz-Signature=signed-secret";
+    mocks.fetchMock.mockResolvedValue(makeErrorResponse(503));
+
+    await expect(fetchText("rss", url)).rejects.toThrow(
+      "rss: failed to fetch https://api.example.com/feed?api_key=[REDACTED]&region=eu&X-Amz-Signature=[REDACTED]: HTTP error 503",
+    );
+
+    mocks.fetchMock.mockRejectedValue(
+      new Error("request to https://backup.example.com/feed?access_token=fallback-secret failed"),
+    );
+    await expect(fetchText("rss", url)).rejects.toThrow(
+      "rss: error fetching https://api.example.com/feed?api_key=[REDACTED]&region=eu&X-Amz-Signature=[REDACTED]: request to https://backup.example.com/feed?access_token=[REDACTED] failed",
+    );
+  });
+
   test("uses custom context in error messages", async () => {
     mocks.fetchMock.mockRejectedValue(new Error("timeout"));
 

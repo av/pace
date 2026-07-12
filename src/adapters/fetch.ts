@@ -9,7 +9,7 @@ import {
   shouldWarnLegitimatelyEmptyFeed,
   type XmlTextField,
 } from "./atom";
-import { errorMessage } from "../utils";
+import { errorMessage, redactSensitiveQueryValues } from "../utils";
 import {
   warnEmptyFeedEntries,
   warnMalformedArrayField,
@@ -79,16 +79,19 @@ async function fetchOkResponse(
   context: string,
   options: FetchWithTimeoutOptions,
 ): Promise<Response> {
+  const safeContext = redactSensitiveQueryValues(context);
   let res: Response;
   try {
     res = await fetchWithTimeout(url, options);
   } catch (err) {
-    throw new Error(`${prefix}: error fetching ${context}: ${errorMessage(err)}`);
+    throw new Error(
+      `${prefix}: error fetching ${safeContext}: ${redactSensitiveQueryValues(errorMessage(err))}`,
+    );
   }
 
   if (!res.ok) {
     throw new Error(
-      `${prefix}: failed to fetch ${context}: HTTP error ${res.status}`,
+      `${prefix}: failed to fetch ${safeContext}: HTTP error ${res.status}`,
     );
   }
 
@@ -102,11 +105,14 @@ async function fetchBody<T>(
   options: FetchWithTimeoutOptions,
   read: FetchBodyReader<T>,
 ): Promise<T> {
+  const safeContext = redactSensitiveQueryValues(context);
   const res = await fetchOkResponse(prefix, url, context, options);
   try {
     return await read(res);
   } catch (err) {
-    throw new Error(`${prefix}: error reading ${context}: ${errorMessage(err)}`);
+    throw new Error(
+      `${prefix}: error reading ${safeContext}: ${redactSensitiveQueryValues(errorMessage(err))}`,
+    );
   }
 }
 
