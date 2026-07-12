@@ -4,6 +4,7 @@ import { initDb, saveItems } from "./db";
 import { securityHeadersMiddleware } from "./server/security-headers";
 import type { ServerRouteDeps } from "./server/routes";
 import type { RefreshResult } from "./refresh-result";
+import type { RefreshHealth } from "./scheduler-runtime";
 import { singlePanelLayout, testAppLayout } from "./test/app-config";
 import { flexCfg, panelCfg } from "./test/layout-cfg";
 import { makeContentItem as makeItem } from "./test/content-items";
@@ -75,6 +76,52 @@ describe("GET / dashboard", () => {
     expect(html).toContain('href="https://news.ycombinator.com/item"');
     expect(html).toContain('<span class="item-source src-hn">hackernews</span>');
     expectDashboardRefreshAction(html, "tech-panel");
+  });
+
+  test("shows degraded source notice with cached content and clears it after recovery", async () => {
+    initDb();
+    saveItems("incidents-panel", [
+      makeItem({
+        id: "incident-1",
+        title: "Cached incident report",
+        source: "incidents",
+      }),
+    ]);
+
+    let health: RefreshHealth = {
+      status: "degraded",
+      sources: [{
+        kind: "adapter",
+        name: "incidents",
+        status: "failing",
+        lastError: "rss: failed to fetch: HTTP 503",
+        lastSuccessAt: "2026-07-12T12:00:00.000Z",
+        lastFailureAt: "2026-07-12T12:05:00.000Z",
+      }],
+    };
+    const layout = testAppLayout(
+      singlePanelLayout("Incidents", "incidents", { id: "incidents-panel" }),
+    );
+    const app = createTestServerApp(makeServerRouteDeps({
+      layout,
+      getRefreshHealth: () => health,
+    }));
+
+    const degradedHtml = await (await requestDashboard(app)).text();
+    expectDashboardItemTitle(degradedHtml, "Cached incident report");
+    expect(degradedHtml).toContain("refresh-notice refresh-notice-error");
+    expect(degradedHtml).toContain(
+      "Refresh failed for incidents — check server logs; showing existing data.",
+    );
+    expect(degradedHtml).not.toContain("HTTP 503");
+
+    health = {
+      status: "ok",
+      sources: [{ kind: "adapter", name: "incidents", status: "ok" }],
+    };
+    const recoveredHtml = await (await requestDashboard(app)).text();
+    expectDashboardItemTitle(recoveredHtml, "Cached incident report");
+    expect(recoveredHtml).not.toContain("refresh-notice");
   });
 
   test("renders multiple panels via loadDashboardPanelDataMap", async () => {

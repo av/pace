@@ -202,6 +202,17 @@ export function resolveFailedNotice(
   return formatRefreshFailedNotice(names);
 }
 
+/** Surface background scheduler failures on the dashboard without exposing raw errors. */
+export function resolveRefreshHealthNotice(
+  health: RefreshHealth | undefined,
+): string | undefined {
+  if (health?.status !== "degraded") return undefined;
+  const failingNames = health.sources
+    .filter((source) => source.status === "failing")
+    .map((source) => source.name);
+  return failingNames.length > 0 ? formatRefreshFailedNotice(failingNames) : undefined;
+}
+
 /** Split, decode, and filter a raw comma-joined name param to configured refresh source names. */
 function resolveKnownSourceNames(
   rawParam: string | undefined,
@@ -232,10 +243,12 @@ export function registerServerRoutes(app: Hono, deps: ServerRouteDeps): void {
   app.get("/", async (c) => {
     const panelData = loadDashboardPanelDataMap(deps.dashboardPanels);
 
-    const failedNotice = resolveFailedNotice(
+    const requestedFailureNotice = resolveFailedNotice(
       rawQueryParam(c.req.url, "failed"),
       deps.panelIdToRefreshSourceNames,
     );
+    const failedNotice = requestedFailureNotice
+      ?? resolveRefreshHealthNotice(deps.getRefreshHealth?.());
     const notice = failedNotice ?? resolveSkippedNotice(
       rawQueryParam(c.req.url, "skipped"),
       deps.panelIdToRefreshSourceNames,
