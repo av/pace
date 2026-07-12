@@ -319,6 +319,26 @@ it("academic-papers uses reader-facing panel headings with stable IDs", () => {
   expect(html).toContain('action="/refresh/papers-categories"');
 });
 
+it("release-tracker uses reader-facing panel headings with stable IDs", () => {
+  const parsed = loadPresetYaml("release-tracker");
+  const validated = validateParsedConfig(parsed, DEFAULT_LAYOUT);
+  const html = renderDashboard({
+    layout: validated.layout,
+    panelData: mockPanelData(validated.layout),
+    updatedAt: "2026-07-12 12:00:00",
+  });
+
+  expect(
+    collectPanels(validated.layout).map(({ panel, id }) => [panel, id]),
+  ).toEqual([
+    ["Dependency Releases", "releases"],
+    ["Release Discussion", "release-chatter"],
+    ["Trending Repositories", "trending"],
+  ]);
+  expect(html).toContain('<h2 title="Dependency Releases">Dependency Releases</h2>');
+  expect(html).toContain('action="/refresh/releases"');
+});
+
 // ============================================================
 // 3. config.example.yaml Validity
 // ============================================================

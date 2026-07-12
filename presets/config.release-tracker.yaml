@@ -66,12 +66,14 @@ layout:
     - direction: column
       flex: 1
       children:
-        - panel: releases
+        - panel: Dependency Releases
+          id: releases
           flex: 2
           source: gh-releases
           limit: 20
 
-        - panel: release-chatter
+        - panel: Release Discussion
+          id: release-chatter
           flex: 1
           source: release-chatter
           limit: 10
@@ -85,7 +87,8 @@ layout:
           object_fit: contain
           max_height: "32px"
 
-        - panel: trending
+        - panel: Trending Repositories
+          id: trending
           flex: 3
           source: gh-trending
           limit: 20

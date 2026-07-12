@@ -19,6 +19,9 @@
 - label: The academic-papers preset presents descriptive research-oriented panel headings instead of internal lowercase slugs, while explicit IDs preserve existing refresh routes and stored panel identity
   command: bun test src/preset-config-validity.test.ts --test-name-pattern 'academic-papers uses reader-facing panel headings with stable IDs'
   tags: [spec, implemented, academic-preset-headings]
+- label: The release-tracker preset uses dependency-maintenance headings for releases, discussion, and trending repositories instead of generic/internal labels, with explicit IDs preserving refresh routes and stored panel identity
+  command: bun test src/preset-config-validity.test.ts --test-name-pattern 'release-tracker uses reader-facing panel headings with stable IDs'
+  tags: [spec, implemented, release-preset-headings]
 
 ## validation
 - label: layout panel source objects accept only adapter and params; refresh_interval on layout.source is rejected with config: error directing users to adapters[]
