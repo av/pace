@@ -42,13 +42,33 @@ interface RssFeedParsed {
 
 interface TaggedRssItem {
   raw: RssFeedItem;
+  feedUrl: string;
   source: string;
   timestamp: Date;
 }
 
-/** Extract the display fields and canonical ID from a raw RSS entry. */
-function extractRssFields(raw: RssFeedItem) {
+/** Resolve feed-relative entry links without rewriting already-absolute links. */
+function resolveRssLink(raw: RssFeedItem, feedUrl: string): string {
   const link = extractAtomLink(raw.link);
+  if (!link) return "";
+
+  try {
+    // Preserve absolute links exactly as published. The second parse handles
+    // root-relative, path-relative, protocol-relative, query, and hash links.
+    new URL(link);
+    return link;
+  } catch {
+    try {
+      return new URL(link, feedUrl).href;
+    } catch {
+      return link;
+    }
+  }
+}
+
+/** Extract the display fields and canonical ID from a raw RSS entry. */
+function extractRssFields(raw: RssFeedItem, feedUrl: string) {
+  const link = resolveRssLink(raw, feedUrl);
   const title = decodeFeedEntryTitle(raw.title);
   const body = extractFeedEntryStrippedBody(raw);
   const id = `rss:${link || `${title}:${simpleHash(body ?? "")}`}`;
@@ -56,13 +76,13 @@ function extractRssFields(raw: RssFeedItem) {
 }
 
 function rssDedupeKey(item: TaggedRssItem): string {
-  const link = extractAtomLink(item.raw.link);
+  const link = resolveRssLink(item.raw, item.feedUrl);
   if (link) return link;
-  return extractRssFields(item.raw).id;
+  return extractRssFields(item.raw, item.feedUrl).id;
 }
 
 function projectRssItem(item: TaggedRssItem): ContentItemProjection {
-  const { link, title, body, id } = extractRssFields(item.raw);
+  const { link, title, body, id } = extractRssFields(item.raw, item.feedUrl);
   return {
     id,
     title,
@@ -85,6 +105,7 @@ async function fetchFeed(url: string, limit: number): Promise<TaggedRssItem[]> {
   const source = feedTitle ?? (extractHostname(url, "rss") || url);
   return sliceAndMap(items, limit, (raw) => ({
     raw,
+    feedUrl: url,
     source,
     timestamp: parseFeedEntryTimestamp(raw, FEED_ENTRY_DATE_RSS_ORDER),
   }));

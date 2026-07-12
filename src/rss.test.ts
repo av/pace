@@ -61,6 +61,39 @@ describe("rss", () => {
     });
   });
 
+  test("resolves relative entry links against the feed URL", async () => {
+    mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("feed.atom")) {
+        return makeXmlResponse(`<?xml version="1.0"?>
+          <feed xmlns="http://www.w3.org/2005/Atom">
+            <title>Relative Atom</title>
+            <entry><title>Atom entry</title><link href="../posts/atom" /></entry>
+          </feed>`);
+      }
+      return makeXmlResponse(`<?xml version="1.0"?>
+        <rss version="2.0"><channel><title>Relative RSS</title>
+          <item><title>RSS entry</title><link>/posts/rss</link></item>
+        </channel></rss>`);
+    });
+
+    const items = await rssAdapter.fetch(rssCfg({
+      urls: [
+        "https://news.example.com/feeds/releases.xml",
+        "https://news.example.com/feeds/feed.atom",
+      ],
+    }));
+
+    expect(items.map((item) => item.url).sort()).toEqual([
+      "https://news.example.com/posts/atom",
+      "https://news.example.com/posts/rss",
+    ]);
+    expect(items.map((item) => item.id).sort()).toEqual([
+      "rss:https://news.example.com/posts/atom",
+      "rss:https://news.example.com/posts/rss",
+    ]);
+  });
+
   test("merges multiple urls (RSS + Atom)", async () => {
     const items = await rssAdapter.fetch(
       rssCfg({ urls: ["https://ex.com/rss", "https://ex.com/atom"] }),

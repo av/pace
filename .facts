@@ -71,6 +71,11 @@
 - stackexchange adapter source contains no dead/unused 'warnAndReturnEmpty' helper function (nor its multi-line comment claiming to centralize warn+return[] for fetch errors); the dead code was removed after its call sites in !ok/catch were updated to throw per the Adapter contract and errorMessage usage in types.ts (verifiable by: ! grep -q 'warnAndReturnEmpty' src/adapters/stackexchange.ts ) @implemented
 - podcast adapter source contains no over-engineered 'warnAndReturnEmpty' helper function (nor its multi-line JSDoc claiming to 'Centralize the repeated warn + return [] pattern used for recoverable fetch/parse issues'); after prior contract updates the helper is only called from one site and has been inlined there for simplicity (verifiable by: ! grep -q 'warnAndReturnEmpty' src/adapters/podcast.ts ) @implemented
 
+## rss
+- label: RSS and Atom entry links that are relative URLs are resolved against their feed URL before item IDs, deduplication, and rendering, so fetched entries remain clickable
+  command: bun test src/rss.test.ts --test-name-pattern 'resolves relative entry links against the feed URL'
+  tags: [spec, implemented, rss-relative-links]
+
 # rendering
 - The Dashboard is fully server-rendered HTML with no client-side JavaScript; it works in any browser, including on mobile, and updates require a page reload or explicit refresh
 - label: LayoutNodeConfig is a union of five variants: FlexContainerConfig, PanelConfig, ImageWidgetConfig, TextWidgetConfig, and IframeWidgetConfig; each discriminated by a unique key (direction+children, panel, image, text, iframe)
