@@ -353,3 +353,8 @@
 - label: README.md describes Pace in plain concrete language: self-hosted dashboard, YAML config, Bun or Docker runtime, optional LLM transforms, and no hype phrases like revolutionary, game-changing, internet you actually follow, or noisy sources
   command: grep -q 'self-hosted dashboard' README.md && grep -q 'YAML' README.md && grep -q 'Bun process or Docker container' README.md && grep -q 'optional' README.md && ! grep -Ei '\b(revolutionary|game-changing|next-generation|supercharge|unlock|internet you actually follow|noisy sources|dashboard you own)\b' README.md
   tags: [spec, implemented]
+
+# static-dashboards
+- label: Large static snapshots mark their document mode and use browser-native off-screen panel rendering containment, keeping every panel and item in the portable HTML while avoiding initial layout and paint work for panels outside the viewport
+  command: bun test src/share-export.test.ts --test-name-pattern 'contains off-screen panels without dropping snapshot content'
+  tags: [spec, implemented, large-static-rendering]

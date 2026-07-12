@@ -29,7 +29,7 @@ const Dashboard: FC<DashboardProps> = ({ layout, panelData, updatedAt, cssHref, 
       <title>pace</title>
       <link rel="stylesheet" href={cssHref ?? `${basePath}/styles.css`} />
     </head>
-    <body>
+    <body class={mode === "static" ? "static-dashboard" : undefined}>
       {notice ? (
         <div
           class={noticeTone === "error" ? "refresh-notice refresh-notice-error" : "refresh-notice"}

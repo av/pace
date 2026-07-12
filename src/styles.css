@@ -156,6 +156,13 @@ a:hover {
   .flex-panel > .panel > .counter-panel {
     overflow-y: visible;
   }
+
+  /* Large portable snapshots can contain thousands of items. Keep all content
+     searchable in the DOM while deferring layout/paint for off-screen panels. */
+  .static-dashboard .flex-panel {
+    content-visibility: auto;
+    contain-intrinsic-block-size: 4100px;
+  }
 }
 
 /* footer (tiny caption; pushed to bottom via flex:1 on .flex-root) */

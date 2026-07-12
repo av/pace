@@ -65,6 +65,39 @@ describe("static dashboard export", () => {
     });
   });
 
+  test("contains off-screen panels without dropping snapshot content", () => {
+    const children = ["Incidents", "Deployments", "Dependencies"].map((panel) => ({
+      panel,
+      id: panel.toLowerCase(),
+      source: panel.toLowerCase(),
+    }));
+    const config: AppConfig = {
+      adapters: [],
+      layout: { direction: "column", children },
+    };
+    const panelData = new Map<string, PanelData>(children.map(({ panel, id }) => [
+      panel,
+      {
+        panelId: id,
+        items: Array.from({ length: 50 }, (_, index) => makeContentItemRow({
+          id: `${id}-${index}`,
+          title: `${panel} item ${index + 1}`,
+          source: id,
+        })),
+      },
+    ]));
+
+    const { html, css } = renderStaticDashboard(config, { panelData });
+
+    expect(html).toContain('<body class="static-dashboard">');
+    expect(html.match(/class="item"/g)).toHaveLength(150);
+    expect(html).toContain("Incidents item 50");
+    expect(html).toContain("Dependencies item 50");
+    expect(css).toContain(".static-dashboard .flex-panel");
+    expect(css).toContain("content-visibility: auto");
+    expect(css).toContain("contain-intrinsic-block-size: 4100px");
+  });
+
   test("omits refresh forms, buttons, and actions from static panel HTML", () => {
     initDb();
     saveItems("links-panel", [
