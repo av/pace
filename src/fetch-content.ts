@@ -10,7 +10,10 @@ const MAX_REDIRECTS = 5;
 
 export interface FetchItemContentsOptions {
   allowPrivateNetwork?: boolean;
+  onPrivateNetworkBlocked?: () => void;
 }
+
+class PrivateNetworkBlockedError extends Error {}
 
 function isPrivateIpv4(address: string): boolean {
   const octets = address.split(".").map(Number);
@@ -41,7 +44,9 @@ async function assertContentFetchUrlAllowed(url: URL, allowPrivateNetwork: boole
   const addresses = isIP(hostname)
     ? [hostname]
     : (await lookup(hostname, { all: true, verbatim: true })).map((entry) => entry.address);
-  if (addresses.length === 0 || addresses.some(isPrivateAddress)) throw new Error("private network destination blocked");
+  if (addresses.length === 0 || addresses.some(isPrivateAddress)) {
+    throw new PrivateNetworkBlockedError("private network destination blocked");
+  }
 }
 
 async function fetchAllowedContentUrl(url: string, signal: AbortSignal, allowPrivateNetwork: boolean): Promise<Response> {
@@ -109,7 +114,8 @@ async function fetchItemContent(url: string, options: FetchItemContentsOptions):
     const raw = new TextDecoder().decode(combined);
     const text = contentType.includes("text/html") ? htmlToText(raw) : raw.replace(/\s+/g, " ").trim();
     return text.slice(0, MAX_EXTRACTED_CHARS) || null;
-  } catch {
+  } catch (error) {
+    if (error instanceof PrivateNetworkBlockedError) options.onPrivateNetworkBlocked?.();
     return null;
   } finally {
     clearTimeout(timer);

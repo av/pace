@@ -409,3 +409,6 @@
 - label: LLM fetch_content blocks loopback, private, and link-local destinations and redirect hops by default, while an explicit transform opt-in permits trusted private-network development sources
   command: bun test src/fetch-content.test.ts src/fetch-content-config.test.ts --test-name-pattern 'private network'
   tags: [spec, pace-use-case-fetch-content-ssrf, implemented]
+- label: When fetch_content blocks private-network destinations, Pace emits a credential-free aggregate security warning that identifies the trusted-source opt-in without exposing target URLs
+  command: bun test src/fetch-content.test.ts --test-name-pattern 'adversarial private network'
+  tags: [spec, pace-use-case-fetch-content-ssrf-diagnostics, implemented]

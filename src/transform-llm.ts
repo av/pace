@@ -68,11 +68,20 @@ async function summarizeRows(
 
   let fetchedContent: Map<string, string> | undefined;
   if (fetchContent) {
+    let privateNetworkBlockedCount = 0;
     const content = await fetchItemContents(
       pending.map((row) => ({ id: row.id, url: row.url })),
-      { allowPrivateNetwork: fetchContentAllowPrivate },
+      {
+        allowPrivateNetwork: fetchContentAllowPrivate,
+        onPrivateNetworkBlocked: () => privateNetworkBlockedCount++,
+      },
     );
     fetchedContent = content;
+    if (privateNetworkBlockedCount > 0) {
+      warnLlm(
+        `fetch_content blocked ${privateNetworkBlockedCount} private-network request(s); set fetch_content_allow_private only for trusted local sources`,
+      );
+    }
     const unavailableCount = pending.reduce(
       (count, row) => count + (content.has(row.id) ? 0 : 1),
       0,

@@ -207,6 +207,55 @@ describe("fetch_content in llm-summarize", () => {
     expect(callArg.messages[0].content).toContain("Trusted local article");
   });
 
+  test("adversarial private network URL forms are blocked with a safe aggregate diagnostic", async () => {
+    const fetchMock = makeFetchMock();
+    const urls = [
+      "http://2130706433/secret",
+      "http://0177.0.0.1/secret",
+      "http://0x7f000001/secret",
+      "http://127.1/secret",
+      "http://[::ffff:127.0.0.1]/secret",
+      "http://[0:0:0:0:0:ffff:7f00:1]/secret",
+      "http://[::1]/secret",
+      "http://[fe80::1]/secret",
+      "http://LOCALHOST./secret",
+      "http://LoCaLhOsT/secret",
+    ];
+    await runPipeline(
+      urls.map((url, index) => makeRow({ id: String(index), url, summary: null })),
+      [{ type: "llm-summarize", fetch_content: true }],
+      { llmModel: fakeModel },
+    );
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith(
+      "llm: fetch_content blocked 10 private-network request(s); set fetch_content_allow_private only for trusted local sources",
+    );
+    expect(warnSpy.mock.calls.flat().join(" ")).not.toContain("127.0.0.1");
+    expect(warnSpy.mock.calls.flat().join(" ")).not.toContain("localhost");
+  });
+
+  test("redirect loops and malformed locations fail within the redirect cap", async () => {
+    const fetchMock = makeFetchMock();
+    fetchMock.mockImplementation((url: URL) => Promise.resolve(
+      String(url).includes("malformed")
+        ? new Response(null, { status: 302, headers: { location: "http://[" } })
+        : new Response(null, {
+          status: 302,
+          headers: { location: "http://93.184.216.34/loop" },
+        }),
+    ));
+    await runPipeline([
+      makeRow({ id: "loop", url: "http://93.184.216.34/loop", summary: null }),
+      makeRow({ id: "malformed", url: "http://93.184.216.34/malformed", summary: null }),
+    ], [{ type: "llm-summarize", fetch_content: true }], { llmModel: fakeModel });
+
+    expect(fetchMock).toHaveBeenCalledTimes(7);
+    expect(warnSpy).toHaveBeenCalledWith(
+      "llm: fetch_content unavailable for 2 of 2 pending item(s); summaries will use available item metadata",
+    );
+  });
+
   test("skips fetch for items with empty url", async () => {
     const fetchMock = makeFetchMock();
     fetchMock.mockResolvedValue(makeHtmlResponse("<p>Irrelevant</p>"));
