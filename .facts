@@ -28,6 +28,9 @@
 - label: The video-podcast preset subscribes to current publisher feeds for The Changelog and Latent Space, not reassigned third-party feed URLs serving unrelated shows, while retaining the Lex Fridman subscription
   command: bun test src/preset-config-validity.test.ts --test-name-pattern 'video-podcast uses the advertised publisher feeds'
   tags: [spec, implemented, media-preset-feeds]
+- label: The daily-brief headline adapter caps BBC World and Ars Technica independently at ten items before merging and deduplication, yielding a fresh up-to-20-item source-balanced mix without keyword-score ties filling remaining slots from the first configured feed
+  command: bun test src/preset-config-validity.test.ts --test-name-pattern 'daily-brief balances world and technology headline fixtures'
+  tags: [spec, implemented, daily-brief-source-balance]
 
 ## validation
 - label: layout panel source objects accept only adapter and params; refresh_interval on layout.source is rejected with config: error directing users to adapters[]

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from "bun:test";
+import { describe, it, expect, beforeAll, spyOn } from "bun:test";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import yaml from "js-yaml";
@@ -20,6 +20,10 @@ import { isAdapterType, ADAPTER_PARAM_KEYS } from "./adapters/params";
 import { DEFAULT_LAYOUT } from "./config/domain";
 import { makeContentItemRow as makeItem } from "./test/content-items";
 import { applyKeywordScore } from "./transform-rank";
+import rssAdapter from "./adapters/rss";
+import { contentItemToRow } from "./db";
+import { runPipeline } from "./transforms";
+import { makeXmlResponse } from "./test/fetch-responses";
 
 const ROOT = join(import.meta.dir, "..");
 const PRESETS_DIR = join(ROOT, "presets");
@@ -371,6 +375,47 @@ it("video-podcast uses the advertised publisher feeds", () => {
   ]);
   expect(podcast?.params?.feeds).not.toContain("https://feeds.simplecast.com/54nAGcIl");
   expect(podcast?.params?.feeds).not.toContain("https://feeds.buzzsprout.com/2226484.rss");
+});
+
+it("daily-brief balances world and technology headline fixtures", async () => {
+  const parsed = loadPresetYaml("daily-brief");
+  const validated = validateParsedConfig(parsed, DEFAULT_LAYOUT);
+  const headlines = validated.adapters.find(({ name }) => name === "headlines");
+  if (!headlines) throw new Error("daily-brief is missing headlines adapter");
+
+  const fixture = (source: string, slug: string) => `<?xml version="1.0"?>
+    <rss version="2.0"><channel><title>${source}</title>
+      ${Array.from({ length: 12 }, (_, index) => {
+        const marker = String.fromCharCode((slug === "bbc" ? 65 : 78) + index).repeat(20);
+        return `
+        <item><title>${marker} report ${index + 1}</title>
+          <link>https://example.com/${slug}/${index + 1}</link>
+          <pubDate>Sun, 12 Jul 2026 ${String(23 - index).padStart(2, "0")}:00:00 GMT</pubDate>
+        </item>`;
+      }).join("")}
+    </channel></rss>`;
+  const fetchImpl = (async (input: RequestInfo | URL) =>
+    makeXmlResponse(String(input).includes("bbci")
+      ? fixture("BBC World", "bbc")
+      : fixture("Ars Technica", "ars"))) as typeof fetch;
+  const fetchMock = spyOn(globalThis, "fetch").mockImplementation(fetchImpl);
+
+  try {
+    const fetched = await rssAdapter.fetch(headlines);
+    const transformed = await runPipeline(
+      fetched.map((item) => contentItemToRow(item)),
+      headlines.transforms ?? [],
+      { llmModel: null },
+    );
+    expect(headlines.params?.limit).toBe(10);
+    expect(transformed).toHaveLength(20);
+    expect(Object.groupBy(transformed, ({ source }) => source)).toMatchObject({
+      "BBC World": { length: 10 },
+      "Ars Technica": { length: 10 },
+    });
+  } finally {
+    fetchMock.mockRestore();
+  }
 });
 
 // ============================================================

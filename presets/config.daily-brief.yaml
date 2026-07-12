@@ -40,6 +40,8 @@ adapters:
       urls:
         - https://feeds.bbci.co.uk/news/world/rss.xml
         - https://feeds.arstechnica.com/arstechnica/index
+      # Keep the briefing mix balanced even when one feed publishes more often.
+      limit: 10
     refresh_interval: 30
     transforms:
       # Remove near-duplicate titles across feeds.
@@ -47,24 +49,6 @@ adapters:
         strategy: title-similarity
         threshold: 0.8
         keep: earliest
-      # Score by topic relevance - weighted keyword matching.
-      - type: keyword-score
-        keywords:
-          - term: "breaking|urgent|exclusive|developing"
-            weight: 15
-            regex: true
-          - term: "war|conflict|attack|crisis|killed|dead|election|coup|sanctions"
-            weight: 10
-            regex: true
-          - term: "climate|earthquake|hurricane|flood|wildfire"
-            weight: 8
-            regex: true
-          - term: "recipe|lifestyle|celebrity|quiz"
-            weight: -5
-            regex: true
-        annotate: false
-      - type: latest
-        count: 20
 
   # Quick-access links for the morning routine.
   - name: my-tools
