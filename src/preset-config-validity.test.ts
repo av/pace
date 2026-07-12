@@ -359,6 +359,20 @@ it("product-launches filters community posts for launch intent", () => {
   expect(result.map(({ id }) => id)).toEqual(["launch"]);
 });
 
+it("video-podcast uses the advertised publisher feeds", () => {
+  const parsed = loadPresetYaml("video-podcast");
+  const validated = validateParsedConfig(parsed, DEFAULT_LAYOUT);
+  const podcast = validated.adapters.find(({ type }) => type === "podcast");
+
+  expect(podcast?.params?.feeds).toEqual([
+    "https://changelog.com/podcast/feed",
+    "https://api.substack.com/feed/podcast/1084089.rss",
+    "https://lexfridman.com/feed/podcast/",
+  ]);
+  expect(podcast?.params?.feeds).not.toContain("https://feeds.simplecast.com/54nAGcIl");
+  expect(podcast?.params?.feeds).not.toContain("https://feeds.buzzsprout.com/2226484.rss");
+});
+
 // ============================================================
 // 3. config.example.yaml Validity
 // ============================================================

@@ -25,6 +25,9 @@
 - label: The product-launches community pipeline requires a positive launch-intent keyword score before recency ranking, so generic community posts and negatively weighted hiring/job posts do not occupy launch discovery slots
   command: bun test src/preset-config-validity.test.ts --test-name-pattern 'product-launches filters community posts for launch intent'
   tags: [spec, implemented, product-launch-intent]
+- label: The video-podcast preset subscribes to current publisher feeds for The Changelog and Latent Space, not reassigned third-party feed URLs serving unrelated shows, while retaining the Lex Fridman subscription
+  command: bun test src/preset-config-validity.test.ts --test-name-pattern 'video-podcast uses the advertised publisher feeds'
+  tags: [spec, implemented, media-preset-feeds]
 
 ## validation
 - label: layout panel source objects accept only adapter and params; refresh_interval on layout.source is rejected with config: error directing users to adapters[]

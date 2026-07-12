@@ -6,8 +6,8 @@ adapters:
   - type: podcast
     params:
       feeds:
-        - https://feeds.simplecast.com/54nAGcIl          # The Changelog
-        - https://feeds.buzzsprout.com/2226484.rss       # Latent Space
+        - https://changelog.com/podcast/feed             # The Changelog
+        - https://api.substack.com/feed/podcast/1084089.rss # Latent Space
         - https://lexfridman.com/feed/podcast/
       limit: 10
     refresh_interval: 300
