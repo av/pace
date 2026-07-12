@@ -423,6 +423,35 @@ describe("llm", () => {
         expect(model!.id).toBe("__pace_test_nonexistent_model__");
       });
     });
+
+    test("configured API key is passed explicitly for a custom provider", async () => {
+      const completeSpy = spyOn(piAi, "complete").mockResolvedValue({
+        content: [{ type: "text", text: "ok" }],
+        stopReason: "stop",
+      } as unknown as Awaited<ReturnType<typeof piAi.complete>>);
+      try {
+        await spyConsole(["warn"], async () => {
+          const model = createModel({
+            provider: "custom-openai-compatible",
+            model: "custom-model",
+            api_key: "pace-config-only-secret",
+            base_url: "http://localhost:11434/v1",
+          });
+          expect(model).not.toBeNull();
+          expect(JSON.stringify(model)).not.toContain("pace-config-only-secret");
+
+          const ctx: piAi.Context = {
+            systemPrompt: "test",
+            messages: [{ role: "user", content: "hi", timestamp: Date.now() }],
+          };
+          expect(await safeComplete(model!, ctx)).toBe("ok");
+          const options = completeSpy.mock.calls[0][2] as piAi.StreamOptions;
+          expect(options.apiKey).toBe("pace-config-only-secret");
+        });
+      } finally {
+        completeSpy.mockRestore();
+      }
+    });
   });
 
   describe("null model", () => {

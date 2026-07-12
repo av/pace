@@ -14,9 +14,16 @@ import { warnLlm } from "./llm-warn";
 import { errorMessage, isTimeoutError } from "./utils";
 
 const KNOWN_PROVIDERS = new Set<string>(getProviders());
+const CONFIGURED_MODEL_API_KEYS = new WeakMap<Model<Api>, string>();
 
 function isKnownProvider(provider: string): provider is KnownProvider {
   return KNOWN_PROVIDERS.has(provider);
+}
+
+/** Keep credentials out of model metadata while binding them to every completion using that model. */
+function bindConfiguredApiKey(model: Model<Api>, apiKey: string): Model<Api> {
+  CONFIGURED_MODEL_API_KEYS.set(model, apiKey);
+  return model;
 }
 
 const PROVIDER_ENV_KEYS: Record<string, string> = {
@@ -51,7 +58,7 @@ export function createModel(config: LlmConfig): Model<Api> | null {
 
   if (isKnownProvider(config.provider)) {
     const model = getModels(config.provider).find((m) => m.id === config.model);
-    if (model) return model;
+    if (model) return bindConfiguredApiKey(model, config.api_key);
   }
 
   warnLlm(
@@ -69,7 +76,7 @@ export function createModel(config: LlmConfig): Model<Api> | null {
     contextWindow: 128000,
     maxTokens: 4096,
   };
-  return customModel as Model<Api>;
+  return bindConfiguredApiKey(customModel as Model<Api>, config.api_key);
 }
 
 /** Strip markdown code fences before JSON.parse. */
@@ -121,6 +128,7 @@ export async function safeComplete(
   try {
     const response = await complete(model, context, {
       signal: AbortSignal.timeout(effectiveTimeoutMs),
+      apiKey: CONFIGURED_MODEL_API_KEYS.get(model),
     });
     if (response.stopReason === "error") {
       warnLlm(

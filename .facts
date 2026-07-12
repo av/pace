@@ -403,3 +403,6 @@
 - label: LLM completion diagnostics classify provider response failures by actionable HTTP status without logging provider-controlled error text, and report responses containing no text
   command: bun test src/llm.test.ts --test-name-pattern 'provider response diagnostics'
   tags: [spec, pace-use-case-safe-llm-provider-errors, implemented]
+- label: Every LLM completion created from Pace configuration uses that configuration api_key explicitly, including custom OpenAI-compatible providers without provider environment variables
+  command: bun test src/llm.test.ts --test-name-pattern 'configured API key'
+  tags: [spec, pace-use-case-custom-provider-api-key, implemented]
