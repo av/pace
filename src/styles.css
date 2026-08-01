@@ -484,6 +484,9 @@ a:hover {
   display: flex;
   flex-direction: column;
   color: var(--text-primary);
+  /* Match the feed panels' type scale — the browser-default 1rem reads
+     oversized next to 0.85rem item titles. */
+  font-size: 0.85rem;
   line-height: 1.6;
   overflow: hidden;
 }
