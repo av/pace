@@ -54,6 +54,27 @@ describe("escapeXml", () => {
   test("passes plain text through unchanged", () => {
     expect(escapeXml("plain text 123")).toBe("plain text 123");
   });
+
+  test("strips XML-illegal control characters so the feed stays well-formed", () => {
+    // C0 controls (NUL, backspace, vertical tab, form feed, ESC) are illegal in
+    // XML 1.0 even when escaped; strict feed-reader parsers reject the whole
+    // document if any survive. They must be dropped, not passed through.
+    expect(escapeXml("a\x00b\x08c\x0Bd\x0Ce\x1Bf")).toBe("abcdef");
+    // Legal whitespace controls (tab, LF, CR) are preserved.
+    expect(escapeXml("a\tb\nc\rd")).toBe("a\tb\nc\rd");
+  });
+
+  test("a control char in item content leaves a strictly-parseable feed", () => {
+    const xml = renderRssItem(
+      makeContentItemRow({
+        title: "Hello\x0Bworld",
+        summary: "desc with \x00 and \x1B[bad",
+      }),
+    );
+    // The strict parser must not see any raw control character.
+    expect(/[\x00-\x08\x0B\x0C\x0E-\x1F]/.test(xml)).toBe(false);
+    expect(xml).toContain("<title>Helloworld</title>");
+  });
 });
 
 describe("formatRssDate", () => {

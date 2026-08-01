@@ -14,9 +14,20 @@ export const RSS_PANEL_SUFFIX = ".rss";
 /** Content type served for panel RSS feeds. */
 export const RSS_CONTENT_TYPE = "application/rss+xml; charset=utf-8";
 
+/**
+ * Characters that are illegal in an XML 1.0 document even when escaped: the C0
+ * control range minus tab (#x9), LF (#xA), CR (#xD), plus the two non-characters
+ * #xFFFE/#xFFFF. Aggregated feed content routinely carries stray control bytes
+ * (form feeds, ANSI escapes, NULs from bad scrapes); left in, a single one makes
+ * the whole feed unparseable to strict readers, so they are dropped before
+ * escaping rather than emitted as-is.
+ */
+const XML_ILLEGAL_CHARS = /[\x00-\x08\x0B\x0C\x0E-\x1F\uFFFE\uFFFF]/g;
+
 /** Escape a string for use in XML text content or attribute values. */
 export function escapeXml(value: string): string {
   return value
+    .replace(XML_ILLEGAL_CHARS, "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
