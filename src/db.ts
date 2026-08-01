@@ -581,6 +581,31 @@ export function pruneForeignOwnedPanelItems(
   return res.changes;
 }
 
+/**
+ * Count stored rows whose panel_id is not among the current config's panel
+ * ids. Panels without an explicit `id:` derive their id from a hash of
+ * name+source+limit, so renaming such a panel orphans its old rows: they are
+ * invisible (nothing reads that panel_id anymore) but stay in the db until
+ * the retention prune ages them out. They are deliberately NOT deleted here -
+ * an unknown panel_id can also belong to another config sharing this db file
+ * - so callers should surface the count instead of acting on it.
+ */
+export function countOrphanedPanelItems(
+  knownPanelIds: readonly string[],
+): { items: number; panels: number } {
+  const db = getDb();
+  // SQLite rejects an empty `IN ()` list: with no known panels every row is
+  // orphaned.
+  const notKnown = knownPanelIds.length === 0
+    ? ""
+    : ` WHERE panel_id NOT IN (${knownPanelIds.map(() => "?").join(", ")})`;
+  return db
+    .prepare(
+      `SELECT COUNT(*) AS items, COUNT(DISTINCT panel_id) AS panels FROM content_items${notKnown}`,
+    )
+    .get(...knownPanelIds) as { items: number; panels: number };
+}
+
 export function replacePanelItems(panelId: string, items: ContentItemRow[]): void {
   const db = getDb();
 

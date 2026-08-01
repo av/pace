@@ -143,6 +143,53 @@ describe("scheduler", () => {
     expect(dbMod.getAllItemsByPanel("mixed").map((r) => r.id)).toEqual(["b1"]);
   });
 
+  test("startScheduler surfaces (but keeps) rows stored under panel ids the config no longer produces", async () => {
+    // Renaming a panel WITHOUT an explicit `id:` changes its hash-derived
+    // panel id: the old rows become invisible orphans that sit in the db
+    // until the retention prune. Deleting them would be unsafe (another
+    // config sharing the db file legitimately owns unknown panel ids), so
+    // startup logs a line instead of acting.
+    const adapterA = makeMockAdapter([
+      makeContentItem({ id: "a1", title: "from a", url: "https://ex/a1", source: "a" }),
+    ]);
+    const config = testAppConfig(
+      { adapters: [{ type: "ta", name: "a", refresh_interval: 60 }] },
+      { direction: "row", panels: [{ panel: "Mine", source: "a", id: "mine", limit: 50 }] },
+    );
+    const pm = sourcePanelMapFromConfig(config);
+
+    // Rows under panel ids this config never writes: e.g. a pre-rename
+    // hash-derived id, or a sibling config on the same db file.
+    dbMod.saveItems("deadbeef", [
+      makeContentItem({ id: "o1", title: "orphan", url: "https://ex/o1", source: "gone" }),
+      makeContentItem({ id: "o2", title: "orphan", url: "https://ex/o2", source: "gone" }),
+    ]);
+    dbMod.saveItems("cafe0123", [
+      makeContentItem({ id: "o3", title: "orphan", url: "https://ex/o3", source: "gone" }),
+    ]);
+
+    await spyConsole(["log"], ({ log: logSpy }) => {
+      startTestScheduler(config, adaptersMap(["ta", adapterA]), pm, null);
+      expect(
+        spyMockCallsContaining(
+          logSpy,
+          "3 stored item(s) under 2 unknown panel id(s) (renamed panels or another config sharing this db); removed by the 30-day retention prune",
+        ),
+      ).toHaveLength(1);
+    });
+    // Surfaced, never deleted.
+    expect(dbMod.getAllItemsByPanel("deadbeef").length).toBe(2);
+    expect(dbMod.getAllItemsByPanel("cafe0123").length).toBe(1);
+    stopTestScheduler();
+
+    // No orphans -> no log line.
+    dbMod.getDb().prepare("DELETE FROM content_items WHERE panel_id IN (?, ?)").run("deadbeef", "cafe0123");
+    await spyConsole(["log"], ({ log: logSpy }) => {
+      startTestScheduler(config, adaptersMap(["ta", adapterA]), pm, null);
+      expect(spyMockCallsContaining(logSpy, "unknown panel id(s)")).toHaveLength(0);
+    });
+  });
+
   test("startScheduler reconciliation keeps pipeline output rows (owner is the pipeline's input adapter)", async () => {
     const adapterA = makeMockAdapter([
       makeContentItem({ id: "a1", title: "raw", url: "https://ex/a1", source: "a" }),

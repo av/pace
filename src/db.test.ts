@@ -17,6 +17,7 @@ import {
   DEFAULT_PANEL_LIMIT,
   pruneOldItems,
   pruneForeignOwnedPanelItems,
+  countOrphanedPanelItems,
   replacePanelItems,
   contentRowToItem,
   contentItemToRow,
@@ -504,6 +505,25 @@ test("pruneForeignOwnedPanelItems removes rows whose owner no longer feeds the p
   expect(removed).toBe(1);
   expect(getAllItemsByPanel("p1").map((r) => r.id).sort()).toEqual(["keep1", "legacy1"]);
   expect(getAllItemsByPanel("p2").map((r) => r.id)).toEqual(["other1"]);
+});
+
+test("countOrphanedPanelItems counts rows and distinct panels outside the known set without deleting anything", () => {
+  initDb();
+  saveItems("known1", [makeItem({ id: "k1", url: "https://ex.com/k1", timestamp: new Date("2020-01-01") })]);
+  saveItems("old-a", [
+    makeItem({ id: "oa1", url: "https://ex.com/oa1", timestamp: new Date("2020-01-01") }),
+    makeItem({ id: "oa2", url: "https://ex.com/oa2", timestamp: new Date("2020-01-01") }),
+  ]);
+  saveItems("old-b", [makeItem({ id: "ob1", url: "https://ex.com/ob1", timestamp: new Date("2020-01-01") })]);
+
+  expect(countOrphanedPanelItems(["known1"])).toEqual({ items: 3, panels: 2 });
+  expect(countOrphanedPanelItems(["known1", "old-a", "old-b"])).toEqual({ items: 0, panels: 0 });
+  // Empty known set: every stored row is outside it.
+  expect(countOrphanedPanelItems([])).toEqual({ items: 4, panels: 3 });
+  // Counting must never delete - the rows can belong to another config
+  // sharing this db file.
+  expect(getAllItemsByPanel("old-a").length).toBe(2);
+  expect(getAllItemsByPanel("old-b").length).toBe(1);
 });
 
 test("pruneForeignOwnedPanelItems with no allowed owners removes every owned row but keeps unowned rows", () => {

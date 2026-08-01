@@ -1,6 +1,6 @@
 import type { Adapter, ContentItem } from "./adapters/types";
 import type { RefreshResult } from "./refresh-result";
-import { logScheduler, warnPruneFailure, warnRefreshFailure } from "./scheduler-warn";
+import { logScheduler, warnPruneFailure, warnRefreshFailure, warnScheduler } from "./scheduler-warn";
 import { compareIsoTimestamp, errorMessage, getAdapterName } from "./utils";
 
 import type { Model, Api } from "@mariozechner/pi-ai";
@@ -13,6 +13,7 @@ import {
   replacePanelItems,
   prunePanelItemsByIdPrefix,
   pruneForeignOwnedPanelItems,
+  countOrphanedPanelItems,
   pruneOldItems as dbPruneOldItems,
 } from "./db";
 import type { AppConfig, TransformConfig } from "./config/types";
@@ -662,6 +663,34 @@ export function createSchedulerRuntime(state: SchedulerState = createSchedulerSt
       }
 
       const retentionDays = config.server?.retention_days ?? DEFAULT_RETENTION_DAYS;
+
+      // Surface (never delete) rows stored under panel ids this config no
+      // longer produces. Renaming a panel without an explicit `id:` changes
+      // its hash-derived id, orphaning the old rows: invisible, but sitting
+      // in the db until the retention prune. Deleting them here would be
+      // unsafe - an unknown panel_id can equally belong to another config
+      // sharing this db file - so log a startup line instead.
+      try {
+        const knownPanelIds = new Set<string>();
+        for (const pids of panelMap.sourceToPanels.values()) {
+          for (const pid of pids) knownPanelIds.add(pid);
+        }
+        for (const entry of state.pipelineEntries) {
+          for (const pid of entry.panelIds) knownPanelIds.add(pid);
+        }
+        const orphans = countOrphanedPanelItems([...knownPanelIds]);
+        if (orphans.items > 0) {
+          const fate = retentionDays > 0
+            ? `removed by the ${retentionDays}-day retention prune`
+            : "kept indefinitely (server.retention_days: 0)";
+          logScheduler(
+            `${orphans.items} stored item(s) under ${orphans.panels} unknown panel id(s) (renamed panels or another config sharing this db); ${fate}`,
+          );
+        }
+      } catch (err) {
+        warnScheduler(`failed to check for orphaned panel rows: ${errorMessage(err)}`);
+      }
+
       if (retentionDays > 0) {
         pruneOldItems(retentionDays);
         state.pruneTimer = setInterval(() => pruneOldItems(retentionDays), 24 * 60 * 60 * 1000);
