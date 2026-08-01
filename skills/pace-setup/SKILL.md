@@ -55,6 +55,7 @@ pace --help
 | `transforms explain <type>` | Show full documentation for a transform |
 | `config check [path]` | Validate a config file without starting the server |
 | `doctor` | Fetch-check every configured source live; per-source ok/FAIL with error, exit 1 on any failure |
+| `import <feeds.opml> [output.yaml]` | Convert an OPML feed-reader export into a pace config (one rss adapter + panel per folder); stdout by default, file when given |
 | `skill [name]` | List or print bundled agent skills |
 | `share export [dir]` | Export a static dashboard snapshot to a local directory |
 | `share gist` | Publish a static dashboard snapshot to GitHub Gist |

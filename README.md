@@ -130,6 +130,8 @@ docker run -d \
 
 Validate before serving: `pace config check config.yaml`. To verify the configured feeds actually respond, run `pace doctor` — it fetches every source once and reports per-source ok/failure with the underlying error (exit 1 if anything failed).
 
+Migrating from a feed reader? `pace import feeds.opml` converts an OPML export (the standard export format of Feedly, Inoreader, NewsBlur, Miniflux, etc.) into a ready-to-use config: one `rss` adapter and one panel per OPML folder (nested folders join with `` / ``; feeds outside any folder land in a "Feeds" panel). It prints YAML to stdout, or writes to a file when given a second argument — `pace import feeds.opml config.yaml`. Duplicate feeds and outlines without an `xmlUrl` are skipped with a warning, and the generated file passes `pace config check` as-is.
+
 ## Server Configuration
 
 Port and config path come from the CLI or environment:
@@ -258,6 +260,7 @@ pace adapters list            # list all adapter types
 pace adapters explain <type>  # show params and example
 pace config check [path]      # validate a config file
 pace doctor                   # fetch-check every configured source
+pace import feeds.opml        # convert an OPML feed export to a pace config
 ```
 
 ## Transforms

@@ -195,6 +195,7 @@ Commands:
   share gist               Publish a static dashboard snapshot to GitHub Gist
   config check [path]      Validate a config file
   doctor                   Fetch-check every configured source
+  import <feeds.opml>      Convert an OPML feed export to a pace config
 
 Options:
   -c, --config <path>   Path to config file (default: ./config.yaml)

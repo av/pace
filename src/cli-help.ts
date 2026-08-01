@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, existsSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { writeCliStderr, writeCliStdout } from "./cli-log";
@@ -17,6 +17,13 @@ import { TRANSFORM_TYPES } from "./transform-schema";
 import { isRecord } from "./config/types";
 import { discoverAdapters } from "./adapters/index";
 import { formatDoctorReport, formatDoctorUsage, runDoctor } from "./cli-doctor";
+import {
+  formatImportSummary,
+  formatImportUsage,
+  formatImportWarnings,
+  generateImportedConfig,
+  parseOpml,
+} from "./cli-import";
 import { errorMessage, normalizeParamBoolean, parseCliPort } from "./utils";
 import {
   exportStaticDashboard,
@@ -874,6 +881,56 @@ const CLI_COMMANDS: CliCommand[] = [
     },
   },
   {
+    name: "import",
+    summary: "Convert an OPML feed export to a pace config",
+    usage: formatImportUsage(),
+    async run(positionals, values, ctx) {
+      const usage = formatImportUsage();
+      const IMPORT_ALLOWED = new Set(["chdir"]);
+      rejectInvalidCommandOptions(values, usage, IMPORT_ALLOWED);
+      const source = positionals[0];
+      if (source === undefined) {
+        cliFailWithHelp("Missing OPML file argument\n", usage);
+      }
+      if (positionals.length > 2) {
+        cliFailWithHelp(`Unknown argument: ${positionals[2]}\n`, usage);
+      }
+
+      const xml = ctx.deps.tryReadRegularFile(source);
+      if (xml === null) {
+        cliDie(`import: cannot read ${source} (not found or not a regular file)`);
+      }
+
+      let yamlText: string;
+      let summary: string;
+      let warnings: string[];
+      try {
+        const result = parseOpml(xml, source);
+        yamlText = generateImportedConfig(result, source);
+        summary = formatImportSummary(result);
+        warnings = formatImportWarnings(result);
+      } catch (err) {
+        cliDie(errorMessage(err));
+      }
+
+      for (const warning of warnings) writeCliStderr(warning);
+
+      const outputPath = positionals[1];
+      if (outputPath === undefined) {
+        writeCliStderr(`import: ${summary}`);
+        cliExitOk(yamlText);
+      }
+      try {
+        writeFileSync(outputPath, yamlText + "\n");
+      } catch (err) {
+        cliDie(`import: cannot write ${outputPath}: ${errorMessage(err)}`);
+      }
+      cliExitOk(
+        `import: wrote ${summary} to ${outputPath}\nValidate with: pace config check ${outputPath}`,
+      );
+    },
+  },
+  {
     name: "config",
     summary: "Validate config file",
     usage: formatConfigUsage(),
@@ -989,6 +1046,7 @@ Commands:
   share gist               Publish a static dashboard snapshot to GitHub Gist
   config check [path]      Validate a config file
   doctor                   Fetch-check every configured source
+  import <feeds.opml>      Convert an OPML feed export to a pace config
 
 Options:
   -c, --config <path>   Path to config file (default: ./config.yaml)
