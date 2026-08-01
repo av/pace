@@ -226,6 +226,34 @@ function gatherPipelineInputItems(
   return deduped;
 }
 
+function seedSummariesFromPreviousOutput(
+  items: ContentItemRow[],
+  panelIds: string[],
+  ownOutputPrefix: string,
+): ContentItemRow[] {
+  // llm-summarize skips rows that already carry a summary (transform-llm.ts),
+  // but pipeline input is gathered from SOURCE panels (raw adapter rows, no
+  // summaries) while the summaries produced last cycle live on the OUTPUT
+  // panels under rewritten `pipeline:<name>:<id>` ids. Without reuse the
+  // cache never hits, so every cycle re-summarizes (and with fetch_content,
+  // re-fetches) every item. Seed each summary-less input row with the summary
+  // from this pipeline's previous output row of the same original id.
+  const previousSummaries = new Map<string, string>();
+  for (const pid of panelIds) {
+    for (const row of getRawItemsByPanel(pid)) {
+      if (!row.summary || !row.id.startsWith(ownOutputPrefix)) continue;
+      const originalId = row.id.slice(ownOutputPrefix.length);
+      if (!previousSummaries.has(originalId)) previousSummaries.set(originalId, row.summary);
+    }
+  }
+  if (previousSummaries.size === 0) return items;
+  return items.map((row) => {
+    if (row.summary) return row;
+    const summary = previousSummaries.get(row.id);
+    return summary ? { ...row, summary } : row;
+  });
+}
+
 type TransformLogMode = "when-changed" | "always";
 
 interface RunTransformsOptions {
@@ -358,7 +386,11 @@ async function runPipelineJob(scheduler: SchedulerState, entry: PipelineEntry): 
     // from a snapshot gathered before awaited transforms.
     scheduler.panelLocks.withLock(panelIds, async () => {
       const ownOutputPrefix = `${PIPELINE_ID_PREFIX}${config.name}:`;
-      const items = gatherPipelineInputItems(scheduler, config.sources);
+      const items = seedSummariesFromPreviousOutput(
+        gatherPipelineInputItems(scheduler, config.sources),
+        panelIds,
+        ownOutputPrefix,
+      );
       await runTransformsAndReplaceOnPanels(scheduler, panelIds, items, config.transforms, {
         logLabel: `pipeline "${config.name}"`,
         logMode: "always",

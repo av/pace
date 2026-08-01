@@ -1,4 +1,5 @@
 import { describe, test, expect, spyOn } from "bun:test";
+import * as piAi from "@mariozechner/pi-ai";
 import { spyConsole, spyMockCallsContaining } from "./test/console-spy";
 import { emptyPanelMap, sourcePanelMapFromConfig } from "./test/panel-map";
 import { installTempDbHooks } from "./test/temp-db";
@@ -9,7 +10,7 @@ import {
   stopTestScheduler,
 } from "./test/scheduler-test-harness";
 import type { Adapter } from "./adapters/types";
-import { makeContentItem } from "./test/content-items";
+import { makeContentItem, makeContentItemRow } from "./test/content-items";
 import { adaptersMap, makeErrorAdapter, makeMockAdapter } from "./test/adapter-mocks";
 import { withErrorMessageSpy } from "./test/error-message-spy";
 import * as dbMod from "./db";
@@ -22,6 +23,8 @@ import {
   testAppConfig,
 } from "./test/app-config";
 import { waitForAsync } from "./test/async";
+
+const fakeLlmModel = { id: "fake" } as piAi.Model<piAi.Api>;
 
 const baseConfig = testAppConfig(
   { adapters: [{ type: "test", name: "testsrc", refresh_interval: 60 }] },
@@ -399,6 +402,145 @@ describe("scheduler", () => {
     await refreshTestSources(["curated"]);
     await refreshTestSources(["curated"]);
     expect(rawPanelIds()).toEqual(["h1", "pipeline:curated:h1"]);
+  });
+
+  test("runPipelineJob reuses previous-cycle llm-summarize summaries (input rows re-read from raw source panels)", async () => {
+    // Pipeline input is gathered from SOURCE panels (raw rows, no summaries)
+    // while last cycle's summaries live on the OUTPUT panel under rewritten
+    // pipeline:<name>:<id> ids, so llm-summarize's "skip rows with a summary"
+    // cache never hit: every cycle re-summarized every item.
+    const summarizedIdBatches: string[][] = [];
+    const completeSpy = spyOn(piAi, "complete").mockImplementation(async (_model, context) => {
+      const userContent = context.messages
+        .map((m) => (typeof m.content === "string" ? m.content : ""))
+        .join("\n");
+      const ids = [...userContent.matchAll(/id: "([^"]+)"/g)].map((m) => m[1]);
+      summarizedIdBatches.push(ids);
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(ids.map((id) => ({ id, summary: `Summary of ${id}.` }))),
+        }],
+      } as Awaited<ReturnType<typeof piAi.complete>>;
+    });
+    try {
+      dbMod.saveItems("hn-panel", [
+        makeContentItem({
+          id: "h1",
+          title: "HN item",
+          url: "https://hn/1",
+          source: "hn",
+          timestamp: new Date("2024-06-01T12:00:00.000Z"),
+        }),
+      ]);
+      const config = testAppConfig(
+        {
+          adapters: [],
+          pipelines: [{
+            name: "curated",
+            sources: ["hn"],
+            transforms: [{ type: "llm-summarize" }],
+          }],
+        },
+        {
+          direction: "column",
+          panels: [
+            { panel: "tech", source: "hn", id: "hn-panel" },
+            { panel: "pipe", source: "curated", id: "out" },
+          ],
+        },
+      );
+      const pm = sourcePanelMapFromConfig(config);
+      startTestScheduler(config, new Map(), pm, fakeLlmModel);
+
+      await refreshTestSources(["curated"]);
+      expect(summarizedIdBatches).toEqual([["h1"]]);
+      expect(dbMod.getAllItemsByPanel("out").map((r) => [r.id, r.summary])).toEqual([
+        ["pipeline:curated:h1", "Summary of h1."],
+      ]);
+
+      // Second cycle re-reads the raw source panel (still no summaries there):
+      // the previous output's summary must be reused, not recomputed.
+      await refreshTestSources(["curated"]);
+      expect(summarizedIdBatches).toEqual([["h1"]]);
+      expect(dbMod.getAllItemsByPanel("out").map((r) => [r.id, r.summary])).toEqual([
+        ["pipeline:curated:h1", "Summary of h1."],
+      ]);
+
+      // A new source item is the only one summarized on the next cycle.
+      dbMod.saveItems("hn-panel", [
+        makeContentItem({
+          id: "h2",
+          title: "Newer HN item",
+          url: "https://hn/2",
+          source: "hn",
+          timestamp: new Date("2024-06-02T12:00:00.000Z"),
+        }),
+      ]);
+      await refreshTestSources(["curated"]);
+      expect(summarizedIdBatches).toEqual([["h1"], ["h2"]]);
+      const out = dbMod.getAllItemsByPanel("out")
+        .map((r) => [r.id, r.summary])
+        .sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+      expect(out).toEqual([
+        ["pipeline:curated:h1", "Summary of h1."],
+        ["pipeline:curated:h2", "Summary of h2."],
+      ]);
+    } finally {
+      completeSpy.mockRestore();
+    }
+  });
+
+  test("runPipelineJob summary reuse keeps a fresher input summary over the cached output one", async () => {
+    // A source row that already carries a summary (e.g. adapter-level
+    // llm-summarize on the source panel) must win over the stale cached copy
+    // on the pipeline output panel. saveItems never persists summaries
+    // (adapters do not produce them), so seed both panels via replace.
+    dbMod.replacePanelItems("hn-panel", [
+      makeContentItemRow({
+        id: "h1",
+        panel_id: "hn-panel",
+        title: "HN item",
+        url: "https://hn/1",
+        source: "hn",
+        summary: "Fresh input summary.",
+        timestamp: "2024-06-01T12:00:00.000Z",
+      }),
+    ]);
+    dbMod.replacePanelItems("out", [
+      makeContentItemRow({
+        id: "pipeline:curated:h1",
+        panel_id: "out",
+        title: "HN item",
+        url: "https://hn/1",
+        source: "hn",
+        summary: "Stale cached summary.",
+        timestamp: "2024-06-01T12:00:00.000Z",
+      }),
+    ]);
+    const config = testAppConfig(
+      {
+        adapters: [],
+        pipelines: [{
+          name: "curated",
+          sources: ["hn"],
+          transforms: [{ type: "llm-summarize" }],
+        }],
+      },
+      {
+        direction: "column",
+        panels: [
+          { panel: "tech", source: "hn", id: "hn-panel" },
+          { panel: "pipe", source: "curated", id: "out" },
+        ],
+      },
+    );
+    const pm = sourcePanelMapFromConfig(config);
+    startTestScheduler(config, new Map(), pm, fakeLlmModel);
+    await refreshTestSources(["curated"]);
+    expect(dbMod.getAllItemsByPanel("out").map((r) => [r.id, r.summary])).toEqual([
+      ["pipeline:curated:h1", "Fresh input summary."],
+    ]);
   });
 
   test("two pipelines sourcing the same adapter on one shared panel keep each other's output and never cross-prefix ids", async () => {
