@@ -9,6 +9,12 @@ Notable changes per release, newest first. Also published as [GitHub releases](h
 - AGENTS.md CLI reference now lists `pace doctor` and `pace import <feeds.opml>`, which were missing.
 - The stale duplicate copies of the pace-setup/pace-config skills under `.agents/skills/` (old skill names, dead cross-references, missing doctor/import/share docs) are now symlinks to the bundled `skills/` versions, so they can no longer drift.
 
+### CI
+
+- Bun is now pinned to 1.3.9 in both workflows, matching the Dockerfile base image and local dev, instead of floating on latest.
+- Docker image publishes (tags and main) are now gated on a green typecheck + full test suite, closing the gap where tag pushes built images without any tests running.
+- The Docker workflow now has a 30-minute timeout and PR-cancelling concurrency, mirroring the CI workflow.
+
 ### Testing
 
 - Example dashboard configs (`examples/*.yaml`) are now pinned by the config-validity suite: each must validate, use only recognized adapter types and param keys, resolve every panel source, and render to balanced HTML (+33 tests).
