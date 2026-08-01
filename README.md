@@ -2,7 +2,7 @@
 
 **A self-hosted dashboard for feeds, repos, papers, videos, and links.**
 
-Pace collects content from Hacker News, RSS, GitHub, Lemmy, Mastodon, YouTube, arXiv, npm, Wikipedia, podcasts, Product Hunt, and more. You configure sources, transforms, ranking, summaries, and layout in YAML. It runs as one Bun process or Docker container.
+Pace collects content from Hacker News, RSS, GitHub, Lemmy, Mastodon, YouTube, arXiv, npm, Wikipedia, podcasts, Product Hunt, and more. You configure sources, transforms, ranking, summaries, and layout in YAML. It runs as one Bun process or Docker container, and every panel it renders is also available as JSON or RSS.
 
 <p align="center">
   <a href="https://www.youtube.com/watch?v=UElmyC06ryM"><img src="./assets/splash.jpg" alt="Pace dashboard showing multiple feed panels in a configurable layout" width="100%"></a>
@@ -25,7 +25,8 @@ Pace collects content from Hacker News, RSS, GitHub, Lemmy, Mastodon, YouTube, a
 - **One dashboard** - combine feeds, repos, releases, papers, videos, podcasts, metrics, and hand-picked links.
 - **Filtering and ranking** - filter, exclude, dedupe, time-decay, cluster, keyword-score, and optionally use an LLM to summarize, filter, merge, or rank items.
 - **Flexible layout** - arrange panels, counters, markdown, images, and iframes with a recursive flexbox layout.
-- **Portable output** - server-rendered HTML, SQLite storage, no client-side JavaScript, and static snapshots you can export or publish through Gist.
+- **Portable output** - server-rendered HTML, SQLite storage, a JSON and RSS endpoint for every panel, and static snapshots you can export or publish through Gist.
+- **Practical tooling** - `pace doctor` fetch-checks every configured source, `pace import` turns an OPML feed-reader export into a working config, and the dashboard is fully keyboard-navigable.
 - **Agent-readable config** - bundled skills document setup and configuration workflows for coding agents.
 
 ## Presets
@@ -128,7 +129,15 @@ docker run -d \
   ghcr.io/av/pace:latest
 ```
 
-Validate before serving: `pace config check config.yaml`. To verify the configured feeds actually respond, run `pace doctor` — it fetches every source once and reports per-source ok/failure with the underlying error (exit 1 if anything failed).
+## Config Tools
+
+```bash
+pace config check [path]   # validate a config file
+pace doctor                # fetch-check every configured source
+pace import feeds.opml     # convert an OPML feed export to a pace config
+```
+
+Validate before serving: `pace config check config.yaml` catches schema errors without starting the server. To verify the configured feeds actually respond, run `pace doctor` — it fetches every source once and reports per-source ok/failure with the underlying error (exit 1 if anything failed).
 
 Migrating from a feed reader? `pace import feeds.opml` converts an OPML export (the standard export format of Feedly, Inoreader, NewsBlur, Miniflux, etc.) into a ready-to-use config: one `rss` adapter and one panel per OPML folder (nested folders join with `` / ``; feeds outside any folder land in a "Feeds" panel). It prints YAML to stdout, or writes to a file when given a second argument — `pace import feeds.opml config.yaml`. Duplicate feeds and outlines without an `xmlUrl` are skipped with a warning, and the generated file passes `pace config check` as-is.
 
@@ -238,7 +247,7 @@ Useful options:
 - `--public` creates a public Gist; the default is secret/unlisted.
 - `--renderer-url <url>` switches from the default `https://gisthost.github.io/` renderer to another compatible Gist renderer.
 
-Static snapshots are read-only: refresh controls and server-only routes are omitted, and unresolved environment placeholders are rejected instead of being published.
+Static snapshots are read-only: refresh controls, the keyboard-navigation script, and server-only routes are omitted, and unresolved environment placeholders are rejected instead of being published.
 
 ## Built-in content adapters
 
@@ -246,7 +255,12 @@ Pace ships with 19 adapters: `hackernews`, `rss`, `github`, `github-releases`, `
 
 Use `bookmarks` for curated links that live directly in config. Use `counter` for numeric JSON endpoints rendered as stat cards. Every ingest adapter can have its own `refresh_interval`.
 
-See skills/pace-config/SKILL.md for the full adapter table.
+The full adapter table is in skills/pace-config/SKILL.md, or from the CLI:
+
+```bash
+pace adapters list            # list all adapter types
+pace adapters explain <type>  # show params and example
+```
 
 ### Caveats
 
@@ -254,14 +268,6 @@ Some adapters are listed above but do not work out of the box:
 
 - **`reddit`** - Reddit's public unauthenticated `.json` API often returns **HTTP 403** upstream. Bundled presets intentionally omit Reddit for this reason. For community discussions without credentials, use **`lemmy`** instead (included in the `tech-news` and `ml-ai` presets).
 - **`twitter`** - Requires `bearer_token` in adapter params. Without it, the adapter **always returns an empty list** (no error). Run `pace adapters explain twitter` for setup details.
-
-```bash
-pace adapters list            # list all adapter types
-pace adapters explain <type>  # show params and example
-pace config check [path]      # validate a config file
-pace doctor                   # fetch-check every configured source
-pace import feeds.opml        # convert an OPML feed export to a pace config
-```
 
 ## Transforms
 
@@ -298,6 +304,22 @@ Panels display adapters or pipelines. Widgets display static images, text/markdo
 
 See skills/pace-config/SKILL.md for the layout reference.
 
+## Keyboard Navigation
+
+The dashboard can be driven entirely from the keyboard; pressing `?` on a running dashboard shows the same table as an overlay.
+
+| Keys | Action |
+|------|--------|
+| `j / k` | Next / previous item in the panel |
+| `h / l` | Previous / next panel |
+| `Tab` | Move through links and buttons |
+| `Enter` | Open the focused item |
+| `r` | Refresh the focused panel |
+| `?` | Show or hide the help overlay |
+| `Esc` | Close the help overlay |
+
+The keys come from one small script (`/dashboard.js`) served alongside the page — a progressive enhancement, not a requirement: everything stays reachable with `Tab` alone, and static snapshots ship without the script.
+
 ## LLM integration (optional)
 
 Connect any LLM provider via [pi-ai](https://github.com/badlogic/pi-mono) to power the `llm-*` transforms. Works with OpenAI, Anthropic, Google, Groq, Mistral, and any OpenAI-compatible endpoint. Gracefully degrades when unconfigured.
@@ -325,7 +347,7 @@ See [Get Started](#get-started): humans install skills with `npx skills add av/p
 
 ## Tech stack
 
-Bun + Hono + SQLite + JSX server rendering. No client-side JavaScript.
+Bun + Hono + SQLite + JSX server rendering. The only client-side JavaScript is the optional keyboard-navigation script; no-JS browsers and static snapshots get the same dashboard.
 
 ## License
 

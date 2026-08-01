@@ -3,6 +3,7 @@ import { readFileSync, readdirSync } from "fs";
 import { join } from "path";
 import { ADAPTER_TYPES } from "./adapters/params";
 import { TRANSFORM_TYPES } from "./transform-schema";
+import { HELP_ROWS } from "./dashboard.js";
 
 const ROOT = join(import.meta.dir, "..");
 const readme = readFileSync(join(ROOT, "README.md"), "utf-8");
@@ -39,6 +40,16 @@ describe("readme-sync: adapters", () => {
     const claimedTypes = [...m![2]!.matchAll(/`([\w-]+)`/g)].map((x) => x[1]!).sort();
     expect(claimedCount).toBe(ADAPTER_TYPES.length);
     expect(claimedTypes).toEqual([...ADAPTER_TYPES].sort());
+  });
+});
+
+describe("readme-sync: keyboard navigation", () => {
+  test("keyboard table lists exactly the help-overlay key rows, in order", () => {
+    const start = readme.indexOf("## Keyboard Navigation");
+    expect(start, "README has a '## Keyboard Navigation' section").toBeGreaterThan(-1);
+    const section = readme.slice(start, readme.indexOf("## LLM integration"));
+    const listed = [...section.matchAll(/^\| `(.+?)` \|/gm)].map((m) => m[1]!);
+    expect(listed).toEqual(HELP_ROWS.map((r) => r[0]));
   });
 });
 
