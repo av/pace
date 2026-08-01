@@ -1364,6 +1364,48 @@ layout:
     );
   });
 
+  test("rejects image widget with non-CSS-length max_height (style-attribute injection)", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - image: https://example.com/logo.png
+      max_height: "200px;background:url(//evil.example)"
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: layout.children\[0\].max_height must be a valid CSS length/,
+    );
+  });
+
+  test("rejects image widget with unitless max_height", () => {
+    const yaml = `
+layout:
+  direction: row
+  children:
+    - image: https://example.com/logo.png
+      max_height: "200"
+`;
+    setConfig(yaml);
+    expect(() => loadConfig()).toThrow(
+      /config: layout.children\[0\].max_height must be a valid CSS length/,
+    );
+  });
+
+  test("accepts image widget with various CSS length units for max_height", () => {
+    for (const maxHeight of ["400px", "20rem", "15em", "50vh", "100%"]) {
+      const yaml = `
+layout:
+  direction: row
+  children:
+    - image: https://example.com/logo.png
+      max_height: "${maxHeight}"
+`;
+      setConfig(yaml);
+      expect(() => loadConfig()).not.toThrow();
+    }
+  });
+
   test("rejects image widget with unsafe link scheme", () => {
     const yaml = `
 layout:

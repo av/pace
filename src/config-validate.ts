@@ -326,7 +326,7 @@ function validateImageWidget(node: Record<string, unknown>, path: string): void 
   validateOptionalNonNegativeNumber(node.flex, `${path}.flex`);
   validateOptionalNonEmptyString(node.alt, `${path}.alt`);
   validateOptionalEnum(node.object_fit, IMAGE_OBJECT_FIT_VALUES, `${path}.object_fit`);
-  validateOptionalNonEmptyString(node.max_height, `${path}.max_height`);
+  validateOptionalCssLength(node.max_height, `${path}.max_height`);
   if (node.link !== undefined) {
     validateSafeUrl(node.link, `${path}.link`);
   }
@@ -359,6 +359,18 @@ function validateTextWidget(node: Record<string, unknown>, path: string): void {
 
 const ASPECT_RATIO_RE = /^\d+\/\d+$/;
 const CSS_LENGTH_RE = /^\d+(px|rem|em|vh|%)$/;
+
+/**
+ * Validate an optional CSS length field (iframe height, image max_height).
+ * These values are interpolated into style attributes at render time, so
+ * they must match the strict length grammar rather than just be non-empty.
+ */
+function validateOptionalCssLength(value: unknown, path: string): void {
+  if (value === undefined) return;
+  if (typeof value !== "string" || !CSS_LENGTH_RE.test(value)) {
+    throw new Error(`config: ${path} must be a valid CSS length (e.g. 400px, 20rem, 50vh)`);
+  }
+}
 
 export const VALID_SANDBOX_TOKENS = new Set([
   "allow-downloads",
@@ -413,11 +425,7 @@ function validateIframeWidget(node: Record<string, unknown>, path: string): void
   validateOptionalNonEmptyString(node.title, `${path}.title`);
   validateOptionalNonEmptyString(node.allow, `${path}.allow`);
 
-  if (node.height !== undefined) {
-    if (typeof node.height !== "string" || !CSS_LENGTH_RE.test(node.height)) {
-      throw new Error(`config: ${path}.height must be a valid CSS length (e.g. 400px, 20rem, 50vh)`);
-    }
-  }
+  validateOptionalCssLength(node.height, `${path}.height`);
 
   if (node.aspect_ratio !== undefined) {
     if (typeof node.aspect_ratio !== "string" || !ASPECT_RATIO_RE.test(node.aspect_ratio)) {
