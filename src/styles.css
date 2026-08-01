@@ -22,6 +22,39 @@
   --font-mono: ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
   --accent: #5a8a9f;
   --accent-dim: color-mix(in srgb, var(--accent) 15%, transparent);
+  --scrollbar-thumb: color-mix(in srgb, var(--accent) 35%, var(--border-light));
+  --scrollbar-thumb-hover: var(--accent);
+}
+
+/* scrollbars — thin, minimalist, theme-matched */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 .footer,
