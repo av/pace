@@ -235,7 +235,7 @@ function resolveModes(config: AdapterConfig): Mode[] {
   const tokens = Array.isArray(params?.modes)
     ? normalizeParamStringList(params, "modes")
     : normalizeStringList(
-        (normalizeParamString(params, "mode", "most_read") ?? "most_read").split(","),
+        normalizeParamString(params, "mode", "most_read").split(","),
       );
 
   const resolved = tokens

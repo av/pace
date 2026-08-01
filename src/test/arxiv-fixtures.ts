@@ -8,10 +8,6 @@ export type ArxivEntryFixture = {
   updated?: string;
 };
 
-export type ArxivFeedOptions = {
-  entries: ArxivEntryFixture[];
-};
-
 function renderArxivEntry(entry: ArxivEntryFixture): string {
   const author = entry.author ?? "Test Author";
   const cat = entry.cat ?? "cs.AI";

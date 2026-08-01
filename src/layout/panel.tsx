@@ -59,6 +59,27 @@ function displayTimestamp(timestamp: string, mode: DashboardRenderMode): string 
   return mode === "static" ? absoluteUtcTime(timestamp) : relativeTime(timestamp);
 }
 
+/** Shared panel header: title plus refreshed-at / refresh-button actions (also used by CounterPanel). */
+export const PanelHeader: FC<{
+  title: string;
+  panelId: string;
+  lastRefreshedAt?: string | null;
+  mode: DashboardRenderMode;
+  basePath: string;
+}> = ({ title, panelId, lastRefreshedAt, mode, basePath }) => (
+  <div class="panel-header">
+    <h2 title={title}>{title}</h2>
+    <div class="panel-actions">
+      {lastRefreshedAt && <span class="panel-refreshed">{displayTimestamp(lastRefreshedAt, mode)}</span>}
+      {mode === "interactive" && (
+        <form method="post" action={`${basePath}/refresh/${encodeURIComponent(panelId)}`}>
+          <button type="submit" class="refresh-btn" title="Refresh" aria-label="Refresh">↻</button>
+        </form>
+      )}
+    </div>
+  </div>
+);
+
 const ContentItemCard: FC<{ item: ContentItemRow; mode: DashboardRenderMode }> = ({ item, mode }) => {
   const href = safeLinkUrl(item.url);
   const origins = parseJsonStringArray(item.origins);
@@ -101,17 +122,13 @@ export const Panel: FC<{ node: PanelConfig; panelData: Map<string, PanelData>; m
   return (
     <div class="flex-panel" style={flexStyle(node.flex)}>
       <div class="panel">
-        <div class="panel-header">
-          <h2 title={node.panel}>{node.panel}</h2>
-          <div class="panel-actions">
-            {lastRefreshedAt && <span class="panel-refreshed">{displayTimestamp(lastRefreshedAt, mode)}</span>}
-            {mode === "interactive" && (
-              <form method="post" action={`${basePath}/refresh/${encodeURIComponent(panelId)}`}>
-                <button type="submit" class="refresh-btn" title="Refresh" aria-label="Refresh">↻</button>
-              </form>
-            )}
-          </div>
-        </div>
+        <PanelHeader
+          title={node.panel}
+          panelId={panelId}
+          lastRefreshedAt={lastRefreshedAt}
+          mode={mode}
+          basePath={basePath}
+        />
         <div class="panel-body">
           {items.length > 0
             ? items.map((item: ContentItemRow) => <ContentItemCard item={item} mode={mode} />)

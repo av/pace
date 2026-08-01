@@ -1,7 +1,7 @@
 import { XMLParser } from "fast-xml-parser";
 import { decodeHtmlEntities } from "./adapters/html";
 import { parseAndValidateConfig } from "./config";
-import { errorMessage } from "./utils";
+import { errorMessage, slugify } from "./utils";
 
 /** Default refresh interval (minutes) for adapters generated from an OPML import. */
 export const IMPORT_DEFAULT_REFRESH_MIN = 30;
@@ -158,11 +158,8 @@ function yamlQuote(value: string): string {
   return JSON.stringify(value);
 }
 
-function slugify(title: string): string {
-  const slug = title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+function adapterNameSlug(title: string): string {
+  const slug = slugify(title, Infinity);
   if (slug === "") return "feeds";
   // "all" is the special merge-every-source panel source; an adapter with
   // that name would shadow it.
@@ -174,7 +171,7 @@ function slugify(title: string): string {
 export function assignAdapterNames(groups: OpmlGroup[]): string[] {
   const used = new Set<string>();
   return groups.map((group) => {
-    const base = slugify(group.title);
+    const base = adapterNameSlug(group.title);
     let name = base;
     for (let n = 2; used.has(name); n++) {
       name = `${base}-${n}`;

@@ -1,8 +1,8 @@
 import type { FC } from "hono/jsx";
 import type { DashboardRenderMode, PanelConfig, PanelData } from "./types";
 import { resolvePanelId } from "./types";
-import { absoluteUtcTime, relativeTime } from "../utils";
 import { flexStyle } from "./flex-styles";
+import { PanelHeader } from "./panel";
 
 interface CounterBody {
   value: unknown;
@@ -180,21 +180,13 @@ export const CounterPanel: FC<{ node: PanelConfig; panelData: Map<string, PanelD
   return (
     <div class="flex-panel" style={flexStyle(node.flex)}>
       <div class="panel">
-        <div class="panel-header">
-          <h2 title={node.panel}>{node.panel}</h2>
-          <div class="panel-actions">
-            {lastRefreshedAt && (
-              <span class="panel-refreshed">
-                {mode === "static" ? absoluteUtcTime(lastRefreshedAt) : relativeTime(lastRefreshedAt)}
-              </span>
-            )}
-            {mode === "interactive" && (
-              <form method="post" action={`${basePath}/refresh/${encodeURIComponent(panelId)}`}>
-                <button type="submit" class="refresh-btn" title="Refresh" aria-label="Refresh">{"↻"}</button>
-              </form>
-            )}
-          </div>
-        </div>
+        <PanelHeader
+          title={node.panel}
+          panelId={panelId}
+          lastRefreshedAt={lastRefreshedAt}
+          mode={mode}
+          basePath={basePath}
+        />
         <div class="counter-panel" aria-live="polite">
           {cards.length > 0
             ? cards.map((card) => <StatCard label={card.label} data={card.data} />)

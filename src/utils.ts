@@ -402,13 +402,16 @@ export function resolveAliasedOption<T>(
   return fallback;
 }
 
-/** Lowercase slug (a-z0-9 + hyphens, trimmed, max 40 chars) for stable content-item IDs. */
-export function slugify(text: string): string {
+/**
+ * Lowercase slug (a-z0-9 + hyphens, trimmed) for stable content-item IDs.
+ * The default 40-char cap keeps ids short; pass `Infinity` for uncapped slugs.
+ */
+export function slugify(text: string, maxLength = 40): string {
   return text
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
-    .slice(0, 40);
+    .slice(0, maxLength);
 }
 
 /** Fast deterministic string hash (base36) for stable IDs when no URL is available. */
