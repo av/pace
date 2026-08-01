@@ -144,11 +144,11 @@ describe("bootstrapServer", () => {
       "ensureDataDir",
       "initDb",
       "discoverAdapters",
-      "startScheduler",
       "createServerApp",
       "resolvePort",
       "registerShutdown",
       "startHttpServer",
+      "startScheduler",
       "logServerListening:8123",
     ]);
     expect(deps.served?.port).toBe(8123);
@@ -217,7 +217,7 @@ describe("bootstrapServer", () => {
     expect(deps.calls.filter((c) => c === "stopScheduler")).toHaveLength(1);
   });
 
-  test("bind failure tears down scheduler and db, then throws a server:-prefixed error", async () => {
+  test("bind failure closes the db and throws a server:-prefixed error", async () => {
     const addrInUse = Object.assign(
       new Error("Failed to start server. Is port 8123 in use?"),
       { code: "EADDRINUSE" },
@@ -240,11 +240,43 @@ describe("bootstrapServer", () => {
     expect((thrown as Error).message).toBe(
       "server: port 8123 is already in use (choose a free port via --port or the PORT env var)",
     );
-    // Startup half-completed: refresh timers and the DB handle must not
-    // outlive the failed bind.
+    // Startup half-completed: the DB handle must not outlive the failed bind.
     const tail = deps.calls.slice(deps.calls.indexOf("startHttpServer") + 1);
-    expect(tail).toEqual(["stopScheduler", "drainScheduler", "closeDb"]);
+    expect(tail).toEqual(["closeDb"]);
     expect(deps.calls).not.toContain("logServerListening:8123");
+  });
+
+  test("binds the http server before starting the scheduler", async () => {
+    // Regression: the scheduler kicks off the initial refresh cycle (network
+    // fetches + db writes) as soon as it starts. Binding first means a
+    // port-conflict abort never wastes that work.
+    const deps = trackBootstrapDeps(baseBootstrapDeps());
+
+    await bootstrapServer(deps);
+
+    const bindIndex = deps.calls.indexOf("startHttpServer");
+    const schedulerIndex = deps.calls.indexOf("startScheduler");
+    expect(bindIndex).toBeGreaterThanOrEqual(0);
+    expect(schedulerIndex).toBeGreaterThan(bindIndex);
+  });
+
+  test("bind failure aborts before the scheduler (initial refresh) ever starts", async () => {
+    const addrInUse = Object.assign(
+      new Error("Failed to start server. Is port 8123 in use?"),
+      { code: "EADDRINUSE" },
+    );
+    const deps = trackBootstrapDeps({
+      ...baseBootstrapDeps(),
+      startHttpServer: () => {
+        throw addrInUse;
+      },
+    });
+
+    await expect(bootstrapServer(deps)).rejects.toThrow(
+      "server: port 8123 is already in use",
+    );
+    expect(deps.calls).not.toContain("startScheduler");
+    expect(deps.calls).not.toContain("refreshSources");
   });
 
   test("non-EADDRINUSE bind failure throws server:-prefixed error with the underlying reason", async () => {

@@ -125,7 +125,6 @@ export async function bootstrapServer(
   } = deps.buildLayoutRuntimeMaps(config.layout, configuredAdapterNames, config.pipelines);
 
   const panelMap: SourcePanelMap = { sourceToPanels, sourceToReadKey };
-  deps.startScheduler(config, adapters, panelMap, llmModel);
 
   const basePath = normalizeBasePath(config.server?.base_path);
 
@@ -165,16 +164,18 @@ export async function bootstrapServer(
   };
   deps.registerShutdown(shutdown);
 
+  // Bind BEFORE starting the scheduler: a doomed process (e.g. port already
+  // in use) must not kick off the initial refresh cycle - that would burn
+  // network/LLM calls and write to the db right before exiting with an error.
   try {
     httpServer = deps.startHttpServer(port, app.fetch);
   } catch (err) {
-    // The scheduler is already running and the DB is open; tear both down
-    // (same order as shutdown) so a failed bind doesn't leave refresh timers
-    // alive or the DB handle open behind the propagated error.
-    deps.stopScheduler();
-    await deps.drainScheduler(SHUTDOWN_DRAIN_TIMEOUT_MS);
+    // The scheduler has not started yet, so only the DB handle needs closing
+    // before the propagated error aborts startup.
     deps.closeDb();
     throw serverBindError(err, port);
   }
+
+  deps.startScheduler(config, adapters, panelMap, llmModel);
   deps.logServerListening(port);
 }
