@@ -2,6 +2,60 @@
 
 Notable changes per release, newest first. Also published as [GitHub releases](https://github.com/av/pace/releases).
 
+## v0.7.0
+
+### New features
+
+- **JSON panel data API** — read-only `GET /api/panels` (panel list with item counts and last-refresh times) and `GET /api/panels/:panel` (items by panel id or display name, optional `?limit=1..500`). Machine-readable access to everything the dashboard renders, served under `server.base_path`, with JSON 404/400 errors and no internal fields leaked.
+- **RSS output feeds** — `GET /api/panels/:panel.rss` serves any panel as a well-formed RSS 2.0 feed (stable guids, RFC 822 dates, LLM summaries as descriptions), so pace pipelines (dedupe/rank/summarize) can feed regular feed readers.
+- **`pace doctor`** — live fetch-check of every configured source with per-source timing, item counts, and error details; exit code 1 when any source fails. Respects `--config`/`--preset`, never writes to the database.
+- **`pace import <feeds.opml>`** — migrate from any feed reader: converts OPML exports (including nested folders, duplicates, and entity-encoded titles) into a validated pace config with one panel per folder. Output always passes `pace config check`.
+- **Dashboard keyboard navigation** — `j`/`k` move between items, `h`/`l` between panels, `r` refreshes the focused panel, `?` shows a help overlay. Shipped as a small dependency-free ES module; static share exports and no-JS browsers are unaffected (progressive enhancement).
+
+### Bug fixes
+
+#### Ranking and LLM transforms
+- Thousands-separated engagement counts ("12,345 stars") now parse fully — previously only the trailing digit group counted, inverting GitHub-trending ranking for popular repos.
+- Pipeline `llm-summarize` and `llm-rank` now reuse cached summaries/scores from the previous cycle instead of re-summarizing and re-scoring (and re-fetching content for) every item on every refresh — a ~96x/day cost reduction on unchanged items.
+- Hardened against hostile or runaway LLM responses: code-fence extraction no longer mangles summaries containing backticks, item fields are newline-collapsed so a crafted item cannot forge sibling entries in batch prompts, merged-item ids can no longer collide or mis-attribute rows, lens scores are clamped to 0–10, and summaries/titles are length-capped.
+- LLM retry backoff and content-fetch DNS lookups now abort promptly with their signal.
+
+#### Scheduler and data integrity
+- Adapter transforms on panels shared by multiple sources no longer wipe co-tenant rows (items are now owner-scoped per source).
+- Graceful shutdown drains the full refresh chain including pipeline phases, and the database is sealed after final close instead of silently re-opening.
+- Config edits that remove a source from a pinned-id panel now prune that source's ghost rows at startup; rows stored under unknown panel ids are counted and reported.
+- An Invalid Date on a single item no longer rolls back the whole panel save (degrades to now() with a warning).
+- The HTTP port is bound before the scheduler starts, so a port conflict aborts cleanly without running an initial refresh.
+
+#### Adapters and feed parsing
+- Malformed API date strings no longer break lobsters, devto, npm, github-releases, lemmy, or mastodon; Lemmy's naive-UTC timestamps parse as UTC regardless of host timezone.
+- Responses that are not RSS/Atom feeds (error pages, JSON, empty bodies) now surface as diagnosable fetch failures instead of silently reporting 0 items.
+- Wikipedia multi-mode no longer collapses distinct unlinked news/on-this-day items into one; reddit subreddit names and youtube channel/playlist ids are URL-encoded; GitHub trending parses "1 star today"; release tags are percent-decoded.
+- Counter panels validate `label`/`unit` params like sibling adapters.
+
+#### Server, CLI, and config
+- `pace config check` now applies the same `${VAR}` env expansion as serve, so check and serve always agree (including cyclic-placeholder and empty-document cases).
+- Non-browser clients (curl, scripts) get informative text bodies for successful, skipped, and failed panel refreshes instead of empty 303s.
+- `pace skill` can no longer read files outside the skills directory; image `max_height` is validated as a CSS length; RSS output strips XML-illegal control characters that would break strict feed parsers.
+- `bun run src/cli.ts` now works from any cwd (per-file JSX pragmas); `/api/panels` serves strict ISO timestamps; clearer user-facing error and warning messages throughout.
+
+#### UI
+- Long unbroken titles/URLs wrap instead of forcing horizontal scrollbars; merged-item source pills wrap; `prefers-reduced-motion` disables the loading animation and hover transitions.
+
+### Presets, Docker, and docs
+
+- All 7 bundled presets live-verified: over-filtered "discussion" panels unstarved, oversized archive feeds bounded, devto reaction threshold tuned.
+- Docker: `docker run ghcr.io/av/pace pace <cmd>` works (redundant `pace` prefix stripped); build context slimmed by ~5.4MB.
+- README and agent skills synced to actual CLI behavior and locked to the code by new drift tests; keyboard navigation, `PACE_DB_PATH`, multi-source panels, and panel `id` pinning documented.
+
+### Performance
+
+- Dashboard panel snapshots are cached until the database changes: ~22.6ms of per-request SQLite work drops to ~0.04ms steady-state (565x) on a realistic 20k-row database.
+
+### Tooling / tests
+
+- Test suite grew from 2,896 to 3,205 passing tests, including seeded property/fuzz tests for parsing surfaces, long-run scheduler soak tests, and deployment/docs sync guards.
+
 ## v0.6.6
 
 ### BREAKING: one-way database schema migration
