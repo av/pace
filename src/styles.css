@@ -710,8 +710,89 @@ a:hover {
   color: #ef5350;
 }
 
+/* Keyboard navigation (dashboard.js moves focus with j/k/h/l). A
+   :focus-visible ring keeps mouse clicks outline-free while keyboard focus
+   gets a clearly visible theme-accent ring. */
+.item-title a:focus-visible,
+.refresh-btn:focus-visible,
+.kbd-help:focus-visible,
+.kbd-help-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* Keyboard shortcut help overlay (created lazily by dashboard.js; toggled
+   with "?"). Non-modal: Tab is never trapped, Esc closes it. */
+.kbd-help {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 100;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+  max-width: min(90vw, 24rem);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.kbd-help[hidden] {
+  display: none;
+}
+
+.kbd-help-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  padding-right: 1.5rem;
+}
+
+.kbd-help dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.4rem 0.85rem;
+  margin: 0.75rem 0 0;
+}
+
+.kbd-help dt,
+.kbd-help dd {
+  margin: 0;
+}
+
+.kbd-help kbd {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0.1rem 0.4rem;
+  white-space: nowrap;
+}
+
+.kbd-help-close {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0.2rem 0.4rem;
+  cursor: pointer;
+}
+
+.kbd-help-close:hover {
+  color: var(--text-primary);
+}
+
 /* Users with vestibular disorders opt out of motion at the OS level; the
-   infinite iframe-loading stripe animation in particular must respect that. */
+   infinite iframe-loading stripe animation in particular must respect that.
+   (dashboard.js separately swaps smooth focus scrolling for instant.) */
 @media (prefers-reduced-motion: reduce) {
   .iframe-panel {
     animation: none;

@@ -11,6 +11,7 @@ export type BundledStatic = {
 
 export const BUNDLED_STATIC: BundledStatic[] = [
   { route: "/styles.css", file: "styles.css", contentType: "text/css" },
+  { route: "/dashboard.js", file: "dashboard.js", contentType: "text/javascript" },
 ];
 
 export function readBundledText(srcDir: string, file: string): string {
