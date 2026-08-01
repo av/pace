@@ -79,9 +79,23 @@ export function createModel(config: LlmConfig): Model<Api> | null {
   return bindConfiguredApiKey(customModel as Model<Api>, config.api_key);
 }
 
-/** Strip markdown code fences before JSON.parse. */
+/**
+ * Strip markdown code fences before JSON.parse.
+ *
+ * When the response contains a fenced block, extract everything between the
+ * FIRST opening fence and the LAST closing fence (also discarding any prose
+ * around the block). A greedy span — instead of deleting every ``` globally —
+ * keeps triple backticks INSIDE returned JSON strings intact, so a summary
+ * mentioning code fences is not silently corrupted.
+ */
 export function stripJsonCodeFences(text: string): string {
-  return text.replace(/```json?\s*/g, "").replace(/```/g, "").trim();
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*)```/);
+  if (fenced) return fenced[1]!.trim();
+  // Unclosed fence: strip a leading fence token (and a dangling trailing one).
+  return text
+    .replace(/^\s*```(?:json)?\s*/, "")
+    .replace(/\s*```\s*$/, "")
+    .trim();
 }
 
 /**
@@ -206,16 +220,25 @@ export async function safeComplete(
   return null;
 }
 
+/**
+ * Collapse newlines so untrusted feed text cannot forge additional `- id: …`
+ * item lines in the batch prompt (attributing attacker content to sibling
+ * item ids). One-line-per-item is the batch format's only structure.
+ */
+function singleLine(text: string): string {
+  return text.replace(/\s*[\r\n]+\s*/g, " ");
+}
+
 /** One-line item summary for batch LLM prompts. */
 export function formatContentItemForLlm(
   item: ContentItem,
   maxBodyLen = 0,
   fetchedContent?: string,
 ): string {
-  const snippet = maxBodyLen > 0 && item.body ? capText(item.body, maxBodyLen) : "";
-  const contentSnippet = fetchedContent ? capText(fetchedContent, 2000) : "";
+  const snippet = maxBodyLen > 0 && item.body ? singleLine(capText(item.body, maxBodyLen)) : "";
+  const contentSnippet = fetchedContent ? singleLine(capText(fetchedContent, 2000)) : "";
   return (
-    `- id: "${item.id}" | title: "${item.title}" | source: ${item.source}` +
+    `- id: "${singleLine(item.id)}" | title: "${singleLine(item.title)}" | source: ${singleLine(item.source)}` +
     (snippet ? ` | body: ${snippet}` : "") +
     (contentSnippet ? ` | content: ${contentSnippet}` : "")
   );
@@ -307,13 +330,23 @@ async function runLlmBatchTransform<T>(
 
 type SummaryEntry = { id: string; summary: string };
 
+/**
+ * Upper bounds for LLM-produced text stored on items. The prompts ask for 2-3
+ * sentences; a runaway model must not be able to bloat the db and every
+ * rendered page with megabyte strings.
+ */
+export const LLM_MAX_SUMMARY_LENGTH = 2000;
+export const LLM_MAX_TITLE_LENGTH = 500;
+
 /** Accepts an array; keeps only well-formed {id, summary} entries. Null if not an array. */
 function validateSummaryEntries(result: unknown): SummaryEntry[] | null {
   if (!Array.isArray(result)) return warnMalformedLlmResponse("summaries: expected JSON array");
-  return result.filter(
-    (entry): entry is SummaryEntry =>
-      isRecord(entry) && typeof entry.id === "string" && typeof entry.summary === "string",
-  );
+  return result
+    .filter(
+      (entry): entry is SummaryEntry =>
+        isRecord(entry) && typeof entry.id === "string" && typeof entry.summary === "string",
+    )
+    .map((entry) => ({ id: entry.id, summary: capText(entry.summary, LLM_MAX_SUMMARY_LENGTH) }));
 }
 
 function applySummaryEntries(entries: SummaryEntry[], items: ContentItem[]): ContentItem[] {
@@ -364,8 +397,10 @@ function validateMergeGroups(result: unknown): MergeGroup[] | null {
   );
   if (!valid) return warnMalformedLlmResponse("merge: invalid group entry");
   return (result as MergeGroup[]).map((group) => ({
-    ...group,
-    summary: typeof group.summary === "string" ? group.summary : null,
+    merged_ids: group.merged_ids,
+    title: capText(group.title, LLM_MAX_TITLE_LENGTH),
+    summary:
+      typeof group.summary === "string" ? capText(group.summary, LLM_MAX_SUMMARY_LENGTH) : null,
   }));
 }
 
@@ -373,6 +408,7 @@ function applyMergeGroups(groups: MergeGroup[], items: ContentItem[]): ContentIt
   const itemMap = new Map(items.map((item) => [item.id, item]));
   const result: ContentItem[] = [];
   const claimedIds = new Set<string>();
+  const emittedIds = new Set<string>();
   let unknownIdCount = 0;
   let duplicateIdCount = 0;
 
@@ -395,18 +431,34 @@ function applyMergeGroups(groups: MergeGroup[], items: ContentItem[]): ContentIt
     if (knownIds.length === 0) continue;
 
     if (knownIds.length === 1 && !group.summary) {
+      emittedIds.add(knownIds[0]);
       result.push(itemMap.get(knownIds[0])!);
       continue;
     }
 
+    // The "+"-joined id can collide with an ORIGINAL id that contains "+"
+    // (e.g. merging "a" and "b" while an input item is literally "a+b").
+    // Two output items sharing an id would silently clobber each other in the
+    // db upsert, so suffix the merged id until it is unique against both the
+    // input set (minus this group's own ids) and previously emitted ids.
+    let mergedId = knownIds.join("+");
+    while (
+      emittedIds.has(mergedId) ||
+      (itemMap.has(mergedId) && !claimedIds.has(mergedId))
+    ) {
+      mergedId += "+";
+    }
+    emittedIds.add(mergedId);
+
     const firstItem = itemMap.get(knownIds[0])!;
     result.push({
-      id: knownIds.join("+"),
+      id: mergedId,
       title: group.title,
       url: firstItem.url,
       source: firstItem.source,
       timestamp: firstItem.timestamp,
       body: group.summary ?? undefined,
+      mergedFromIds: knownIds,
     });
   }
 
@@ -500,11 +552,16 @@ export async function lensItemsWithScores(
     systemPrompt,
     (result) => {
       if (!Array.isArray(result)) return warnMalformedLlmResponse("scores: expected JSON array");
-      return result.filter(
-        (entry): entry is ScoreEntry =>
-          isRecord(entry) && typeof entry.id === "string" &&
-          typeof entry.score === "number" && Number.isFinite(entry.score),
-      );
+      return result
+        .filter(
+          (entry): entry is ScoreEntry =>
+            isRecord(entry) && typeof entry.id === "string" &&
+            typeof entry.score === "number" && Number.isFinite(entry.score),
+        )
+        // Clamp to the 0-10 range the prompt asks for: out-of-range scores are
+        // persisted as ranking cache, and a negative score would otherwise sort
+        // BELOW unscored rows (which use a -1 sentinel).
+        .map((entry) => ({ id: entry.id, score: Math.min(10, Math.max(0, entry.score)) }));
     },
     (scores, sourceItems) => {
       scoreMap = new Map(scores.map(({ id, score }) => [id, score]));

@@ -11,6 +11,14 @@ export interface ContentItem extends ContentItemFields {
   body?: string;
   /** Set by LLM summarize transforms; adapters do not populate this field. */
   summary?: string;
+  /**
+   * Set by the LLM merge transform: the input item ids this merged item was
+   * built from, in claim order. Carried so row mapping (`contentItemsToRows`)
+   * can attribute the merged item to its first source row without parsing the
+   * "+"-joined merged id (which is ambiguous when an original id contains "+").
+   * Adapters do not populate this field.
+   */
+  mergedFromIds?: string[];
 }
 
 /** Params passed to `Adapter.fetch` (scheduling fields live on `IngestAdapterConfig` in config.ts). */

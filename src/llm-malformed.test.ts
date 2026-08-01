@@ -196,4 +196,79 @@ describe("lensItemsWithScores malformed responses", () => {
     expect(res.map((i) => i.id)).toEqual(["b", "a"]);
     expect([...scoreMap.entries()]).toEqual([["b", 9]]);
   });
+
+  test("out-of-range scores are clamped to 0-10", async () => {
+    mockLlmText('[{"id":"a","score":9999},{"id":"b","score":-5}]');
+    const { items: res, scoreMap } = await lensItemsWithScores(fakeModel, items, ["tech"]);
+    expect(scoreMap.get("a")).toBe(10);
+    // Without clamping, a negative score would sort BELOW unscored rows (-1 sentinel).
+    expect(scoreMap.get("b")).toBe(0);
+    expect(res.map((i) => i.id)).toEqual(["a", "b"]);
+  });
+});
+
+describe("oversized LLM strings are capped", () => {
+  test("summarize caps runaway summaries", async () => {
+    const items = [makeItem({ id: "a" })];
+    mockLlmText(JSON.stringify([{ id: "a", summary: "x".repeat(100_000) }]));
+    const res = await summarizeItems(fakeModel, items);
+    expect(res[0].summary!.length).toBe(2000);
+  });
+
+  test("merge caps runaway titles and summaries", async () => {
+    const items = [makeItem({ id: "a" }), makeItem({ id: "b" })];
+    mockLlmText(
+      JSON.stringify([
+        { merged_ids: ["a", "b"], title: "t".repeat(50_000), summary: "s".repeat(100_000) },
+      ]),
+    );
+    const res = await mergeItems(fakeModel, items);
+    expect(res).toHaveLength(1);
+    expect(res[0].title.length).toBe(500);
+    expect(res[0].body!.length).toBe(2000);
+  });
+});
+
+describe("mergeItems ids containing the '+' join separator", () => {
+  test("merged item carries mergedFromIds and avoids colliding with an original '+' id", async () => {
+    const items = [
+      makeItem({ id: "a" }),
+      makeItem({ id: "b" }),
+      makeItem({ id: "a+b", title: "Literal plus" }),
+    ];
+    mockLlmText(
+      JSON.stringify([
+        { merged_ids: ["a", "b"], title: "Merged ab", summary: "s" },
+        { merged_ids: ["a+b"], title: "Literal plus", summary: null },
+      ]),
+    );
+    const res = await mergeItems(fakeModel, items);
+    expect(res).toHaveLength(2);
+    // The joined id "a+b" belongs to a distinct original item; the merged
+    // item's id must not clobber it.
+    const ids = res.map((i) => i.id);
+    expect(new Set(ids).size).toBe(2);
+    expect(ids).toContain("a+b");
+    expect(res[0].mergedFromIds).toEqual(["a", "b"]);
+    expect(res[0].id).not.toBe("a+b");
+  });
+
+  test("emitted-first original '+' id forces a later joined id to disambiguate", async () => {
+    const items = [
+      makeItem({ id: "a+b", title: "Literal plus" }),
+      makeItem({ id: "a" }),
+      makeItem({ id: "b" }),
+    ];
+    mockLlmText(
+      JSON.stringify([
+        { merged_ids: ["a+b"], title: "Literal plus", summary: "kept summary" },
+        { merged_ids: ["a", "b"], title: "Merged ab", summary: "s" },
+      ]),
+    );
+    const res = await mergeItems(fakeModel, items);
+    expect(res).toHaveLength(2);
+    expect(res[0].id).toBe("a+b");
+    expect(res[1].id).not.toBe("a+b");
+    expect(new Set(res.map((i) => i.id)).size).toBe(2);
+  });
 });

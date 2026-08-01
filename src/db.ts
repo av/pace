@@ -734,7 +734,12 @@ export function contentItemsToRows(
   rowById: Map<string, ContentItemRow>,
 ): ContentItemRow[] {
   return items.map((item) => {
-    const baseRow = rowById.get(item.id) ?? rowById.get(item.id.split("+")[0]);
+    // Merged items carry their source ids explicitly; prefer them over parsing
+    // the "+"-joined merged id, which is ambiguous when an original id
+    // contains "+" (and the joined id may even equal an unrelated input id).
+    const baseRow = item.mergedFromIds?.length
+      ? rowById.get(item.mergedFromIds[0]!)
+      : (rowById.get(item.id) ?? rowById.get(item.id.split("+")[0]));
     return contentItemToRow(item, baseRow);
   });
 }

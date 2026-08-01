@@ -875,6 +875,48 @@ test("contentItemsToRows inherits base row metadata and split id fallback", () =
   expect(merged[0].title).toBe("Merged");
 });
 
+test("contentItemsToRows prefers explicit mergedFromIds over parsing the joined id", () => {
+  // Original ids containing "+" make the joined merged id ambiguous:
+  // merging "a+b" and "c" yields id "a+b+c", whose split("+")[0] is "a" —
+  // the wrong (or a nonexistent) base row. mergedFromIds resolves exactly.
+  const rowById = contentRowMapById([
+    makeRow({
+      id: "a+b",
+      panel_id: "panel-plus",
+      title: "Plus",
+      url: "https://ex.com/plus",
+      source: "src",
+      body: null,
+      timestamp: "2024-06-01T12:00:00.000Z",
+      fetched_at: "2024-06-02T08:00:00.000Z",
+      summary: null,
+    }),
+    makeRow({
+      id: "a",
+      panel_id: "panel-wrong",
+      title: "Wrong base",
+      url: "https://ex.com/a",
+      source: "src",
+      body: null,
+      timestamp: "2024-06-01T12:00:00.000Z",
+      fetched_at: "2024-06-02T08:00:00.000Z",
+      summary: null,
+    }),
+  ]);
+  const merged = contentItemsToRows(
+    [
+      makeItem({
+        id: "a+b+c",
+        title: "Merged",
+        timestamp: new Date("2024-07-01T00:00:00.000Z"),
+        mergedFromIds: ["a+b", "c"],
+      }),
+    ],
+    rowById,
+  );
+  expect(merged[0].panel_id).toBe("panel-plus");
+});
+
 // --- Bookmarks DB write/read ---
 
 test("bookmarks items with stable IDs can be written and read back", () => {
