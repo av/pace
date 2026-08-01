@@ -127,6 +127,26 @@ describe("docker-entrypoint.sh", () => {
   });
 });
 
+describe("scripts/verify-release.sh", () => {
+  test("release verification script exists and is executable", () => {
+    const path = join(repoRoot, "scripts/verify-release.sh");
+    expect(existsSync(path)).toBe(true);
+    expect(statSync(path).mode & 0o111).toBeGreaterThan(0);
+  });
+
+  test("script verifies the endpoints the README documents", () => {
+    // Keep the released-artifact smoke test aligned with the served surface:
+    // if an endpoint here disappears, the script (and this pin) must change too.
+    const script = readRepoFile("scripts/verify-release.sh");
+    for (const path of ["/health", "/dashboard.js", "/styles.css", "/api/panels", ".rss"]) {
+      expect(script, `verify-release.sh must probe ${path}`).toContain(path);
+    }
+    expect(script).toContain("pace --version");
+    expect(script).toContain("pace skill");
+    expect(script).toContain("pace doctor");
+  });
+});
+
 describe("package.json bin", () => {
   test("bin entry exists and is executable", () => {
     const pkg = JSON.parse(readRepoFile("package.json")) as { bin?: Record<string, string> };
