@@ -4,6 +4,7 @@
 import type { XMLParser } from "fast-xml-parser";
 import {
   extractRssAtomItems,
+  hasRssAtomFeedRoot,
   parseFeedXml,
   parseXml,
   shouldWarnLegitimatelyEmptyFeed,
@@ -140,6 +141,15 @@ function finalizeFeedItemList<TEntry, TParsed extends RssAtomFeedShape<TEntry>>(
   parsed: TParsed,
   items: TEntry[],
 ): TEntry[] {
+  // A response with neither an <rss> nor a <feed> root is not a feed at all
+  // (HTML error page, JSON, plain text). fast-xml-parser accepts such bodies
+  // without throwing, so without this check a misconfigured/broken feed URL
+  // silently reports ok/0 items and looks healthy. Fail loudly instead.
+  if (!hasRssAtomFeedRoot(parsed)) {
+    throw new Error(
+      `${prefix}: response from ${redactSensitiveUrlCredentials(context)} is not an RSS/Atom feed (no <rss> or <feed> root)`,
+    );
+  }
   if (shouldWarnLegitimatelyEmptyFeed(parsed, items)) {
     warnEmptyFeedEntries(prefix, context);
   }

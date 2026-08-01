@@ -224,6 +224,44 @@ describe("rss", () => {
     );
   });
 
+  test("non-feed garbage response fails loudly instead of reporting an empty feed", async () => {
+    // HTML error pages, plain text, and JSON all parse without throwing but
+    // have no <rss>/<feed> root; pre-fix this returned [] with status ok.
+    const bodies = [
+      "<html><body>404 not found</body></html>",
+      "just some plain text, definitely not a feed",
+      '{"error":"rate limited"}',
+    ];
+    for (const body of bodies) {
+      mocks.fetchMock.mockImplementation(async () => makeXmlResponse(body));
+      await expect(
+        rssAdapter.fetch(rssCfg({ urls: ["https://ex.com/broken"] })),
+      ).rejects.toThrow(
+        "rss: response from https://ex.com/broken is not an RSS/Atom feed (no <rss> or <feed> root)",
+      );
+    }
+  });
+
+  test("one garbage feed among healthy feeds is skipped with a not-a-feed warning", async () => {
+    mocks.fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      if (String(input).includes("broken")) {
+        return makeXmlResponse("<html><body>gateway timeout</body></html>");
+      }
+      return rssDefaultFetchImpl(input);
+    });
+
+    const items = await rssAdapter.fetch(
+      rssCfg({ urls: ["https://ex.com/broken", "https://ex.com/rss"] }),
+    );
+
+    expect(items.length).toBe(2);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "rss: response from https://ex.com/broken is not an RSS/Atom feed",
+      ),
+    );
+  });
+
   test("errorMessage on !ok and network", async () => {
     await expectAdapterFetchError(
       mocks.fetchMock,

@@ -165,6 +165,18 @@ export function extractRssAtomItems<T>(
 }
 
 /**
+ * True when parsed XML has an RSS (`<rss>`) or Atom (`<feed>`) root element.
+ * Garbage/non-feed responses (HTML error pages, JSON, plain text) parse without
+ * throwing but lack both roots - callers should surface that as a fetch failure
+ * instead of treating it as a healthy empty feed.
+ */
+export function hasRssAtomFeedRoot(parsed: unknown): boolean {
+  if (parsed == null || typeof parsed !== "object") return false;
+  const record = parsed as { rss?: unknown; feed?: unknown };
+  return record.rss != null || record.feed != null;
+}
+
+/**
  * True when a feed parsed successfully with a feed root but zero extractable items,
  * and the item/entry field is absent or an empty array (not malformed - shape warn covers that).
  */
