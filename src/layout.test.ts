@@ -18,7 +18,7 @@ describe("renderDashboard", () => {
     expect(html).toContain("<title>pace</title>");
     expect(html).toContain('<footer class="footer"><a href="https://github.com/av/pace" target="_blank" rel="noopener noreferrer">Pace</a> / 2026-05-21 12:34 UTC</footer>');
     expect(html).toContain('<link rel="stylesheet" href="/styles.css"/>');
-    expect(html).toContain('<div class="flex-root">');
+    expect(html).toContain('<main class="flex-root">');
   });
 
   it("renders a simple panel node with one item (safe https link, source, just-now time)", () => {

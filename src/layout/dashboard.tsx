@@ -49,9 +49,10 @@ const Dashboard: FC<DashboardProps> = ({ layout, panelData, updatedAt, cssHref, 
           {notice}
         </div>
       ) : null}
-      <div class="flex-root">
+      <main class="flex-root">
+        <h1 class="sr-only">pace</h1>
         <LayoutNode node={layout} panelData={panelData} mode={mode} basePath={basePath} />
-      </div>
+      </main>
       <footer class="footer">
         <a href="https://github.com/av/pace" target="_blank" rel="noopener noreferrer">Pace</a> / {updatedAt} UTC
       </footer>

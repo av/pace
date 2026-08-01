@@ -64,6 +64,19 @@
   font-family: var(--font-mono);
 }
 
+/* visually hidden but exposed to assistive tech (page h1) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .panel-header h2,
 .refresh-btn,
 .empty-state {
@@ -299,6 +312,11 @@ a:hover {
 
 .panel-body {
   padding: 0;
+}
+
+/* semantic list wrapper for content items; visuals live on .item */
+.item-list {
+  list-style: none;
 }
 
 /* content items */

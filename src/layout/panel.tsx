@@ -60,6 +60,19 @@ function displayTimestamp(timestamp: string, mode: DashboardRenderMode): string 
   return mode === "static" ? absoluteUtcTime(timestamp) : relativeTime(timestamp);
 }
 
+/**
+ * Timestamp rendered as a <time> element with a machine-readable datetime
+ * attribute. Unparseable timestamps fall back to a plain span (an empty or
+ * invalid datetime attribute would violate the <time> content model).
+ */
+const Timestamp: FC<{ timestamp: string; mode: DashboardRenderMode; class: string }> = ({ timestamp, mode, class: className }) => {
+  const parsed = new Date(timestamp);
+  const text = displayTimestamp(timestamp, mode);
+  return isNaN(parsed.getTime())
+    ? <span class={className}>{text}</span>
+    : <time class={className} datetime={parsed.toISOString()}>{text}</time>;
+};
+
 /** Shared panel header: title plus refreshed-at / refresh-button actions (also used by CounterPanel). */
 export const PanelHeader: FC<{
   title: string;
@@ -71,10 +84,10 @@ export const PanelHeader: FC<{
   <div class="panel-header">
     <h2 title={title}>{title}</h2>
     <div class="panel-actions">
-      {lastRefreshedAt && <span class="panel-refreshed">{displayTimestamp(lastRefreshedAt, mode)}</span>}
+      {lastRefreshedAt && <Timestamp timestamp={lastRefreshedAt} mode={mode} class="panel-refreshed" />}
       {mode === "interactive" && (
         <form method="post" action={`${basePath}/refresh/${encodeURIComponent(panelId)}`}>
-          <button type="submit" class="refresh-btn" title="Refresh" aria-label="Refresh">↻</button>
+          <button type="submit" class="refresh-btn" title={`Refresh ${title}`} aria-label={`Refresh ${title}`}>↻</button>
         </form>
       )}
     </div>
@@ -86,7 +99,7 @@ const ContentItemCard: FC<{ item: ContentItemRow; mode: DashboardRenderMode }> =
   const origins = parseJsonStringArray(item.origins);
   const merged = origins.length > 1;
   return (
-    <div class="item">
+    <li class="item">
       <div class="item-title">
         {href
           ? <a href={href} target="_blank" rel="noopener noreferrer">{item.title}</a>
@@ -99,7 +112,7 @@ const ContentItemCard: FC<{ item: ContentItemRow; mode: DashboardRenderMode }> =
           : <SourcePill source={item.source} />
         }
         {merged && <span class="item-merged">{origins.length} sources</span>}
-        <span class="item-time">{displayTimestamp(item.timestamp, mode)}</span>
+        <Timestamp timestamp={item.timestamp} mode={mode} class="item-time" />
       </div>
       {item.summary ? (
         <div class="item-summary">
@@ -110,7 +123,7 @@ const ContentItemCard: FC<{ item: ContentItemRow; mode: DashboardRenderMode }> =
         const bodyText = truncateBody(item.body);
         return bodyText ? <div class="item-body">{bodyText}</div> : null;
       })() : null}
-    </div>
+    </li>
   );
 };
 
@@ -132,7 +145,7 @@ export const Panel: FC<{ node: PanelConfig; panelData: Map<string, PanelData>; m
         />
         <div class="panel-body">
           {items.length > 0
-            ? items.map((item: ContentItemRow) => <ContentItemCard item={item} mode={mode} />)
+            ? <ul class="item-list">{items.map((item: ContentItemRow) => <ContentItemCard item={item} mode={mode} />)}</ul>
             : <div class="empty-state">No content yet</div>
           }
         </div>

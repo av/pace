@@ -102,7 +102,7 @@ export function expectDashboardHtmlShell(html: string): void {
   expect(html.startsWith("<!DOCTYPE html>")).toBe(true);
   expect(html).toContain("<title>pace</title>");
   expect(html).toContain('<link rel="stylesheet" href="/styles.css"/>');
-  expect(html).toContain('<div class="flex-root">');
+  expect(html).toContain('<main class="flex-root">');
   expect(html).toContain('<footer class="footer">');
   expect(html).toContain('href="https://github.com/av/pace"');
 }

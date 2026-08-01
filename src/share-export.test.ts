@@ -181,8 +181,8 @@ describe("static dashboard export", () => {
       now: new Date("2026-07-22T10:11:12.000Z"),
     });
 
-    expect(html).toContain('<span class="panel-refreshed">2026-06-21 09:08Z</span>');
-    expect(html).toContain('<span class="item-time">2026-06-20 07:06Z</span>');
+    expect(html).toContain('<time class="panel-refreshed" datetime="2026-06-21T09:08:07.000Z">2026-06-21 09:08Z</time>');
+    expect(html).toContain('<time class="item-time" datetime="2026-06-20T07:06:05.000Z">2026-06-20 07:06Z</time>');
     expect(html).not.toContain("ago");
   });
 

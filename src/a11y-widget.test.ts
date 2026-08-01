@@ -350,7 +350,7 @@ describe("CounterPanel accessibility", () => {
       { title: "Test", body: JSON.stringify({ value: 1 }) },
     ]);
     const html = renderWidget(metricsPanel, pd);
-    expect(html).toContain('aria-label="Refresh"');
+    expect(html).toContain('aria-label="Refresh Metrics"');
   });
 
   it("refresh button also has title for sighted tooltip", () => {
@@ -360,8 +360,8 @@ describe("CounterPanel accessibility", () => {
     const html = renderWidget(metricsPanel, pd);
     const buttonMatch = html.match(/<button[^>]*>/);
     expect(buttonMatch).toBeTruthy();
-    expect(buttonMatch![0]).toContain('title="Refresh"');
-    expect(buttonMatch![0]).toContain('aria-label="Refresh"');
+    expect(buttonMatch![0]).toContain('title="Refresh Metrics"');
+    expect(buttonMatch![0]).toContain('aria-label="Refresh Metrics"');
   });
 
   it("panel header uses h2 for consistent heading hierarchy", () => {
@@ -453,4 +453,50 @@ describe("Screen reader friendly text", () => {
     expect(html).toContain("5M");
   });
 
+});
+
+// ===========================================================================
+// DOCUMENT SEMANTICS - landmarks, heading hierarchy, lists, time elements
+// ===========================================================================
+describe("Document semantics", () => {
+  function feedPanelData(timestamp: string): Map<string, PanelData> {
+    return new Map([["News", { items: [makeItem({ title: "Story", timestamp })] }]]);
+  }
+
+  it("wraps the layout in a main landmark with exactly one visually hidden h1", () => {
+    const html = renderWidget(panelCfg("News", "news"), feedPanelData("2026-06-20T07:06:05.000Z"));
+    expect(html).toContain('<main class="flex-root">');
+    expect(html).toContain("</main>");
+    expect(html.match(/<h1[\s>]/g)).toHaveLength(1);
+    expect(html).toContain('<h1 class="sr-only">pace</h1>');
+  });
+
+  it("marks up content items as a list", () => {
+    const html = renderWidget(panelCfg("News", "news"), feedPanelData("2026-06-20T07:06:05.000Z"));
+    expect(html).toContain('<ul class="item-list">');
+    expect(html).toContain('<li class="item">');
+    expect(html).not.toContain('<div class="item">');
+  });
+
+  it("omits the list wrapper for the empty state", () => {
+    const html = renderWidget(panelCfg("News", "news"), new Map());
+    expect(html).not.toContain("<ul");
+    expect(html).toContain("No content yet");
+  });
+
+  it("renders item timestamps as time elements with machine-readable datetime", () => {
+    const html = renderWidget(panelCfg("News", "news"), feedPanelData("2026-06-20T07:06:05.000Z"));
+    expect(html).toContain('<time class="item-time" datetime="2026-06-20T07:06:05.000Z">');
+  });
+
+  it("falls back to a span for unparseable timestamps (no invalid datetime attribute)", () => {
+    const html = renderWidget(panelCfg("News", "news"), feedPanelData("not-a-date"));
+    expect(html).toContain('<span class="item-time"></span>');
+    expect(html).not.toContain('datetime="');
+  });
+
+  it("names each refresh button after its panel", () => {
+    const html = renderWidget(panelCfg("News", "news"), feedPanelData("2026-06-20T07:06:05.000Z"));
+    expect(html).toContain('aria-label="Refresh News"');
+  });
 });
