@@ -99,14 +99,17 @@ export async function handleRefreshPanel(c: Context, deps: ServerRouteDeps): Pro
   );
   if (!binding.ok) return c.text(formatUnknownRefreshPanelBody(binding.param), 404);
 
+  // Every outcome branches the same way: a browser user lands back on the
+  // dashboard (with a ?failed=/?skipped= notice where applicable), while
+  // non-browser clients (curl, scripts, health checks) get a diagnosable
+  // text body instead of an empty 303.
+  const isBrowserNav = isBrowserNavigationRequest(c.req.raw.headers);
+
   if (binding.sourceNames.length > 0) {
     const results = await deps.refreshSources(binding.sourceNames);
     const failures = collectRefreshFailures(results);
     if (failures.length > 0) {
-      // A browser user clicking the panel refresh button should land back on
-      // the dashboard with an error banner, not on a dead text/plain page.
-      // Non-browser clients (curl, scripts, health checks) keep the 502 body.
-      if (isBrowserNavigationRequest(c.req.raw.headers)) {
+      if (isBrowserNav) {
         return c.redirect(
           `${dashboardRootPath(deps.basePath)}?failed=${encodeSourceNames(failures.map((result) => result.name))}`,
           303,
@@ -116,10 +119,7 @@ export async function handleRefreshPanel(c: Context, deps: ServerRouteDeps): Pro
     }
     const skips = collectRefreshSkips(results);
     if (skips.length > 0) {
-      // Mirror the failure branch: a browser user lands back on the
-      // dashboard with the ?skipped= notice; non-browser clients (curl,
-      // scripts) get a diagnosable text body instead of an empty 303.
-      if (isBrowserNavigationRequest(c.req.raw.headers)) {
+      if (isBrowserNav) {
         return c.redirect(
           `${dashboardRootPath(deps.basePath)}?skipped=${encodeSourceNames(skips.map((result) => result.name))}`,
           303,
@@ -129,13 +129,10 @@ export async function handleRefreshPanel(c: Context, deps: ServerRouteDeps): Pro
     }
   }
 
-  // Success: a browser navigation lands back on the dashboard; non-browser
-  // clients (curl, scripts) get a confirmation body instead of an empty 303,
-  // mirroring the failure and skip branches above.
-  if (!isBrowserNavigationRequest(c.req.raw.headers)) {
-    return c.text(formatRefreshSuccessBody(binding.sourceNames), 200);
+  if (isBrowserNav) {
+    return c.redirect(dashboardRootPath(deps.basePath), 303);
   }
-  return c.redirect(dashboardRootPath(deps.basePath), 303);
+  return c.text(formatRefreshSuccessBody(binding.sourceNames), 200);
 }
 
 /**
