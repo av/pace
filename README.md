@@ -302,7 +302,9 @@ For example, one panel can merge Hacker News, Lobsters, and RSS, dedupe repeated
 
 Arrange panels in a recursive flexbox tree. Each node is a flex container, a panel, or a widget.
 
-Panels display adapters or pipelines. Widgets display static images, text/markdown, sanitized HTML, iframes, or stat-card counters. Responsive layouts collapse to a single column on mobile below 768px.
+Panels display adapters or pipelines. Widgets display static images, text/markdown, sanitized HTML, iframes, or stat-card counters. Responsive layouts collapse to a single column on mobile below 768px:
+
+<p align="center"><img src="./assets/preset-daily-brief-mobile.png" alt="Daily Brief preset on a 390px-wide mobile viewport, collapsed to a single column" width="280"></p>
 
 See skills/pace-config/SKILL.md for the layout reference.
 
