@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, spyOn } from "bun:test";
 import adapter from "./adapters/youtube";
 import { FEED_XML_ACCEPT } from "./adapters/fetch";
-import { fetchMockCallHeaders, useFetchMockSuite } from "./test/adapter-mocks";
+import {
+  fetchMockCallHeaders,
+  fetchMockCallUrl,
+  useFetchMockSuite,
+} from "./test/adapter-mocks";
 import { youtubeCfg } from "./test/adapter-cfg";
 import { makeErrorResponse, makeXmlResponse } from "./test/fetch-responses";
 import { invalidLimitParams } from "./test/invalid-params";
@@ -60,6 +64,20 @@ describe("youtube", () => {
 
     const headers = fetchMockCallHeaders(mocks.fetchMock);
     expect(headers.Accept).toBe(FEED_XML_ACCEPT);
+  });
+
+  it("percent-encodes channel and playlist ids in the feed URL", async () => {
+    mocks.fetchMock.mockImplementation(async () => makeXmlResponse(channelXml));
+
+    await adapter.fetch(youtubeCfg({ channels: ["CH&x=1#frag"] }));
+    expect(fetchMockCallUrl(mocks.fetchMock)).toBe(
+      "https://www.youtube.com/feeds/videos.xml?channel_id=CH%26x%3D1%23frag",
+    );
+
+    await adapter.fetch(youtubeCfg({ playlists: ["PL&x=1#frag"] }));
+    expect(fetchMockCallUrl(mocks.fetchMock, 1)).toBe(
+      "https://www.youtube.com/feeds/videos.xml?playlist_id=PL%26x%3D1%23frag",
+    );
   });
 
   it("fetches from channel and maps items with correct title/source/url/body", async () => {

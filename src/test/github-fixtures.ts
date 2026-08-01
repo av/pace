@@ -92,6 +92,24 @@ export function githubReleasesEntityEntryTitleFixture(): string {
   });
 }
 
+/** Releases.atom feed whose tag URL segments are percent-encoded (plus one malformed escape). */
+export function githubReleasesEncodedTagFixture(): string {
+  return renderGitHubReleasesAtomFeed({
+    entries: [
+      {
+        title: "Beta line release",
+        link: "https://github.com/acme/pkg/releases/tag/release%2F2024%20beta",
+        updated: "2024-12-01T12:00:00Z",
+      },
+      {
+        title: "Bad escape release",
+        link: "https://github.com/acme/pkg/releases/tag/v%ZZbad",
+        updated: "2024-11-01T12:00:00Z",
+      },
+    ],
+  });
+}
+
 /** Releases.atom feed with HTML tags/entities in entry content for stripHtml tests. */
 export function githubReleasesHtmlBodyFixture(): string {
   return renderGitHubReleasesAtomFeed({
@@ -106,6 +124,19 @@ export function githubReleasesHtmlBodyFixture(): string {
       },
     ],
   });
+}
+
+/** Trending page where a repo gained exactly one star ("1 star today"). */
+export function githubTrendingSingularStarHtmlFixture(): string {
+  return `
+<article class="Box-row">
+  <h2><a href="/solo/gem">solo/gem</a></h2>
+  <p class="col-9">Tiny but rising</p>
+  <span itemprop="programmingLanguage">Go</span>
+  <svg class="octicon-star">star icon</svg>  42
+  <span>1 star today</span>
+</article>
+`;
 }
 
 /** Canonical GitHub trending HTML page for adapter tests. */

@@ -92,7 +92,8 @@ function parseTrendingHtml(html: string): TrendingRepo[] {
     const starsMatch = article.match(/octicon-star[\s\S]*?<\/svg>\s*([\d,]+)/);
     const stars = starsMatch ? parseInt(starsMatch[1].replace(/,/g, ""), 10) : 0;
 
-    const gainedMatch = article.match(/([\d,]+)\s+stars\s+(today|this week|this month)/);
+    // "stars?" — a repo that gained exactly one star renders "1 star today".
+    const gainedMatch = article.match(/([\d,]+)\s+stars?\s+(today|this week|this month)/);
     const starsGained = gainedMatch ? parseInt(gainedMatch[1].replace(/,/g, ""), 10) : 0;
 
     repos.push({

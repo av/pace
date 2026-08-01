@@ -13,9 +13,11 @@ import {
   githubReleasesAtomFeedFixture,
   githubReleasesEntityEntryTitleFixture,
   githubReleasesEntityFeedTitleFixture,
+  githubReleasesEncodedTagFixture,
   githubReleasesHtmlBodyFixture,
   githubTrendingEntityHtmlFixture,
   githubTrendingHtmlFixture,
+  githubTrendingSingularStarHtmlFixture,
 } from "./test/github-fixtures";
 
 const mocks = useFetchMockSuite();
@@ -227,6 +229,29 @@ describe("github", () => {
     expect(items[1].title).toContain("v18.3.0");
   });
 
+  test("decodes percent-encoded release tags from atom links for id/title", async () => {
+    mocks.fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).includes("releases.atom")) {
+        return makeTextResponse(githubReleasesEncodedTagFixture());
+      }
+      return makeErrorResponse(404);
+    });
+
+    const items = await adapter.fetch(
+      githubCfg({ mode: "releases", repos: ["acme/pkg"], limit: 10 }),
+    );
+
+    expect(items.length).toBe(2);
+    expect(items[0].id).toBe("github:acme/pkg:release/2024 beta");
+    expect(items[0].title).toContain("acme/pkg: release/2024 beta");
+    expect(items[0].title).not.toContain("%2F");
+    expect(items[0].url).toBe(
+      "https://github.com/acme/pkg/releases/tag/release%2F2024%20beta",
+    );
+    // Malformed percent-escapes keep the raw tag rather than throwing.
+    expect(items[1].id).toBe("github:acme/pkg:v%ZZbad");
+  });
+
   test("releases respects per-repo limit then outer cap", async () => {
     mocks.fetchMock.mockImplementation(async (url: string) => {
       if (String(url).includes("api.github.com/repos/")) {
@@ -381,6 +406,18 @@ describe("github", () => {
     expect(items[1].title).toContain("Tools & 'kit' for Builders");
     expect(items[2].title).toContain("facebook/react");
     expect(items[2].title).toContain("declarative JavaScript");
+  });
+
+  test("parses singular '1 star today' as starsGained=1", async () => {
+    mocks.fetchMock.mockImplementation(async () =>
+      makeTextResponse(githubTrendingSingularStarHtmlFixture()),
+    );
+
+    const items = await adapter.fetch(githubCfg({ mode: "trending", limit: 5 }));
+
+    expect(items.length).toBe(1);
+    expect(items[0].title).toContain("solo/gem");
+    expect(items[0].title).toContain("+1 today");
   });
 
   test("decodes HTML entities in trending repo name/title", async () => {

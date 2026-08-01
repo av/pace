@@ -126,6 +126,15 @@ export function formatGitHubReleaseDisplayTitle(
   return joinTitleWithTagline(releaseTitle, tagline);
 }
 
+/** Decode a percent-encoded URL path segment; malformed escapes keep the raw form. */
+function decodeUrlPathSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
 function githubAtomDedupeKey(item: TaggedGHAtomEntry): string {
   const link = extractAtomLink(item.entry.link);
   return link || `https://github.com/${item.repo}/releases`;
@@ -140,7 +149,9 @@ function projectGitHubAtomEntry(item: TaggedGHAtomEntry): ContentItemProjection 
   const title = decodeFeedEntryTitle(entry.title, "(untitled release)");
   const link = extractAtomLink(entry.link);
   const tagMatch = link.match(/\/releases\/tag\/(.+)$/);
-  const tag = tagMatch ? tagMatch[1] : "";
+  // The tag lives in a URL path, so "/" or spaces arrive percent-encoded;
+  // decode for display in id/title. Malformed escapes keep the raw form.
+  const tag = tagMatch ? decodeUrlPathSegment(tagMatch[1]) : "";
   const strippedBody = extractFeedEntryStrippedBody(entry);
   const body = strippedBody ? capText(strippedBody, 500) : undefined;
   return {

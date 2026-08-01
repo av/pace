@@ -93,7 +93,7 @@ async function fetchYoutubeFeed(
 ): Promise<TaggedYTEntry[]> {
   const param = kind === "channel" ? "channel_id" : "playlist_id";
   const label = kind;
-  const url = `https://www.youtube.com/feeds/videos.xml?${param}=${id}`;
+  const url = `https://www.youtube.com/feeds/videos.xml?${param}=${encodeURIComponent(id)}`;
   const { parsed, entries } = await fetchAtomFeed<YTEntry, YTAtomFeedParsed>(
     "youtube",
     url,
