@@ -447,7 +447,7 @@ describe("transforms - cluster", () => {
       expect(result.length).toBe(2);
       expect(warnSpy).toHaveBeenCalledTimes(2);
       expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringMatching(/^transforms: extractHostname failed for "not-a-valid-url": /),
+        expect.stringMatching(/^transforms: cannot parse URL "not-a-valid-url" for hostname extraction: /),
       );
     });
   });

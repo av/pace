@@ -16,6 +16,7 @@ import {
 } from "./cli-import";
 import { parseAndValidateConfig } from "./config";
 import { runCli } from "./test/cli-runner";
+import { describeWriteFailure } from "./cli-help";
 import {
   NOT_OPML_RSS,
   OPML_FLAT,
@@ -318,5 +319,43 @@ describe("pace import CLI", () => {
     expect(result.stdout).toContain(
       "import <feeds.opml>      Convert an OPML feed export to a pace config",
     );
+  });
+});
+
+describe("describeWriteFailure", () => {
+  test("drops the errno syscall suffix when it repeats the target path", () => {
+    const err = new Error("ENOENT: no such file or directory, open '/nonexistent-dir/out.yaml'");
+    expect(describeWriteFailure(err, "/nonexistent-dir/out.yaml")).toBe(
+      "ENOENT: no such file or directory",
+    );
+  });
+
+  test("keeps the suffix when the syscall path differs from the target", () => {
+    const err = new Error("ENOENT: no such file or directory, open '/other/file.yaml'");
+    expect(describeWriteFailure(err, "/nonexistent-dir/out.yaml")).toBe(
+      "ENOENT: no such file or directory, open '/other/file.yaml'",
+    );
+  });
+
+  test("passes non-errno messages through unchanged", () => {
+    expect(describeWriteFailure(new Error("disk on fire"), "/out.yaml")).toBe("disk on fire");
+  });
+
+  test("CLI write failure reports the path once, without the raw syscall echo", () => {
+    const dir = mkdtempSync(join(os.tmpdir(), "pace-import-write-"));
+    try {
+      const opmlPath = join(dir, "feeds.opml");
+      writeFileSync(
+        opmlPath,
+        '<opml version="1.0"><body><outline text="A" xmlUrl="https://example.com/f.xml"/></body></opml>',
+      );
+      const outPath = join(dir, "no-such-subdir", "out.yaml");
+      const result = runCli(["import", opmlPath, outPath]);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(`import: cannot write ${outPath}: ENOENT: no such file or directory`);
+      expect(result.stderr).not.toContain(`open '${outPath}'`);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

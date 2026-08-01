@@ -106,7 +106,7 @@ describe("renderDashboard", () => {
       renderDashboard({ layout, panelData, updatedAt: "now" });
       expect(warnSpy).toHaveBeenCalledTimes(1);
       expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringMatching(/^layout: safeUrl failed for "not-a-url": /),
+        expect.stringMatching(/^layout: cannot parse URL "not-a-url" for dashboard link: /),
       );
     });
   });

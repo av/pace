@@ -52,7 +52,7 @@ describe("pace adapters explain", () => {
   test("unknown adapter type exits 1 with error and available list", () => {
     const result = runCli(["adapters", "explain", "bogus-adapter"]);
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain('unknown adapter type "bogus-adapter"');
+    expect(result.stderr).toContain('cli: unknown adapter type "bogus-adapter"');
     expect(result.stderr).toContain("Available:");
     expect(result.stderr).toContain("hackernews");
   });
@@ -86,7 +86,7 @@ describe("pace transforms explain", () => {
   test("unknown transform type exits 1 with error and available list", () => {
     const result = runCli(["transforms", "explain", "bogus-transform"]);
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain('unknown transform type "bogus-transform"');
+    expect(result.stderr).toContain('cli: unknown transform type "bogus-transform"');
     expect(result.stderr).toContain("Available:");
     expect(result.stderr).toContain("latest");
   });

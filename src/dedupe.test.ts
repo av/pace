@@ -65,7 +65,7 @@ describe("dedupe utils", () => {
         expect(normalizeUrl(bad)).toBe(bad);
         expect(warnSpy).toHaveBeenCalledTimes(1);
         expect(warnSpy).toHaveBeenCalledWith(
-          expect.stringMatching(/^dedupe: normalizeUrl failed for "not a valid url at all": /),
+          expect.stringMatching(/^dedupe: cannot parse URL "not a valid url at all" for normalization: /),
         );
       });
     });
@@ -91,7 +91,7 @@ describe("dedupe utils", () => {
       await spyConsole(["warn"], ({ warn: warnSpy }) => {
         expect(extractHostname("not a url", "test")).toBe("");
         expect(warnSpy).toHaveBeenCalledWith(
-          expect.stringMatching(/^test: extractHostname failed for "not a url": /),
+          expect.stringMatching(/^test: cannot parse URL "not a url" for hostname extraction: /),
         );
       });
     });

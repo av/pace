@@ -48,6 +48,18 @@ export function cliDie(message: string): never {
   process.exit(1);
 }
 
+/**
+ * Human form of a file write error: drops the errno syscall suffix when it
+ * just repeats the target path (e.g. "ENOENT: no such file or directory,
+ * open '/out.yaml'" -> "ENOENT: no such file or directory").
+ */
+export function describeWriteFailure(err: unknown, outputPath: string): string {
+  return errorMessage(err).replace(
+    /, (?:open|write) '([^']*)'$/,
+    (match, syscallPath: string) => (syscallPath === outputPath ? "" : match),
+  );
+}
+
 export function cliExitOk(stdout: string): never {
   writeCliStdout(stdout);
   process.exit(0);
@@ -412,7 +424,7 @@ export function formatAdapterExplain(adapterType: string): string {
   const doc = ADAPTER_DOCS[adapterType as keyof typeof ADAPTER_DOCS];
   if (!doc) {
     const available = ADAPTER_TYPES.join(", ");
-    cliDie(`unknown adapter type "${adapterType}"\nAvailable: ${available}`);
+    cliDie(`cli: unknown adapter type "${adapterType}"\nAvailable: ${available}`);
   }
   const paramLines = Object.entries(doc.params)
     .map(([name, p]) => formatParamRow(name, p))
@@ -433,7 +445,7 @@ export function formatTransformExplain(transformType: string): string {
   const doc = TRANSFORM_DOCS[transformType as keyof typeof TRANSFORM_DOCS];
   if (!doc) {
     const available = TRANSFORM_TYPES.join(", ");
-    cliDie(`unknown transform type "${transformType}"\nAvailable: ${available}`);
+    cliDie(`cli: unknown transform type "${transformType}"\nAvailable: ${available}`);
   }
   const paramLines = Object.entries(doc.params)
     .map(([name, p]) => formatParamRow(name, p))
@@ -923,7 +935,7 @@ const CLI_COMMANDS: CliCommand[] = [
       try {
         writeFileSync(outputPath, yamlText + "\n");
       } catch (err) {
-        cliDie(`import: cannot write ${outputPath}: ${errorMessage(err)}`);
+        cliDie(`import: cannot write ${outputPath}: ${describeWriteFailure(err, outputPath)}`);
       }
       cliExitOk(
         `import: wrote ${summary} to ${outputPath}\nValidate with: pace config check ${outputPath}`,

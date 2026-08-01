@@ -8,21 +8,21 @@ describe("utils warn utilities", () => {
     warnSpy?.mockRestore();
   });
 
-  test("warnUrlParseFailure uses context:label failed for url: detail contract", () => {
+  test("warnUrlParseFailure uses context: cannot parse URL for purpose contract", () => {
     warnSpy = spyOn(console, "warn").mockImplementation(() => {});
 
-    warnUrlParseFailure("dedupe", "normalizeUrl", "not a url", "Invalid URL");
+    warnUrlParseFailure("dedupe", "normalization", "not a url", "Invalid URL");
     expect(warnSpy).toHaveBeenCalledWith(
-      'dedupe: normalizeUrl failed for "not a url": Invalid URL',
+      'dedupe: cannot parse URL "not a url" for normalization: Invalid URL',
     );
   });
 
   test("warnUrlParseFailure preserves caller warn context (layout safeUrl)", () => {
     warnSpy = spyOn(console, "warn").mockImplementation(() => {});
 
-    warnUrlParseFailure("layout", "safeUrl", "bad://", "protocol issue");
+    warnUrlParseFailure("layout", "dashboard link", "bad://", "protocol issue");
     expect(warnSpy).toHaveBeenCalledWith(
-      'layout: safeUrl failed for "bad://": protocol issue',
+      'layout: cannot parse URL "bad://" for dashboard link: protocol issue',
     );
   });
 });

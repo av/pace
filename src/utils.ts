@@ -28,13 +28,13 @@ export function errorMessage(err: unknown): string {
 export function tryParseUrl(
   url: string,
   warnContext: string,
-  label: string,
+  purpose: string,
 ): URL | null {
   if (!url) return null;
   try {
     return new URL(url);
   } catch (err) {
-    warnUrlParseFailure(warnContext, label, url, errorMessage(err));
+    warnUrlParseFailure(warnContext, purpose, url, errorMessage(err));
     return null;
   }
 }
@@ -43,7 +43,7 @@ const SAFE_LINK_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
 
 /** Original URL when parse succeeds and protocol is safe for dashboard links; else null. */
 export function safeLinkUrl(url: string, warnContext = "layout"): string | null {
-  const parsed = tryParseUrl(url, warnContext, "safeUrl");
+  const parsed = tryParseUrl(url, warnContext, "dashboard link");
   if (!parsed) return null;
   if (parsed.username || parsed.password) return null;
   return SAFE_LINK_PROTOCOLS.has(parsed.protocol) ? url : null;

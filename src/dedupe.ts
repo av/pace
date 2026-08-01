@@ -32,13 +32,13 @@ const TRACKING_PARAMS = new Set([
 
 /** Lowercased hostname without `www.`; empty string and warn on parse failure. */
 export function extractHostname(url: string, warnContext = "dedupe"): string {
-  const parsed = tryParseUrl(url, warnContext, "extractHostname");
+  const parsed = tryParseUrl(url, warnContext, "hostname extraction");
   return parsed ? normalizeHostname(parsed.hostname) : "";
 }
 
 export function normalizeUrl(url: string): string {
   if (!url) return "";
-  const parsed = tryParseUrl(url, "dedupe", "normalizeUrl");
+  const parsed = tryParseUrl(url, "dedupe", "normalization");
   if (!parsed) {
     return url.toLowerCase().trim();
   }

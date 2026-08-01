@@ -21,9 +21,9 @@ describe("URL parse helpers", () => {
     test("warns and returns null on parse failure", () => {
       const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
       try {
-        expect(tryParseUrl("not a url", "test", "parse")).toBeNull();
+        expect(tryParseUrl("not a url", "test", "parsing")).toBeNull();
         expect(warnSpy).toHaveBeenCalledWith(
-          expect.stringMatching(/^test: parse failed for "not a url": /),
+          expect.stringMatching(/^test: cannot parse URL "not a url" for parsing: /),
         );
       } finally {
         warnSpy.mockRestore();
@@ -71,7 +71,7 @@ describe("URL parse helpers", () => {
       try {
         expect(safeLinkUrl("not-a-url", "layout")).toBeNull();
         expect(warnSpy).toHaveBeenCalledWith(
-          expect.stringMatching(/^layout: safeUrl failed for "not-a-url": /),
+          expect.stringMatching(/^layout: cannot parse URL "not-a-url" for dashboard link: /),
         );
       } finally {
         warnSpy.mockRestore();
