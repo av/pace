@@ -3,7 +3,7 @@ import { join, dirname } from "node:path";
 import * as fs from "node:fs";
 import type { ContentItem, ContentItemFields } from "./adapters/types";
 import type { DashboardPanel } from "./layout/types";
-import { warnDbClose } from "./db-warn";
+import { warnDb, warnDbClose } from "./db-warn";
 import { clampFutureTimestamp, errorMessage } from "./utils";
 
 let db: Database | null = null;
@@ -56,6 +56,25 @@ type CoreContentItemSource = Pick<ContentItemFields, "id" | "title" | "url" | "s
   timestamp: Date | string;
 };
 
+/**
+ * Convert an item timestamp to an ISO string, degrading Invalid Date
+ * instances to "now" with a warning.
+ *
+ * Defense in depth: adapters are expected to parse feed dates via
+ * parseFeedDate and friends, but a raw `new Date(garbage)` reaching here
+ * would make .toISOString() throw inside the per-panel transaction and roll
+ * back the WHOLE save — one malformed date drops every fetched item for the
+ * source. Degrade per item instead.
+ */
+function timestampToIso(timestamp: Date | string, itemId: string): string {
+  if (typeof timestamp === "string") return timestamp;
+  if (Number.isNaN(timestamp.getTime())) {
+    warnDb(`invalid Date timestamp on item id=${itemId}; falling back to now`);
+    return new Date().toISOString();
+  }
+  return timestamp.toISOString();
+}
+
 /** Normalize adapter items or persisted rows into the seven core INSERT columns (minus panel_id). */
 export function coreContentItemFields(source: CoreContentItemSource): CoreContentItemFields {
   return {
@@ -69,9 +88,7 @@ export function coreContentItemFields(source: CoreContentItemSource): CoreConten
     // rows are clamped at save time, so on rewrite paths (replacePanelItems,
     // contentItemToRow) this is a no-op backstop — except for future-dated
     // rows persisted by pre-clamp versions, which get fixed once here.
-    timestamp: clampFutureTimestamp(
-      source.timestamp instanceof Date ? source.timestamp.toISOString() : source.timestamp,
-    ),
+    timestamp: clampFutureTimestamp(timestampToIso(source.timestamp, source.id)),
   };
 }
 
@@ -308,7 +325,7 @@ export function saveItems(
   runPanelItemsTx(panelId, items.length, "save", () => {
     for (const item of items) {
       runItemOp(panelId, item, "save", () => {
-        const iso = item.timestamp instanceof Date ? item.timestamp.toISOString() : item.timestamp;
+        const iso = timestampToIso(item.timestamp, item.id);
         let timestamp = clampFutureTimestamp(iso, now);
         if (timestamp !== iso) {
           const existing = existingTsStmt.get(item.id, panelId) as { timestamp: string } | null;

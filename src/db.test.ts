@@ -1050,3 +1050,52 @@ test("plain closeDb still allows re-open (no seal)", () => {
   closeDb();
   expect(() => getDb()).not.toThrow();
 });
+
+// --- Invalid Date backstop (defense in depth against raw new Date(garbage)) ---
+
+test("saveItems degrades an Invalid Date item to now instead of rolling back the panel save", () => {
+  initDb();
+  const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+  try {
+    const before = Date.now();
+    const good = makeItem({
+      id: "ts-good",
+      url: "https://ex.com/ts-good",
+      timestamp: new Date("2024-06-01T12:00:00.000Z"),
+    });
+    const bad = makeItem({
+      id: "ts-bad",
+      url: "https://ex.com/ts-bad",
+      timestamp: new Date("garbage"),
+    });
+
+    expect(() => saveItems("inv-ts", [good, bad])).not.toThrow();
+
+    const rows = getItemsByPanel("inv-ts", 10);
+    expect(rows.length).toBe(2);
+    const badRow = rows.find((r) => r.id === "ts-bad")!;
+    const stored = new Date(badRow.timestamp).getTime();
+    expect(stored).toBeGreaterThanOrEqual(before - 1000);
+    expect(stored).toBeLessThanOrEqual(Date.now() + 1000);
+    expect(warnSpy).toHaveBeenCalledWith(
+      "db: invalid Date timestamp on item id=ts-bad; falling back to now",
+    );
+  } finally {
+    warnSpy.mockRestore();
+  }
+});
+
+test("coreContentItemFields converts an Invalid Date to a valid ISO timestamp with a warning", () => {
+  const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+  try {
+    const fields = coreContentItemFields(
+      makeItem({ id: "inv-core", timestamp: new Date(Number.NaN) }),
+    );
+    expect(Number.isNaN(new Date(fields.timestamp).getTime())).toBe(false);
+    expect(warnSpy).toHaveBeenCalledWith(
+      "db: invalid Date timestamp on item id=inv-core; falling back to now",
+    );
+  } finally {
+    warnSpy.mockRestore();
+  }
+});
