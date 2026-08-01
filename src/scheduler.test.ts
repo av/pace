@@ -887,6 +887,82 @@ describe("scheduler", () => {
     expect(rawPanelIds()).toEqual(["blog:1", "blog:2", "hn:1"]);
   });
 
+  test("dashboard snapshot cache invalidates across a shared-panel transform refresh and keeps co-tenant rows", async () => {
+    // Interaction lock between the snapshot cache (db.ts) and per-source
+    // transform scoping (scheduler-runtime.ts): a refresh of one co-tenant
+    // rewrites the shared panel via replacePanelItems, which MUST bump the
+    // write stamp so cached snapshots are recomputed — and the recomputed
+    // snapshot must still contain the other adapter's rows.
+    const blogItems = [
+      makeContentItem({
+        id: "blog:1",
+        title: "Blog post 1",
+        url: "https://blog/1",
+        source: "blog",
+        timestamp: new Date("2024-06-02T12:00:00.000Z"),
+      }),
+    ];
+    const hnItems = [
+      makeContentItem({
+        id: "hn:1",
+        title: "HN new",
+        url: "https://hn/1",
+        source: "hn",
+        timestamp: new Date("2024-06-04T12:00:00.000Z"),
+      }),
+      makeContentItem({
+        id: "hn:2",
+        title: "HN old",
+        url: "https://hn/2",
+        source: "hn",
+        timestamp: new Date("2024-06-03T12:00:00.000Z"),
+      }),
+    ];
+    const adapters = adaptersMap(
+      ["blogtest", makeMockAdapter(blogItems)],
+      ["hntest", makeMockAdapter(hnItems)],
+    );
+    const config = testAppConfig(
+      {
+        adapters: [
+          { type: "blogtest", name: "blog", refresh_interval: 60 },
+          {
+            type: "hntest",
+            name: "hn",
+            refresh_interval: 60,
+            transforms: [{ type: "latest", count: 1 }],
+          },
+        ],
+      },
+      {
+        direction: "row",
+        panels: [{ panel: "mixed", source: ["blog", "hn"], id: "shared" }],
+      },
+    );
+    const pm = sourcePanelMapFromConfig(config);
+    startTestScheduler(config, adapters, pm, null);
+    await waitForAsync();
+
+    const snapshotIds = (s: dbMod.DashboardPanelSnapshot) => s.items.map((i) => i.id).sort();
+    const first = dbMod.loadDashboardPanelData("shared", false, 50);
+    expect(snapshotIds(first)).toEqual(["blog:1", "hn:1"]);
+    // No writes since: the cache serves the identical snapshot.
+    expect(dbMod.loadDashboardPanelData("shared", false, 50)).toBe(first);
+
+    // A co-tenant refresh (upsert + scoped transform replace) must invalidate
+    // the cached snapshot, and the fresh one keeps blog's rows.
+    await refreshTestSources(["hn"]);
+    const afterHn = dbMod.loadDashboardPanelData("shared", false, 50);
+    expect(afterHn).not.toBe(first);
+    expect(snapshotIds(afterHn)).toEqual(["blog:1", "hn:1"]);
+
+    // Same for the transform-less co-tenant's own refresh.
+    await refreshTestSources(["blog"]);
+    const afterBlog = dbMod.loadDashboardPanelData("shared", false, 50);
+    expect(afterBlog).not.toBe(afterHn);
+    expect(snapshotIds(afterBlog)).toEqual(["blog:1", "hn:1"]);
+  });
+
   test("adapter ingest transforms on a shared panel retain unowned legacy rows instead of deleting them", async () => {
     // Rows saved before owner attribution existed have owner_source NULL. On
     // a shared panel they cannot be attributed, so transforms must leave them
