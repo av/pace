@@ -9,6 +9,7 @@ import {
 } from "./engagement";
 import { joinTitle } from "./title";
 
+import { parseFeedDate } from "./dates";
 import { warnEmptyConfig } from "./empty-config";
 import { fetchJson, jsonObjectArrayOrEmpty } from "./fetch";
 import { decodeNumericFeedTitle } from "./html";
@@ -178,7 +179,7 @@ const adapter: Adapter = {
       id: `devto:${article.id}`,
       title: decodeNumericFeedTitle(article.title),
       url: article.url,
-      timestamp: article.published_at ? new Date(article.published_at) : new Date(),
+      timestamp: parseFeedDate(article.published_at),
       body: buildBody(article),
     }));
   },

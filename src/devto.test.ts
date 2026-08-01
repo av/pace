@@ -421,4 +421,20 @@ describe("devto degraded payloads", () => {
     expect(items[0].body).toContain("0 reactions");
     expect(Number.isNaN(items[0].timestamp.getTime())).toBe(false);
   });
+
+  test("falls back to current time for unparseable published_at instead of an Invalid Date", async () => {
+    mocks.fetchMock.mockResolvedValue(
+      makeJsonResponse([makeDevToArticle(911, { published_at: "not-a-date" })]),
+    );
+
+    const before = Date.now();
+    const items = await devtoAdapter.fetch(devtoCfg({ tags: ["typescript"], limit: 5 }));
+
+    expect(items).toHaveLength(1);
+    expect(Number.isNaN(items[0].timestamp.getTime())).toBe(false);
+    expect(items[0].timestamp.getTime()).toBeGreaterThanOrEqual(before);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      'dates: invalid feed date "not-a-date", using current time',
+    );
+  });
 });

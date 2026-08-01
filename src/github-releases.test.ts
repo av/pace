@@ -49,6 +49,26 @@ describe("github-releases", () => {
     expect(items[0].body).toBe("Release notes here");
   });
 
+  test("falls back to current time for unparseable published_at instead of an Invalid Date", async () => {
+    mocks.fetchMock.mockImplementation(async (url: string) =>
+      githubReleasesApiFetchMock(url, {
+        releases: [makeGitHubRelease({ published_at: "not-a-date" })],
+      }),
+    );
+
+    const before = Date.now();
+    const items = await githubReleasesAdapter.fetch(
+      githubReleasesCfg({ repos: ["o/r"] }),
+    );
+
+    expect(items).toHaveLength(1);
+    expect(Number.isNaN(items[0].timestamp.getTime())).toBe(false);
+    expect(items[0].timestamp.getTime()).toBeGreaterThanOrEqual(before);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      'dates: invalid feed date "not-a-date", using current time',
+    );
+  });
+
   test("decodes HTML entities in release names from API", async () => {
     mocks.fetchMock.mockImplementation(async (url: string) =>
       githubReleasesApiFetchMock(url, {

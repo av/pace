@@ -7,6 +7,7 @@ import {
 } from "./engagement";
 import { joinTitle } from "./title";
 
+import { parseFeedDate } from "./dates";
 import { fetchJson, jsonObjectArrayOrEmpty } from "./fetch";
 import { decodeNumericFeedTitleOptional } from "./html";
 import {
@@ -139,7 +140,7 @@ const adapter: Adapter = {
       id: `lobsters:${item.short_id}`,
       title: decodeNumericFeedTitleOptional(item.title),
       url: item.url || lobstersCommentsUrl(item),
-      timestamp: new Date(item.created_at),
+      timestamp: parseFeedDate(item.created_at),
       body: buildBody(item),
     }),
     );

@@ -10,6 +10,7 @@ import {
   type XmlTextField,
 } from "./atom";
 import { mapToContentItemsPerSource, type ContentItemProjection } from "./content-item";
+import { parseFeedDate } from "./dates";
 import {
   decodeFeedEntryTitle,
   extractFeedEntryStrippedBody,
@@ -213,7 +214,7 @@ async function fetchGitHubApiReleasesRaw(
     release,
     repo,
     tagline,
-    timestamp: release.published_at ? new Date(release.published_at) : new Date(),
+    timestamp: parseFeedDate(release.published_at),
   }));
 }
 

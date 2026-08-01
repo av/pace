@@ -61,6 +61,21 @@ describe("lobsters", () => {
     expect(results[0].timestamp).toBeInstanceOf(Date);
   });
 
+  test("falls back to current time for unparseable created_at instead of an Invalid Date", async () => {
+    const item = makeLobstersItem({ created_at: "not-a-date" });
+    mocks.fetchMock.mockResolvedValue(makeJsonResponse([item]));
+
+    const before = Date.now();
+    const results = await lobstersAdapter.fetch(lobstersCfg());
+
+    expect(results).toHaveLength(1);
+    expect(Number.isNaN(results[0].timestamp.getTime())).toBe(false);
+    expect(results[0].timestamp.getTime()).toBeGreaterThanOrEqual(before);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      'dates: invalid feed date "not-a-date", using current time',
+    );
+  });
+
   test("blank-only feed uses default hottest", async () => {
     const item = makeLobstersItem({ short_id: "blankfeed1" });
     mocks.fetchMock.mockResolvedValue(makeJsonResponse([item]));

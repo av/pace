@@ -6,6 +6,7 @@ import {
 import { joinTitle, joinTitleWithTagline } from "./title";
 
 import { mapToContentItems } from "./content-item";
+import { parseFeedDate } from "./dates";
 import { warnEmptyConfig } from "./empty-config";
 import { fetchJson, objectArrayFieldOrEmpty } from "./fetch";
 import { decodeNumericFeedTitle } from "./html";
@@ -170,7 +171,7 @@ const adapter: Adapter = {
       url:
         result.package.links?.npm ??
         `https://www.npmjs.com/package/${result.package.name}`,
-      timestamp: result.package.date ? new Date(result.package.date) : new Date(),
+      timestamp: parseFeedDate(result.package.date),
       body: buildBody(result),
     }));
   },
