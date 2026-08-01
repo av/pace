@@ -428,6 +428,16 @@ let snapshotCacheDb: Database | null = null;
 let snapshotCacheStamp: string | null = null;
 const snapshotCache = new Map<string, DashboardPanelSnapshot>();
 
+/**
+ * Number of cached dashboard snapshots. Diagnostics/tests: keys are
+ * (panel, isAll, limit) tuples from the config-defined dashboard, so the size
+ * must stay bounded by that key set in a long-running process — growth beyond
+ * it means a caller is feeding unbounded client-controlled keys into the cache.
+ */
+export function dashboardSnapshotCacheSize(): number {
+  return snapshotCache.size;
+}
+
 function dbWriteStamp(db: Database): string {
   const changes = (db.prepare("SELECT total_changes() AS c").get() as { c: number }).c;
   const version = (db.prepare("PRAGMA data_version").get() as { data_version: number })

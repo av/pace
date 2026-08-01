@@ -13,6 +13,12 @@
  */
 export interface KeyedMutex {
   withLock<T>(keys: readonly string[], fn: () => Promise<T> | T): Promise<T>;
+  /**
+   * Number of keys with a pending or running holder. Diagnostics/tests:
+   * a long-running process must return to 0 between refresh waves — a key
+   * that never leaves this count is a leaked (never-settling) lock holder.
+   */
+  pendingKeyCount(): number;
 }
 
 export function createKeyedMutex(): KeyedMutex {
@@ -42,6 +48,10 @@ export function createKeyedMutex(): KeyedMutex {
           if (tails.get(key) === done) tails.delete(key);
         }
       }
+    },
+
+    pendingKeyCount(): number {
+      return tails.size;
     },
   };
 }

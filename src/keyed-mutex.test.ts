@@ -121,4 +121,36 @@ describe("createKeyedMutex", () => {
     const mutex = createKeyedMutex();
     expect(await mutex.withLock(["k", "k"], () => "ok")).toBe("ok");
   });
+
+  test("pendingKeyCount tracks held keys and returns to zero on release", async () => {
+    const mutex = createKeyedMutex();
+    expect(mutex.pendingKeyCount()).toBe(0);
+    const gate = deferred();
+    const holder = mutex.withLock(["a", "b"], () => gate.promise);
+    expect(mutex.pendingKeyCount()).toBe(2);
+    gate.resolve();
+    await holder;
+    expect(mutex.pendingKeyCount()).toBe(0);
+  });
+
+  test("soak: 500 overlapping cycles with rejections leave no pending keys", async () => {
+    // Leak regression for long-running `pace serve`: the internal tail map
+    // must not retain entries after holders settle - success or failure -
+    // across many overlapping waves on a rotating key space.
+    const mutex = createKeyedMutex();
+    const keys = ["p1", "p2", "p3", "shared"];
+    const waves: Promise<unknown>[] = [];
+    for (let i = 0; i < 500; i++) {
+      const lockKeys = [keys[i % keys.length], keys[(i + 1) % keys.length]];
+      const work = mutex.withLock(lockKeys, async () => {
+        await Promise.resolve();
+        if (i % 7 === 0) throw new Error("soak reject");
+        return i;
+      });
+      waves.push(work.catch(() => {}));
+      if (i % 25 === 0) await Promise.all(waves);
+    }
+    await Promise.all(waves);
+    expect(mutex.pendingKeyCount()).toBe(0);
+  });
 });
