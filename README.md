@@ -136,6 +136,7 @@ Port and config path come from the CLI or environment:
 
 - `pace serve --port 8080` (or `-p 8080`), or the `PORT` env var. Default: `7453`.
 - `pace serve --config config.yaml`, `--preset <name>`, or the `PACE_CONFIG` env var.
+- `PACE_DB_PATH` env var overrides the SQLite database location. Default: `data/pace.db` under the working directory.
 
 An optional top-level `server` block in `config.yaml` controls server behavior (unknown fields are rejected at validation):
 
@@ -196,7 +197,7 @@ the resulting `index.html` includes its stylesheet and can be moved by itself.
 Publish the same snapshot to GitHub Gist and get a browser-rendered URL:
 
 ```bash
-GITHUB_TOKEN=... pace share gist
+GITHUB_TOKEN=... pace share gist   # GH_TOKEN works too
 ```
 
 Useful options:

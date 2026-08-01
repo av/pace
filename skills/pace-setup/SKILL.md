@@ -55,10 +55,12 @@ pace --help
 | `transforms explain <type>` | Show full documentation for a transform |
 | `config check [path]` | Validate a config file without starting the server |
 | `skill [name]` | List or print bundled agent skills |
+| `share export [dir]` | Export a static dashboard snapshot to a local directory |
+| `share gist` | Publish a static dashboard snapshot to GitHub Gist |
 
 Key options: `-c/--config <path>` (default `./config.yaml`), `-p/--port <number>` (default 7453), `-P/--preset <name>` (use a bundled preset), `-C/--chdir <dir>` (change working directory for config and data loads).
 
-Environment variables `PACE_CONFIG` (config file path) and `PORT` (server port) provide overrides; CLI flags take precedence over environment variables.
+Environment variables `PACE_CONFIG` (config file path), `PORT` (server port), and `PACE_DB_PATH` (SQLite database path, default `data/pace.db`) provide overrides; CLI flags take precedence over environment variables.
 
 Server behavior is also configurable via an optional `server:` block in config.yaml: `server.base_path` (URL prefix for reverse-proxy deployments, e.g. `/pace` — works whether or not the proxy strips the prefix) and `server.retention_days` (prune items older than N days; default 30, `0` disables). See the "Server Configuration" section of the README for details and nginx examples.
 
@@ -116,15 +118,13 @@ List the available presets directly:
 
 ```bash
 pace presets list
-# example
-# tech-news
-# ml-ai
+# academic-papers
 # daily-brief
+# ml-ai
 # product-launches
 # release-tracker
-# academic-papers
+# tech-news
 # video-podcast
-# ops-dashboard
 ```
 
 Launch with a preset:

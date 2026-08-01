@@ -40,15 +40,13 @@ Before building from scratch, check whether a bundled preset already matches the
 
 ```bash
 pace presets list
-# example          -- General software engineering (HN, Lobsters, GitHub, blogs, DEV.to)
-# tech-news        -- Tech news from multiple sources
-# ml-ai            -- AI and machine learning research
-# daily-brief      -- Morning briefing with headlines and top stories
-# product-launches -- Product launches and startup news
+# tech-news        -- Tech news: HN + Lobsters frontpage, Lemmy communities, news/blogs, releases
+# ml-ai            -- AI and machine learning: arXiv papers, local-LLM community, releases, curated blogs
+# daily-brief      -- Morning briefing: world headlines, Wikipedia in-the-news/most-read, big HN stories
+# product-launches -- Product launches: Product Hunt, Show HN, trending repos, fresh npm packages
 # release-tracker  -- Software release tracking
-# academic-papers  -- Academic paper aggregation
+# academic-papers  -- Academic papers: arXiv, CS theory Q&A, science journalism
 # video-podcast    -- Video and podcast content
-# ops-dashboard    -- Ops dashboard with iframes, bookmarks, counters
 ```
 
 To use a preset as the starting point:
@@ -165,7 +163,7 @@ Reddit subreddits.
 - type: reddit
   params:
     subreddits: [programming, selfhosted]
-    sort: hot          # hot, new, top
+    sort: hot          # hot, new, top, rising (aliases: popular→hot, trending→rising, best→top)
     limit: 25          # max 100
     min_score: 0
     time: day          # hour, day, week, month, year, all (for sort: top)
@@ -173,7 +171,7 @@ Reddit subreddits.
 
 ### github
 
-GitHub trending repos or releases from specific repos. Use `mode` to pick.
+GitHub trending repos or releases from specific repos. Use `mode` to pick (default: `releases`).
 
 ```yaml
 # Authoritative shape: pace adapters explain github
@@ -183,7 +181,7 @@ GitHub trending repos or releases from specific repos. Use `mode` to pick.
     mode: trending
     language: typescript   # optional language filter
     since: daily           # daily, weekly, monthly
-    limit: 15              # max 50
+    limit: 15              # default 10, max 50
 
 # Releases from specific repos
 - name: gh-releases
@@ -216,7 +214,7 @@ Lobste.rs stories.
 # Authoritative shape: pace adapters explain lobsters
 - type: lobsters
   params:
-    feed: hottest      # hottest, newest
+    feed: hottest      # hottest, newest, active (aliases: hot/front→hottest, new/recent→newest)
     limit: 25          # max 100
     min_score: 0
     tags: []           # optional tag filter
@@ -275,7 +273,9 @@ Questions from Stack Exchange sites.
   params:
     site: stackoverflow        # any SE site slug
     tags: [typescript, react]
-    sort: hot                   # hot, activity, votes, creation
+    sort: hot                   # hot, activity, votes, creation, week, month
+                                # (aliases: active→activity, new/newest/recent→creation,
+                                #  score/popular→votes, trending→hot, weekly→week, monthly→month)
     limit: 20                   # max 100
     min_score: 0
 ```
@@ -288,9 +288,9 @@ DEV.to articles.
 # Authoritative shape: pace adapters explain devto
 - type: devto
   params:
-    tags: [typescript, webdev]
-    username: ""         # optional, filter by author
-    limit: 15            # max 30
+    tags: [typescript, webdev]   # at least one of tags or username is required
+    username: ""         # fetch articles from a specific DEV.to user
+    limit: 15            # default 20, max 30
     per_page: 20         # items per page; takes precedence over limit when both are set (max 30)
     min_reactions: 0
     top: 7               # period in days (1, 7, 30, 365; aliases: day→1, week→7, month→30, year/infinity/all→365)
@@ -304,9 +304,9 @@ Product Hunt launches.
 # Authoritative shape: pace adapters explain producthunt
 - type: producthunt
   params:
-    limit: 20            # max 50
-    min_upvotes: 0
-    enrich: false        # fetch full descriptions (slower)
+    limit: 20            # max 50; omit for unlimited
+    min_upvotes: 0       # only effective with enrich: true (upvote counts need enrichment)
+    enrich: false        # fetch full details incl. upvote counts (slower)
 ```
 
 ### podcast
@@ -430,6 +430,7 @@ Transforms run at ingest time on adapter or pipeline results. They apply sequent
 transforms:
   - type: latest
     count: 50
+    per_source: 10          # optional cap per item source, so one source can't fill the result
 
 # Authoritative shape: pace transforms explain filter
   # Keep items matching any keyword
@@ -454,6 +455,7 @@ transforms:
     strategy: url           # url, domain-normalized, title-similarity
     threshold: 0.85         # for title-similarity (0-1)
     keep: highest-score     # highest-score, earliest, latest
+    log: false              # optional; log each removed duplicate
 
 # Authoritative shape: pace transforms explain time-decay
   # Rank by engagement + recency
@@ -490,6 +492,9 @@ transforms:
 
 # Authoritative shape: pace transforms explain llm-summarize
   - type: llm-summarize
+    fetch_content: false    # optional; fetch each item's URL and summarize the page text
+                            # (fetch_content_allow_private: true permits loopback/private
+                            #  targets -- local development only)
 
 # Authoritative shape: pace transforms explain llm-filter
   - type: llm-filter
@@ -534,15 +539,20 @@ Layout is a recursive flexbox tree. Each node is one of:
 - **Text widget** (`text`): static text block (plain, markdown, or html).
 - **Iframe widget** (`iframe`): embedded external page in a sandboxed iframe.
 
+Panel fields: `panel` (display name, must be unique), `source` (required), and optional `flex`, `limit`, `display`, `id`. `source` is an adapter name, a pipeline name, or a **list of names** — a multi-source panel merges items from every listed source into one feed. `id` pins the panel's storage/refresh identifier (used in `POST /refresh/<id>`); when omitted it is derived from the panel definition.
+
 ```yaml
 layout:
   direction: row           # row or column
-  gap: 16                  # optional, px
+  gap: 16px                # optional CSS gap between children
   children:
     - panel: hackernews
       source: hackernews   # adapter name or pipeline name
       flex: 2              # relative size
       limit: 30            # max items to display
+
+    - panel: firehose
+      source: [lobsters, rss]   # multi-source panel: merged feed from several sources
 
     - direction: column
       flex: 1
