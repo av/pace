@@ -30,6 +30,18 @@ for preset in "${PRESETS[@]}"; do
 
   echo "  saved assets/preset-${preset}.png"
 
+  # One mobile-width capture (of the flagship preset) to catch stacked-layout
+  # regressions without doubling the tracked asset set.
+  if [ "$preset" = "daily-brief" ]; then
+    playwright screenshot \
+      --browser chromium \
+      --viewport-size "390,844" \
+      --wait-for-timeout 2000 \
+      "$URL" \
+      "$ROOT/assets/preset-${preset}-mobile.png"
+    echo "  saved assets/preset-${preset}-mobile.png"
+  fi
+
   kill "$SERVER_PID" 2>/dev/null || true
   wait "$SERVER_PID" 2>/dev/null || true
   rm -rf "$TMPDB"
