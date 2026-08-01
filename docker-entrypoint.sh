@@ -16,6 +16,15 @@
 # root here; skip the chown and just exec (the caller owns permissions).
 set -e
 
+# The image ENTRYPOINT is `bun run src/cli.ts`, so container args are pace
+# subcommands (`docker run image serve`). People (and the README) naturally
+# write `docker run image pace serve` as if invoking the CLI by name; strip
+# that redundant leading "pace" token so both spellings work.
+if [ "$1" = "bun" ] && [ "$2" = "run" ] && [ "$3" = "src/cli.ts" ] && [ "$4" = "pace" ]; then
+  shift 4
+  set -- bun run src/cli.ts "$@"
+fi
+
 if [ "$(id -u)" = "0" ]; then
   if [ "$(stat -c '%u' /app/data)" != "1000" ]; then
     chown -R bun:bun /app/data
