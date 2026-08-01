@@ -1032,3 +1032,21 @@ test("counter items with empty URL fall back to id-based dedup (no collapse)", (
   const rows = getItemsByPanel("cnt-nourl", 10);
   expect(rows.length).toBe(2);
 });
+
+// --- Final close (shutdown) semantics ---
+
+test("getDb after closeDb({ final: true }) throws instead of silently re-opening", () => {
+  initDb();
+  closeDb({ final: true });
+  // A straggler writer that outlived the shutdown drain must fail loudly.
+  expect(() => getDb()).toThrow(/closed for shutdown/);
+  // A later plain closeDb lifts the seal (test-harness close/re-open pattern).
+  closeDb();
+  expect(() => getDb()).not.toThrow();
+});
+
+test("plain closeDb still allows re-open (no seal)", () => {
+  initDb();
+  closeDb();
+  expect(() => getDb()).not.toThrow();
+});

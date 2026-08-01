@@ -8,6 +8,8 @@ import { clampFutureTimestamp, errorMessage } from "./utils";
 
 let db: Database | null = null;
 let currentDbPath: string | null = null;
+/** Set by closeDb({ final: true }); makes getDb() fail loudly instead of re-opening. */
+let dbFinalized = false;
 
 /** Re-throw per-item db: errors; wrap transaction failures with context. */
 function rethrowDbTxError(e: unknown, wrapped: string): never {
@@ -113,6 +115,12 @@ function panelIdWhereClause(panelId?: string): { where: string; params: (string 
 }
 
 export function getDb(): Database {
+  if (dbFinalized) {
+    // Shutdown closed the DB for good (see closeDb final). A straggler writer
+    // (e.g. a refresh that outlived the shutdown drain timeout) must fail
+    // loudly here rather than silently re-open the database and race exit.
+    throw new Error("db: database was closed for shutdown; refusing to re-open");
+  }
   const desiredPath = process.env.PACE_DB_PATH || join(process.cwd(), "data", "pace.db");
   if (!db || currentDbPath !== desiredPath) {
     if (db) {
@@ -510,7 +518,14 @@ export function replacePanelItems(panelId: string, items: ContentItemRow[]): voi
   });
 }
 
-export function closeDb(): void {
+/**
+ * Close the database handle. With `final: true` (process shutdown, after the
+ * scheduler drain) any later getDb() throws instead of silently re-opening -
+ * a refresh that outlived the drain timeout would otherwise recreate the
+ * handle right before exit and race it. A later plain closeDb() lifts the
+ * seal (test harnesses close/re-open the DB between tests).
+ */
+export function closeDb(options: { final?: boolean } = {}): void {
   if (db) {
     try {
       db.close();
@@ -520,6 +535,7 @@ export function closeDb(): void {
   }
   db = null;
   currentDbPath = null;
+  dbFinalized = options.final === true;
 }
 
 export function pruneOldItems(days: number = 30): number {

@@ -84,8 +84,8 @@ export interface SchedulerRuntime {
 
 export const DEFAULT_DRAIN_TIMEOUT_MS = 10_000;
 
-/** Register a refresh run for shutdown draining; removes itself on settle. */
-function trackInFlight(state: SchedulerState, promise: Promise<RefreshResult>): Promise<RefreshResult> {
+/** Register a refresh run (or whole refresh chain) for shutdown draining; removes itself on settle. */
+function trackInFlight<T>(state: SchedulerState, promise: Promise<T>): Promise<T> {
   state.inFlight.add(promise);
   // executeWithRunningGuard never rejects, but guard anyway so tracking can
   // never surface an unhandled rejection.
@@ -610,16 +610,25 @@ export function createSchedulerRuntime(state: SchedulerState = createSchedulerSt
     },
 
     async refreshSources(sourceNames: string[]): Promise<RefreshResult[]> {
-      const { adapters, pipelines } = planRefresh(state, sourceNames);
+      // Track the WHOLE chain, not only the individual runs: pipeline jobs are
+      // registered only after the adapter phase settles, so a drain that
+      // snapshotted mid-chain would resolve before the pipeline phase even
+      // starts and shutdown could close the DB under its live panel writers.
+      return trackInFlight(
+        state,
+        (async (): Promise<RefreshResult[]> => {
+          const { adapters, pipelines } = planRefresh(state, sourceNames);
 
-      const adapterResults = await Promise.all(
-        adapters.map((entry) => trackInFlight(state, runAdapter(state, entry))),
-      );
-      const pipelineResults = await Promise.all(
-        pipelines.map((entry) => trackInFlight(state, runPipelineJob(state, entry))),
-      );
+          const adapterResults = await Promise.all(
+            adapters.map((entry) => trackInFlight(state, runAdapter(state, entry))),
+          );
+          const pipelineResults = await Promise.all(
+            pipelines.map((entry) => trackInFlight(state, runPipelineJob(state, entry))),
+          );
 
-      return adapterResults.concat(pipelineResults);
+          return adapterResults.concat(pipelineResults);
+        })(),
+      );
     },
 
     getRefreshHealth(): RefreshHealth {
@@ -634,18 +643,29 @@ export function createSchedulerRuntime(state: SchedulerState = createSchedulerSt
     },
 
     async drainInFlight(timeoutMs: number = DEFAULT_DRAIN_TIMEOUT_MS): Promise<void> {
-      // Snapshot: timers are expected to be stopped already, and in-flight
-      // runs cannot enqueue new refreshes, so nothing new appears mid-drain.
-      const pending = [...state.inFlight];
-      if (pending.length === 0) return;
-      let timer: ReturnType<typeof setTimeout> | undefined;
-      const timeout = new Promise<void>((resolve) => {
-        timer = setTimeout(resolve, Math.max(0, timeoutMs));
-      });
-      try {
-        await Promise.race([Promise.allSettled(pending).then(() => undefined), timeout]);
-      } finally {
-        clearTimeout(timer);
+      // Timers are expected to be stopped already, but settling runs CAN
+      // register follow-up work (a refreshSources chain starts its pipeline
+      // jobs only after the adapter phase settles), so a single snapshot is
+      // not enough: re-snapshot until nothing is in flight or the deadline
+      // passes.
+      const deadline = Date.now() + Math.max(0, timeoutMs);
+      while (state.inFlight.size > 0) {
+        const remainingMs = deadline - Date.now();
+        if (remainingMs <= 0) return;
+        const pending = [...state.inFlight];
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const timeout = new Promise<void>((resolve) => {
+          timer = setTimeout(resolve, remainingMs);
+        });
+        try {
+          await Promise.race([Promise.allSettled(pending).then(() => undefined), timeout]);
+        } finally {
+          clearTimeout(timer);
+        }
+        // Let settle continuations run (inFlight self-removal, chained run
+        // registration) before re-checking, so the loop observes the new
+        // state instead of re-awaiting an already-settled snapshot.
+        await Promise.resolve();
       }
     },
   };

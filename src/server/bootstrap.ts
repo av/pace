@@ -31,7 +31,7 @@ export type BootstrapServerDeps = {
   loadConfig: () => AppConfig;
   ensureDataDir: () => void;
   initDb: () => void;
-  closeDb: () => void;
+  closeDb: (options?: { final?: boolean }) => void;
   discoverAdapters: () => Promise<Map<string, Adapter>>;
   createModel: typeof createModel;
   buildLayoutRuntimeMaps: typeof buildLayoutRuntimeMaps;
@@ -158,7 +158,9 @@ export async function bootstrapServer(
       // Never let a listener-stop failure block DB close and exit.
     }
     await deps.drainScheduler(SHUTDOWN_DRAIN_TIMEOUT_MS);
-    deps.closeDb();
+    // Final close: a refresh that outlived the drain timeout must fail loudly
+    // instead of silently re-opening the DB right before exit.
+    deps.closeDb({ final: true });
     deps.exitProcess(0);
   };
   deps.registerShutdown(shutdown);
