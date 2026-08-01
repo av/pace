@@ -6,3 +6,8 @@ config.yaml
 .dockerignore
 .facts
 .agents/
+# Not COPY'd into the image; excluded to keep the build context small.
+assets/
+examples/
+scripts/
+*.md
