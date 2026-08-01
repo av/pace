@@ -43,9 +43,22 @@ export async function requestDashboard(app: Hono): Promise<Response> {
   return requestServerRoute(app, "/");
 }
 
-export async function requestRefreshPanel(app: Hono, panelParam: string): Promise<Response> {
-  return requestServerRoute(app, `/refresh/${panelParam}`, { method: "POST" });
+export async function requestRefreshPanel(
+  app: Hono,
+  panelParam: string,
+  headers?: Record<string, string>,
+): Promise<Response> {
+  return requestServerRoute(app, `/refresh/${panelParam}`, { method: "POST", headers });
 }
+
+/**
+ * Headers that make a refresh POST look like a browser form navigation
+ * (same-origin so the CSRF guard passes, navigate so redirect branches fire).
+ */
+export const BROWSER_NAVIGATION_HEADERS: Record<string, string> = {
+  "sec-fetch-mode": "navigate",
+  "sec-fetch-site": "same-origin",
+};
 
 type SecurityHeaderSource = Response | Headers | Record<string, string>;
 
@@ -136,9 +149,14 @@ export async function expectRefreshPanelFailureOrRedirect(
   res: Response,
   failureSource: string,
 ): Promise<void> {
+  if (res.status === 200) {
+    // Non-browser skip body when the startup refresh is still running.
+    expect(await res.text()).toContain("Refresh already in progress");
+    return;
+  }
   if (res.status === 303) {
-    // May carry ?skipped=<names> when the startup refresh is still running.
-    expect(res.headers.get("location") || "").toMatch(/^\/(\?skipped=.+)?$/);
+    // All-sources-ok refresh redirects back to the dashboard root.
+    expect(res.headers.get("location") || "").toBe("/");
     return;
   }
   expect(res.status).toBe(502);

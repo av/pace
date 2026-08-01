@@ -115,10 +115,16 @@ export async function handleRefreshPanel(c: Context, deps: ServerRouteDeps): Pro
     }
     const skips = collectRefreshSkips(results);
     if (skips.length > 0) {
-      return c.redirect(
-        `${dashboardRootPath(deps.basePath)}?skipped=${encodeSourceNames(skips.map((result) => result.name))}`,
-        303,
-      );
+      // Mirror the failure branch: a browser user lands back on the
+      // dashboard with the ?skipped= notice; non-browser clients (curl,
+      // scripts) get a diagnosable text body instead of an empty 303.
+      if (isBrowserNavigationRequest(c.req.raw.headers)) {
+        return c.redirect(
+          `${dashboardRootPath(deps.basePath)}?skipped=${encodeSourceNames(skips.map((result) => result.name))}`,
+          303,
+        );
+      }
+      return c.text(formatRefreshSkippedNotice(skips.map((result) => result.name)), 200);
     }
   }
 

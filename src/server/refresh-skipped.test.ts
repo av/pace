@@ -8,6 +8,7 @@ import { encodeSourceNames, rawQueryParam, resolveSkippedNotice } from "./routes
 import { singlePanelLayout, testAppLayout } from "../test/app-config";
 import { installTempDbHooks } from "../test/temp-db";
 import {
+  BROWSER_NAVIGATION_HEADERS,
   createTestServerApp,
   makeServerRouteDeps,
   requestRefreshPanel,
@@ -107,14 +108,29 @@ describe("skipped refresh end-to-end", () => {
     });
   }
 
-  test("redirects with ?skipped= listing only skipped sources", async () => {
+  test("browser navigation redirects with ?skipped= listing only skipped sources", async () => {
+    const deps = makeDeps(async () => [
+      { kind: "adapter", name: "hackernews", status: "ok" },
+      { kind: "adapter", name: "reddit", status: "skipped" },
+    ]);
+    const res = await requestRefreshPanel(
+      createTestServerApp(deps),
+      "tech",
+      BROWSER_NAVIGATION_HEADERS,
+    );
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("/?skipped=reddit");
+  });
+
+  test("non-browser clients get a diagnosable text body instead of an empty 303", async () => {
     const deps = makeDeps(async () => [
       { kind: "adapter", name: "hackernews", status: "ok" },
       { kind: "adapter", name: "reddit", status: "skipped" },
     ]);
     const res = await requestRefreshPanel(createTestServerApp(deps), "tech");
-    expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe("/?skipped=reddit");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("location")).toBeNull();
+    expect(await res.text()).toContain("Refresh already in progress for reddit");
   });
 
   test("failure still wins over skips (502, no redirect)", async () => {
@@ -167,7 +183,7 @@ describe("skipped refresh end-to-end", () => {
       ],
     });
     const app = createTestServerApp(deps);
-    const res = await requestRefreshPanel(app, "tech");
+    const res = await requestRefreshPanel(app, "tech", BROWSER_NAVIGATION_HEADERS);
     expect(res.status).toBe(303);
     const location = res.headers.get("location")!;
     expect(location).toBe("/?skipped=tech%2C%20science,reddit");
@@ -187,7 +203,11 @@ describe("skipped refresh end-to-end", () => {
       ],
       basePath: "/pace",
     });
-    const res = await requestRefreshPanel(createTestServerApp(deps), "tech");
+    const res = await requestRefreshPanel(
+      createTestServerApp(deps),
+      "tech",
+      BROWSER_NAVIGATION_HEADERS,
+    );
     expect(res.status).toBe(303);
     expect(res.headers.get("location")).toBe("/pace?skipped=hackernews");
   });
