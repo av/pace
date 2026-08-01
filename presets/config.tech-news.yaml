@@ -51,6 +51,8 @@ adapters:
         - https://thenewstack.io/feed/
         - https://blog.golang.org/feed.atom
         - https://devblogs.microsoft.com/typescript/feed/
+      # Per-feed cap in case a feed starts serving deep archives.
+      limit: 25
     refresh_interval: 30
     transforms:
       - type: latest

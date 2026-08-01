@@ -67,6 +67,8 @@ adapters:
         - https://simonwillison.net/atom/everything/
         - https://www.interconnects.ai/feed
         - https://huggingface.co/blog/feed.xml
+      # Per-feed cap: some of these feeds serve their full archive (900+ entries).
+      limit: 25
     refresh_interval: 30
     transforms:
       - type: latest

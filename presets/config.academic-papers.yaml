@@ -89,12 +89,18 @@ adapters:
   - type: hackernews
     params:
       feed: top
-      limit: 50
+      limit: 100
     refresh_interval: 15
+    transforms:
+      # HN has no tags - keep only research-flavored titles before the merge.
+      - type: filter
+        keywords: [paper, research, study, proof, theorem, published, arxiv, preprint, peer review, survey, journal, scientists, mathematic, physics, quantum, dataset, benchmark]
+        fields: [title]
 
+  # Tag feeds are already research-focused - no keyword filtering needed.
   - type: lobsters
     params:
-      feed: hottest
+      tags: [science, math, formalmethods, plt]
       limit: 25
     refresh_interval: 30
 
@@ -104,9 +110,6 @@ pipelines:
     transforms:
       - type: dedupe
         strategy: domain-normalized
-      - type: filter
-        keywords: [paper, research, study, proof, theorem, published, arxiv, preprint, peer review, survey, journal, pdf]
-        fields: [title]
       # Score by topic relevance - weighted keyword matching.
       - type: keyword-score
         keywords:
@@ -128,7 +131,6 @@ pipelines:
           - term: "machine.learning|neural|deep.learning|LLM|transformer"
             weight: 4
             regex: true
-        min_score: 2
         annotate: false
       # Blend engagement with recency - surface what's trending now.
       - type: time-decay

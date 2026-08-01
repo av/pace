@@ -39,7 +39,9 @@ adapters:
     params:
       tags: ["showdev"]
       top: 7
-      min_reactions: 10
+      # Kept low on purpose: #showdev is a niche tag and 10+ reactions
+      # leaves only a couple of posts per week.
+      min_reactions: 5
       limit: 15
     refresh_interval: 60
 

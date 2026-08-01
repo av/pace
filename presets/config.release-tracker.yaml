@@ -34,27 +34,30 @@ adapters:
       - type: latest
         count: 20
 
+  # Tag feeds are already release-focused - no keyword filtering needed.
   - type: lobsters
     params:
-      feed: hottest
-      tags: [release, announce]
+      # Just "release": the "announce" tag is mostly lobste.rs site meta.
+      tags: [release]
       limit: 15
-      min_score: 3
+      min_score: 1
     refresh_interval: 30
 
   - type: hackernews
     params:
       feed: top
-      limit: 40
+      limit: 100
     refresh_interval: 15
+    transforms:
+      # HN has no tags - keep only release-flavored titles before the merge.
+      - type: filter
+        keywords: [release, released, releasing, announcing, introducing, "v1", "v2", "v3", "v4", "v0.", launch, shipped, ships, changelog, upgrade, breaking change, migration, now available, stable, deprecat]
+        fields: [title]
 
 pipelines:
   - name: release-chatter
     sources: [hackernews, lobsters]
     transforms:
-      - type: filter
-        keywords: [release, released, "v1", "v2", "v3", "v4", "v0.", launch, shipped, changelog, upgrade, breaking change, migration, announcement]
-        fields: [title]
       - type: dedupe
         strategy: domain-normalized
       - type: latest
@@ -100,7 +103,8 @@ layout:
             add your own dependencies. Use the format
             `owner/repo` (e.g. `pallets/flask`).
 
-            The **release-chatter** panel filters Hacker News
-            and Lobsters for release-related discussion.
+            The **release-chatter** panel merges release-tagged
+            Lobsters stories with release-flavored Hacker News
+            titles.
           format: markdown
           title: How to Use
