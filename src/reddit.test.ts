@@ -127,6 +127,15 @@ describe("reddit", () => {
     expect(items[0].timestamp instanceof Date).toBe(true);
   });
 
+  test("url-encodes subreddit names so stray characters cannot malform the request path", async () => {
+    mocks.fetchMock.mockResolvedValue(makeListingResponse([]));
+
+    await redditAdapter.fetch(redditCfg({ subreddits: ["c++ lovers"] }));
+
+    const calledUrl = fetchMockCallUrl(mocks.fetchMock);
+    expect(calledUrl).toContain("/r/c%2B%2B%20lovers/hot.json");
+  });
+
   test.each(invalidLimitParams(25))(
     "invalid limit (%s) uses default limit=25 in API URL",
     async (limit) => {

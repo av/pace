@@ -163,7 +163,9 @@ const adapter: Adapter = {
 
     const limited = await aggregateSequentialFeeds(
       subreddits,
-      (sub) => fetchRedditListing(`/r/${sub}`, effectiveSort, limit, effectivePeriod),
+      // Encode the user-configured name: a stray space/`?`/`#` would otherwise
+      // silently truncate or malform the request path (siblings all encode).
+      (sub) => fetchRedditListing(`/r/${encodeURIComponent(sub)}`, effectiveSort, limit, effectivePeriod),
       {
         limit,
         dedupeKey: (post) => post.data.id,
