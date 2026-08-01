@@ -412,6 +412,43 @@ describe("wikipedia", () => {
     expect(items[0].source).toBe("wikipedia:most_read");
   });
 
+  test("does not collapse distinct items sharing the Portal:Current_events fallback URL", async () => {
+    // on_this_day events and news stories without a linked page all fall back
+    // to the same Portal:Current_events URL; URL-keyed dedupe collapsed them
+    // into a single item.
+    const onThisDayEvents = Array.from({ length: 3 }, (_, i) => ({
+      text: `Unlinked event ${i} happened.`,
+      year: 1900 + i,
+      pages: [],
+    }));
+    const newsItems = Array.from({ length: 2 }, (_, i) => ({
+      story: `Unlinked news story ${i}.`,
+      links: [],
+    }));
+
+    mocks.fetchMock.mockResolvedValue(
+      makeJsonResponse(
+        makeFeaturedResponse({
+          mostread: { articles: [] },
+          tfa: undefined,
+          onthisday: onThisDayEvents,
+          news: newsItems,
+        }),
+      ),
+    );
+
+    const items = await wikipediaAdapter.fetch(
+      wikiCfg({ mode: "on_this_day,news", limit: 10 }),
+    );
+
+    expect(items).toHaveLength(5);
+    expect(items.filter((i) => i.source === "wikipedia:on_this_day")).toHaveLength(3);
+    expect(items.filter((i) => i.source === "wikipedia:news")).toHaveLength(2);
+    expect(
+      items.every((i) => i.url === "https://en.wikipedia.org/wiki/Portal:Current_events"),
+    ).toBe(true);
+  });
+
   test("throws on HTTP error with adapter prefix", async () => {
     mocks.fetchMock.mockResolvedValue(makeErrorResponse(404));
 

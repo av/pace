@@ -24,6 +24,9 @@ import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
 type Mode = "most_read" | "featured" | "on_this_day" | "news";
 
+/** Shared fallback link for items without a linked article page. */
+const WIKI_CURRENT_EVENTS_URL = "https://en.wikipedia.org/wiki/Portal:Current_events";
+
 const resolveWikipediaModeToken = createAliasedResolver<Mode>({
   types: ["most_read", "featured", "on_this_day", "news"],
   aliases: {
@@ -188,7 +191,7 @@ function extractOnThisDay(data: WikiFeaturedResponse, limit?: number): ContentIt
       const text = decodeNumericFeedTitle(
         stripHtml(event.text, { whitespace: "preserve" }),
       );
-      const url = page?.content_urls?.desktop?.page ?? `https://en.wikipedia.org/wiki/Portal:Current_events`;
+      const url = page?.content_urls?.desktop?.page ?? WIKI_CURRENT_EVENTS_URL;
       return {
         id: `wikipedia:otd:${event.year}:${text.slice(0, 40)}`,
         title: `${event.year}: ${text}`,
@@ -213,7 +216,7 @@ function extractNews(data: WikiFeaturedResponse, limit?: number): ContentItem[] 
     wikipediaSourceLabel("news"),
     ({ item, index }) => {
       const link = item.links?.[0];
-      const url = link?.content_urls?.desktop?.page ?? "https://en.wikipedia.org/wiki/Portal:Current_events";
+      const url = link?.content_urls?.desktop?.page ?? WIKI_CURRENT_EVENTS_URL;
       return {
         id: `wikipedia:news:${link?.title ?? `untitled-${index}`}`,
         title: decodeNumericFeedTitle(
@@ -302,7 +305,11 @@ const adapter: Adapter = {
       (mode) => extractForMode(data, mode, mostReadSnapshotDate),
       {
         limit,
-        dedupeKey: (item) => item.url,
+        // Items without a linked page share the Portal:Current_events fallback
+        // URL; deduping those by URL would collapse them into one item, so key
+        // fallback-URL items by their unique id instead.
+        dedupeKey: (item) =>
+          item.url === WIKI_CURRENT_EVENTS_URL ? item.id : item.url,
       },
     );
   },
