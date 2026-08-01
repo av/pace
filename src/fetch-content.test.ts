@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
 import { runPipeline } from "./transforms";
+import { lookupWithAbort } from "./fetch-content";
 import { makeContentItemRow as makeRow } from "./test/content-items";
 import * as piAi from "@mariozechner/pi-ai";
 import { spyOn } from "bun:test";
@@ -294,5 +295,44 @@ describe("fetch_content in llm-summarize", () => {
     );
 
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("lookupWithAbort", () => {
+  test("rejects immediately when the signal is already aborted, without calling lookup", async () => {
+    const controller = new AbortController();
+    controller.abort(new Error("budget exhausted"));
+    const lookupFn = mock(() => new Promise<never>(() => {}));
+    const start = performance.now();
+    await expect(lookupWithAbort("example.com", controller.signal, lookupFn)).rejects.toThrow("budget exhausted");
+    expect(performance.now() - start).toBeLessThan(50);
+    expect(lookupFn).not.toHaveBeenCalled();
+  });
+
+  test("rejects promptly when the signal aborts while the lookup hangs", async () => {
+    const controller = new AbortController();
+    // Simulates a pathological resolver: the lookup promise never settles.
+    const lookupFn = mock(() => new Promise<never>(() => {}));
+    const pending = lookupWithAbort("example.com", controller.signal, lookupFn);
+    // Bun's expect(...).rejects settles the promise before subsequent sync code
+    // runs, so the abort must be scheduled ahead of awaiting the expectation.
+    setTimeout(() => controller.abort(new Error("fetch budget hit")), 10);
+    await expect(pending).rejects.toThrow("fetch budget hit");
+    expect(lookupFn).toHaveBeenCalledTimes(1);
+  });
+
+  test("resolves with lookup addresses and removes its abort listener when the lookup wins", async () => {
+    const controller = new AbortController();
+    const lookupFn = mock(async () => [{ address: "93.184.216.34", family: 4 }]);
+    const addresses = await lookupWithAbort("example.com", controller.signal, lookupFn);
+    expect(addresses).toEqual([{ address: "93.184.216.34", family: 4 }]);
+    // Aborting afterwards must not surface an unhandled rejection from a stale listener.
+    controller.abort(new Error("late abort"));
+  });
+
+  test("passes through lookup failures (e.g. NXDOMAIN)", async () => {
+    const controller = new AbortController();
+    const lookupFn = mock(() => Promise.reject(new Error("getaddrinfo ENOTFOUND nope.invalid")));
+    await expect(lookupWithAbort("nope.invalid", controller.signal, lookupFn)).rejects.toThrow("ENOTFOUND");
   });
 });

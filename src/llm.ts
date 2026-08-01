@@ -128,13 +128,19 @@ function isRetryableProviderStatus(status: number | undefined): status is number
   return status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
 }
 
-function retryDelay(attempt: number, signal: AbortSignal): Promise<void> {
+/** Exponential backoff between provider retries; rejects immediately when the signal is (or becomes) aborted. */
+export function retryDelay(attempt: number, signal: AbortSignal): Promise<void> {
+  if (signal.aborted) return Promise.reject(signal.reason);
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(resolve, 250 * 2 ** attempt);
-    signal.addEventListener("abort", () => {
+    const onAbort = () => {
       clearTimeout(timer);
       reject(signal.reason);
-    }, { once: true });
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener("abort", onAbort);
+      resolve();
+    }, 250 * 2 ** attempt);
+    signal.addEventListener("abort", onAbort, { once: true });
   });
 }
 

@@ -3,6 +3,7 @@ import { spyConsole } from "./test/console-spy";
 import {
   stripJsonCodeFences,
   safeComplete,
+  retryDelay,
   createModel,
   llmCompleteTimeoutMs,
   LLM_COMPLETE_TIMEOUT_MS,
@@ -523,5 +524,37 @@ describe("llm", () => {
       expect(completeSpy).not.toHaveBeenCalled();
       completeSpy.mockRestore();
     });
+  });
+});
+
+describe("retryDelay", () => {
+  test("rejects immediately on an already-aborted signal instead of sleeping the backoff", async () => {
+    const controller = new AbortController();
+    controller.abort(new Error("llm call timed out"));
+    const start = performance.now();
+    // attempt 2 would otherwise sleep 1000ms.
+    await expect(retryDelay(2, controller.signal)).rejects.toThrow("llm call timed out");
+    expect(performance.now() - start).toBeLessThan(50);
+  });
+
+  test("rejects promptly when the signal aborts mid-backoff", async () => {
+    const controller = new AbortController();
+    const start = performance.now();
+    const pending = retryDelay(2, controller.signal);
+    // Bun's expect(...).rejects settles the promise before subsequent sync code
+    // runs, so the abort must be scheduled ahead of awaiting the expectation.
+    setTimeout(() => controller.abort(new Error("mid-backoff abort")), 10);
+    await expect(pending).rejects.toThrow("mid-backoff abort");
+    // attempt 2 would otherwise sleep 1000ms.
+    expect(performance.now() - start).toBeLessThan(500);
+  });
+
+  test("resolves after the backoff when the signal never aborts", async () => {
+    const controller = new AbortController();
+    const start = performance.now();
+    await retryDelay(0, controller.signal);
+    expect(performance.now() - start).toBeGreaterThanOrEqual(200);
+    // A later abort must not fire a stale listener into an unhandled rejection.
+    controller.abort(new Error("late abort"));
   });
 });

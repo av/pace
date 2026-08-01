@@ -1,5 +1,6 @@
 import { htmlToText } from "./html-to-text";
 import { lookup } from "node:dns/promises";
+import type { LookupAddress } from "node:dns";
 import { isIP } from "node:net";
 
 const FETCH_TIMEOUT_MS = 10_000;
@@ -36,14 +37,47 @@ function isPrivateAddress(address: string): boolean {
     || /^fe[89ab]/.test(normalized) || normalized.startsWith("ff");
 }
 
-async function assertContentFetchUrlAllowed(url: URL, allowPrivateNetwork: boolean): Promise<void> {
+/**
+ * node:dns lookup() has no cancellation hook (getaddrinfo cannot be aborted),
+ * so tie the caller's wait to the fetch abort signal instead: when the signal
+ * fires, the returned promise rejects immediately even though the OS lookup
+ * may keep running in the background. This keeps a pathological resolver from
+ * stalling a fetch_content item past its FETCH_TIMEOUT_MS budget.
+ */
+export function lookupWithAbort(
+  hostname: string,
+  signal: AbortSignal,
+  lookupFn: (hostname: string, options: { all: true; verbatim: true }) => Promise<LookupAddress[]> = lookup,
+): Promise<LookupAddress[]> {
+  if (signal.aborted) return Promise.reject(signal.reason);
+  return new Promise((resolve, reject) => {
+    const onAbort = () => reject(signal.reason);
+    signal.addEventListener("abort", onAbort, { once: true });
+    lookupFn(hostname, { all: true, verbatim: true }).then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (error) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      },
+    );
+  });
+}
+
+async function assertContentFetchUrlAllowed(
+  url: URL,
+  signal: AbortSignal,
+  allowPrivateNetwork: boolean,
+): Promise<void> {
   if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error("unsupported protocol");
   if (url.username || url.password) throw new Error("URL credentials are not allowed");
   if (allowPrivateNetwork) return;
   const hostname = url.hostname.replace(/^\[|\]$/g, "");
   const addresses = isIP(hostname)
     ? [hostname]
-    : (await lookup(hostname, { all: true, verbatim: true })).map((entry) => entry.address);
+    : (await lookupWithAbort(hostname, signal)).map((entry) => entry.address);
   if (addresses.length === 0 || addresses.some(isPrivateAddress)) {
     throw new PrivateNetworkBlockedError("private network destination blocked");
   }
@@ -52,7 +86,7 @@ async function assertContentFetchUrlAllowed(url: URL, allowPrivateNetwork: boole
 async function fetchAllowedContentUrl(url: string, signal: AbortSignal, allowPrivateNetwork: boolean): Promise<Response> {
   let current = new URL(url);
   for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects++) {
-    await assertContentFetchUrlAllowed(current, allowPrivateNetwork);
+    await assertContentFetchUrlAllowed(current, signal, allowPrivateNetwork);
     const response = await fetch(current, { signal, redirect: "manual" });
     if (response.status < 300 || response.status >= 400) return response;
     const location = response.headers.get("location");
