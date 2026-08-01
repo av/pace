@@ -1,3 +1,4 @@
+/** @jsxImportSource hono/jsx */
 import type { FC } from "hono/jsx";
 import { raw } from "hono/utils/html";
 import type { DashboardRenderMode, TextWidgetConfig } from "./types";

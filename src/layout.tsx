@@ -1,3 +1,4 @@
+/** @jsxImportSource hono/jsx */
 export {
   formatDashboardUpdatedAt,
   renderDashboard,

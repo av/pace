@@ -136,3 +136,23 @@ describe("package.json bin", () => {
     expect(statSync(binPath).mode & 0o111).toBeGreaterThan(0);
   });
 });
+
+describe("jsx pragma (foreign-cwd bun run)", () => {
+  // Bun resolves tsconfig.json (and bunfig.toml) from the CURRENT WORKING
+  // DIRECTORY, not from the source file's location. `bun run /abs/.../src/cli.ts`
+  // from any other cwd therefore loses tsconfig's `jsxImportSource: hono/jsx`
+  // and dies with "Cannot find module 'react/jsx-dev-runtime'". A per-file
+  // @jsxImportSource pragma wins over both configs, making every entry path
+  // cwd-independent - so every .tsx must carry it on its first line.
+  test("every .tsx file starts with the hono/jsx jsxImportSource pragma", () => {
+    const glob = new Bun.Glob("src/**/*.tsx");
+    const files = [...glob.scanSync({ cwd: repoRoot })];
+    expect(files.length).toBeGreaterThan(0);
+    for (const file of files) {
+      const firstLine = readRepoFile(file).split("\n", 1)[0];
+      expect(firstLine, `${file} must start with the jsx pragma`).toBe(
+        "/** @jsxImportSource hono/jsx */",
+      );
+    }
+  });
+});

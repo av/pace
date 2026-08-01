@@ -1,3 +1,4 @@
+/** @jsxImportSource hono/jsx */
 import type { FC } from "hono/jsx";
 import type { DashboardRenderMode, LayoutNodeConfig, PanelData } from "./types";
 import { LayoutNode } from "./layout-node";

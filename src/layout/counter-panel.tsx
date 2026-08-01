@@ -1,3 +1,4 @@
+/** @jsxImportSource hono/jsx */
 import type { FC } from "hono/jsx";
 import type { DashboardRenderMode, PanelConfig, PanelData } from "./types";
 import { resolvePanelId } from "./types";

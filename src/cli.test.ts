@@ -10,6 +10,7 @@ import {
   waitForCliServeReady,
 } from "./test/cli-serve-harness";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync, unlinkSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import os from "node:os";
 import {
@@ -383,6 +384,30 @@ describe("cli", () => {
     expect(res.stdout.trim().length).toBeGreaterThan(0);
     expect(res.stdout).not.toContain("Usage:");
     expect(res.stderr).toBe("");
+  });
+
+  test("bun run <abs>/src/cli.ts works from a foreign cwd (jsx pragma beats cwd tsconfig)", () => {
+    // Bun resolves tsconfig.json from the cwd, so without the per-file
+    // @jsxImportSource pragmas this spawn dies during module loading with
+    // "Cannot find module 'react/jsx-dev-runtime'" before cli.ts even runs.
+    const foreignCwd = mkdtempSync(join(os.tmpdir(), "pace-foreign-cwd-"));
+    try {
+      const res = spawnSync(
+        process.execPath,
+        ["run", join(process.cwd(), "src/cli.ts"), "--version"],
+        {
+          encoding: "utf8",
+          stdio: "pipe",
+          cwd: foreignCwd,
+          env: { ...process.env, PACE_DB_PATH: "/tmp/pace-cli-test.db" },
+        },
+      );
+      expect(res.stderr).not.toContain("Cannot find module");
+      expect(res.status).toBe(0);
+      expect(res.stdout.trim().length).toBeGreaterThan(0);
+    } finally {
+      rmSync(foreignCwd, { recursive: true, force: true });
+    }
   });
 
   test("unknown command prints HELP", () => {
