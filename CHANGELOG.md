@@ -8,6 +8,7 @@ Notable changes per release, newest first. Also published as [GitHub releases](h
 
 #### UI
 - Text widgets (About/How-to-Use panels) now use the same 0.85rem type scale as feed panels instead of the oversized browser default, which clipped copy in tighter layouts.
+- Stronger screen-reader semantics for the dashboard: the layout is wrapped in a `<main>` landmark with a visually hidden `<h1>`, each refresh button is named after its panel ("Refresh <title>") instead of a bare "Refresh", item and panel-refreshed timestamps render as `<time>` elements with machine-readable datetimes, and feed items are marked up as a real list so assistive tech announces counts and supports list navigation.
 
 ### Tooling / tests
 
