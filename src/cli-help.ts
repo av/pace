@@ -15,6 +15,8 @@ import { ADAPTER_TYPES } from "./adapters/params";
 import { TRANSFORM_DOCS } from "./transform-docs";
 import { TRANSFORM_TYPES } from "./transform-schema";
 import { isRecord } from "./config/types";
+import { discoverAdapters } from "./adapters/index";
+import { formatDoctorReport, formatDoctorUsage, runDoctor } from "./cli-doctor";
 import { errorMessage, normalizeParamBoolean, parseCliPort } from "./utils";
 import {
   exportStaticDashboard,
@@ -843,6 +845,35 @@ const CLI_COMMANDS: CliCommand[] = [
     },
   },
   {
+    name: "doctor",
+    summary: "Fetch-check every configured source",
+    usage: formatDoctorUsage(),
+    async run(positionals, values, ctx) {
+      const usage = formatDoctorUsage();
+      const DOCTOR_ALLOWED = new Set(["config", "preset", "chdir"]);
+      rejectInvalidCommandOptions(values, usage, DOCTOR_ALLOWED);
+      if (positionals.length > 0) {
+        cliFailWithHelp(`Unknown argument: ${positionals[0]}\n`, usage);
+      }
+
+      let config: AppConfig;
+      try {
+        applyCliConfigEnv(values, ctx.deps);
+        const readConfig = ctx.deps.loadConfig ?? loadConfig;
+        config = readConfig();
+      } catch (err) {
+        cliDie(errorMessage(err));
+      }
+
+      const adapters = await discoverAdapters();
+      const report = await runDoctor(config, adapters);
+      const output = formatDoctorReport(report);
+      if (report.ok) cliExitOk(output);
+      writeCliStdout(output);
+      process.exit(1);
+    },
+  },
+  {
     name: "config",
     summary: "Validate config file",
     usage: formatConfigUsage(),
@@ -957,6 +988,7 @@ Commands:
   share export [dir]       Export a static dashboard snapshot
   share gist               Publish a static dashboard snapshot to GitHub Gist
   config check [path]      Validate a config file
+  doctor                   Fetch-check every configured source
 
 Options:
   -c, --config <path>   Path to config file (default: ./config.yaml)

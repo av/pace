@@ -54,6 +54,7 @@ pace --help
 | `transforms list` | List all transform types |
 | `transforms explain <type>` | Show full documentation for a transform |
 | `config check [path]` | Validate a config file without starting the server |
+| `doctor` | Fetch-check every configured source live; per-source ok/FAIL with error, exit 1 on any failure |
 | `skill [name]` | List or print bundled agent skills |
 | `share export [dir]` | Export a static dashboard snapshot to a local directory |
 | `share gist` | Publish a static dashboard snapshot to GitHub Gist |
@@ -195,5 +196,6 @@ curl http://localhost:7453/api/panels/hackernews.rss
 | `config: ...` prefixed error | Invalid YAML or schema error in config | Run `pace config check config.yaml` for fast diagnosis without starting the server |
 | `scheduler: adapter type "X" is configured but no matching adapter module was discovered` | Typo in adapter type name | Run `pace adapters list` to see all valid types |
 | Panels show but no content | Adapters haven't refreshed yet | Wait for refresh_interval or POST to `/refresh/<panel-id>` |
+| Panel stays empty after refresh | A source URL is wrong or the upstream is down | Run `pace doctor` -- it fetches every configured source once and prints per-source ok/FAIL with the underlying error |
 | Port already in use | Another process on port 7453 | Use `--port 7454` or `PORT=7454` |
 | LLM transforms do nothing / items unchanged | `llm` block missing or misconfigured | LLM transforms silently pass items through without a valid `llm` config -- add or fix the `llm` block and restart |

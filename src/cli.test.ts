@@ -194,6 +194,7 @@ Commands:
   share export [dir]       Export a static dashboard snapshot
   share gist               Publish a static dashboard snapshot to GitHub Gist
   config check [path]      Validate a config file
+  doctor                   Fetch-check every configured source
 
 Options:
   -c, --config <path>   Path to config file (default: ./config.yaml)

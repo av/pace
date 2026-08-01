@@ -128,7 +128,7 @@ docker run -d \
   ghcr.io/av/pace:latest
 ```
 
-Validate before serving: `pace config check config.yaml`
+Validate before serving: `pace config check config.yaml`. To verify the configured feeds actually respond, run `pace doctor` — it fetches every source once and reports per-source ok/failure with the underlying error (exit 1 if anything failed).
 
 ## Server Configuration
 
@@ -257,6 +257,7 @@ Some adapters are listed above but do not work out of the box:
 pace adapters list            # list all adapter types
 pace adapters explain <type>  # show params and example
 pace config check [path]      # validate a config file
+pace doctor                   # fetch-check every configured source
 ```
 
 ## Transforms
