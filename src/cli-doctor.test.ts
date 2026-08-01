@@ -89,6 +89,44 @@ describe("runDoctor", () => {
     expect(report.results[0].error).toBe("timed out after 25ms");
   });
 
+  test("adapter rejection after the timeout wins is swallowed, not unhandled", async () => {
+    // Invariant: when the timeout wins, the still-pending adapter promise's
+    // later rejection must never surface as an unhandled rejection (noise at
+    // best, a crash under strict rejection policies). Today both the explicit
+    // no-op catch and Promise.race's own contestant handlers guarantee this;
+    // the test pins the invariant against refactors that drop either.
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => {
+      unhandled.push(reason);
+    };
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      const adapters = new Map([
+        [
+          "late-fail",
+          fakeAdapter(
+            () =>
+              new Promise<ContentItem[]>((_, reject) => {
+                setTimeout(() => reject(new Error("late failure")), 30);
+              }),
+          ),
+        ],
+      ]);
+      const report = await runDoctor(appConfig([{ type: "late-fail" }]), adapters, {
+        timeoutMs: 5,
+      });
+      expect(report.ok).toBe(false);
+      expect(report.results[0].error).toBe("timed out after 5ms");
+
+      // Let the late rejection fire, then flush the microtask queue so the
+      // unhandledRejection event (if any) has a chance to be delivered.
+      await new Promise((resolve) => setTimeout(resolve, 60));
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+  });
+
   test("results preserve config order regardless of completion order", async () => {
     const adapters = new Map<string, Adapter>([
       [

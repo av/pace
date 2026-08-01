@@ -43,10 +43,16 @@ async function fetchWithTimeout(
     timer = setTimeout(() => reject(new Error(timeoutError(timeoutMs))), timeoutMs);
   });
   try {
-    const items = await Promise.race([
-      adapter.fetch({ type: adapterCfg.type, params: adapterCfg.params }),
-      timeout,
-    ]);
+    const fetchPromise = adapter.fetch({ type: adapterCfg.type, params: adapterCfg.params });
+    // When the timeout wins the race the adapter promise stays pending and may
+    // reject later. Promise.race happens to attach its own handler to every
+    // contestant, so today that late rejection is silently absorbed - but that
+    // is an implementation detail of the racing strategy. Attach an explicit
+    // no-op catch so the swallow is deliberate and survives refactors that
+    // stop routing this promise through a race (see the unhandled-rejection
+    // regression test in cli-doctor.test.ts).
+    fetchPromise.catch(() => {});
+    const items = await Promise.race([fetchPromise, timeout]);
     return items.length;
   } finally {
     clearTimeout(timer);
