@@ -147,6 +147,23 @@ describe("scripts/verify-release.sh", () => {
   });
 });
 
+describe("scripts/screenshot-states.py", () => {
+  test("interaction-state capture script exists and is executable", () => {
+    const path = join(repoRoot, "scripts/screenshot-states.py");
+    expect(existsSync(path)).toBe(true);
+    expect(statSync(path).mode & 0o111).toBeGreaterThan(0);
+  });
+
+  test("script drives the interaction-only UI states screenshots can miss", () => {
+    // The presets screenshot script only sees the dashboard at rest; this one
+    // must keep covering the keyboard-driven states styled in styles.css.
+    const script = readRepoFile("scripts/screenshot-states.py");
+    for (const marker of [".kbd-help", ".refresh-btn", "Escape", "-focus.png", "-help.png"]) {
+      expect(script, `screenshot-states.py must exercise ${marker}`).toContain(marker);
+    }
+  });
+});
+
 describe("package.json bin", () => {
   test("bin entry exists and is executable", () => {
     const pkg = JSON.parse(readRepoFile("package.json")) as { bin?: Record<string, string> };
