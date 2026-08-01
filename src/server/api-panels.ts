@@ -42,6 +42,24 @@ export interface ApiPanelSummary {
 }
 
 /**
+ * SQLite-style UTC datetime as stored in `fetched_at` ("YYYY-MM-DD HH:MM:SS",
+ * getLastFetchedAt appends a bare "Z"). Neither variant is valid ISO 8601 -
+ * the zone-less form is even parsed as LOCAL time by most consumers - so the
+ * API converts them to strict "YYYY-MM-DDTHH:MM:SSZ" instead of leaking three
+ * different timestamp formats in one payload. Anything else (already-ISO item
+ * timestamps) passes through untouched.
+ */
+const SQLITE_UTC_DATETIME_RE = /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}(?:\.\d+)?)Z?$/;
+
+export function toApiTimestamp(value: string): string;
+export function toApiTimestamp(value: string | null): string | null;
+export function toApiTimestamp(value: string | null): string | null {
+  if (value === null) return null;
+  const m = SQLITE_UTC_DATETIME_RE.exec(value);
+  return m ? `${m[1]}T${m[2]}Z` : value;
+}
+
+/**
  * Project a stored row to the public API shape: internal bookkeeping columns
  * (panel_id, applied_transforms, owner_source) stay private, and the
  * JSON-encoded origins column is decoded to a real array.
@@ -53,7 +71,7 @@ export function serializeApiPanelItem(row: ContentItemRow): ApiPanelItem {
     url: row.url,
     source: row.source,
     timestamp: row.timestamp,
-    fetched_at: row.fetched_at,
+    fetched_at: toApiTimestamp(row.fetched_at),
     summary: row.summary,
     body: row.body,
     score: row.score,
@@ -128,7 +146,7 @@ export function handleApiPanelList(c: Context, deps: ServerRouteDeps): Response 
       name: panel.panel.panel,
       sources: deps.panelIdToRefreshSourceNames.get(panel.pid) ?? [],
       item_count: snapshot.items.length,
-      last_refreshed_at: snapshot.lastRefreshedAt,
+      last_refreshed_at: toApiTimestamp(snapshot.lastRefreshedAt),
     };
   });
   return c.json({ panels });
@@ -147,7 +165,7 @@ export function handleApiPanelItems(c: Context, deps: ServerRouteDeps): Response
   return c.json({
     id: panel.pid,
     name: panel.panel.panel,
-    last_refreshed_at: snapshot.lastRefreshedAt,
+    last_refreshed_at: toApiTimestamp(snapshot.lastRefreshedAt),
     items: snapshot.items.map(serializeApiPanelItem),
   });
 }

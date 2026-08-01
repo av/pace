@@ -4,6 +4,7 @@ import {
   MAX_API_PANEL_ITEMS_LIMIT,
   parseApiPanelItemsLimit,
   serializeApiPanelItem,
+  toApiTimestamp,
 } from "./api-panels";
 import { makeContentItem as makeItem, makeContentItemRow } from "../test/content-items";
 import { installTempDbHooks } from "../test/temp-db";
@@ -16,6 +17,9 @@ import {
 } from "../test/server-harness";
 
 installTempDbHooks({ prefix: "pace-api-panels-" });
+
+/** Every timestamp the API serves must be strict ISO 8601 UTC ("T" separator, "Z" zone). */
+const STRICT_ISO_UTC_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 
 function twoPanelLayout() {
   return flexCfg("row", [
@@ -60,6 +64,24 @@ describe("parseApiPanelItemsLimit", () => {
       }
     },
   );
+});
+
+describe("toApiTimestamp", () => {
+  // fetched_at is stored SQLite-style ("YYYY-MM-DD HH:MM:SS", UTC, no zone)
+  // and getLastFetchedAt appends a bare "Z" to it. Serving those raw handed
+  // API consumers three timestamp formats in one payload, and the zone-less
+  // form parses as LOCAL time in most clients (off by the UTC offset).
+  test("converts SQLite-style UTC datetimes to strict ISO 8601", () => {
+    expect(toApiTimestamp("2026-08-01 15:47:00")).toBe("2026-08-01T15:47:00Z");
+    expect(toApiTimestamp("2026-08-01 15:47:00Z")).toBe("2026-08-01T15:47:00Z");
+    expect(toApiTimestamp("2026-08-01 15:47:00.123")).toBe("2026-08-01T15:47:00.123Z");
+  });
+
+  test("passes through already-ISO strings and null", () => {
+    expect(toApiTimestamp("2026-08-01T15:47:00.000Z")).toBe("2026-08-01T15:47:00.000Z");
+    expect(toApiTimestamp("not a date")).toBe("not a date");
+    expect(toApiTimestamp(null)).toBeNull();
+  });
 });
 
 describe("serializeApiPanelItem", () => {
@@ -116,7 +138,7 @@ describe("GET /api/panels", () => {
       sources: ["hackernews"],
       item_count: 2,
     });
-    expect(typeof tech.last_refreshed_at).toBe("string");
+    expect(tech.last_refreshed_at).toMatch(STRICT_ISO_UTC_RE);
 
     const blogs = body.panels.find((p: any) => p.id === "blogs-panel");
     expect(blogs).toMatchObject({ name: "Blogs", item_count: 0, last_refreshed_at: null });
@@ -152,7 +174,7 @@ describe("GET /api/panels/:panel", () => {
     expect(res.status).toBe(200);
     expect(body.id).toBe("tech-panel");
     expect(body.name).toBe("Tech");
-    expect(typeof body.last_refreshed_at).toBe("string");
+    expect(body.last_refreshed_at).toMatch(STRICT_ISO_UTC_RE);
     expect(body.items).toHaveLength(1);
     expect(body.items[0]).toMatchObject({
       id: "t1",
@@ -164,7 +186,7 @@ describe("GET /api/panels/:panel", () => {
       score: null,
       origins: ["hackernews"],
     });
-    expect(typeof body.items[0].fetched_at).toBe("string");
+    expect(body.items[0].fetched_at).toMatch(STRICT_ISO_UTC_RE);
   });
 
   test("resolves the panel display name like the refresh route", async () => {
