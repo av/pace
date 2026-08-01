@@ -182,6 +182,28 @@ The database (`data/pace.db`) is a cache: deleting it is always safe, and conten
 
 `status` is `degraded` when any source's latest completed run failed; per-source `status` is `ok`, `failing`, or `pending` (no run completed yet, e.g. right after startup). Per-source extras appear once available: `lastError` (message from the most recent failure), `lastDurationMs` (duration of the latest completed run, success or failure), and `lastItemCount` (items produced by the latest successful run — fetched items for adapters, gathered input items for pipelines — retained through later failures as context). The HTTP status stays `200` as long as the server is up — it serves cached data even when upstreams fail, and a restart would not fix a bad upstream — so container healthchecks keep passing while monitors can alert on the body.
 
+### `/api/panels` - JSON panel data
+
+The dashboard's data is also served as read-only JSON, for scripts, widgets, and monitors that want data instead of HTML.
+
+`GET /api/panels` lists every panel with its id, display name, refresh sources, current item count, and last refresh time:
+
+```json
+{
+  "panels": [
+    { "id": "tech-panel", "name": "Tech", "sources": ["hackernews"], "item_count": 30, "last_refreshed_at": "2026-07-08T00:00:00Z" }
+  ]
+}
+```
+
+`GET /api/panels/<panel>` returns one panel's deduped items, newest first, accepting the panel id or display name (same lookup as `POST /refresh/<panel>`). Each item carries `id`, `title`, `url`, `source`, `timestamp`, `fetched_at`, `summary`, `body`, `score` (from `llm-rank`, if any), and `origins` (contributing feeds for merged items). An optional `?limit=N` (1-500) overrides the panel's configured item limit:
+
+```bash
+curl http://localhost:7453/api/panels/tech-panel?limit=5
+```
+
+Unknown panels return a JSON 404 (`{"error": "Unknown panel: ..."}`). Both endpoints respect `server.base_path`.
+
 ## Share a Snapshot
 
 Pace can turn the current dashboard into static files, so you can share a dashboard without exposing or operating a public pace server.

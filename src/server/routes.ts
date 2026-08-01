@@ -16,6 +16,7 @@ import {
   resolveRefreshPanelBinding,
 } from "./refresh-panel";
 import type { RefreshHealth } from "../scheduler-runtime";
+import { handleApiPanelItems, handleApiPanelList } from "./api-panels";
 
 export type RefreshSourcesFn = (sourceNames: string[]) => Promise<RefreshResult[]>;
 
@@ -249,6 +250,11 @@ export function registerServerRoutes(app: Hono, deps: ServerRouteDeps): void {
     const refresh = deps.getRefreshHealth();
     return c.json({ status: refresh.status, sources: refresh.sources });
   });
+
+  // Read-only JSON API over the same cached snapshots the dashboard renders,
+  // for scripts, widgets, and monitors that want data instead of HTML.
+  app.get("/api/panels", (c) => handleApiPanelList(c, deps));
+  app.get("/api/panels/:panel", (c) => handleApiPanelItems(c, deps));
 
   app.get("/", async (c) => {
     const panelData = loadDashboardPanelDataMap(deps.dashboardPanels);

@@ -174,6 +174,13 @@ curl http://localhost:7453/health
 
 Expected response: `{"status":"ok"}`
 
+5. For machine-readable panel data (scripts, widgets, monitors), GET `/api/panels` (all panels with item counts) or `/api/panels/<panel-id>` (one panel's items as JSON; optional `?limit=N`, 1-500):
+
+```bash
+curl http://localhost:7453/api/panels
+curl http://localhost:7453/api/panels/hackernews?limit=5
+```
+
 ## Common issues
 
 | Symptom | Cause | Fix |

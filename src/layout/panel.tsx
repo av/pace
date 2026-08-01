@@ -1,7 +1,7 @@
 import type { FC } from "hono/jsx";
 import type { ContentItemRow, DashboardRenderMode, PanelConfig, PanelData } from "./types";
 import { resolvePanelId } from "./types";
-import { absoluteUtcTime, relativeTime, safeLinkUrl } from "../utils";
+import { absoluteUtcTime, parseJsonStringArray, relativeTime, safeLinkUrl } from "../utils";
 import { flexStyle } from "./flex-styles";
 import { stripHtml } from "../adapters/html";
 
@@ -11,16 +11,6 @@ function truncateBody(body: string): string {
   const plain = stripHtml(body, { whitespace: "preserve" }).trim();
   if (plain.length <= BODY_MAX_LENGTH) return plain;
   return plain.slice(0, BODY_MAX_LENGTH) + "...";
-}
-
-function parseOrigins(raw: string | null | undefined): string[] {
-  if (!raw) return [];
-  try {
-    const v = JSON.parse(raw);
-    return Array.isArray(v) ? v.filter((o): o is string => typeof o === "string") : [];
-  } catch {
-    return [];
-  }
 }
 
 const SOURCE_COLORS: Record<string, string> = {
@@ -71,7 +61,7 @@ function displayTimestamp(timestamp: string, mode: DashboardRenderMode): string 
 
 const ContentItemCard: FC<{ item: ContentItemRow; mode: DashboardRenderMode }> = ({ item, mode }) => {
   const href = safeLinkUrl(item.url);
-  const origins = parseOrigins(item.origins);
+  const origins = parseJsonStringArray(item.origins);
   const merged = origins.length > 1;
   return (
     <div class="item">

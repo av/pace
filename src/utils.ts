@@ -187,6 +187,23 @@ export function sliceToLimit<T>(items: readonly T[], limit: number): T[] {
   return items.slice(0, limit);
 }
 
+/**
+ * Parse a JSON-encoded string[] column (e.g. content_items.origins). Null,
+ * malformed JSON, non-array documents, and non-string entries all degrade to
+ * the empty array / are dropped — the columns are best-effort provenance.
+ */
+export function parseJsonStringArray(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? parsed.filter((entry): entry is string => typeof entry === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 /** Trim each string and drop empty entries (after trim). */
 export function normalizeStringList(items: readonly string[]): string[] {
   return items.map((item) => item.trim()).filter(Boolean);
