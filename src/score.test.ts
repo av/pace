@@ -115,6 +115,60 @@ describe("llm-rank scores", () => {
     expect(result.every((r) => r.score === null)).toBe(true);
   });
 
+  test("llm-rank reuses cached scores: only score-less rows go to the LLM, order sorts combined scores", async () => {
+    const rankedIdBatches: string[][] = [];
+    const completeSpy = spyOn(piAi, "complete").mockImplementation(async (_model, ctx) => {
+      const userContent = ctx.messages
+        .map((m) => (typeof m.content === "string" ? m.content : ""))
+        .join("\n");
+      const ids = [...userContent.matchAll(/id: "([^"]+)"/g)].map((m) => m[1]);
+      rankedIdBatches.push(ids);
+      return {
+        content: [{ type: "text", text: JSON.stringify(ids.map((id) => ({ id, score: 9 }))) }],
+      } as Awaited<ReturnType<typeof piAi.complete>>;
+    });
+    try {
+      const items = [
+        makeRow({ id: "cached-low", score: 3 }),
+        makeRow({ id: "fresh", score: null }),
+        makeRow({ id: "cached-high", score: 7 }),
+      ];
+      const result = await runPipeline(items, [{ type: "llm-rank", interests: ["tech"] }], {
+        llmModel: fakeModel,
+      });
+      // Only the score-less row was sent to the LLM.
+      expect(rankedIdBatches).toEqual([["fresh"]]);
+      // Order is the combined cached + fresh scores, descending.
+      expect(result.map((r) => [r.id, r.score])).toEqual([
+        ["fresh", 9],
+        ["cached-high", 7],
+        ["cached-low", 3],
+      ]);
+    } finally {
+      completeSpy.mockRestore();
+    }
+  });
+
+  test("llm-rank with all rows already scored makes no LLM call and sorts by cached scores", async () => {
+    const completeSpy = spyOn(piAi, "complete").mockImplementation(async () => {
+      throw new Error("must not be called");
+    });
+    try {
+      const items = [
+        makeRow({ id: "low", score: 2 }),
+        makeRow({ id: "high", score: 8 }),
+        makeRow({ id: "zero", score: 0 }),
+      ];
+      const result = await runPipeline(items, [{ type: "llm-rank", interests: ["tech"] }], {
+        llmModel: fakeModel,
+      });
+      expect(completeSpy).not.toHaveBeenCalled();
+      expect(result.map((r) => r.id)).toEqual(["high", "low", "zero"]);
+    } finally {
+      completeSpy.mockRestore();
+    }
+  });
+
   // ── 4. Interests fallback ────────────────────────────────────────────────
 
   test("llm-rank falls back to ctx.llmConfig.interests when transform has no interests", async () => {

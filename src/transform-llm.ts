@@ -8,7 +8,6 @@ import {
   filterRowsByItemIds,
   contentItemsToRows,
 } from "./db";
-import { sortByInputOrder } from "./dedupe";
 import { summarizeItems, lensItemsWithScores, mergeItems, filterItemsByLlm } from "./llm";
 import { fetchItemContents } from "./fetch-content";
 import { warnLlm } from "./llm-warn";
@@ -104,15 +103,6 @@ async function summarizeRows(
   return items.map((row) => updatedById.get(row.id) ?? row);
 }
 
-function rowsInItemOrder(rows: ContentItemRow[], orderedItems: { id: string }[]): ContentItemRow[] {
-  const rowById = contentRowMapById(rows);
-  const order = orderedItems.flatMap((item) => {
-    const row = rowById.get(item.id);
-    return row ? [row] : [];
-  });
-  return sortByInputOrder(rows, order);
-}
-
 async function filterRows(
   model: Model<Api>,
   items: ContentItemRow[],
@@ -126,19 +116,35 @@ async function filterRows(
   );
 }
 
+/** Stable sort: highest score first, unscored rows last, ties keep input order. */
+function sortRowsByScoreDesc(rows: ContentItemRow[]): ContentItemRow[] {
+  return [...rows].sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
+}
+
 async function rankRows(
   model: Model<Api>,
   items: ContentItemRow[],
   interests: string[]
 ): Promise<ContentItemRow[]> {
-  const contentItems = contentRowsToItems(items);
-  const { items: ranked, scoreMap } = await lensItemsWithScores(model, contentItems, interests);
-  const reordered = rowsInItemOrder(items, ranked);
-  if (scoreMap.size === 0) return reordered;
-  return reordered.map((row) => {
+  if (interests.length === 0) return items;
+  // Scores are ABSOLUTE per-item relevance (0-10 against the interest list),
+  // not relative across the batch, so a score computed in a previous cycle
+  // stays valid and can be reused verbatim: only score-less rows are sent to
+  // the LLM (mirrors llm-summarize's "skip rows with a summary" cache), and
+  // the final order is a sort over the combined cached + fresh scores.
+  // Cached scores arrive persisted on the panel (adapter-level rank) or
+  // seeded from the pipeline's previous output (scheduler-runtime.ts).
+  const pending = items.filter((row) => row.score == null);
+  if (pending.length === 0) return sortRowsByScoreDesc(items);
+  const { scoreMap } = await lensItemsWithScores(model, contentRowsToItems(pending), interests);
+  // LLM failure or malformed response: passthrough unchanged, matching the
+  // pre-existing failure behavior (no reorder by possibly-partial scores).
+  if (scoreMap.size === 0) return items;
+  const rescored = items.map((row) => {
     const score = scoreMap.get(row.id);
     return score !== undefined ? { ...row, score } : row;
   });
+  return sortRowsByScoreDesc(rescored);
 }
 
 async function mergeRows(

@@ -543,6 +543,155 @@ describe("scheduler", () => {
     ]);
   });
 
+  test("runPipelineJob reuses previous-cycle llm-rank scores and only scores new items", async () => {
+    // Same shape as the llm-summarize cache bug: pipeline input comes from raw
+    // SOURCE panels (score null) while last cycle's scores live on the OUTPUT
+    // panel under pipeline:<name>:<id> ids, so llm-rank re-scored every item
+    // every cycle. Scores are absolute per-item relevance, so reuse is safe.
+    const rankedIdBatches: string[][] = [];
+    const scoreById: Record<string, number> = { h1: 4, h2: 9 };
+    const completeSpy = spyOn(piAi, "complete").mockImplementation(async (_model, context) => {
+      const userContent = context.messages
+        .map((m) => (typeof m.content === "string" ? m.content : ""))
+        .join("\n");
+      const ids = [...userContent.matchAll(/id: "([^"]+)"/g)].map((m) => m[1]);
+      rankedIdBatches.push(ids);
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(ids.map((id) => ({ id, score: scoreById[id] ?? 0 }))),
+        }],
+      } as Awaited<ReturnType<typeof piAi.complete>>;
+    });
+    try {
+      dbMod.saveItems("hn-panel", [
+        makeContentItem({
+          id: "h1",
+          title: "HN item",
+          url: "https://hn/1",
+          source: "hn",
+          timestamp: new Date("2024-06-01T12:00:00.000Z"),
+        }),
+      ]);
+      const config = testAppConfig(
+        {
+          adapters: [],
+          pipelines: [{
+            name: "curated",
+            sources: ["hn"],
+            transforms: [{ type: "llm-rank", interests: ["tech"] }],
+          }],
+        },
+        {
+          direction: "column",
+          panels: [
+            { panel: "tech", source: "hn", id: "hn-panel" },
+            { panel: "pipe", source: "curated", id: "out" },
+          ],
+        },
+      );
+      const pm = sourcePanelMapFromConfig(config);
+      startTestScheduler(config, new Map(), pm, fakeLlmModel);
+
+      await refreshTestSources(["curated"]);
+      expect(rankedIdBatches).toEqual([["h1"]]);
+      expect(dbMod.getAllItemsByPanel("out").map((r) => [r.id, r.score])).toEqual([
+        ["pipeline:curated:h1", 4],
+      ]);
+
+      // Second cycle re-reads the raw source panel (score null there): the
+      // previous output's score must be reused with zero LLM calls.
+      await refreshTestSources(["curated"]);
+      expect(rankedIdBatches).toEqual([["h1"]]);
+      expect(dbMod.getAllItemsByPanel("out").map((r) => [r.id, r.score])).toEqual([
+        ["pipeline:curated:h1", 4],
+      ]);
+
+      // A new source item is the only one scored on the next cycle, and the
+      // output order reflects the combined cached + fresh scores.
+      dbMod.saveItems("hn-panel", [
+        makeContentItem({
+          id: "h2",
+          title: "Newer HN item",
+          url: "https://hn/2",
+          source: "hn",
+          timestamp: new Date("2024-06-02T12:00:00.000Z"),
+        }),
+      ]);
+      await refreshTestSources(["curated"]);
+      expect(rankedIdBatches).toEqual([["h1"], ["h2"]]);
+      const out = dbMod.getAllItemsByPanel("out")
+        .map((r) => [r.id, r.score])
+        .sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+      expect(out).toEqual([
+        ["pipeline:curated:h1", 4],
+        ["pipeline:curated:h2", 9],
+      ]);
+    } finally {
+      completeSpy.mockRestore();
+    }
+  });
+
+  test("runPipelineJob score reuse keeps a fresher input score over the cached output one", async () => {
+    // A source row that already carries a score (e.g. adapter-level llm-rank
+    // on the source panel, persisted via replacePanelItems) must win over the
+    // stale cached copy on the pipeline output panel — and with every row
+    // scored, the cycle must make no LLM calls at all.
+    const completeSpy = spyOn(piAi, "complete").mockImplementation(async () => {
+      throw new Error("must not be called");
+    });
+    try {
+      dbMod.replacePanelItems("hn-panel", [
+        makeContentItemRow({
+          id: "h1",
+          panel_id: "hn-panel",
+          title: "HN item",
+          url: "https://hn/1",
+          source: "hn",
+          score: 8.5,
+          timestamp: "2024-06-01T12:00:00.000Z",
+        }),
+      ]);
+      dbMod.replacePanelItems("out", [
+        makeContentItemRow({
+          id: "pipeline:curated:h1",
+          panel_id: "out",
+          title: "HN item",
+          url: "https://hn/1",
+          source: "hn",
+          score: 2,
+          timestamp: "2024-06-01T12:00:00.000Z",
+        }),
+      ]);
+      const config = testAppConfig(
+        {
+          adapters: [],
+          pipelines: [{
+            name: "curated",
+            sources: ["hn"],
+            transforms: [{ type: "llm-rank", interests: ["tech"] }],
+          }],
+        },
+        {
+          direction: "column",
+          panels: [
+            { panel: "tech", source: "hn", id: "hn-panel" },
+            { panel: "pipe", source: "curated", id: "out" },
+          ],
+        },
+      );
+      const pm = sourcePanelMapFromConfig(config);
+      startTestScheduler(config, new Map(), pm, fakeLlmModel);
+      await refreshTestSources(["curated"]);
+      expect(completeSpy).not.toHaveBeenCalled();
+      expect(dbMod.getAllItemsByPanel("out").map((r) => [r.id, r.score])).toEqual([
+        ["pipeline:curated:h1", 8.5],
+      ]);
+    } finally {
+      completeSpy.mockRestore();
+    }
+  });
+
   test("two pipelines sourcing the same adapter on one shared panel keep each other's output and never cross-prefix ids", async () => {
     // Shared panel lists the adapter plus BOTH pipelines consuming it, so
     // each pipeline's input read (adapter read key = shared panel) sees the

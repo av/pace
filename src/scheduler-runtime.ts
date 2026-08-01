@@ -226,31 +226,45 @@ function gatherPipelineInputItems(
   return deduped;
 }
 
-function seedSummariesFromPreviousOutput(
+function seedLlmFieldsFromPreviousOutput(
   items: ContentItemRow[],
   panelIds: string[],
   ownOutputPrefix: string,
 ): ContentItemRow[] {
-  // llm-summarize skips rows that already carry a summary (transform-llm.ts),
-  // but pipeline input is gathered from SOURCE panels (raw adapter rows, no
-  // summaries) while the summaries produced last cycle live on the OUTPUT
-  // panels under rewritten `pipeline:<name>:<id>` ids. Without reuse the
-  // cache never hits, so every cycle re-summarizes (and with fetch_content,
-  // re-fetches) every item. Seed each summary-less input row with the summary
-  // from this pipeline's previous output row of the same original id.
+  // llm-summarize skips rows that already carry a summary, and llm-rank skips
+  // rows that already carry a score (transform-llm.ts) — llm-rank scores are
+  // absolute per-item relevance, so a previous cycle's score stays valid.
+  // But pipeline input is gathered from SOURCE panels (raw adapter rows, no
+  // summaries or scores) while the values produced last cycle live on the
+  // OUTPUT panels under rewritten `pipeline:<name>:<id>` ids. Without reuse
+  // those caches never hit, so every cycle re-summarizes (and with
+  // fetch_content, re-fetches) and re-scores every item. Seed each input row
+  // missing a summary/score with the value from this pipeline's previous
+  // output row of the same original id; a fresher value already on the input
+  // row (e.g. from an adapter-level transform on the source panel) wins.
   const previousSummaries = new Map<string, string>();
+  const previousScores = new Map<string, number>();
   for (const pid of panelIds) {
     for (const row of getRawItemsByPanel(pid)) {
-      if (!row.summary || !row.id.startsWith(ownOutputPrefix)) continue;
+      if (!row.id.startsWith(ownOutputPrefix)) continue;
       const originalId = row.id.slice(ownOutputPrefix.length);
-      if (!previousSummaries.has(originalId)) previousSummaries.set(originalId, row.summary);
+      if (row.summary && !previousSummaries.has(originalId)) {
+        previousSummaries.set(originalId, row.summary);
+      }
+      if (row.score != null && !previousScores.has(originalId)) {
+        previousScores.set(originalId, row.score);
+      }
     }
   }
-  if (previousSummaries.size === 0) return items;
+  if (previousSummaries.size === 0 && previousScores.size === 0) return items;
   return items.map((row) => {
-    if (row.summary) return row;
-    const summary = previousSummaries.get(row.id);
-    return summary ? { ...row, summary } : row;
+    const summary = row.summary ? undefined : previousSummaries.get(row.id);
+    const score = row.score == null ? previousScores.get(row.id) : undefined;
+    if (summary === undefined && score === undefined) return row;
+    const seeded = { ...row };
+    if (summary !== undefined) seeded.summary = summary;
+    if (score !== undefined) seeded.score = score;
+    return seeded;
   });
 }
 
@@ -386,7 +400,7 @@ async function runPipelineJob(scheduler: SchedulerState, entry: PipelineEntry): 
     // from a snapshot gathered before awaited transforms.
     scheduler.panelLocks.withLock(panelIds, async () => {
       const ownOutputPrefix = `${PIPELINE_ID_PREFIX}${config.name}:`;
-      const items = seedSummariesFromPreviousOutput(
+      const items = seedLlmFieldsFromPreviousOutput(
         gatherPipelineInputItems(scheduler, config.sources),
         panelIds,
         ownOutputPrefix,
