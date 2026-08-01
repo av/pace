@@ -10,6 +10,10 @@ Notable changes per release, newest first. Also published as [GitHub releases](h
 - Text widgets (About/How-to-Use panels) now use the same 0.85rem type scale as feed panels instead of the oversized browser default, which clipped copy in tighter layouts.
 - Stronger screen-reader semantics for the dashboard: the layout is wrapped in a `<main>` landmark with a visually hidden `<h1>`, each refresh button is named after its panel ("Refresh <title>") instead of a bare "Refresh", item and panel-refreshed timestamps render as `<time>` elements with machine-readable datetimes, and feed items are marked up as a real list so assistive tech announces counts and supports list navigation.
 
+### Dependencies
+
+- Security update pass: `bun audit` is now clean (was 12 advisories, 6 high). Direct deps bumped within-major — hono 4.12.33 (fixes three moderate advisories incl. IPv6 deny-rule bypass), js-yaml 4.3.1 (merge-key DoS backport), fast-xml-parser 5.10.1, marked 18.0.7, sanitize-html 2.17.6, pi-ai 0.73.1. Vulnerable transitives (undici, ws, postcss, protobufjs) pinned to patched versions via `overrides` — every override stays inside its parent's declared semver range. Skipped as majors: js-yaml 5, typescript 7.
+
 ### Tooling / tests
 
 - `scripts/verify-release.sh` — end-to-end release verification for any version: pulls the published Docker image and probes every served endpoint (health, dashboard, static assets, JSON/RSS APIs, `pace --version`/`skill`/`doctor`), checks the GitHub release notes, and runs the full test suite in a fresh tag clone. Coverage pinned by deployment-sync tests.
