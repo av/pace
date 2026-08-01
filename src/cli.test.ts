@@ -176,9 +176,9 @@ describe("cli-help", () => {
       `pace v1.0.0 - personal content dashboard
 
 If you're an agent, start here:
-  pace skill                          list agent skills
-  pace skill pace-setup     set up / run a dashboard
-  pace skill pace-config create or edit config.yaml
+  pace skill               list agent skills
+  pace skill pace-setup    set up / run a dashboard
+  pace skill pace-config   create or edit config.yaml
 
 Usage:
   pace [command] [options]
