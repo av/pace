@@ -329,6 +329,7 @@ a:hover {
 
 .item-meta {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.35rem;
   color: var(--text-muted);
@@ -407,6 +408,21 @@ a:hover {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* Feed content contains long unbroken tokens (URLs-as-titles, package names,
+   formulas). Without a wrap opportunity they force a horizontal scrollbar in
+   every panel-body on desktop and widen the whole page on mobile, where
+   panels are overflow: visible. `overflow-wrap` inherits, so containers
+   cover their inline links too. */
+.item-title,
+.item-summary,
+.item-body,
+.empty-state,
+.text-widget-body,
+.iframe-static-placeholder,
+.image-static-placeholder {
+  overflow-wrap: anywhere;
 }
 
 /* empty state */
@@ -692,4 +708,17 @@ a:hover {
 
 .stat-trend-down {
   color: #ef5350;
+}
+
+/* Users with vestibular disorders opt out of motion at the OS level; the
+   infinite iframe-loading stripe animation in particular must respect that. */
+@media (prefers-reduced-motion: reduce) {
+  .iframe-panel {
+    animation: none;
+  }
+
+  .item,
+  .refresh-btn {
+    transition: none;
+  }
 }

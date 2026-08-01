@@ -202,3 +202,60 @@ describe("three-panel counter row HTML", () => {
     expect(html).not.toContain("No data yet");
   });
 });
+describe("long unbroken content wrap CSS", () => {
+  const STYLES_NO_COMMENTS = STYLES.replace(/\/\*[\s\S]*?\*\//g, "");
+  /** All rule blocks (selector list -> body), comments stripped. */
+  const RULES = [...STYLES_NO_COMMENTS.matchAll(/(?:^|\n)([^@{}]+)\{([^}]*)\}/gs)]
+    .map(([, selectors, body]) => ({
+      selectors: selectors!.split(",").map((s) => s.trim()),
+      body: body!,
+    }));
+
+  it.each([
+    ".item-title",
+    ".item-summary",
+    ".item-body",
+    ".empty-state",
+    ".text-widget-body",
+    ".iframe-static-placeholder",
+    ".image-static-placeholder",
+  ])("%s allows unbroken tokens (long URLs/titles) to wrap", (selector) => {
+    const covered = RULES.some(
+      (rule) =>
+        rule.selectors.includes(selector) &&
+        /overflow-wrap:\s*anywhere/.test(rule.body),
+    );
+    expect(covered).toBe(true);
+  });
+
+  it(".item-meta wraps merged-origin source pills instead of overflowing", () => {
+    const flexRule = RULES.find(
+      (rule) => rule.selectors.includes(".item-meta") && rule.body.includes("display: flex"),
+    );
+    expect(flexRule).toBeDefined();
+    expect(flexRule!.body).toContain("flex-wrap: wrap");
+  });
+
+  it(".panel-header h2 nowrap ellipsis is preserved (wrap must not regress it)", () => {
+    const block = ruleBlock(".panel-header h2");
+    expect(block).toContain("white-space: nowrap");
+    expect(block).not.toContain("overflow-wrap");
+  });
+});
+
+describe("reduced motion CSS", () => {
+  it("disables the infinite iframe-loading animation under prefers-reduced-motion", () => {
+    const start = STYLES.indexOf("@media (prefers-reduced-motion: reduce)");
+    expect(start).toBeGreaterThan(-1);
+    const scoped = STYLES.slice(start);
+    const iframeRule = scoped.match(/\.iframe-panel\s*\{([^}]*)\}/s);
+    expect(iframeRule).not.toBeNull();
+    expect(iframeRule![1]).toContain("animation: none");
+  });
+
+  it("disables hover transitions under prefers-reduced-motion", () => {
+    const start = STYLES.indexOf("@media (prefers-reduced-motion: reduce)");
+    const scoped = STYLES.slice(start);
+    expect(scoped).toMatch(/\.item,\s*\.refresh-btn\s*\{[^}]*transition:\s*none/s);
+  });
+});
