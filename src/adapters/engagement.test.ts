@@ -39,6 +39,19 @@ describe("engagement body roundtrips", () => {
     expect(extractEngagementScore(formatStars(99))).toBe(99);
   });
 
+  test("comma-separated star counts round-trip at full value", () => {
+    // formatStars(12_345) renders "12,345 stars"; the parser must not read
+    // only the trailing "345" (which inverted ranking for popular repos).
+    expect(formatStars(12_345)).toBe("12,345 stars");
+    expect(extractEngagementScore(formatStars(12_345))).toBe(12_345);
+    expect(extractEngagementScore(formatStars(1_500))).toBe(1_500);
+    expect(extractEngagementScore(formatStars(1_234_567))).toBe(1_234_567);
+    // A popular repo must outrank a sub-1000-star repo.
+    expect(extractEngagementScore(formatStars(12_345))).toBeGreaterThan(
+      extractEngagementScore(formatStars(999)),
+    );
+  });
+
   test("joinTitle preserves pipe-separated adapter layout", () => {
     const body = joinTitle(
       formatPoints(42),
@@ -159,6 +172,7 @@ describe("engagement parse helpers", () => {
   test("parseFirstIntMatch uses shared points/upvotes pattern", () => {
     expect(parseFirstIntMatch("Upvote • 215 points", RE_POINTS_OR_UPVOTES)).toBe(215);
     expect(parseFirstIntMatch("42 upvotes here", RE_POINTS_OR_UPVOTES)).toBe(42);
+    expect(parseFirstIntMatch("1,024 upvotes on launch", RE_POINTS_OR_UPVOTES)).toBe(1024);
   });
 });
 
@@ -202,6 +216,18 @@ describe("extractEngagementScore", () => {
     expect(extractEngagementScore("42")).toBe(0);
   });
 
+  test("parses thousands-separated counts at full value", () => {
+    expect(extractEngagementScore("1,234 points")).toBe(1234);
+    expect(extractEngagementScore("12,345 stars")).toBe(12_345);
+    expect(extractEngagementScore("1,234,567 likes")).toBe(1_234_567);
+    expect(extractEngagementScore("2,000 comments")).toBe(1000);
+  });
+
+  test("does not treat malformed separator groups as one number", () => {
+    // "12,34 stars" is not a valid grouped count; only "34 stars" scores.
+    expect(extractEngagementScore("12,34 stars")).toBe(34);
+  });
+
   test("case-insensitive and trims around numbers", () => {
     expect(extractEngagementScore("  99 POINTS  ")).toBe(99);
     expect(extractEngagementScore("2 boosts")).toBe(2);
@@ -219,6 +245,11 @@ describe("stripEngagementMetricCounts", () => {
     expect(stripEngagementMetricCounts("42 points and 3 reactions")).toBe(" and ");
     expect(stripEngagementMetricCounts("10 comments | 5 replies | 1500 views")).toBe(" |  | ");
     expect(stripEngagementMetricCounts("7 upvotes, 2 boosts, 4 favourites")).toBe(", , ");
+  });
+
+  test("strips thousands-separated counts without leaving digit fragments", () => {
+    expect(stripEngagementMetricCounts("12,345 stars language: Rust")).toBe(" language: Rust");
+    expect(stripEngagementMetricCounts("1,234,567 views | topic")).toBe(" | topic");
   });
 
   test("leaves non-metric text unchanged", () => {

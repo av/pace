@@ -1,5 +1,17 @@
+/**
+ * Matches a count with optional thousands separators ("12,345") or a plain
+ * integer. Grouped separators must be complete 3-digit runs so "12,34" or a
+ * trailing "12," never match as one number.
+ */
+const COUNT_NUMBER_SOURCE = "\\d{1,3}(?:,\\d{3})+|\\d+";
+
+/** Parse a matched count group, tolerating thousands separators. */
+function parseCountGroup(group: string): number {
+  return parseInt(group.replace(/,/g, ""), 10);
+}
+
 function countMetricRe(term: string): RegExp {
-  return new RegExp(`(\\d+)\\s*${term}`, "i");
+  return new RegExp(`(${COUNT_NUMBER_SOURCE})\\s*${term}`, "i");
 }
 
 /** Shared metric vocabulary for scoring, stripping, and cluster keyword extraction. */
@@ -21,7 +33,10 @@ export const ENGAGEMENT_STRIP_TERMS = [
   ...STRIP_ONLY_METRIC_TERMS,
 ];
 
-export const RE_POINTS_OR_UPVOTES = /(\d+)\s*(?:points|upvotes?)/i;
+export const RE_POINTS_OR_UPVOTES = new RegExp(
+  `(${COUNT_NUMBER_SOURCE})\\s*(?:points|upvotes?)`,
+  "i",
+);
 
 /**
  * Primary patterns checked first by extractScore (return-on-first-match) and
@@ -41,7 +56,7 @@ export const ENGAGEMENT_PATTERNS: Array<{ re: RegExp; weight: number }> = [
 ];
 
 const RE_STRIP_ENGAGEMENT_METRICS = new RegExp(
-  `\\d+\\s*(?:${ENGAGEMENT_STRIP_TERMS.join("|")})`,
+  `(?:${COUNT_NUMBER_SOURCE})\\s*(?:${ENGAGEMENT_STRIP_TERMS.join("|")})`,
   "gi",
 );
 
@@ -54,7 +69,7 @@ export function extractScore(body: string | null): number {
   if (!body) return 0;
   for (const { re } of PRIMARY_SCORE_PATTERNS) {
     const match = body.match(re);
-    if (match) return parseInt(match[1], 10);
+    if (match) return parseCountGroup(match[1]);
   }
   return 0;
 }
@@ -65,7 +80,7 @@ export function extractEngagementScore(body: string | null): number {
   for (const { re, weight } of ENGAGEMENT_PATTERNS) {
     const m = body.match(re);
     if (m) {
-      const n = parseInt(m[1], 10);
+      const n = parseCountGroup(m[1]);
       total += Math.floor(n * weight);
     }
   }
@@ -75,7 +90,7 @@ export function extractEngagementScore(body: string | null): number {
 export function parseFirstIntMatch(text: string, re: RegExp): number | undefined {
   const match = text.match(re);
   if (!match) return undefined;
-  return parseInt(match[1], 10);
+  return parseCountGroup(match[1]);
 }
 
 export function formatCount(value: number | string, label: string): string {
@@ -176,7 +191,9 @@ export function formatMedia(urls: readonly string[]): string | undefined {
 }
 
 export function formatStars(count: number): string {
-  return formatCount(count.toLocaleString(), "stars");
+  // Pin the locale: host-locale toLocaleString() may emit "12.345" or
+  // narrow-space separators, which the count parsers do not recognize.
+  return formatCount(count.toLocaleString("en-US"), "stars");
 }
 
 const COUNT_SCALES = [
