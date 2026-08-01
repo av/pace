@@ -15,6 +15,7 @@ Notable changes per release, newest first. Also published as [GitHub releases](h
 - `scripts/verify-release.sh` — end-to-end release verification for any version: pulls the published Docker image and probes every served endpoint (health, dashboard, static assets, JSON/RSS APIs, `pace --version`/`skill`/`doctor`), checks the GitHub release notes, and runs the full test suite in a fresh tag clone. Coverage pinned by deployment-sync tests.
 - `scripts/screenshot-states.py` — captures interaction-only visual states (`:focus-visible` rings, the `?` help overlay, iframe loading stripe) by pressing real keys in headless Chromium; fails nonzero if the keyboard-navigation states never appear.
 - Preset screenshots refreshed, including a new 390x844 mobile capture (`assets/preset-daily-brief-mobile.png`) now taken by `scripts/screenshot-presets.sh`.
+- README Docker section now has an "Upgrading" note (pull the new image tag and recreate the container), including a warning that compose-file healthcheck overrides survive image upgrades and should be re-checked against the new version.
 
 ## v0.7.0
 
