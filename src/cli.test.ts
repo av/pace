@@ -9,7 +9,7 @@ import {
   spawnCliServeServer,
   waitForCliServeReady,
 } from "./test/cli-serve-harness";
-import { mkdtempSync, rmSync, writeFileSync, unlinkSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import os from "node:os";
 import {
@@ -22,6 +22,7 @@ import {
   isCliFatalStartupError,
   normalizeCliParsedValues,
   parseSkillFrontmatter,
+  readSkillContent,
   resolveCliInfoOutput,
   resolveCliServeErrors,
 } from "./cli-help";
@@ -220,6 +221,34 @@ description: >
     expect(result).not.toBeNull();
     expect(result!.name).toBe("pace-setup");
     expect(result!.description).toContain("Install and run the pace personal dashboard");
+  });
+
+  test("readSkillContent is confined to the skills/ directory", () => {
+    const tmp = mkdtempSync(join(os.tmpdir(), "pace-skill-traversal-"));
+    const cwd = process.cwd();
+    try {
+      mkdirSync(join(tmp, "proj", "skills", "good"), { recursive: true });
+      writeFileSync(
+        join(tmp, "proj", "skills", "good", "SKILL.md"),
+        "---\nname: good\ndescription: A good skill.\n---\n# Good skill\n",
+      );
+      mkdirSync(join(tmp, "outside"), { recursive: true });
+      writeFileSync(join(tmp, "outside", "SKILL.md"), "OUTSIDE CONTENT\n");
+      process.chdir(join(tmp, "proj"));
+
+      expect(readSkillContent("good")).toContain("# Good skill");
+      // Traversal and separator names must not escape skills/. Pre-guard,
+      // "../../outside" resolved to <tmp>/outside/SKILL.md and read it.
+      expect(readSkillContent("../../outside")).toBeNull();
+      expect(readSkillContent("../outside")).toBeNull();
+      expect(readSkillContent("..\\..\\outside")).toBeNull();
+      expect(readSkillContent("..")).toBeNull();
+      expect(readSkillContent(".")).toBeNull();
+      expect(readSkillContent("")).toBeNull();
+    } finally {
+      process.chdir(cwd);
+      rmSync(tmp, { recursive: true, force: true });
+    }
   });
 
   test("parseSkillFrontmatter extracts name and description from inline scalar", () => {

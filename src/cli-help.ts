@@ -562,6 +562,12 @@ export function listSkills(): SkillEntry[] {
 
 /** Read full SKILL.md content for a named skill, or null if not found. */
 export function readSkillContent(name: string): string | null {
+  // Skill names are single directory names under skills/ — reject path
+  // separators and dot segments so `pace skill ../../x` cannot read files
+  // outside skills/ (mirrors resolvePreset's guard in config.ts).
+  if (!name || name === "." || name === ".." || name.includes("/") || name.includes("\\")) {
+    return null;
+  }
   const skillPath = join(process.cwd(), "skills", name, "SKILL.md");
   if (!existsSync(skillPath)) return null;
   return readFileSync(skillPath, "utf-8");
