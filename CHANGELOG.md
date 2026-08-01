@@ -2,6 +2,17 @@
 
 Notable changes per release, newest first. Also published as [GitHub releases](https://github.com/av/pace/releases).
 
+## Unreleased
+
+### Documentation
+
+- AGENTS.md CLI reference now lists `pace doctor` and `pace import <feeds.opml>`, which were missing.
+- The stale duplicate copies of the pace-setup/pace-config skills under `.agents/skills/` (old skill names, dead cross-references, missing doctor/import/share docs) are now symlinks to the bundled `skills/` versions, so they can no longer drift.
+
+### Testing
+
+- Example dashboard configs (`examples/*.yaml`) are now pinned by the config-validity suite: each must validate, use only recognized adapter types and param keys, resolve every panel source, and render to balanced HTML (+33 tests).
+
 ## v0.7.1
 
 ### Bug fixes

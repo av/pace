@@ -10,12 +10,14 @@ pace transforms list             # all transform types
 pace transforms explain <type>   # docs for one transform
 pace presets list                # bundled starter configs
 pace config check [path]         # validate config without starting the server
+pace doctor                      # fetch-check every configured source live
+pace import <feeds.opml>         # convert an OPML feed export to a pace config
 pace skill [name]                # list or print bundled agent skills
 ```
 
 ## Skills
 
-Skills for working with pace dashboards are in `.agents/skills/` (symlinked from `.claude/skills/`):
+Skills for working with pace dashboards live in `skills/` (the copies bundled with the CLI via `pace skill`); `.agents/skills/pace-setup` and `.agents/skills/pace-config` are symlinks to them, and `.claude/skills` is a symlink to `.agents/skills`:
 
 - **pace-setup** — install, run, and deploy pace (Bun dev, Docker, Docker Compose, CLI flags, troubleshooting)
 - **pace-config** — generate or modify `config.yaml` from a natural-language description of interests

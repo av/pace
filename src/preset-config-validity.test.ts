@@ -497,6 +497,75 @@ describe("config.example.yaml validity", () => {
 });
 
 // ============================================================
+// 3b. Example dashboard configs (examples/*.yaml) validity
+// ============================================================
+
+describe("Example config validity", () => {
+  const EXAMPLES_DIR = join(ROOT, "examples");
+  const exampleFiles = readdirSync(EXAMPLES_DIR)
+    .filter((f) => f.endsWith(".yaml"))
+    .sort();
+
+  it("examples directory contains at least one config", () => {
+    expect(exampleFiles.length).toBeGreaterThanOrEqual(1);
+  });
+
+  for (const file of exampleFiles) {
+    describe(`examples/${file}`, () => {
+      let validated: ReturnType<typeof validateParsedConfig>;
+
+      beforeAll(() => {
+        const raw = readFileSync(join(EXAMPLES_DIR, file), "utf-8");
+        const parsed = yaml.load(raw);
+        if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+          throw new Error(`Example ${file}: expected an object at top level`);
+        }
+        validated = validateParsedConfig(parsed as Record<string, unknown>, DEFAULT_LAYOUT);
+      });
+
+      it("passes validation with at least one adapter and panel", () => {
+        expect(validated.adapters.length).toBeGreaterThanOrEqual(1);
+        expect(collectPanels(validated.layout).length).toBeGreaterThanOrEqual(1);
+      });
+
+      it("all adapter types are recognized and param keys valid", () => {
+        for (const adapter of validated.adapters) {
+          expect(isAdapterType(adapter.type)).toBe(true);
+          if (!isAdapterType(adapter.type) || !adapter.params) continue;
+          const allowedKeys: readonly string[] = ADAPTER_PARAM_KEYS[adapter.type];
+          for (const key of Object.keys(adapter.params)) {
+            expect(allowedKeys).toContain(key);
+          }
+        }
+      });
+
+      it("all panel sources reference declared adapters or pipelines (or 'all')", () => {
+        const names = new Set([
+          ...validated.adapters.map((a) => a.name ?? a.type),
+          ...validated.pipelines.map((p) => p.name),
+        ]);
+        for (const panel of collectPanels(validated.layout)) {
+          for (const src of normalizeSource(panel.source)) {
+            if (src.adapter === "all") continue;
+            expect(names.has(src.adapter)).toBe(true);
+          }
+        }
+      });
+
+      it("renders to balanced HTML with mock data", () => {
+        const html = renderDashboard({
+          layout: validated.layout,
+          panelData: mockPanelData(validated.layout),
+          updatedAt: "2026-08-01 12:00:00",
+        });
+        expect(html.startsWith("<!DOCTYPE html>")).toBe(true);
+        expect(checkHtmlBalance(html)).toEqual([]);
+      });
+    });
+  }
+});
+
+// ============================================================
 // 4. Preset Consistency Checks
 // ============================================================
 
