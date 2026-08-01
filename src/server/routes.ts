@@ -8,6 +8,7 @@ import {
   formatRefreshFailedNotice,
   formatRefreshPanelFailureBody,
   formatRefreshSkippedNotice,
+  formatRefreshSuccessBody,
   type RefreshResult,
 } from "../refresh-result";
 import {
@@ -128,6 +129,12 @@ export async function handleRefreshPanel(c: Context, deps: ServerRouteDeps): Pro
     }
   }
 
+  // Success: a browser navigation lands back on the dashboard; non-browser
+  // clients (curl, scripts) get a confirmation body instead of an empty 303,
+  // mirroring the failure and skip branches above.
+  if (!isBrowserNavigationRequest(c.req.raw.headers)) {
+    return c.text(formatRefreshSuccessBody(binding.sourceNames), 200);
+  }
   return c.redirect(dashboardRootPath(deps.basePath), 303);
 }
 

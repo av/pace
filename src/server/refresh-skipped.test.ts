@@ -142,11 +142,15 @@ describe("skipped refresh end-to-end", () => {
     expect(res.status).toBe(502);
   });
 
-  test("all-ok refresh redirects without ?skipped=", async () => {
+  test("all-ok browser refresh redirects without ?skipped=", async () => {
     const deps = makeDeps(async () => [
       { kind: "adapter", name: "hackernews", status: "ok" },
     ]);
-    const res = await requestRefreshPanel(createTestServerApp(deps), "tech");
+    const res = await requestRefreshPanel(
+      createTestServerApp(deps),
+      "tech",
+      BROWSER_NAVIGATION_HEADERS,
+    );
     expect(res.status).toBe(303);
     expect(res.headers.get("location")).toBe("/");
   });

@@ -3,6 +3,7 @@ import { normalizeBasePath } from "../config/domain";
 import { singlePanelLayout, testAppLayout } from "../test/app-config";
 import { installTempDbHooks } from "../test/temp-db";
 import {
+  BROWSER_NAVIGATION_HEADERS,
   createTestServerApp,
   expectHtmlOk,
   makeServerRouteDeps,
@@ -57,7 +58,10 @@ describe("server with base_path", () => {
 
   test("refresh redirects to the prefixed dashboard root", async () => {
     const app = makeApp("/pace");
-    const res = await requestServerRoute(app, "/refresh/tech-panel", { method: "POST" });
+    const res = await requestServerRoute(app, "/refresh/tech-panel", {
+      method: "POST",
+      headers: BROWSER_NAVIGATION_HEADERS,
+    });
 
     expect(res.status).toBe(303);
     expect(res.headers.get("location")).toBe("/pace");
@@ -65,7 +69,10 @@ describe("server with base_path", () => {
 
   test("refresh redirects to plain root when no base path configured", async () => {
     const app = makeApp("");
-    const res = await requestServerRoute(app, "/refresh/tech-panel", { method: "POST" });
+    const res = await requestServerRoute(app, "/refresh/tech-panel", {
+      method: "POST",
+      headers: BROWSER_NAVIGATION_HEADERS,
+    });
 
     expect(res.status).toBe(303);
     expect(res.headers.get("location")).toBe("/");
@@ -87,6 +94,7 @@ describe("server with base_path", () => {
 
     const refresh = await requestServerRoute(app, "/pace/refresh/tech-panel", {
       method: "POST",
+      headers: BROWSER_NAVIGATION_HEADERS,
     });
     expect(refresh.status).toBe(303);
     expect(refresh.headers.get("location")).toBe("/pace");

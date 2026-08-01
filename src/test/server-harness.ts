@@ -144,18 +144,19 @@ export function expectRefreshPanelRedirect(res: Response): void {
   expect(res.headers.get("location")).toBe("/");
 }
 
-/** Live-server refresh may succeed (303) or fail (502) depending on adapter fetch. */
+/** Live-server refresh may succeed (200) or fail (502) depending on adapter fetch. */
 export async function expectRefreshPanelFailureOrRedirect(
   res: Response,
   failureSource: string,
 ): Promise<void> {
   if (res.status === 200) {
-    // Non-browser skip body when the startup refresh is still running.
-    expect(await res.text()).toContain("Refresh already in progress");
+    // Non-browser text body: either a skip notice (startup refresh still
+    // running) or the success confirmation.
+    expect(await res.text()).toMatch(/Refresh already in progress|^Refreshed /);
     return;
   }
   if (res.status === 303) {
-    // All-sources-ok refresh redirects back to the dashboard root.
+    // Browser-navigation success redirects back to the dashboard root.
     expect(res.headers.get("location") || "").toBe("/");
     return;
   }

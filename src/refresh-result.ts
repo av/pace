@@ -41,6 +41,16 @@ export function formatRefreshFailedNotice(names: ReadonlyArray<string>): string 
   return `Refresh failed for ${names.join(", ")} — check server logs; showing existing data.`;
 }
 
+/**
+ * Build 200 response body confirming a successful refresh to non-browser
+ * clients (curl, scripts) — they get no dashboard banner, so an empty 303
+ * would leave them unable to tell what (if anything) happened.
+ */
+export function formatRefreshSuccessBody(names: ReadonlyArray<string>): string {
+  if (names.length === 0) return "Nothing to refresh for this panel.";
+  return `Refreshed ${names.join(", ")}.`;
+}
+
 /** Build 502 response body when one or more refresh sources fail. */
 export function formatRefreshPanelFailureBody(failures: ReadonlyArray<RefreshResult>): string {
   const details = failures

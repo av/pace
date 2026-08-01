@@ -11,6 +11,7 @@ import { makeContentItem as makeItem } from "./test/content-items";
 import { installTempDbHooks } from "./test/temp-db";
 import {
   createTestServerApp,
+  BROWSER_NAVIGATION_HEADERS,
   expectDashboardFooterUtc,
   expectDashboardHtmlShell,
   expectDashboardItemTitle,
@@ -258,7 +259,7 @@ describe("handleRefreshPanel", () => {
     ]);
   });
 
-  test("redirects on successful refresh", async () => {
+  test("redirects browser navigations on successful refresh", async () => {
     const deps = makeRefreshDeps({
       panelNameToId: new Map([["tech", "tech-panel"]]),
       panelIdToRefreshSourceNames: new Map([["tech-panel", ["hackernews"]]]),
@@ -266,11 +267,49 @@ describe("handleRefreshPanel", () => {
         [{ kind: "adapter", name: "hackernews", status: "ok" }] satisfies RefreshResult[],
     });
 
-    const res = await requestRefreshPanel(createTestServerApp(deps), "tech");
+    const res = await requestRefreshPanel(
+      createTestServerApp(deps),
+      "tech",
+      BROWSER_NAVIGATION_HEADERS,
+    );
     expectRefreshPanelRedirect(res);
   });
 
-  test("redirects when panel has no refresh sources", async () => {
+  test("gives non-browser clients a success confirmation body", async () => {
+    const deps = makeRefreshDeps({
+      panelNameToId: new Map([["tech", "tech-panel"]]),
+      panelIdToRefreshSourceNames: new Map([["tech-panel", ["hackernews", "lobsters"]]]),
+      refreshSources: async () =>
+        [
+          { kind: "adapter", name: "hackernews", status: "ok" },
+          { kind: "adapter", name: "lobsters", status: "ok" },
+        ] satisfies RefreshResult[],
+    });
+
+    const res = await requestRefreshPanel(createTestServerApp(deps), "tech");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("location")).toBeNull();
+    expect(await res.text()).toBe("Refreshed hackernews, lobsters.");
+  });
+
+  test("redirects browser navigations when panel has no refresh sources", async () => {
+    const deps = makeRefreshDeps({
+      panelNameToId: new Map([["empty", "empty-panel"]]),
+      panelIdToRefreshSourceNames: new Map([["empty-panel", []]]),
+      refreshSources: async () => {
+        throw new Error("refreshSources should not run");
+      },
+    });
+
+    const res = await requestRefreshPanel(
+      createTestServerApp(deps),
+      "empty",
+      BROWSER_NAVIGATION_HEADERS,
+    );
+    expectRefreshPanelRedirect(res);
+  });
+
+  test("tells non-browser clients when a panel has nothing to refresh", async () => {
     const deps = makeRefreshDeps({
       panelNameToId: new Map([["empty", "empty-panel"]]),
       panelIdToRefreshSourceNames: new Map([["empty-panel", []]]),
@@ -280,6 +319,7 @@ describe("handleRefreshPanel", () => {
     });
 
     const res = await requestRefreshPanel(createTestServerApp(deps), "empty");
-    expectRefreshPanelRedirect(res);
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe("Nothing to refresh for this panel.");
   });
 });

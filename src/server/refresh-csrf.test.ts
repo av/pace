@@ -105,6 +105,7 @@ describe("POST /refresh/:panel cross-site guard end-to-end", () => {
       method: "POST",
       headers: {
         "sec-fetch-site": "same-origin",
+        "sec-fetch-mode": "navigate",
         origin: "http://localhost:3000",
         host: "localhost:3000",
       },
@@ -113,11 +114,12 @@ describe("POST /refresh/:panel cross-site guard end-to-end", () => {
     expect(refreshed).toBe(1);
   });
 
-  test("header-less client (curl) still refreshes", async () => {
+  test("header-less client (curl) still refreshes and gets a confirmation body", async () => {
     let refreshed = 0;
     const app = makeApp(() => refreshed++);
     const res = await requestServerRoute(app, "/refresh/tech", { method: "POST" });
-    expect(res.status).toBe(303);
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe("Refreshed hackernews.");
     expect(refreshed).toBe(1);
   });
 });
