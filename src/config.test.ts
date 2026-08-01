@@ -24,6 +24,7 @@ import {
   configFileNotFoundError,
 } from "./config";
 import { validateSafeUrl, sanitizeSandboxTokens } from "./config-validate";
+import { checkConfig } from "./cli-help";
 
 describe("config", () => {
   describe("helpers", () => {
@@ -3136,5 +3137,79 @@ layout:
       const cfg2 = loadConfig();
       expect(cfg2.adapters).toHaveLength(2);
     });
+  });
+});
+
+// Regression: `pace config check` must reach the same verdict as `pace serve`
+// (loadConfig). checkConfig previously validated the raw parsed YAML without
+// expanding `${VAR}` env placeholders, so working env-based configs failed
+// check, cyclic placeholder chains produced misleading errors, and a null
+// document ("---" / "null") passed check while crashing serve.
+describe("config check / serve parity", () => {
+  let tmpDir: string;
+  let cfgPath: string;
+  let origPaceConfig: string | undefined;
+  const envKeys = ["PACE_TEST_EMBED_URL", "PACE_TEST_CYCLE_A", "PACE_TEST_CYCLE_B"] as const;
+  let origEnv: Record<string, string | undefined>;
+
+  beforeEach(() => {
+    origPaceConfig = process.env.PACE_CONFIG;
+    origEnv = Object.fromEntries(envKeys.map((k) => [k, process.env[k]]));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pace-cfg-check-"));
+    cfgPath = path.join(tmpDir, "config.yaml");
+  });
+
+  afterEach(() => {
+    process.env.PACE_CONFIG = origPaceConfig;
+    for (const key of envKeys) {
+      const value = origEnv[key];
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  function setConfig(yamlContent: string) {
+    fs.writeFileSync(cfgPath, yamlContent, "utf-8");
+    process.env.PACE_CONFIG = cfgPath;
+  }
+
+  test("check expands ${VAR} placeholders before validation, like serve", () => {
+    process.env.PACE_TEST_EMBED_URL = "https://example.com/grafana";
+    setConfig(`
+layout:
+  direction: column
+  children:
+    - iframe: \${PACE_TEST_EMBED_URL}
+adapters: []
+`);
+    // Serve accepts this config; check must too.
+    const served = loadConfig();
+    expect(checkConfig(undefined)).toContain("config OK:");
+    expect(checkConfig(cfgPath)).toContain("config OK:");
+    expect(served.layout).toBeTruthy();
+  });
+
+  test("check fails on a cyclic env placeholder chain with the same error as serve", () => {
+    process.env.PACE_TEST_CYCLE_A = "${PACE_TEST_CYCLE_B}";
+    process.env.PACE_TEST_CYCLE_B = "${PACE_TEST_CYCLE_A}";
+    setConfig(`
+adapters:
+  - type: rss
+    name: blog
+    params:
+      url: https://example.com/feed.xml
+      user_agent: \${PACE_TEST_CYCLE_A}
+`);
+    const cycleError = /config: env var expansion exceeded \d+ passes/;
+    expect(() => loadConfig()).toThrow(cycleError);
+    expect(() => checkConfig(cfgPath)).toThrow(cycleError);
+  });
+
+  test("null YAML document loads as default config in serve and passes check", () => {
+    setConfig("null\n");
+    const cfg = loadConfig();
+    expect(cfg.adapters).toEqual([]);
+    expect(checkConfig(cfgPath)).toBe("config OK: 0 adapters, 0 pipelines, 0 panels");
   });
 });

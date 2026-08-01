@@ -215,30 +215,51 @@ export function readConfigSource(
   return null;
 }
 
-export function loadConfig(): AppConfig {
-  const read = readConfigSource(resolveConfigPath(process.env.PACE_CONFIG));
-  if (read === null) {
-    return defaultConfig();
-  }
-  const { raw, usedConfigPath } = read;
+export type ValidatedConfigParts = ReturnType<typeof validateParsedConfig>;
 
-  let parsed: Record<string, unknown>;
+/**
+ * Parse config YAML text, expand `${VAR}` env placeholders, and validate.
+ *
+ * Single source of truth for both the serve path ({@link loadConfig}) and the
+ * `pace config check` command, so check verdicts always match serve behavior
+ * (env placeholders expand before URL/enum validation, and cyclic/invalid
+ * placeholder chains fail check the same way they fail serve).
+ *
+ * Returns null for an empty document: a blank/comment-only file (yaml.load →
+ * undefined) or an explicit empty document like `---` / `null` (yaml.load →
+ * null). Callers substitute their own "no config" behavior.
+ */
+export function parseAndValidateConfig(read: ConfigReadResult): ValidatedConfigParts | null {
+  let parsed: unknown;
   try {
-    parsed = yaml.load(raw) as Record<string, unknown>;
+    parsed = yaml.load(read.raw);
   } catch (err) {
     const reason = errorMessage(err).split("\n")[0];
-    throw new Error(`config: failed to parse YAML from ${usedConfigPath}: ${reason}`);
+    throw new Error(`config: failed to parse YAML from ${read.usedConfigPath}: ${reason}`);
   }
 
-  if (parsed === undefined) {
-    return defaultConfig();
+  if (parsed === undefined || parsed === null) {
+    return null;
   }
   if (!isRecord(parsed)) {
     throw new Error("config: top-level config must be an object");
   }
 
   const resolved = resolveEnvInObject(parsed) as Record<string, unknown>;
-  const { adapters, pipelines, layout, llm, server } = validateParsedConfig(resolved, DEFAULT_LAYOUT);
+  return validateParsedConfig(resolved, DEFAULT_LAYOUT);
+}
+
+export function loadConfig(): AppConfig {
+  const read = readConfigSource(resolveConfigPath(process.env.PACE_CONFIG));
+  if (read === null) {
+    return defaultConfig();
+  }
+
+  const validated = parseAndValidateConfig(read);
+  if (validated === null) {
+    return defaultConfig();
+  }
+  const { adapters, pipelines, layout, llm, server } = validated;
 
   return {
     adapters,

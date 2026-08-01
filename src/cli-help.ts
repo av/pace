@@ -1,11 +1,14 @@
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import yaml from "js-yaml";
 import { writeCliStderr, writeCliStdout } from "./cli-log";
-import { loadConfig, readConfigSource, resolveConfigPath, tryReadRegularFile as defaultReadFile } from "./config";
-import { DEFAULT_LAYOUT } from "./config/domain";
-import { validateParsedConfig } from "./config-validate";
+import {
+  loadConfig,
+  parseAndValidateConfig,
+  readConfigSource,
+  resolveConfigPath,
+  tryReadRegularFile as defaultReadFile,
+} from "./config";
 import { bootstrapServer } from "./server/bootstrap";
 import { ADAPTER_DOCS } from "./adapters/adapter-docs";
 import { ADAPTER_TYPES } from "./adapters/params";
@@ -451,22 +454,15 @@ export function checkConfig(
     throw new Error("config: no config file found");
   }
 
-  let parsed: Record<string, unknown>;
-  try {
-    parsed = yaml.load(read.raw) as Record<string, unknown>;
-  } catch (err) {
-    const reason = errorMessage(err).split("\n")[0];
-    throw new Error(`config: failed to parse YAML from ${read.usedConfigPath}: ${reason}`);
-  }
-
-  if (parsed === undefined || parsed === null) {
+  // Shared parse/expand/validate pipeline with loadConfig, so the check
+  // verdict matches what `pace serve` would actually do (notably: `${VAR}`
+  // env placeholders expand BEFORE validation, and placeholder errors that
+  // would fail serve fail check with the same message).
+  const validated = parseAndValidateConfig(read);
+  if (validated === null) {
     return "config OK: 0 adapters, 0 pipelines, 0 panels";
   }
-  if (!isRecord(parsed)) {
-    throw new Error("config: top-level config must be an object");
-  }
-
-  const { adapters, pipelines, layout } = validateParsedConfig(parsed, DEFAULT_LAYOUT);
+  const { adapters, pipelines, layout } = validated;
 
   // Count panels and widgets in layout
   function countLayoutNodes(node: unknown): { panels: number; widgets: number } {
