@@ -452,8 +452,8 @@ transforms:
 
 # Authoritative shape: pace transforms explain dedupe
   - type: dedupe
-    strategy: url           # url, domain-normalized, title-similarity
-    threshold: 0.85         # for title-similarity (0-1)
+    strategy: title-similarity   # url, domain-normalized, title-similarity
+    threshold: 0.85         # only valid for title-similarity (0-1)
     keep: highest-score     # highest-score, earliest, latest
     log: false              # optional; log each removed duplicate
 
@@ -552,7 +552,7 @@ layout:
       limit: 30            # max items to display
 
     - panel: firehose
-      source: [lobsters, rss]   # multi-source panel: merged feed from several sources
+      source: [lobsters, mastodon]   # multi-source panel: merged feed from several sources
 
     - direction: column
       flex: 1
