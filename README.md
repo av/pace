@@ -202,7 +202,15 @@ The dashboard's data is also served as read-only JSON, for scripts, widgets, and
 curl http://localhost:7453/api/panels/tech-panel?limit=5
 ```
 
-Unknown panels return a JSON 404 (`{"error": "Unknown panel: ..."}`). Both endpoints respect `server.base_path`.
+Append `.rss` to the panel segment to get the same items as an RSS 2.0 feed instead of JSON, so any panel — including transform pipelines that dedupe, rank, or summarize — can feed a regular feed reader:
+
+```bash
+curl http://localhost:7453/api/panels/tech-panel.rss
+```
+
+Feed items carry the title, link, a stable non-permalink `guid`, the source feed as `category`, `pubDate`, and a `description` (the LLM summary when one exists, otherwise the item body). The same `?limit=` override applies.
+
+Unknown panels return a JSON 404 (`{"error": "Unknown panel: ..."}`). All of these endpoints respect `server.base_path`.
 
 ## Share a Snapshot
 

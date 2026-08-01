@@ -181,6 +181,12 @@ curl http://localhost:7453/api/panels
 curl http://localhost:7453/api/panels/hackernews?limit=5
 ```
 
+Append `.rss` to the panel segment for the same items as an RSS 2.0 feed (for feed readers):
+
+```bash
+curl http://localhost:7453/api/panels/hackernews.rss
+```
+
 ## Common issues
 
 | Symptom | Cause | Fix |
