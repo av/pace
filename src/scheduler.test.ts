@@ -90,6 +90,87 @@ describe("scheduler", () => {
     });
   });
 
+  test("startScheduler removes ghost rows owned by a source that no longer feeds a pinned-id panel", async () => {
+    // A config edit that removes (or renames) a source keeps the panel's
+    // stored identity when the panel has an explicit `id:` - without startup
+    // reconciliation the removed source's rows keep rendering as ghost items
+    // until the retention prune ages them out.
+    const adapterA = makeMockAdapter([
+      makeContentItem({ id: "a1", title: "from a", url: "https://ex/a1", source: "a" }),
+    ]);
+    const adapterB = makeMockAdapter([
+      makeContentItem({ id: "b1", title: "from b", url: "https://ex/b1", source: "b" }),
+    ]);
+    const cfgBoth = testAppConfig(
+      {
+        adapters: [
+          { type: "ta", name: "a", refresh_interval: 60 },
+          { type: "tb", name: "b", refresh_interval: 60 },
+        ],
+      },
+      { direction: "row", panels: [{ panel: "Mixed", source: ["a", "b"], id: "mixed", limit: 50 }] },
+    );
+    startTestScheduler(cfgBoth, adaptersMap(["ta", adapterA], ["tb", adapterB]), sourcePanelMapFromConfig(cfgBoth), null);
+    await waitForAsync();
+    expect(dbMod.getAllItemsByPanel("mixed").map((r) => r.id).sort()).toEqual(["a1", "b1"]);
+    stopTestScheduler();
+
+    // Simulate a legacy row that predates owner_source stamping: it cannot be
+    // attributed to the removed source, so reconciliation must keep it.
+    dbMod.getDb()
+      .prepare("UPDATE content_items SET owner_source = NULL WHERE id = ? AND panel_id = ?")
+      .run("a1", "mixed");
+
+    const cfgOnlyB = testAppConfig(
+      { adapters: [{ type: "tb", name: "b", refresh_interval: 60 }] },
+      { direction: "row", panels: [{ panel: "Mixed", source: "b", id: "mixed", limit: 50 }] },
+    );
+    startTestScheduler(cfgOnlyB, adaptersMap(["tb", adapterB]), sourcePanelMapFromConfig(cfgOnlyB), null);
+    // Reconciliation runs synchronously inside startScheduler, before any
+    // refresh completes: the ghost is gone immediately, not "eventually".
+    expect(dbMod.getAllItemsByPanel("mixed").map((r) => r.id).sort()).toEqual(["a1", "b1"]);
+    // ...b1 stays because b still feeds the panel; a1 stays as an unowned
+    // legacy row. Now prove an OWNED foreign row is what gets removed: restart
+    // once more with the a-owner restored.
+    stopTestScheduler();
+    dbMod.getDb()
+      .prepare("UPDATE content_items SET owner_source = ? WHERE id = ? AND panel_id = ?")
+      .run("a", "a1", "mixed");
+    await spyConsole(["log"], ({ log: logSpy }) => {
+      startTestScheduler(cfgOnlyB, adaptersMap(["tb", adapterB]), sourcePanelMapFromConfig(cfgOnlyB), null);
+      expect(spyMockCallsContaining(logSpy, "panel mixed - removed 1 stale item(s)")).toHaveLength(1);
+    });
+    expect(dbMod.getAllItemsByPanel("mixed").map((r) => r.id)).toEqual(["b1"]);
+  });
+
+  test("startScheduler reconciliation keeps pipeline output rows (owner is the pipeline's input adapter)", async () => {
+    const adapterA = makeMockAdapter([
+      makeContentItem({ id: "a1", title: "raw", url: "https://ex/a1", source: "a" }),
+    ]);
+    const config = testAppConfig(
+      {
+        adapters: [{ type: "ta", name: "a", refresh_interval: 60 }],
+        pipelines: [{ name: "merge", sources: ["a"], transforms: [] }],
+      },
+      adapterPipelineLayout("a", "merge"),
+    );
+    const pm = sourcePanelMapFromConfig(config);
+    startTestScheduler(config, adaptersMap(["ta", adapterA]), pm, null);
+    await waitForAsync();
+    await refreshTestSources(["a"]);
+    const outRows = dbMod.getAllItemsByPanel("outPanel");
+    expect(outRows.map((r) => r.id)).toEqual(["pipeline:merge:a1"]);
+    expect(outRows[0].owner_source).toBe("a");
+    stopTestScheduler();
+
+    // Same config, fresh start (a plain server restart): reconciliation must
+    // not mistake pipeline output (owned by the input adapter "a") for stale
+    // rows on the pipeline's target panel.
+    startTestScheduler(config, adaptersMap(["ta", adapterA]), pm, null);
+    expect(dbMod.getAllItemsByPanel("outPanel").map((r) => r.id)).toEqual(["pipeline:merge:a1"]);
+    expect(dbMod.getAllItemsByPanel("panelA").map((r) => r.id)).toEqual(["a1"]);
+  });
+
   test("run via refreshSources on error adapter returns failed result + warns with prefix", async () => {
     const adapters = adaptersMap(["err", makeErrorAdapter("simulated fail")]);
     const config = testAppConfig(

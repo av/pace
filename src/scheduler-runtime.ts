@@ -12,6 +12,7 @@ import {
   getRawItemsByPanel,
   replacePanelItems,
   prunePanelItemsByIdPrefix,
+  pruneForeignOwnedPanelItems,
   pruneOldItems as dbPruneOldItems,
 } from "./db";
 import type { AppConfig, TransformConfig } from "./config/types";
@@ -537,11 +538,18 @@ export function createSchedulerRuntime(state: SchedulerState = createSchedulerSt
       // Adapter sources per panel: panels fed by 2+ adapters need per-source
       // transform scoping (see AdapterEntry.sharedPanelIds).
       const adapterSourcesPerPanel = new Map<string, number>();
+      // Adapter names per panel: used to reconcile stored rows against the
+      // current config (see the stale-owner prune below).
+      const adapterNamesByPanel = new Map<string, Set<string>>();
       for (const adapterCfg of config.adapters) {
         const adapter = adapters.get(adapterCfg.type);
         if (!adapter) continue;
-        for (const pid of panelIdsForSource(getAdapterName(adapterCfg), panelMap)) {
+        const adapterName = getAdapterName(adapterCfg);
+        for (const pid of panelIdsForSource(adapterName, panelMap)) {
           adapterSourcesPerPanel.set(pid, (adapterSourcesPerPanel.get(pid) ?? 0) + 1);
+          let names = adapterNamesByPanel.get(pid);
+          if (!names) adapterNamesByPanel.set(pid, (names = new Set()));
+          names.add(adapterName);
           if (!adapter.declarative) continue;
           const key = `${adapterCfg.type} ${pid}`;
           declarativePanelSources.set(key, (declarativePanelSources.get(key) ?? 0) + 1);
@@ -608,6 +616,49 @@ export function createSchedulerRuntime(state: SchedulerState = createSchedulerSt
           state.pipelineEntries.push(entry);
           logScheduledRefresh(`pipeline "${pipelineCfg.name}"`, intervalMin);
         }
+      }
+
+      // Reconcile stored rows with the CURRENT config: when a config edit
+      // removes or renames a source while a panel keeps its identity across
+      // restarts (an explicit `id:`), rows saved under the old source name
+      // would keep rendering as ghost items until the retention prune ages
+      // them out (up to retention_days later). A panel's owned rows are
+      // legitimate only if their owner still feeds it: adapter rows carry
+      // their adapter's name, pipeline output rows carry the name of the
+      // adapter whose row they were transformed from (which, on a shared
+      // read-key panel, can be any co-tenant of the pipeline's source).
+      // Unknown panel_ids (renamed panels, other configs sharing the db
+      // file) are deliberately untouched.
+      const allowedOwnersByPanel = new Map<string, Set<string>>();
+      for (const [pid, names] of adapterNamesByPanel) {
+        allowedOwnersByPanel.set(pid, new Set(names));
+      }
+      for (const entry of state.pipelineEntries) {
+        const inputOwners = new Set<string>();
+        for (const src of entry.config.sources) {
+          inputOwners.add(src);
+          const readKey = panelMap.sourceToReadKey.get(src) ?? src;
+          for (const owner of adapterNamesByPanel.get(readKey) ?? []) {
+            inputOwners.add(owner);
+          }
+        }
+        for (const pid of entry.panelIds) {
+          let owners = allowedOwnersByPanel.get(pid);
+          if (!owners) allowedOwnersByPanel.set(pid, (owners = new Set()));
+          for (const owner of inputOwners) owners.add(owner);
+        }
+      }
+      try {
+        for (const [pid, owners] of allowedOwnersByPanel) {
+          const removed = pruneForeignOwnedPanelItems(pid, [...owners]);
+          if (removed > 0) {
+            logScheduler(
+              `panel ${pid} - removed ${removed} stale item(s) from source(s) no longer feeding it`,
+            );
+          }
+        }
+      } catch (err) {
+        warnPruneFailure(err);
       }
 
       const retentionDays = config.server?.retention_days ?? DEFAULT_RETENTION_DAYS;

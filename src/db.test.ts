@@ -16,6 +16,7 @@ import {
   loadDashboardPanelDataMap,
   DEFAULT_PANEL_LIMIT,
   pruneOldItems,
+  pruneForeignOwnedPanelItems,
   replacePanelItems,
   contentRowToItem,
   contentItemToRow,
@@ -487,6 +488,31 @@ test("saveItems stamps ownerSource; an ownerless re-save never clears it; replac
   expect(rows[0].owner_source).toBe("hn");
   replacePanelItems("p1", rows);
   expect(readOwner()).toBe("hn");
+});
+
+test("pruneForeignOwnedPanelItems removes rows whose owner no longer feeds the panel, keeps allowed and unowned rows", () => {
+  initDb();
+  saveItems("p1", [makeItem({ id: "keep1", url: "https://ex.com/k1", timestamp: new Date("2020-01-01") })], { ownerSource: "hn" });
+  saveItems("p1", [makeItem({ id: "ghost1", url: "https://ex.com/g1", timestamp: new Date("2020-01-01") })], { ownerSource: "removed-src" });
+  // Legacy row without attribution: cannot be blamed on a removed source.
+  saveItems("p1", [makeItem({ id: "legacy1", url: "https://ex.com/l1", timestamp: new Date("2020-01-01") })]);
+  // Same ghost owner on ANOTHER panel: prune is per panel.
+  saveItems("p2", [makeItem({ id: "other1", url: "https://ex.com/o1", timestamp: new Date("2020-01-01") })], { ownerSource: "removed-src" });
+
+  const removed = pruneForeignOwnedPanelItems("p1", ["hn", "rss"]);
+
+  expect(removed).toBe(1);
+  expect(getAllItemsByPanel("p1").map((r) => r.id).sort()).toEqual(["keep1", "legacy1"]);
+  expect(getAllItemsByPanel("p2").map((r) => r.id)).toEqual(["other1"]);
+});
+
+test("pruneForeignOwnedPanelItems with no allowed owners removes every owned row but keeps unowned rows", () => {
+  initDb();
+  saveItems("p1", [makeItem({ id: "ghost1", url: "https://ex.com/g1", timestamp: new Date("2020-01-01") })], { ownerSource: "removed-src" });
+  saveItems("p1", [makeItem({ id: "legacy1", url: "https://ex.com/l1", timestamp: new Date("2020-01-01") })]);
+
+  expect(pruneForeignOwnedPanelItems("p1", [])).toBe(1);
+  expect(getAllItemsByPanel("p1").map((r) => r.id)).toEqual(["legacy1"]);
 });
 
 test("initDb failure uses errorMessage in thrown message", async () => {

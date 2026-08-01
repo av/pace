@@ -554,6 +554,33 @@ export function prunePanelItemsByIdPrefix(
   return stale.length;
 }
 
+/**
+ * Delete rows on a panel whose `owner_source` is set but no longer among the
+ * sources that feed the panel. When a config edit removes or renames a source
+ * while the panel keeps its identity (an explicit `id:`), the old source's
+ * rows would otherwise keep rendering as ghost items until the retention
+ * prune ages them out. Rows with a NULL owner (pre-owner_source legacy saves)
+ * are kept - they cannot be attributed, and the next refresh re-stamps them.
+ * Returns the number of deleted rows.
+ */
+export function pruneForeignOwnedPanelItems(
+  panelId: string,
+  allowedOwners: readonly string[],
+): number {
+  const db = getDb();
+  // SQLite rejects an empty `IN ()` list: with no allowed owners every owned
+  // row on the panel is foreign.
+  const notAllowed = allowedOwners.length === 0
+    ? ""
+    : ` AND owner_source NOT IN (${allowedOwners.map(() => "?").join(", ")})`;
+  const res = db
+    .prepare(
+      `DELETE FROM content_items WHERE panel_id = ? AND owner_source IS NOT NULL${notAllowed}`,
+    )
+    .run(panelId, ...allowedOwners);
+  return res.changes;
+}
+
 export function replacePanelItems(panelId: string, items: ContentItemRow[]): void {
   const db = getDb();
 
