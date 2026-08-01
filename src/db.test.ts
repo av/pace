@@ -171,6 +171,91 @@ test("loadDashboardPanelDataMap loads each dashboard panel with default limit", 
   expect(DEFAULT_PANEL_LIMIT).toBe(50);
 });
 
+test("loadDashboardPanelData reuses the cached snapshot while the db is unchanged", () => {
+  initDb();
+  saveItems("cachep", [makeItem({ id: "c1", url: "https://cache/1", timestamp: new Date() })]);
+
+  const first = loadDashboardPanelData("cachep", false, 10);
+  const second = loadDashboardPanelData("cachep", false, 10);
+  // Same object reference proves no re-query happened between unchanged reads.
+  expect(second).toBe(first);
+
+  // Different key (limit) is a separate cache entry, not a stale alias.
+  const limited = loadDashboardPanelData("cachep", false, 5);
+  expect(limited).not.toBe(first);
+  expect(limited.items.map((item) => item.id)).toEqual(["c1"]);
+});
+
+test("loadDashboardPanelData snapshot reflects saveItems writes immediately", () => {
+  initDb();
+  saveItems("cachep", [makeItem({ id: "c1", url: "https://cache/1", timestamp: new Date("2026-01-01") })]);
+  const before = loadDashboardPanelData("cachep", false, 10);
+  expect(before.items.map((item) => item.id)).toEqual(["c1"]);
+
+  saveItems("cachep", [makeItem({ id: "c2", url: "https://cache/2", timestamp: new Date("2026-01-02") })]);
+  const after = loadDashboardPanelData("cachep", false, 10);
+  expect(after).not.toBe(before);
+  expect(after.items.map((item) => item.id).sort()).toEqual(["c1", "c2"]);
+});
+
+test("loadDashboardPanelData snapshot reflects replacePanelItems and prune writes", () => {
+  initDb();
+  saveItems("cachep", [
+    makeItem({ id: "c1", url: "https://cache/1", timestamp: new Date("2026-01-01") }),
+    makeItem({ id: "c2", url: "https://cache/2", timestamp: new Date("2026-01-02") }),
+  ]);
+  const before = loadDashboardPanelData("cachep", false, 10);
+  expect(before.items).toHaveLength(2);
+
+  const keep = getAllItemsByPanel("cachep").filter((row) => row.id === "c2");
+  replacePanelItems("cachep", keep);
+  const afterReplace = loadDashboardPanelData("cachep", false, 10);
+  expect(afterReplace.items.map((item) => item.id)).toEqual(["c2"]);
+
+  // A prune that deletes nothing must not poison the cache either way.
+  pruneOldItems(30);
+  expect(loadDashboardPanelData("cachep", false, 10).items.map((item) => item.id)).toEqual(["c2"]);
+});
+
+test("loadDashboardPanelData sees commits from another connection to the same file", () => {
+  initDb();
+  saveItems("cachep", [makeItem({ id: "c1", url: "https://cache/1", timestamp: new Date("2026-01-01") })]);
+  // Prime the cache.
+  expect(loadDashboardPanelData("cachep", false, 10).items).toHaveLength(1);
+
+  const { Database } = require("bun:sqlite") as typeof import("bun:sqlite");
+  const other = new Database(tempDbFixture().dbPath);
+  try {
+    other.exec("PRAGMA busy_timeout=5000");
+    other
+      .prepare(
+        "INSERT INTO content_items (id, panel_id, title, url, source, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
+      )
+      .run("x1", "cachep", "external", "https://cache/x1", "ext", "2026-01-02T00:00:00.000Z");
+  } finally {
+    other.close();
+  }
+
+  // PRAGMA data_version invalidates the cache even though total_changes()
+  // on our own connection did not move.
+  const after = loadDashboardPanelData("cachep", false, 10);
+  expect(after.items.map((item) => item.id).sort()).toEqual(["c1", "x1"]);
+});
+
+test("loadDashboardPanelData cache does not leak across db handle swaps", () => {
+  initDb();
+  saveItems("cachep", [makeItem({ id: "c1", url: "https://cache/1", timestamp: new Date() })]);
+  const cached = loadDashboardPanelData("cachep", false, 10);
+  expect(cached.items).toHaveLength(1);
+
+  // Re-open the same path: a fresh Database handle must invalidate by
+  // identity (its counters restart, so the stamp alone could collide).
+  closeDb();
+  initDb();
+  const reopened = loadDashboardPanelData("cachep", false, 10);
+  expect(reopened.items.map((item) => item.id)).toEqual(["c1"]);
+});
+
 test("getLastFetchedAt returns recent fetched_at per panel or globally", () => {
   initDb();
   expect(getLastFetchedAt("nope")).toBeNull();

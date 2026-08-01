@@ -408,16 +408,55 @@ export interface DashboardPanelSnapshot {
   lastRefreshedAt: string | null;
 }
 
+// --- Dashboard snapshot cache -----------------------------------------------
+//
+// Every GET / re-ran one window-function dedup query plus a MAX(fetched_at)
+// scan PER PANEL, even though panel data only changes when a refresh writes
+// (typically every 15 minutes). At ~20k stored rows a 10-panel dashboard
+// spent ~22ms of SQLite work per request recomputing identical snapshots.
+//
+// Snapshots are cached per (panel, isAll, limit) and the whole cache is
+// invalidated by a cheap write stamp: total_changes() covers every
+// INSERT/UPDATE/DELETE on this connection (scheduler and server share the
+// getDb() handle), and PRAGMA data_version covers commits from OTHER
+// connections/processes on the same file. A new Database handle (closeDb,
+// PACE_DB_PATH switch) also clears the cache via identity check.
+//
+// Memory is bounded: keys are the config-defined panels. Cached rows are
+// only handed to read-only consumers (dashboard render, share export).
+let snapshotCacheDb: Database | null = null;
+let snapshotCacheStamp: string | null = null;
+const snapshotCache = new Map<string, DashboardPanelSnapshot>();
+
+function dbWriteStamp(db: Database): string {
+  const changes = (db.prepare("SELECT total_changes() AS c").get() as { c: number }).c;
+  const version = (db.prepare("PRAGMA data_version").get() as { data_version: number })
+    .data_version;
+  return `${changes}:${version}`;
+}
+
 export function loadDashboardPanelData(
   panelId: string,
   isAll: boolean,
   limit: number,
 ): DashboardPanelSnapshot {
-  return {
+  const db = getDb();
+  const stamp = dbWriteStamp(db);
+  if (db !== snapshotCacheDb || stamp !== snapshotCacheStamp) {
+    snapshotCache.clear();
+    snapshotCacheDb = db;
+    snapshotCacheStamp = stamp;
+  }
+  const key = `${panelId}|${isAll}|${limit}`;
+  const cached = snapshotCache.get(key);
+  if (cached) return cached;
+  const snapshot: DashboardPanelSnapshot = {
     panelId,
     items: isAll ? getRecentItems(limit) : getItemsByPanel(panelId, limit),
     lastRefreshedAt: getLastFetchedAt(isAll ? undefined : panelId),
   };
+  snapshotCache.set(key, snapshot);
+  return snapshot;
 }
 
 export function loadDashboardPanelDataMap(
