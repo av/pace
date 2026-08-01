@@ -105,6 +105,42 @@ describe("lemmy", () => {
     expect(items[0].body).not.toContain("discuss:");
   });
 
+  test("parses naive Lemmy published datetimes as UTC, not host-local time", async () => {
+    // Real Lemmy API payloads carry naive UTC datetimes without a zone
+    // designator; a raw new Date() shifted them by the host UTC offset.
+    const view = makePostView({ post: { published: "2024-03-01T12:00:00.123456" } });
+    mocks.fetchMock.mockResolvedValue(
+      makeJsonResponse(makePostListResponse([view])),
+    );
+
+    const prevTz = process.env.TZ;
+    process.env.TZ = "America/New_York";
+    try {
+      const items = await lemmyAdapter.fetch(lemmyCfg());
+      expect(items[0].timestamp.toISOString()).toBe("2024-03-01T12:00:00.123Z");
+    } finally {
+      if (prevTz === undefined) delete process.env.TZ;
+      else process.env.TZ = prevTz;
+    }
+  });
+
+  test("falls back to current time for unparseable published dates", async () => {
+    const view = makePostView({ post: { published: "not-a-date" } });
+    mocks.fetchMock.mockResolvedValue(
+      makeJsonResponse(makePostListResponse([view])),
+    );
+
+    await spyConsole(["warn"], async ({ warn }) => {
+      const before = Date.now();
+      const items = await lemmyAdapter.fetch(lemmyCfg());
+      expect(Number.isNaN(items[0].timestamp.getTime())).toBe(false);
+      expect(items[0].timestamp.getTime()).toBeGreaterThanOrEqual(before);
+      expect(warn).toHaveBeenCalledWith(
+        'dates: invalid feed date "not-a-date", using current time',
+      );
+    });
+  });
+
   test("decodes HTML entities in item titles from API", async () => {
     const view = makePostView({ post: { name: "A &amp; B &#8364; C" } });
     mocks.fetchMock.mockResolvedValue(

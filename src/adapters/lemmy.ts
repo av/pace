@@ -7,6 +7,7 @@ import {
 } from "./engagement";
 import { joinTitle } from "./title";
 
+import { parseNaiveUtcFeedDate } from "./dates";
 import { fetchJson, jsonObjectOrNull, objectArrayFieldOrEmpty } from "./fetch";
 import { decodeNumericFeedTitleOptional } from "./html";
 import {
@@ -162,7 +163,8 @@ const adapter: Adapter = {
       id: `lemmy:${instance}:${view.post.id}`,
       title: decodeNumericFeedTitleOptional(view.post.name),
       url: view.post.url ?? view.post.ap_id,
-      timestamp: new Date(view.post.published),
+      // Lemmy returns naive UTC datetimes without a zone designator.
+      timestamp: parseNaiveUtcFeedDate(view.post.published),
       body: buildBody(view),
     }),
     );

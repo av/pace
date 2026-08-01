@@ -10,6 +10,21 @@ export function parseFeedDate(dateStr?: string | null): Date {
   return d;
 }
 
+const NAIVE_ISO_DATETIME = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/;
+
+/**
+ * Parse feed dates from APIs whose zone-less timestamps are documented as UTC
+ * (e.g. Lemmy's naive `published` datetimes). `new Date("2024-01-01T12:00:00")`
+ * interprets naive datetimes as LOCAL time, so append "Z" before parsing;
+ * strings that already carry a zone designator parse unchanged.
+ */
+export function parseNaiveUtcFeedDate(dateStr?: string | null): Date {
+  if (dateStr != null && NAIVE_ISO_DATETIME.test(dateStr)) {
+    return parseFeedDate(`${dateStr.replace(" ", "T")}Z`);
+  }
+  return parseFeedDate(dateStr);
+}
+
 export function parseUnixEpochSeconds(seconds?: number | null): Date {
   if (seconds == null) return new Date();
   if (!Number.isFinite(seconds)) {

@@ -122,6 +122,23 @@ describe("mastodon", () => {
     expect(items[0].title).toBe("A & B € C");
   });
 
+  test("falls back to current time for unparseable created_at instead of an Invalid Date", async () => {
+    const status = makeStatus("53", "<p>bad clock</p>", "not-a-date");
+    mocks.fetchMock.mockImplementation(async () =>
+      makeJsonResponse([status]),
+    );
+
+    const before = Date.now();
+    const items = await adapter.fetch(mastodonCfg({ instance: "ex.com", limit: 5 }));
+
+    expect(items).toHaveLength(1);
+    expect(Number.isNaN(items[0].timestamp.getTime())).toBe(false);
+    expect(items[0].timestamp.getTime()).toBeGreaterThanOrEqual(before);
+    expect(mocks.warnSpy).toHaveBeenCalledWith(
+      'dates: invalid feed date "not-a-date", using current time',
+    );
+  });
+
   test("decodes HTML entities in spoiler_text when content is empty", async () => {
     const status = makeStatus("51", "<p></p>", "2024-07-02T00:00:00Z");
     status.spoiler_text = "Spoiler &amp; &#8364;";

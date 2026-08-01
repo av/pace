@@ -8,6 +8,7 @@ import {
 import { joinTitle, truncateText } from "./title";
 
 import { warnInvalidInput } from "./empty-config";
+import { parseFeedDate } from "./dates";
 import {
   fetchJson,
   HN_ITEM_FETCH_TIMEOUT_MS,
@@ -291,7 +292,7 @@ const adapter: Adapter = {
         id: `mastodon:${statusInstance}:${status.id}`,
         title: buildTitle(status),
         url: status.url ?? status.uri ?? "",
-        timestamp: new Date(status.created_at),
+        timestamp: parseFeedDate(status.created_at),
         body: buildBody(status, statusInstance),
       };
     });
