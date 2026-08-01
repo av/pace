@@ -274,27 +274,32 @@ async function runTransformsAndReplaceOnPanels(
 
 async function applyTransformsOnPanels(
   scheduler: SchedulerState,
-  panelIds: string[],
+  entry: AdapterEntry,
   transforms: TransformConfig[],
-  logName: string,
 ): Promise<void> {
-  for (const pid of panelIds) {
+  for (const pid of entry.panelIds) {
     // Adapter-level transforms must only see (and rewrite) the adapter's raw
     // items. On a panel shared with a pipeline, a plain deduped read would
     // surface the pipeline's copies (the dedup tie-break prefers them), so the
     // transforms would re-process pipeline output and the replace would wipe
     // it. Read the pipeline-free deduped view and retain pipeline rows.
-    await runTransformsAndReplaceOnPanels(
-      scheduler,
-      [pid],
-      getPipelineInputItemsByPanel(pid),
-      transforms,
-      {
-        logLabel: logName,
-        logDetail: "transforms:",
-        retainPanelItem: (item) => item.id.startsWith(PIPELINE_ID_PREFIX),
-      },
-    );
+    //
+    // On a panel shared with another ADAPTER source, scope further to this
+    // source's own rows (owner_source): feeding co-tenant rows through e.g.
+    // `latest count:5` would let the replace physically delete the other
+    // adapter's items on every refresh cycle. Unowned rows (owner_source
+    // null, saved before attribution existed) are retained untransformed;
+    // they get stamped on their owner's next upsert.
+    const shared = entry.sharedPanelIds.includes(pid);
+    const rows = getPipelineInputItemsByPanel(pid);
+    const input = shared ? rows.filter((item) => item.owner_source === entry.name) : rows;
+    await runTransformsAndReplaceOnPanels(scheduler, [pid], input, transforms, {
+      logLabel: entry.name,
+      logDetail: "transforms:",
+      retainPanelItem: (item) =>
+        item.id.startsWith(PIPELINE_ID_PREFIX) ||
+        (shared && item.owner_source !== entry.name),
+    });
   }
 }
 
@@ -314,6 +319,7 @@ async function runAdapter(scheduler: SchedulerState, entry: AdapterEntry): Promi
         // naturally instead of re-stamping to "just now" each refresh.
         saveItemsToPanels(panelIds, items, {
           preserveStoredTimestamps: adapter.declarative === true,
+          ownerSource: name,
         });
         logScheduler(`${name} - fetched ${items.length} items`);
       }
@@ -337,7 +343,7 @@ async function runAdapter(scheduler: SchedulerState, entry: AdapterEntry): Promi
 
       const transforms = adapterConfig.transforms;
       if (transforms && transforms.length > 0) {
-        await applyTransformsOnPanels(scheduler, panelIds, transforms, name);
+        await applyTransformsOnPanels(scheduler, entry, transforms);
       }
     });
     return items.length;
@@ -482,10 +488,15 @@ export function createSchedulerRuntime(state: SchedulerState = createSchedulerSt
       // each other's rows. Count declarative sources per (type, panel) and
       // withhold pruning on contested panels.
       const declarativePanelSources = new Map<string, number>();
+      // Adapter sources per panel: panels fed by 2+ adapters need per-source
+      // transform scoping (see AdapterEntry.sharedPanelIds).
+      const adapterSourcesPerPanel = new Map<string, number>();
       for (const adapterCfg of config.adapters) {
         const adapter = adapters.get(adapterCfg.type);
-        if (!adapter?.declarative) continue;
+        if (!adapter) continue;
         for (const pid of panelIdsForSource(getAdapterName(adapterCfg), panelMap)) {
+          adapterSourcesPerPanel.set(pid, (adapterSourcesPerPanel.get(pid) ?? 0) + 1);
+          if (!adapter.declarative) continue;
           const key = `${adapterCfg.type} ${pid}`;
           declarativePanelSources.set(key, (declarativePanelSources.get(key) ?? 0) + 1);
         }
@@ -521,6 +532,7 @@ export function createSchedulerRuntime(state: SchedulerState = createSchedulerSt
           timer: null,
           running: false,
           prunePanelIds,
+          sharedPanelIds: panelIds.filter((pid) => (adapterSourcesPerPanel.get(pid) ?? 0) > 1),
         };
 
         scheduleTimedEntryRefresh(entry, (e) => trackInFlight(state, runAdapter(state, e)));

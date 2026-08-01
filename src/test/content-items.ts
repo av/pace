@@ -40,6 +40,7 @@ export function makeContentItemRow(
     origins: null,
     applied_transforms: null,
     score: null,
+    owner_source: null,
     ...overrides,
     id,
     timestamp: overrides.timestamp ?? now,

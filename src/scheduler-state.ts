@@ -33,6 +33,13 @@ export interface AdapterEntry extends TimedEntryBase {
    * sibling's rows). Empty for non-declarative adapters.
    */
   prunePanelIds: string[];
+  /**
+   * Panels this source shares with at least one OTHER adapter source. On
+   * these panels adapter-level transforms are scoped to rows this source
+   * owns (owner_source), so e.g. `latest count:5` cannot consume-and-delete
+   * a co-tenant adapter's items on every refresh.
+   */
+  sharedPanelIds: string[];
 }
 
 export interface PipelineEntry extends TimedEntryBase {

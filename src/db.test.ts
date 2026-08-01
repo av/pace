@@ -383,6 +383,27 @@ test("saveItems upsert is scoped per panel: cross-panel save inserts a copy inst
   expect(updated.fetched_at).toBeTruthy();
 });
 
+test("saveItems stamps ownerSource; an ownerless re-save never clears it; replacePanelItems round-trips it", () => {
+  initDb();
+  const item = makeItem({ id: "own1", url: "https://ex.com/own/1", timestamp: new Date("2020-01-01") });
+  saveItems("p1", [item], { ownerSource: "hn" });
+  const readOwner = () =>
+    (getDb().prepare("SELECT owner_source FROM content_items WHERE id = ? AND panel_id = ?")
+      .get("own1", "p1") as { owner_source: string | null }).owner_source;
+  expect(readOwner()).toBe("hn");
+
+  // A save without ownerSource (e.g. a legacy/manual path) must not clear the
+  // attribution the owning source stamped.
+  saveItems("p1", [item]);
+  expect(readOwner()).toBe("hn");
+
+  // Panel rewrites (transform replaces) carry the owner through.
+  const rows = getAllItemsByPanel("p1");
+  expect(rows[0].owner_source).toBe("hn");
+  replacePanelItems("p1", rows);
+  expect(readOwner()).toBe("hn");
+});
+
 test("initDb failure uses errorMessage in thrown message", async () => {
   initDb();
   const database = getDb();

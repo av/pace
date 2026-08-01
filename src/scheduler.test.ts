@@ -514,6 +514,179 @@ describe("scheduler", () => {
     expect(rawPanelIds()).toEqual(["h1", "pipeline:curated:h1"]);
   });
 
+  test("adapter ingest transforms on a panel shared with another adapter keep the co-tenant's items", async () => {
+    // Regression: adapter-level transforms used to read EVERY non-pipeline row
+    // on the panel, so `latest count:1` on one source fed the co-tenant
+    // adapter's rows through the transform and the replace physically deleted
+    // whatever the transform dropped - wiping the other adapter's items on
+    // every refresh cycle. Transforms must be scoped to the rows the
+    // transforming source owns.
+    const hnItems = [
+      makeContentItem({
+        id: "hn:1",
+        title: "HN new",
+        url: "https://hn/1",
+        source: "hn",
+        timestamp: new Date("2024-06-04T12:00:00.000Z"),
+      }),
+      makeContentItem({
+        id: "hn:2",
+        title: "HN old",
+        url: "https://hn/2",
+        source: "hn",
+        timestamp: new Date("2024-06-03T12:00:00.000Z"),
+      }),
+    ];
+    const blogItems = [
+      makeContentItem({
+        id: "blog:1",
+        title: "Blog post 1",
+        url: "https://blog/1",
+        source: "blog",
+        timestamp: new Date("2024-06-02T12:00:00.000Z"),
+      }),
+      makeContentItem({
+        id: "blog:2",
+        title: "Blog post 2",
+        url: "https://blog/2",
+        source: "blog",
+        timestamp: new Date("2024-06-01T12:00:00.000Z"),
+      }),
+    ];
+    const adapters = adaptersMap(
+      ["blogtest", makeMockAdapter(blogItems)],
+      ["hntest", makeMockAdapter(hnItems)],
+    );
+    const config = testAppConfig(
+      {
+        adapters: [
+          { type: "blogtest", name: "blog", refresh_interval: 60 },
+          {
+            type: "hntest",
+            name: "hn",
+            refresh_interval: 60,
+            transforms: [{ type: "latest", count: 1 }],
+          },
+        ],
+      },
+      {
+        direction: "row",
+        panels: [{ panel: "mixed", source: ["blog", "hn"], id: "shared" }],
+      },
+    );
+    const pm = sourcePanelMapFromConfig(config);
+    startTestScheduler(config, adapters, pm, null);
+    await waitForAsync();
+    const rawPanelIds = () =>
+      dbMod.getRawItemsByPanel("shared").map((r) => r.id).sort();
+    // hn's `latest count:1` trimmed hn's own rows to the newest one; blog's
+    // rows are untouched co-tenants.
+    expect(rawPanelIds()).toEqual(["blog:1", "blog:2", "hn:1"]);
+    // Rows carry their owning source for the per-source transform scoping.
+    const owners = new Map(dbMod.getRawItemsByPanel("shared").map((r) => [r.id, r.owner_source]));
+    expect(owners.get("blog:1")).toBe("blog");
+    expect(owners.get("hn:1")).toBe("hn");
+    // Repeated refresh cycles of the transforming source stay stable: the
+    // co-tenant's rows must survive every cycle, not just the first.
+    await refreshTestSources(["hn"]);
+    await refreshTestSources(["hn"]);
+    expect(rawPanelIds()).toEqual(["blog:1", "blog:2", "hn:1"]);
+    // And refreshing the co-tenant does not disturb hn's transformed rows.
+    await refreshTestSources(["blog"]);
+    expect(rawPanelIds()).toEqual(["blog:1", "blog:2", "hn:1"]);
+  });
+
+  test("adapter ingest transforms on a shared panel retain unowned legacy rows instead of deleting them", async () => {
+    // Rows saved before owner attribution existed have owner_source NULL. On
+    // a shared panel they cannot be attributed, so transforms must leave them
+    // alone (retained) rather than consume-and-delete them.
+    dbMod.saveItems("shared", [
+      makeContentItem({
+        id: "legacy:1",
+        title: "Pre-migration row",
+        url: "https://legacy/1",
+        source: "blog",
+        timestamp: new Date("2024-06-01T12:00:00.000Z"),
+      }),
+    ]);
+    const hnItems = [
+      makeContentItem({
+        id: "hn:1",
+        title: "HN new",
+        url: "https://hn/1",
+        source: "hn",
+        timestamp: new Date("2024-06-04T12:00:00.000Z"),
+      }),
+    ];
+    const adapters = adaptersMap(
+      ["blogtest", makeMockAdapter([])],
+      ["hntest", makeMockAdapter(hnItems)],
+    );
+    const config = testAppConfig(
+      {
+        adapters: [
+          { type: "blogtest", name: "blog", refresh_interval: 60 },
+          {
+            type: "hntest",
+            name: "hn",
+            refresh_interval: 60,
+            transforms: [{ type: "latest", count: 1 }],
+          },
+        ],
+      },
+      {
+        direction: "row",
+        panels: [{ panel: "mixed", source: ["blog", "hn"], id: "shared" }],
+      },
+    );
+    const pm = sourcePanelMapFromConfig(config);
+    startTestScheduler(config, adapters, pm, null);
+    await waitForAsync();
+    await refreshTestSources(["hn"]);
+    const ids = dbMod.getRawItemsByPanel("shared").map((r) => r.id).sort();
+    expect(ids).toEqual(["hn:1", "legacy:1"]);
+  });
+
+  test("adapter ingest transforms on a single-source panel still apply to all stored rows", async () => {
+    // The per-source scoping is shared-panel-only: on a panel with one source,
+    // stored rows without owner attribution (e.g. saved by an older version)
+    // must still flow through the transforms as before.
+    dbMod.saveItems("panelA", [
+      makeContentItem({
+        id: "old:1",
+        title: "Stale stored row",
+        url: "https://old/1",
+        source: "src",
+        timestamp: new Date("2024-01-01T00:00:00.000Z"),
+      }),
+    ]);
+    const items = [
+      makeContentItem({
+        id: "new:1",
+        title: "Fresh row",
+        url: "https://new/1",
+        source: "src",
+        timestamp: new Date("2024-06-01T00:00:00.000Z"),
+      }),
+    ];
+    const adapters = adaptersMap(["test", makeMockAdapter(items)]);
+    const config = testAppConfig(
+      {
+        adapters: [{
+          type: "test",
+          name: "src",
+          refresh_interval: 60,
+          transforms: [{ type: "latest", count: 1 }],
+        }],
+      },
+      singlePanelLayout("a", "src", { id: "panelA" }),
+    );
+    const pm = sourcePanelMapFromConfig(config);
+    startTestScheduler(config, adapters, pm, null);
+    await waitForAsync();
+    expect(dbMod.getRawItemsByPanel("panelA").map((r) => r.id)).toEqual(["new:1"]);
+  });
+
   test("runPipelineJob preserves source concat order when timestamps tie (stable sort)", async () => {
     const ts = "2024-06-01T12:00:00.000Z";
     dbMod.saveItems("srcA", [

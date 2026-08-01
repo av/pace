@@ -174,13 +174,14 @@ function migrateToCompositePrimaryKey(
         origins TEXT,
         applied_transforms TEXT,
         score REAL,
+        owner_source TEXT,
         PRIMARY KEY (id, panel_id)
       )
     `);
     db.exec(`
       INSERT INTO content_items_new
-        (id, panel_id, title, url, source, body, timestamp, fetched_at, summary, origins, applied_transforms, score)
-      SELECT id, panel_id, title, url, source, body, timestamp, fetched_at, summary, origins, applied_transforms, score
+        (id, panel_id, title, url, source, body, timestamp, fetched_at, summary, origins, applied_transforms, score, owner_source)
+      SELECT id, panel_id, title, url, source, body, timestamp, fetched_at, summary, origins, applied_transforms, score, owner_source
       FROM content_items
     `);
     db.exec("DROP TABLE content_items");
@@ -225,6 +226,9 @@ export function initDb(): void {
     if (!cols.some((c) => c.name === "score")) {
       db.exec("ALTER TABLE content_items ADD COLUMN score REAL");
     }
+    if (!cols.some((c) => c.name === "owner_source")) {
+      db.exec("ALTER TABLE content_items ADD COLUMN owner_source TEXT");
+    }
 
     migrateToCompositePrimaryKey(db, cols);
 
@@ -250,6 +254,14 @@ export interface SaveItemsOptions {
    * refresh re-stamps every item to "just now" and the panel never ages.
    */
   preserveStoredTimestamps?: boolean;
+  /**
+   * Config source name (adapter name) to record as the row owner. The
+   * scheduler stamps this so adapter-level transforms on a panel shared by
+   * several sources can be scoped to the saving source's own rows instead of
+   * consuming (and then deleting) co-tenant rows. A null/absent value never
+   * clears an already-stored owner.
+   */
+  ownerSource?: string;
 }
 
 export function saveItems(
@@ -262,8 +274,8 @@ export function saveItems(
     ? ""
     : "timestamp = excluded.timestamp,";
   const stmt = db.prepare(`
-    INSERT INTO content_items (id, panel_id, title, url, source, body, timestamp, fetched_at, origins)
-    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)
+    INSERT INTO content_items (id, panel_id, title, url, source, body, timestamp, fetched_at, origins, owner_source)
+    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?)
     ON CONFLICT(id, panel_id) DO UPDATE SET
       title = excluded.title,
       url = excluded.url,
@@ -271,7 +283,8 @@ export function saveItems(
       body = excluded.body,
       ${timestampUpdate}
       fetched_at = datetime('now'),
-      origins = excluded.origins
+      origins = excluded.origins,
+      owner_source = COALESCE(excluded.owner_source, owner_source)
   `);
 
   // The future-timestamp clamp (see coreContentItemFields) must be STABLE
@@ -296,7 +309,11 @@ export function saveItems(
           }
         }
         const origins = JSON.stringify([item.source]);
-        stmt.run(...bindCoreContentItemParams(panelId, { ...item, timestamp }), origins);
+        stmt.run(
+          ...bindCoreContentItemParams(panelId, { ...item, timestamp }),
+          origins,
+          options.ownerSource ?? null,
+        );
       });
     }
   });
@@ -474,8 +491,8 @@ export function replacePanelItems(panelId: string, items: ContentItemRow[]): voi
   runPanelItemsTx(panelId, items.length, "replace", () => {
     db.prepare("DELETE FROM content_items WHERE panel_id = ?").run(panelId);
     const stmt = db.prepare(`
-      INSERT OR REPLACE INTO content_items (id, panel_id, title, url, source, body, timestamp, fetched_at, summary, origins, applied_transforms, score)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT OR REPLACE INTO content_items (id, panel_id, title, url, source, body, timestamp, fetched_at, summary, origins, applied_transforms, score, owner_source)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const item of items) {
       runItemOp(panelId, item, "replace", () => {
@@ -486,6 +503,7 @@ export function replacePanelItems(panelId: string, items: ContentItemRow[]): voi
           item.origins ?? null,
           item.applied_transforms ?? null,
           item.score ?? null,
+          item.owner_source ?? null,
         );
       });
     }
@@ -528,6 +546,12 @@ export interface ContentItemRow extends ContentItemFields {
   applied_transforms: string | null;
   /** Relevance score assigned by llm-rank (0-10); null if not ranked. */
   score: number | null;
+  /**
+   * Config source name that saved this row (see SaveItemsOptions.ownerSource).
+   * Null for rows saved before attribution existed or synthesized outside a
+   * source refresh; such rows are treated as unowned on shared panels.
+   */
+  owner_source: string | null;
 }
 
 export function contentRowToItem(row: ContentItemRow): ContentItem {
@@ -551,6 +575,7 @@ export function contentItemToRow(item: ContentItem, base?: ContentItemRow): Cont
     origins: base?.origins ?? null,
     applied_transforms: base?.applied_transforms ?? null,
     score: base?.score ?? null,
+    owner_source: base?.owner_source ?? null,
   };
 }
 

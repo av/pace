@@ -18,6 +18,7 @@ describe("SchedulerState", () => {
         adapter: makeMockAdapter([]),
         intervalMs: 1000,
         prunePanelIds: [],
+        sharedPanelIds: [],
         timer: null,
         running: false,
       });
@@ -48,6 +49,7 @@ describe("SchedulerState", () => {
       adapter: makeMockAdapter([]),
       intervalMs: 1000,
       prunePanelIds: [],
+      sharedPanelIds: [],
       timer: setInterval(() => {}, 1000),
       running: false,
     });
