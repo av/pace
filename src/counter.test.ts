@@ -198,6 +198,29 @@ describe("counter adapter", () => {
       expect(result[0].title).toBe("bun-stars");
     });
 
+    test("non-string label and unit params fall back instead of leaking into the item", async () => {
+      fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
+        new Response(JSON.stringify({ value: 10 }), { status: 200 }),
+      );
+
+      const config: AdapterConfig & { name?: string } = {
+        type: "counter",
+        name: "typed",
+        params: {
+          url: "https://example.com/api",
+          json_path: "value",
+          // config-validate does not type-check label/unit; a YAML number
+          // must not become the item title or a body unit.
+          label: 42,
+          unit: 7,
+        },
+      };
+
+      const result = await adapter.fetch(config);
+      expect(result[0].title).toBe("typed");
+      expect(JSON.parse(result[0].body ?? "{}")).toEqual({ value: 10 });
+    });
+
     test("renders trend-up arrow when current > previous from compare_url", async () => {
       fetchSpy = spyOn(globalThis, "fetch")
         .mockResolvedValueOnce(

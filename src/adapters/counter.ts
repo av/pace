@@ -1,3 +1,4 @@
+import { normalizeParamString } from "../utils";
 import { fetchJson, tryOptionalFetch } from "./fetch";
 import type { Adapter, AdapterConfig, ContentItem } from "./types";
 
@@ -109,8 +110,11 @@ const adapter: Adapter = {
     const url = params.url as string;
     const jsonPath = params.json_path as string;
     const adapterName = (config as { name?: string }).name ?? config.type;
-    const label = (params.label as string) || adapterName;
-    const unit = (params.unit as string) || undefined;
+    // label/unit are not covered by validateCounterParams, so normalize at
+    // runtime like sibling adapters instead of trusting a bare cast — a
+    // non-string YAML value (label: 42) must fall back, not become the title.
+    const label = normalizeParamString(params, "label", adapterName);
+    const unit = normalizeParamString(params, "unit");
     const compareUrl = params.compare_url as string | undefined;
     const comparePath = (params.compare_path as string) || jsonPath;
     const rawHeaders = params.headers;
