@@ -204,6 +204,9 @@
 - label: The dashboard injects mouse affordances for the keyboard actions: a collapse chevron (collapse-btn) and a mark-panel-seen check (panel-seen-btn) in each panel header next to refresh, and a per-item mark-seen button (item-seen-btn) shown on item hover/focus, each driving the same collapse/seen logic as the c/a/x keys with synced aria state; all are client-injected by dashboard.js so static/no-JS pages never render them
   command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'mouse affordance'
   tags: [spec, implemented]
+- label: Top-level notify: config rules POST new matching items (min_score and/or keywords, optional panel-id scope) as JSON to a webhook after each refresh; a SQLite notified_items ledger keyed by (rule criteria, item dedup identity) guarantees at-most-once delivery per rule, failed deliveries (non-2xx or 10s timeout) retry next refresh without failing the refresh, and ledger rows age out with retention once no stored item carries the key
+  command: bun test src/notify.test.ts
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server

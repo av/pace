@@ -259,7 +259,7 @@ export function loadConfig(): AppConfig {
   if (validated === null) {
     return defaultConfig();
   }
-  const { adapters, pipelines, layout, llm, server } = validated;
+  const { adapters, pipelines, layout, llm, server, notify } = validated;
 
   return {
     adapters,
@@ -267,5 +267,6 @@ export function loadConfig(): AppConfig {
     layout,
     llm,
     server,
+    notify,
   };
 }

@@ -53,6 +53,8 @@ export class SchedulerState {
   readonly pipelineEntries: PipelineEntry[] = [];
   transformCtx: TransformContext = { llmModel: null };
   sourceToReadKey = new Map<string, string>();
+  /** Webhook notification rules from config `notify:`; evaluated after each refresh. */
+  notifyRules: import("./config/types").NotifyRuleConfig[] = [];
   /** Serializes panel writes so concurrent refreshes of sources sharing a panel cannot lose updates. */
   panelLocks: KeyedMutex = createKeyedMutex();
   pruneTimer: ReturnType<typeof setInterval> | null = null;
@@ -75,6 +77,7 @@ export class SchedulerState {
     this.pipelineEntries.length = 0;
     this.sourceToReadKey = new Map();
     this.transformCtx = { llmModel: null };
+    this.notifyRules = [];
     this.panelLocks = createKeyedMutex();
     if (this.pruneTimer) {
       clearInterval(this.pruneTimer);

@@ -125,6 +125,25 @@ export interface PipelineConfig {
   refresh_interval?: number;
 }
 
+/**
+ * One webhook notification rule (top-level `notify:` list). After every
+ * refresh, items on the refreshed panels that match ALL configured criteria
+ * (and were not already notified) are POSTed as JSON to `url`. At least one
+ * of `min_score` / `keywords` must be set so a rule is always intentional.
+ */
+export interface NotifyRuleConfig {
+  /** Webhook endpoint; https, or http on localhost (same policy as other config URLs). */
+  url: string;
+  /** Optional label; used in the payload and logs (defaults to the url). */
+  name?: string;
+  /** Notify only items with an llm-rank/keyword score >= this value. */
+  min_score?: number;
+  /** Notify only items containing any of these keywords (case-insensitive, title/body/summary). */
+  keywords?: string[];
+  /** Restrict the rule to these panel ids (default: every refreshed panel). */
+  panels?: string[];
+}
+
 export interface ServerConfig {
   base_path?: string;
   /**
@@ -140,6 +159,7 @@ export interface AppConfig {
   layout: LayoutNodeConfig;
   llm?: LlmConfig;
   server?: ServerConfig;
+  notify?: NotifyRuleConfig[];
 }
 
 export const DEFAULT_LAYOUT: LayoutNodeConfig = {

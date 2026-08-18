@@ -9,6 +9,7 @@ import {
   type IngestAdapterConfig,
   type LayoutNodeConfig,
   type LlmConfig,
+  type NotifyRuleConfig,
   type PanelConfig,
   type PipelineConfig,
   type ServerConfig,
@@ -21,6 +22,7 @@ import {
   validateAllowedKeys,
   validateEnum,
   validateOptionalEnum,
+  validateFiniteNumber,
   validateNonEmptyArray,
   validateNonEmptyString,
   validateOptionalList,
@@ -689,7 +691,7 @@ export function validateLlmConfig(llm: unknown): asserts llm is LlmConfig | unde
   }
 }
 
-const TOP_LEVEL_CONFIG_FIELDS = ["adapters", "pipelines", "layout", "llm", "server"] as const;
+const TOP_LEVEL_CONFIG_FIELDS = ["adapters", "pipelines", "layout", "llm", "server", "notify"] as const;
 
 export function validateTopLevelKeys(config: Record<string, unknown>): void {
   validateAllowedKeys(config, TOP_LEVEL_CONFIG_FIELDS, (key) => `${key} is not a valid top-level field`);
@@ -748,12 +750,50 @@ function validatePipelineAdapterNameCollision(
   }
 }
 
+export function validateNotifyConfig(
+  notify: unknown,
+  panelIds: Set<string>,
+): asserts notify is NotifyRuleConfig[] | undefined {
+  if (notify === undefined) return;
+  validateOptionalList(notify, "notify");
+  for (const [index, rule] of (notify as unknown[]).entries()) {
+    const path = `notify[${index}]`;
+    if (!isRecord(rule)) {
+      throw new Error(`config: ${path} must be an object (got ${describeValue(rule)})`);
+    }
+    validateAllowedKeys(rule, ["url", "name", "min_score", "keywords", "panels"], (key) =>
+      `${path}.${key} is not a valid notify rule field`,
+    );
+    validateSafeUrl(rule.url, `${path}.url`);
+    validateOptionalNonEmptyString(rule.name, `${path}.name`);
+    if (rule.min_score !== undefined) {
+      validateFiniteNumber(rule.min_score, `${path}.min_score`);
+    }
+    // validateStringList already rejects empty lists ("must not be empty").
+    validateOptionalStringList(rule.keywords, `${path}.keywords`);
+    if (rule.min_score === undefined && rule.keywords === undefined) {
+      throw new Error(
+        `config: ${path} must set min_score and/or keywords (a rule with no criteria would notify on every item)`,
+      );
+    }
+    validateOptionalStringList(rule.panels, `${path}.panels`);
+    if (rule.panels !== undefined) {
+      for (const panel of rule.panels as string[]) {
+        if (!panelIds.has(panel)) {
+          throw new Error(`config: ${path}.panels references unknown panel "${panel}"`);
+        }
+      }
+    }
+  }
+}
+
 export interface ValidatedConfigSections {
   adapters: IngestAdapterConfig[];
   pipelines: PipelineConfig[];
   layout: LayoutNodeConfig;
   llm: LlmConfig | undefined;
   server: ServerConfig | undefined;
+  notify: NotifyRuleConfig[] | undefined;
 }
 
 /** Validate resolved config object (post-YAML/env); shared by loadConfig. */
@@ -801,6 +841,9 @@ export function validateParsedConfig(
   validateLayout(layout, sourceNames, adapterTypesByName, pipelineSourcesByName);
   validateLlmConfig(resolved.llm);
 
+  const panelIds = new Set(collectPanels(layout).map((panel) => resolvePanelId(panel)));
+  validateNotifyConfig(resolved.notify, panelIds);
+
   const server = resolved.server as ServerConfig | undefined;
   if (server !== undefined) {
     if (!isRecord(server)) {
@@ -826,5 +869,6 @@ export function validateParsedConfig(
     layout,
     llm: resolved.llm as LlmConfig | undefined,
     server,
+    notify: resolved.notify as NotifyRuleConfig[] | undefined,
   };
 }

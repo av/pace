@@ -25,7 +25,7 @@ Pace collects content from Hacker News, RSS, GitHub, Lemmy, Mastodon, YouTube, a
 - **One dashboard** - combine feeds, repos, releases, papers, videos, podcasts, metrics, and hand-picked links.
 - **Filtering and ranking** - filter, exclude, dedupe, time-decay, cluster, keyword-score, and optionally use an LLM to summarize, filter, merge, or rank items.
 - **Flexible layout** - arrange panels, counters, markdown, images, and iframes with a recursive flexbox layout.
-- **Portable output** - server-rendered HTML, SQLite storage, a JSON and RSS endpoint for every panel, and static snapshots you can export or publish through Gist.
+- **Portable output** - server-rendered HTML, SQLite storage, a JSON and RSS endpoint for every panel, webhook notifications for high-signal items, and static snapshots you can export or publish through Gist.
 - **Practical tooling** - `pace doctor` fetch-checks every configured source, `pace import` / `pace export` convert between OPML feed-reader exports and pace configs in both directions, and the dashboard is fully keyboard-navigable.
 - **Agent-readable config** - bundled skills document setup and configuration workflows for coding agents.
 
@@ -320,6 +320,21 @@ Transforms process content after fetching - filter, deduplicate, rank, or enrich
 Pipelines merge items from multiple adapters, then apply transforms to the combined feed. Useful for cross-source deduplication and unified ranking.
 
 For example, one panel can merge Hacker News, Lobsters, and RSS, dedupe repeated links, rank by your interests, and summarize the winners before rendering.
+
+## Webhook Notifications
+
+Pace can push high-signal items to any webhook as they arrive, so the best of your feeds finds you between dashboard visits. Add top-level `notify:` rules; after every refresh, new items on the refreshed panels that match a rule are POSTed as JSON to its URL:
+
+```yaml
+notify:
+  - url: https://ntfy.sh/my-pace-alerts   # https, or http on localhost
+    name: high-signal                     # optional label used in the payload and logs
+    min_score: 8                          # only items ranked at/above this (llm-rank / keyword-score)
+    keywords: [rust, wasm]                # and/or: any keyword in title/body/summary (case-insensitive)
+    panels: [tech-feed]                   # optional: restrict to these panel ids
+```
+
+Each rule needs `min_score` and/or `keywords` (when both are set, both must match). The delivery body is `{"rule": "...", "matched": N, "items": [...]}` with the newest 20 matches at most; each item carries `title`, `url`, `source`, `panel`, `timestamp`, `score`, and `summary`. Every item notifies at most once per rule: the ledger lives in SQLite keyed by the item's dedup identity, so cross-panel duplicates and re-fetches never re-notify, failed deliveries (non-2xx, or a 10s timeout) are retried on the next refresh, and ledger entries age out with `server.retention_days` alongside the items they cover. Pairs well with `llm-rank` pipelines: score your merged feeds against your interests, then get pinged only above your threshold.
 
 ## Layout
 

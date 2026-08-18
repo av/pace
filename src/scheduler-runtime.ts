@@ -17,6 +17,7 @@ import {
   pruneOldItems as dbPruneOldItems,
 } from "./db";
 import type { AppConfig, TransformConfig } from "./config/types";
+import { runNotifyRules } from "./notify";
 import { runPipeline } from "./transforms";
 import {
   createSchedulerState,
@@ -390,6 +391,9 @@ async function runAdapter(scheduler: SchedulerState, entry: AdapterEntry): Promi
         await applyTransformsOnPanels(scheduler, entry, transforms);
       }
     });
+    // After the lock: notification reads the settled panels and must never
+    // fail or stall the refresh (runNotifyRules catches and warns internally).
+    await runNotifyRules(scheduler.notifyRules, panelIds);
     return items.length;
   });
 }
@@ -397,10 +401,10 @@ async function runAdapter(scheduler: SchedulerState, entry: AdapterEntry): Promi
 async function runPipelineJob(scheduler: SchedulerState, entry: PipelineEntry): Promise<RefreshResult> {
   const { config, panelIds } = entry;
   const name = config.name;
-  return executeWithRunningGuard(entry, name, "pipeline", () =>
+  return executeWithRunningGuard(entry, name, "pipeline", async () => {
     // Same panel-lock rationale as runAdapter: the output panels are rewritten
     // from a snapshot gathered before awaited transforms.
-    scheduler.panelLocks.withLock(panelIds, async () => {
+    const itemCount = await scheduler.panelLocks.withLock(panelIds, async () => {
       const ownOutputPrefix = `${PIPELINE_ID_PREFIX}${config.name}:`;
       const items = seedLlmFieldsFromPreviousOutput(
         gatherPipelineInputItems(scheduler, config.sources),
@@ -423,8 +427,12 @@ async function runPipelineJob(scheduler: SchedulerState, entry: PipelineEntry): 
         retainPanelItem: (item) => !item.id.startsWith(ownOutputPrefix),
       });
       return items.length;
-    }),
-  );
+    });
+    // After the lock: notify on the pipeline's freshly rewritten output
+    // panels (this is where llm-rank scores land). Never throws.
+    await runNotifyRules(scheduler.notifyRules, panelIds);
+    return itemCount;
+  });
 }
 
 export const DEFAULT_RETENTION_DAYS = 30;
@@ -530,6 +538,7 @@ export function createSchedulerRuntime(state: SchedulerState = createSchedulerSt
 
       state.transformCtx = { llmModel: model ?? null, llmConfig: config.llm };
       state.sourceToReadKey = panelMap.sourceToReadKey;
+      state.notifyRules = config.notify ?? [];
 
       // Declarative pruning is per adapter TYPE (`${type}:` id prefix), so two
       // sources of the same declarative type feeding one panel would prune

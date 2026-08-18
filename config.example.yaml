@@ -311,4 +311,13 @@ layout:
 #   base_path: /pace     # serve under a URL prefix behind a reverse proxy (default: none)
 #   retention_days: 30   # days to keep fetched items in SQLite; 0 disables pruning (default: 30)
 
+# Optional webhook notifications (POST JSON to any endpoint when matching items arrive):
+#
+# notify:
+#   - url: https://ntfy.sh/my-pace-alerts   # https, or http on localhost
+#     name: high-signal                     # optional label used in payload and logs
+#     min_score: 8                          # only items ranked at/above this (llm-rank / keyword-score)
+#     keywords: [rust, wasm]                # and/or: any keyword in title/body/summary (case-insensitive)
+#     panels: [tech-feed]                   # optional: restrict to these panel ids (set id: on the layout panel)
+
 # see skills/pace-config/SKILL.md for the full reference (adapters, transforms, pipelines, layout, LLM config and examples).

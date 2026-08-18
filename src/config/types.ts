@@ -39,6 +39,7 @@ export type {
   KeywordField,
   KeywordScoreEntry,
   LlmConfig,
+  NotifyRuleConfig,
   PipelineConfig,
   ServerConfig,
   SortDirection,

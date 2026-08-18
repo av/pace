@@ -277,6 +277,18 @@ export function initDb(): void {
         seen_at TEXT NOT NULL DEFAULT (datetime('now'))
       )
     `);
+
+    // Webhook notification ledger, keyed by (rule, item dedup identity):
+    // an item is notified at most once per notify rule, across refreshes,
+    // panels, and cross-panel duplicates (item_key mirrors itemSeenKey).
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS notified_items (
+        rule_key TEXT NOT NULL,
+        item_key TEXT NOT NULL,
+        notified_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (rule_key, item_key)
+      )
+    `);
   } catch (e: unknown) {
     throw new Error(`db: failed to init ${currentDbPath || "default"}: ${errorMessage(e)}`);
   }
@@ -498,6 +510,44 @@ export function getSeenKeys(): string[] {
     .prepare("SELECT seen_key FROM seen_items ORDER BY seen_at ASC, seen_key ASC")
     .all() as { seen_key: string }[];
   return rows.map((row) => row.seen_key);
+}
+
+// --- Webhook notification ledger ---------------------------------------------
+
+/**
+ * Of `itemKeys` (dedup identities, see itemSeenKey), the ones NOT yet
+ * notified under `ruleKey`, in input order without duplicates.
+ */
+export function filterUnnotifiedKeys(ruleKey: string, itemKeys: string[]): string[] {
+  if (itemKeys.length === 0) return [];
+  const db = getDb();
+  const stmt = db.prepare(
+    "SELECT 1 FROM notified_items WHERE rule_key = ? AND item_key = ?",
+  );
+  const seen = new Set<string>();
+  const unnotified: string[] = [];
+  for (const key of itemKeys) {
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (!stmt.get(ruleKey, key)) unnotified.push(key);
+  }
+  return unnotified;
+}
+
+/** Record item keys as notified under `ruleKey`, atomically; re-marks are no-ops. */
+export function markKeysNotified(ruleKey: string, itemKeys: string[]): void {
+  const db = getDb();
+  try {
+    const apply = db.transaction((batch: string[]) => {
+      const stmt = db.prepare(
+        "INSERT INTO notified_items (rule_key, item_key) VALUES (?, ?) ON CONFLICT(rule_key, item_key) DO NOTHING",
+      );
+      for (const key of batch) stmt.run(ruleKey, key);
+    });
+    apply(itemKeys);
+  } catch (e: unknown) {
+    throw new Error(`db: failed to mark ${itemKeys.length} keys notified: ${errorMessage(e)}`);
+  }
 }
 
 export function getRecentItems(limit: number = DEFAULT_PANEL_LIMIT): ContentItemRow[] {
@@ -782,6 +832,17 @@ export function pruneOldItems(days: number = 30): number {
     ).run(`-${days} days`);
   } catch (e: unknown) {
     warnDb(`failed to prune seen_items: ${errorMessage(e)}`);
+  }
+  // Notification ledger rows age out the same way, and with the same guard:
+  // while a stored item still carries the key, deleting its ledger row would
+  // re-notify a long-lived story on the next refresh. Best effort likewise.
+  try {
+    db.prepare(
+      `DELETE FROM notified_items WHERE notified_at < datetime('now', ?)
+        AND item_key NOT IN (SELECT ${DEDUP_GROUP_EXPR} FROM content_items)`,
+    ).run(`-${days} days`);
+  } catch (e: unknown) {
+    warnDb(`failed to prune notified_items: ${errorMessage(e)}`);
   }
   return res.changes;
 }
