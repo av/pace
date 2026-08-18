@@ -186,6 +186,9 @@
 - label: pace export writes the active config's rss/podcast feed URLs as OPML 2.0 (one folder per adapter) that round-trips through pace import; non-feed adapters and duplicate URLs are skipped with a warning
   command: bun test src/cli-export.test.ts
   tags: [spec, implemented]
+- label: GET /api/search?q=terms searches all stored deduped items (whole database, not just rendered panels) matching every whitespace-separated term case-insensitively in title, url, source, summary, or body, newest first with a panel field per hit; ?panel= scopes to one panel, ?limit= (1-500, default 50) caps results, and LIKE wildcards match literally
+  command: bun test src/server/api-search.test.ts
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server

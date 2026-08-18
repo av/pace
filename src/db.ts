@@ -394,6 +394,42 @@ function getDedupedItems(
 
 export const DEFAULT_PANEL_LIMIT = 50;
 
+/**
+ * Escape LIKE wildcards in a user-supplied search term so it matches
+ * literally. Pairs with `ESCAPE '\'` in the LIKE clause.
+ */
+export function escapeLikeTerm(term: string): string {
+  return term.replace(/[\\%_]/g, (ch) => `\\${ch}`);
+}
+
+/**
+ * Search stored items across every panel (or one panel) for rows matching ALL
+ * terms, case-insensitively, in title, url, source, summary, or body — the
+ * same AND-of-terms semantics as the dashboard's `/` filter bar. Runs over
+ * the deduped winners (same window as the panel views), newest first.
+ */
+export function searchItems(
+  terms: string[],
+  options: { panelId?: string; limit: number },
+): ContentItemRow[] {
+  const db = getDb();
+  const { where: panelFilter, params } = panelIdWhereClause(options.panelId);
+  // Terms filter the deduped winners rather than participating in winner
+  // selection, so search never surfaces a duplicate that the panel views hide.
+  const termClauses = terms.map(
+    () =>
+      `(title LIKE ? ESCAPE '\\' OR url LIKE ? ESCAPE '\\' OR source LIKE ? ESCAPE '\\' OR COALESCE(summary, '') LIKE ? ESCAPE '\\' OR COALESCE(body, '') LIKE ? ESCAPE '\\')`,
+  );
+  const termParams = terms.flatMap((term) => {
+    const pattern = `%${escapeLikeTerm(term)}%`;
+    return [pattern, pattern, pattern, pattern, pattern];
+  });
+  const sql = `SELECT * FROM content_items WHERE ${dedupWinnerSubquery(panelFilter)}
+    ${termClauses.map((clause) => `AND ${clause}`).join("\n    ")}
+    ORDER BY timestamp DESC LIMIT ?`;
+  return db.prepare(sql).all(...params, ...termParams, options.limit) as ContentItemRow[];
+}
+
 export function getRecentItems(limit: number = DEFAULT_PANEL_LIMIT): ContentItemRow[] {
   return getDedupedItems(undefined, limit);
 }

@@ -17,6 +17,7 @@ import {
 } from "./refresh-panel";
 import type { RefreshHealth } from "../scheduler-runtime";
 import { handleApiPanelItems, handleApiPanelList } from "./api-panels";
+import { handleApiSearch } from "./api-search";
 import { handleApiPanelRss, RSS_PANEL_SUFFIX } from "./api-panels-rss";
 
 export type RefreshSourcesFn = (sourceNames: string[]) => Promise<RefreshResult[]>;
@@ -255,6 +256,9 @@ export function registerServerRoutes(app: Hono, deps: ServerRouteDeps): void {
   // Read-only JSON API over the same cached snapshots the dashboard renders,
   // for scripts, widgets, and monitors that want data instead of HTML.
   app.get("/api/panels", (c) => handleApiPanelList(c, deps));
+  // Server-side search over the stored (deduped) items — reaches everything
+  // in the database, not just what the dashboard currently renders.
+  app.get("/api/search", (c) => handleApiSearch(c, deps));
   // A ".rss" suffix on the panel segment switches the same lookup to an
   // RSS 2.0 rendering, so pace panels can feed regular feed readers.
   app.get("/api/panels/:panel", (c) =>

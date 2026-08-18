@@ -226,6 +226,12 @@ curl http://localhost:7453/api/panels/tech-panel.rss
 
 Feed items carry the title, link, a stable non-permalink `guid`, the source feed as `category`, `pubDate`, and a `description` (the LLM summary when one exists, otherwise the item body). The same `?limit=` override applies.
 
+`GET /api/search?q=<terms>` searches every stored item — everything in the database, not just what the dashboard currently renders — for items matching **all** whitespace-separated terms, case-insensitively, in the title, URL, source, summary, or body (the same semantics as the dashboard's `/` filter bar). Results are the same deduped items the panel API serves, newest first, each carrying an extra `panel` field naming the panel it lives on. Optional `?panel=<id-or-name>` scopes the search to one panel, and `?limit=N` (1-500, default 50) caps the result count:
+
+```bash
+curl 'http://localhost:7453/api/search?q=rust+wasm&limit=10'
+```
+
 Unknown panels return a JSON 404 (`{"error": "Unknown panel: ..."}`). All of these endpoints respect `server.base_path`.
 
 ## Share a Snapshot
