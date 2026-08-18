@@ -189,6 +189,9 @@
 - label: GET /api/search?q=terms searches all stored deduped items (whole database, not just rendered panels) matching every whitespace-separated term case-insensitively in title, url, source, summary, or body, newest first with a panel field per hit; ?panel= scopes to one panel, ?limit= (1-500, default 50) caps results, and LIKE wildcards match literally
   command: bun test src/server/api-search.test.ts
   tags: [spec, implemented]
+- label: GET /api/search.rss?q=terms renders the same server-side search as an RSS 2.0 saved-search feed: channel titled after the query, newest hit as lastBuildDate, self link keeping the query string, and the same term semantics, ?panel= scoping, and ?limit= validation as the JSON endpoint
+  command: bun test src/server/api-search-rss.test.ts
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server

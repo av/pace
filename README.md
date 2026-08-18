@@ -232,6 +232,12 @@ Feed items carry the title, link, a stable non-permalink `guid`, the source feed
 curl 'http://localhost:7453/api/search?q=rust+wasm&limit=10'
 ```
 
+`GET /api/search.rss?q=<terms>` is the same search rendered as an RSS 2.0 feed — subscribe to any query as a **saved search** in a regular feed reader and new matches from any source show up there. Same term semantics, `?panel=` scoping, and `?limit=` cap as the JSON endpoint; the channel is titled after the query and the feed's self link keeps the query string, since that is the feed's identity:
+
+```bash
+curl 'http://localhost:7453/api/search.rss?q=rust+wasm'
+```
+
 Unknown panels return a JSON 404 (`{"error": "Unknown panel: ..."}`). All of these endpoints respect `server.base_path`.
 
 ## Share a Snapshot

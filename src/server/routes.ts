@@ -18,6 +18,7 @@ import {
 import type { RefreshHealth } from "../scheduler-runtime";
 import { handleApiPanelItems, handleApiPanelList } from "./api-panels";
 import { handleApiSearch } from "./api-search";
+import { handleApiSearchRss } from "./api-search-rss";
 import { handleApiPanelRss, RSS_PANEL_SUFFIX } from "./api-panels-rss";
 
 export type RefreshSourcesFn = (sourceNames: string[]) => Promise<RefreshResult[]>;
@@ -259,6 +260,9 @@ export function registerServerRoutes(app: Hono, deps: ServerRouteDeps): void {
   // Server-side search over the stored (deduped) items — reaches everything
   // in the database, not just what the dashboard currently renders.
   app.get("/api/search", (c) => handleApiSearch(c, deps));
+  // The same search rendered as RSS 2.0 — any query becomes a subscribable
+  // "saved search" feed for regular feed readers.
+  app.get(`/api/search${RSS_PANEL_SUFFIX}`, (c) => handleApiSearchRss(c, deps));
   // A ".rss" suffix on the panel segment switches the same lookup to an
   // RSS 2.0 rendering, so pace panels can feed regular feed readers.
   app.get("/api/panels/:panel", (c) =>
