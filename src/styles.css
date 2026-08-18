@@ -300,6 +300,25 @@ a:hover {
   flex-shrink: 0;
 }
 
+/* Per-panel unseen-count badge (injected by dashboard.js between the title
+   and the action buttons): how many items in the panel are not yet marked
+   seen. Empty (all read, or no seen-keyed items) it collapses so headers
+   stay clean. Server-rendered pages never contain it. */
+.panel-header .unseen-count {
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+  line-height: 1.4;
+}
+
+.panel-header .unseen-count:empty {
+  display: none;
+}
+
 .panel-refreshed {
   font-size: 0.65rem;
   color: var(--text-muted);

@@ -234,6 +234,9 @@
 - label: Pressing Shift+C on an interactive dashboard collapses every panel at once, or expands them all when every panel is already collapsed; the result persists per browser through the same localStorage collapsed-panel state as the c key, and stored ids belonging to other dashboards on the origin are preserved. Progressive enhancement only: static exports and no-JS browsers are unaffected.
   command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'collapseAllTarget|Shift\+C'
   tags: [spec, implemented]
+- label: The dashboard client injects an unseen-count badge into every read-tracked panel header - it shows how many of the panel's seen-keyed items are not yet marked seen, updates through the refreshAllSeenPanels funnel on every seen mutation, collapses when empty (fully read or no tracked items), and is never rendered by the server or static exports
+  command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'unseenCountBadge|unseen-count'
+  tags: [spec, dashboard, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server

@@ -41,6 +41,8 @@ import {
   hideSeenButtonLabel,
   HIDDEN_COUNT_CLASS,
   hiddenCountBadge,
+  UNSEEN_COUNT_CLASS,
+  unseenCountBadge,
 } from "./dashboard.js";
 import { itemSeenKey } from "./db";
 import { renderDashboard, type PanelData } from "./layout";
@@ -614,6 +616,30 @@ describe("top-corner toolbar helpers", () => {
     expect(hiddenCountBadge(true, NaN)).toBe("");
   });
 
+  test("unseenCountBadge renders only positive unread counts from sane inputs", () => {
+    expect(UNSEEN_COUNT_CLASS).toBe("unseen-count");
+    expect(unseenCountBadge(5, 2)).toBe("3");
+    expect(unseenCountBadge(5, 0)).toBe("5");
+    // Fully-read panels (and panels with no seen-keyed items) collapse.
+    expect(unseenCountBadge(5, 5)).toBe("");
+    expect(unseenCountBadge(0, 0)).toBe("");
+    // Untrusted DOM-derived counts: non-numbers, negatives, non-integers,
+    // and seen > total all collapse rather than rendering nonsense.
+    expect(unseenCountBadge("5", 2)).toBe("");
+    expect(unseenCountBadge(5, "2")).toBe("");
+    expect(unseenCountBadge(-1, 0)).toBe("");
+    expect(unseenCountBadge(5, -1)).toBe("");
+    expect(unseenCountBadge(5, 6)).toBe("");
+    expect(unseenCountBadge(2.5, 1)).toBe("");
+    expect(unseenCountBadge(5, NaN)).toBe("");
+  });
+
+  test("the unseen-count badge is client-injected: the server never renders it", () => {
+    for (const mode of ["interactive", "static"] as const) {
+      expect(renderModeDashboard(mode)).not.toContain(UNSEEN_COUNT_CLASS);
+    }
+  });
+
   test("the hidden-count badge is client-injected: the server never renders it", () => {
     for (const mode of ["interactive", "static"] as const) {
       expect(renderModeDashboard(mode)).not.toContain(HIDDEN_COUNT_CLASS);
@@ -840,6 +866,16 @@ describe("mouse affordance CSS", () => {
     );
     expect(pressed).not.toBeNull();
     expect(pressed![1]).toContain("var(--accent)");
+  });
+
+  test("empty unseen-count badge collapses so panel headers stay clean", () => {
+    const empty = STYLES.match(/\.panel-header \.unseen-count:empty\s*\{([^}]*)\}/s);
+    expect(empty).not.toBeNull();
+    expect(empty![1]).toContain("display: none");
+    // The visible badge exists too and stays out of the header's flex squeeze.
+    const badge = STYLES.match(/\.panel-header \.unseen-count\s*\{([^}]*)\}/s);
+    expect(badge).not.toBeNull();
+    expect(badge![1]).toContain("flex-shrink: 0");
   });
 
   test("empty hidden-count badge collapses so the button stays glyph-only", () => {

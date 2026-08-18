@@ -58,3 +58,5 @@ export declare function themeButtonLabel(theme: unknown): string;
 export declare function hideSeenButtonLabel(on: unknown, count?: unknown): string;
 export declare const HIDDEN_COUNT_CLASS: string;
 export declare function hiddenCountBadge(on: unknown, count: unknown): string;
+export declare const UNSEEN_COUNT_CLASS: string;
+export declare function unseenCountBadge(total: unknown, seen: unknown): string;

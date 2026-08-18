@@ -26,7 +26,9 @@
  *
  * The same collapse/seen actions are also reachable by mouse: the module
  * injects a collapse chevron and a mark-panel-seen button into every panel
- * header, and a per-item mark-seen button that appears on hover/focus. A
+ * header (plus an unseen-count badge next to the title that tracks how many
+ * items are still unread), and a per-item mark-seen button that appears on
+ * hover/focus. A
  * small fixed toolbar in the top-right corner mirrors the page-wide keys —
  * theme toggle (t), hide-seen (Shift+X, with a badge counting the items the
  * mode currently hides), and help (?). All of these are
@@ -259,6 +261,25 @@ export function hiddenCountBadge(on, count) {
   if (on !== true) return "";
   if (typeof count !== "number" || !Number.isInteger(count) || count <= 0) return "";
   return String(count);
+}
+
+/** Class of the injected per-panel unseen-count badge (panel headers). */
+export const UNSEEN_COUNT_CLASS = "unseen-count";
+
+/**
+ * Badge text for a panel header's unseen-count: how many of the panel's
+ * seen-keyed items are not yet marked seen. Empty at zero so fully-read
+ * panels keep a clean header (the badge collapses via :empty). Counts come
+ * from DOM queries, so only sane integers (total > 0, 0 <= seen <= total)
+ * render anything.
+ */
+export function unseenCountBadge(total, seen) {
+  if (typeof total !== "number" || !Number.isInteger(total) || total <= 0) return "";
+  if (typeof seen !== "number" || !Number.isInteger(seen) || seen < 0 || seen > total) {
+    return "";
+  }
+  const unseen = total - seen;
+  return unseen > 0 ? String(unseen) : "";
 }
 
 /* ------------------------------------------------------------------ */
@@ -736,6 +757,17 @@ function hideSeenActive() {
   return document.documentElement.classList.contains(HIDE_SEEN_CLASS);
 }
 
+/** Sync one panel's injected header unseen-count badge to its current marks. */
+function syncUnseenCountBadge(panel) {
+  const badge = panel.querySelector(`.panel-header .${UNSEEN_COUNT_CLASS}`);
+  if (!badge) return;
+  const keyed = Array.from(panel.querySelectorAll(".panel-body .item[data-seen-key]"));
+  const seen = keyed.filter((item) => item.classList.contains(SEEN_CLASS)).length;
+  const text = unseenCountBadge(keyed.length, seen);
+  badge.textContent = text;
+  badge.title = text === "" ? "" : `${text} unread`;
+}
+
 /** Dim panels whose every item is seen (only visible while hide-seen is on). */
 function refreshAllSeenPanels() {
   for (const panel of document.querySelectorAll(".panel")) {
@@ -744,6 +776,9 @@ function refreshAllSeenPanels() {
       items.length > 0 &&
       Array.from(items).every((item) => item.classList.contains(SEEN_CLASS));
     panel.classList.toggle("all-seen", allSeen);
+    // Keep each panel header's unseen-count badge in step too; every
+    // seen-state mutation funnels through here.
+    syncUnseenCountBadge(panel);
   }
   // Keep the injected per-item buttons' ARIA state in step with the marks;
   // every seen-state mutation funnels through here.
@@ -1019,6 +1054,15 @@ function injectMouseAffordances() {
       );
       seenBtn.addEventListener("click", () => togglePanelSeen(panel));
       actions.insertBefore(seenBtn, actions.firstChild);
+      // Unseen-count badge between the title and the action buttons: how
+      // many items in the panel are not yet marked seen. Decorative (the
+      // per-item marks carry the state for AT); synced alongside every seen
+      // mutation via refreshAllSeenPanels.
+      const badge = document.createElement("span");
+      badge.className = UNSEEN_COUNT_CLASS;
+      badge.setAttribute("aria-hidden", "true");
+      actions.parentElement.insertBefore(badge, actions);
+      syncUnseenCountBadge(panel);
     }
     const collapsed = panel.classList.contains("panel-collapsed");
     const chevron = makeAffordanceButton(
