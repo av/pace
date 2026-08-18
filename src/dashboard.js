@@ -11,6 +11,7 @@
  * Enter activates the focused link natively (so target/rel are respected),
  * r refreshes the focused panel through its existing refresh form,
  * c collapses/expands the focused panel (persisted per panel in
+ * localStorage), t toggles between the dark and light themes (persisted in
  * localStorage), ? toggles a small help overlay (Escape closes it), and
  * / opens a filter bar that live-filters items across all panels
  * (Escape clears and closes).
@@ -79,6 +80,7 @@ export const HELP_ROWS = [
   ["Enter", "Open the focused item"],
   ["r", "Refresh the focused panel"],
   ["c", "Collapse or expand the focused panel"],
+  ["t", "Toggle light / dark theme"],
   ["/", "Filter items across panels"],
   ["?", "Show or hide this help"],
   ["Esc", "Close this help"],
@@ -216,6 +218,22 @@ function refreshFocusedPanel() {
   if (button) button.click();
 }
 
+/** localStorage key holding the chosen theme ("light"; absent = dark). */
+export const THEME_STORAGE_KEY = "pace.theme";
+
+/**
+ * Normalize a stored theme value. localStorage contents are untrusted, so
+ * anything other than the literal string "light" means the dark default.
+ */
+export function parseStoredTheme(raw) {
+  return raw === "light" ? "light" : "dark";
+}
+
+/** The theme to switch to from `current` ("dark" <-> "light"). */
+export function nextTheme(current) {
+  return parseStoredTheme(current) === "light" ? "dark" : "light";
+}
+
 /* ------------------------------------------------------------------ */
 /* Panel collapse (toggled with "c", persisted in localStorage)        */
 /* ------------------------------------------------------------------ */
@@ -267,6 +285,40 @@ function toggleFocusedPanel() {
     const target = focusTargets(panel)[0];
     if (target) target.focus({ preventScroll: true });
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Theme toggle (toggled with "t", persisted in localStorage)          */
+/* ------------------------------------------------------------------ */
+
+function readTheme() {
+  try {
+    return parseStoredTheme(window.localStorage.getItem(THEME_STORAGE_KEY));
+  } catch {
+    return "dark"; // storage disabled (private mode, embedded webview)
+  }
+}
+
+function applyTheme(theme) {
+  if (theme === "light") document.documentElement.setAttribute("data-theme", "light");
+  else document.documentElement.removeAttribute("data-theme");
+}
+
+function toggleTheme() {
+  const theme = nextTheme(readTheme());
+  applyTheme(theme);
+  try {
+    if (theme === "light") window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    else window.localStorage.removeItem(THEME_STORAGE_KEY);
+  } catch {
+    // Storage unavailable: the toggle still works, it just won't persist.
+  }
+}
+
+/** Re-apply the persisted theme choice to the freshly rendered page. */
+function restoreTheme() {
+  const theme = readTheme();
+  if (theme !== "dark") applyTheme(theme);
 }
 
 let helpEl = null;
@@ -454,6 +506,10 @@ function onKeydown(event) {
     toggleFocusedPanel();
     return;
   }
+  if (event.key === "t" && !event.shiftKey) {
+    toggleTheme();
+    return;
+  }
 
   const move = keyMove(event.key);
   if (move === null || event.shiftKey) return;
@@ -463,4 +519,5 @@ function onKeydown(event) {
 if (typeof document !== "undefined" && typeof window !== "undefined") {
   document.addEventListener("keydown", onKeydown);
   restoreCollapsedPanels();
+  restoreTheme();
 }

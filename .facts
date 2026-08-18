@@ -147,6 +147,9 @@
 - label: Pressing c on an interactive dashboard collapses the focused panel to its header row and expands it again; collapsed panel ids persist in localStorage under pace.collapsed-panels (keyed by the panel's data-panel-id) and are restored on load, panel navigation still reaches a collapsed panel via its refresh button, and static exports and no-JS browsers are unaffected
   command: bun test src/dashboard-keyboard.test.ts
   tags: [spec, rendering, panel-collapse, implemented]
+- label: Pressing t on an interactive dashboard toggles between the default dark theme and a light theme by setting data-theme=light on the document root; the choice persists in localStorage under pace.theme and is restored on load, all theme colors resolve from CSS custom properties overridden by a :root[data-theme=light] block (including readable light-mode source-badge colors), and static exports and no-JS browsers keep the dark default
+  command: bun test src/dashboard-keyboard.test.ts
+  tags: [spec, rendering, theme-toggle, implemented]
 
 # packaging
 

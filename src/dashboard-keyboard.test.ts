@@ -13,6 +13,9 @@ import {
   COLLAPSE_STORAGE_KEY,
   parseStoredPanelIds,
   togglePanelId,
+  THEME_STORAGE_KEY,
+  parseStoredTheme,
+  nextTheme,
 } from "./dashboard.js";
 import { renderDashboard, type PanelData } from "./layout";
 import { normalizeBasePath } from "./config/domain";
@@ -225,10 +228,41 @@ describe("COLLAPSE_STORAGE_KEY", () => {
   });
 });
 
+describe("THEME_STORAGE_KEY", () => {
+  test("is a stable, namespaced localStorage key", () => {
+    expect(THEME_STORAGE_KEY).toBe("pace.theme");
+  });
+});
+
+describe("parseStoredTheme", () => {
+  test("accepts the literal string light", () => {
+    expect(parseStoredTheme("light")).toBe("light");
+  });
+
+  test("anything else means the dark default", () => {
+    for (const raw of ["dark", "LIGHT", "", null, undefined, 42, {}, ["light"]]) {
+      expect(parseStoredTheme(raw)).toBe("dark");
+    }
+  });
+});
+
+describe("nextTheme", () => {
+  test("flips dark to light and back", () => {
+    expect(nextTheme("dark")).toBe("light");
+    expect(nextTheme("light")).toBe("dark");
+  });
+
+  test("untrusted current values count as dark, so the toggle goes light", () => {
+    for (const raw of [null, undefined, "", "solarized"]) {
+      expect(nextTheme(raw)).toBe("light");
+    }
+  });
+});
+
 describe("HELP_ROWS", () => {
   test("documents every advertised shortcut", () => {
     const keys = HELP_ROWS.map(([k]) => k).join(" ");
-    for (const fragment of ["j / k", "h / l", "Tab", "Enter", "r", "c", "/", "?", "Esc"]) {
+    for (const fragment of ["j / k", "h / l", "Tab", "Enter", "r", "c", "t", "/", "?", "Esc"]) {
       expect(keys).toContain(fragment);
     }
     for (const [, description] of HELP_ROWS) {
@@ -373,6 +407,31 @@ describe("keyboard navigation CSS", () => {
     expect(selector).toContain(".panel.panel-collapsed .counter-panel");
     expect(selector).toContain(".panel.panel-collapsed::after");
     expect(rule![1]).toContain("display: none");
+  });
+
+  test("light theme block shadows every dark token and restyles source badges", () => {
+    const light = STYLES.match(/:root\[data-theme='light'\]\s*\{([^}]*)\}/s);
+    expect(light).not.toBeNull();
+    // Every color token defined on bare :root must be shadowed by the light
+    // theme (fonts and derived color-mix tokens inherit automatically).
+    const root = STYLES.match(/\n:root\s*\{([^}]*)\}/s);
+    const colorTokens = [...root![1]!.matchAll(/(--[\w-]+):\s*#/g)].map((m) => m[1]!);
+    expect(colorTokens.length).toBeGreaterThan(0);
+    for (const token of colorTokens) {
+      expect(light![1]).toContain(`${token}:`);
+    }
+    // Badges swap their dark backgrounds for tints derived from the text color.
+    const badge = STYLES.match(
+      /:root\[data-theme='light'\] \.item-source\[class\*='src-'\]\s*\{([^}]*)\}/s,
+    );
+    expect(badge).not.toBeNull();
+    expect(badge![1]).toContain("currentColor");
+  });
+
+  test("the server never renders a theme attribute (theme is client state only)", () => {
+    for (const mode of ["interactive", "static"] as const) {
+      expect(renderModeDashboard(mode)).not.toContain("data-theme");
+    }
   });
 
   test("overlay adds no animation or transition (nothing new for reduced motion to disable)", () => {

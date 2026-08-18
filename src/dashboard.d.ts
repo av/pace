@@ -27,3 +27,6 @@ export declare function itemMatchesFilter(terms: readonly string[], text: unknow
 export declare const COLLAPSE_STORAGE_KEY: string;
 export declare function parseStoredPanelIds(raw: unknown): string[];
 export declare function togglePanelId(ids: unknown, id: unknown): string[];
+export declare const THEME_STORAGE_KEY: string;
+export declare function parseStoredTheme(raw: unknown): "dark" | "light";
+export declare function nextTheme(current: unknown): "dark" | "light";

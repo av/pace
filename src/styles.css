@@ -26,6 +26,24 @@
   --scrollbar-thumb-hover: var(--accent);
 }
 
+/* Light theme — toggled with "t" (dashboard.js sets data-theme="light" on
+   <html> and persists the choice in localStorage under pace.theme). Every
+   color below shadows a dark token above; static/no-JS pages stay dark. */
+:root[data-theme='light'] {
+  --bg-base: #f4f4f2;
+  --bg-surface: #ececea;
+  --bg-elevated: #e4e4e1;
+  --bg-card: #ffffff;
+  --text-primary: #24292e;
+  --text-secondary: #6a737d;
+  --text-muted: #767b81;
+  --border: #d8d8d4;
+  --border-light: #c9c9c4;
+  --hover: #111;
+  --hover-bg: #e0e0dc;
+  --accent: #3d708a;
+}
+
 /* scrollbars — thin, minimalist, theme-matched */
 * {
   scrollbar-width: thin;
@@ -384,6 +402,28 @@ a:hover {
 .item-source.src-devto { background: #262626; color: #f0f0f0; }
 .item-source.src-bookmarks { background: #1a2d2a; color: #6fcfb0; }
 .item-source.src-counter { background: #1a1a2d; color: #8f9fd9; }
+
+/* Light-theme source badges: same brand hues on tinted light backgrounds
+   (background derived from the text color so the pairs stay in sync), with
+   the handful of dark-theme-only light text colors darkened for contrast. */
+:root[data-theme='light'] .item-source[class*='src-'] {
+  background: color-mix(in srgb, currentColor 14%, transparent);
+}
+:root[data-theme='light'] .item-source.src-hn { color: #b34a00; }
+:root[data-theme='light'] .item-source.src-reddit { color: #cc3700; }
+:root[data-theme='light'] .item-source.src-github { color: #24292e; }
+:root[data-theme='light'] .item-source.src-rss { color: #c14e17; }
+:root[data-theme='light'] .item-source.src-youtube { color: #c81e1e; }
+:root[data-theme='light'] .item-source.src-npm { color: #b03535; }
+:root[data-theme='light'] .item-source.src-wiki { color: #5d564a; }
+:root[data-theme='light'] .item-source.src-lemmy { color: #1d7a44; }
+:root[data-theme='light'] .item-source.src-ph { color: #cc5322; }
+:root[data-theme='light'] .item-source.src-pod { color: #7b46a3; }
+:root[data-theme='light'] .item-source.src-se { color: #8f6c10; }
+:root[data-theme='light'] .item-source.src-mast { color: #4353b8; }
+:root[data-theme='light'] .item-source.src-devto { color: #333333; }
+:root[data-theme='light'] .item-source.src-bookmarks { color: #22795f; }
+:root[data-theme='light'] .item-source.src-counter { color: #4d5c9e; }
 
 .item-time {
   color: var(--text-muted);
