@@ -375,6 +375,28 @@ a:hover {
   }
 }
 
+/* Top-corner toolbar (injected by dashboard.js): clickable equivalents of
+   the page-wide keys — theme toggle (t), hide-seen (Shift+X), help (?).
+   Fixed so it stays reachable while scrolling; elevated background keeps it
+   readable over panel content. Server-rendered pages never contain it. */
+.page-toolbar {
+  position: fixed;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 10;
+  display: flex;
+  gap: 0.3rem;
+  padding: 0.2rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.page-toolbar .hide-seen-btn[aria-pressed="true"] {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 .panel-body {
   padding: 0;
 }

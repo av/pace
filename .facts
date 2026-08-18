@@ -216,6 +216,9 @@
 - label: A notify rule's optional format field renders deliveries for a service preset - ntfy (plain text plus X-Title/X-Click headers), discord (webhook markdown content capped under 2000 chars by folding overflow into an and-N-more line), slack (incoming-webhook mrkdwn with links), or the default raw json payload - with per-service escaping, config-check validation of the preset name, pace notify test honoring it, and no effect on matching or the notified_items ledger
   command: bun test src/notify-format.test.ts
   tags: [spec, implemented]
+- label: The dashboard injects a fixed top-right toolbar (page-toolbar) with clickable equivalents of the page-wide keys - a theme toggle (theme-btn, label naming the theme a click switches to), a hide-seen toggle (hide-seen-btn, aria-pressed synced with the mode), and a help button (help-btn) - each driving the same logic as the t/Shift+X/? keys; the toolbar is client-injected by dashboard.js so static/no-JS pages never render it
+  command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'toolbar'
+  tags: [spec, implemented]
 - label: pace notify test sends a sample webhook delivery (real payload shape, marked as a test, rule criteria in the summary) to every configured notify rule or one selected by name, reports per-rule ok/failure, exits non-zero when any delivery fails, and never touches the notified_items ledger
   command: bun test src/cli-notify.test.ts
   tags: [spec, implemented]

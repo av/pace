@@ -31,6 +31,12 @@ import {
   collapseButtonLabel,
   itemSeenButtonLabel,
   panelSeenButtonLabel,
+  TOOLBAR_CLASS,
+  THEME_BTN_CLASS,
+  HIDE_SEEN_BTN_CLASS,
+  HELP_BTN_CLASS,
+  themeButtonLabel,
+  hideSeenButtonLabel,
 } from "./dashboard.js";
 import { itemSeenKey } from "./db";
 import { renderDashboard, type PanelData } from "./layout";
@@ -498,6 +504,42 @@ describe("mouse affordance helpers", () => {
   });
 });
 
+describe("top-corner toolbar helpers", () => {
+  test("toolbar and button classes are stable and distinct from server-rendered classes", () => {
+    expect(TOOLBAR_CLASS).toBe("page-toolbar");
+    expect(THEME_BTN_CLASS).toBe("theme-btn");
+    expect(HIDE_SEEN_BTN_CLASS).toBe("hide-seen-btn");
+    expect(HELP_BTN_CLASS).toBe("help-btn");
+  });
+
+  test("themeButtonLabel names the theme a click will switch to", () => {
+    expect(themeButtonLabel("dark")).toBe("Switch to light theme");
+    expect(themeButtonLabel("light")).toBe("Switch to dark theme");
+    // Untrusted state: anything but the literal "light" counts as dark,
+    // matching parseStoredTheme.
+    expect(themeButtonLabel(undefined)).toBe("Switch to light theme");
+    expect(themeButtonLabel("LIGHT")).toBe("Switch to light theme");
+  });
+
+  test("hideSeenButtonLabel flips with the current hide-seen mode", () => {
+    expect(hideSeenButtonLabel(false)).toBe("Hide seen items");
+    expect(hideSeenButtonLabel(true)).toBe("Show seen items");
+    // Untrusted state only counts literal true.
+    expect(hideSeenButtonLabel("true")).toBe("Hide seen items");
+    expect(hideSeenButtonLabel(undefined)).toBe("Hide seen items");
+  });
+
+  test("the toolbar is client-injected: the server never renders it", () => {
+    for (const mode of ["interactive", "static"] as const) {
+      const html = renderModeDashboard(mode);
+      expect(html).not.toContain(TOOLBAR_CLASS);
+      expect(html).not.toContain(THEME_BTN_CLASS);
+      expect(html).not.toContain(HIDE_SEEN_BTN_CLASS);
+      expect(html).not.toContain(HELP_BTN_CLASS);
+    }
+  });
+});
+
 /* ------------------------------------------------------------------ */
 /* Serving the script                                                  */
 /* ------------------------------------------------------------------ */
@@ -689,5 +731,23 @@ describe("mouse affordance CSS", () => {
   test("chevron transition is disabled for reduced-motion users", () => {
     const start = STYLES.indexOf("@media (prefers-reduced-motion: reduce)");
     expect(STYLES.slice(start)).toContain(".collapse-btn");
+  });
+
+  test("toolbar is fixed in the top-right corner on an elevated background", () => {
+    const bar = STYLES.match(/\n\.page-toolbar\s*\{([^}]*)\}/s);
+    expect(bar).not.toBeNull();
+    expect(bar![1]).toContain("position: fixed");
+    expect(bar![1]).toContain("top:");
+    expect(bar![1]).toContain("right:");
+    // Panels scroll under it, so it needs its own opaque backdrop.
+    expect(bar![1]).toContain("var(--bg-elevated)");
+  });
+
+  test("pressed hide-seen toolbar button surfaces the accent so mode is visible", () => {
+    const pressed = STYLES.match(
+      /\.page-toolbar \.hide-seen-btn\[aria-pressed="true"\]\s*\{([^}]*)\}/s,
+    );
+    expect(pressed).not.toBeNull();
+    expect(pressed![1]).toContain("var(--accent)");
   });
 });

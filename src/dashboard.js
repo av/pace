@@ -22,8 +22,10 @@
  *
  * The same collapse/seen actions are also reachable by mouse: the module
  * injects a collapse chevron and a mark-panel-seen button into every panel
- * header, and a per-item mark-seen button that appears on hover/focus. All
- * of these are client-injected so static exports never render them.
+ * header, and a per-item mark-seen button that appears on hover/focus. A
+ * small fixed toolbar in the top-right corner mirrors the page-wide keys —
+ * theme toggle (t), hide-seen (Shift+X), and help (?). All of these are
+ * client-injected so static exports never render them.
  *
  * Pure helpers are exported so the test suite can unit-test them without a
  * DOM; the event wiring at the bottom only runs in a real browser.
@@ -191,6 +193,33 @@ export function itemSeenButtonLabel(seen) {
 export function panelSeenButtonLabel(title) {
   const name = typeof title === "string" && title.length > 0 ? title : "panel";
   return `Mark all in ${name} seen / unseen`;
+}
+
+/** Class of the injected top-corner toolbar (page-wide toggles). */
+export const TOOLBAR_CLASS = "page-toolbar";
+
+/** Class of the toolbar's theme toggle button (mirrors the "t" key). */
+export const THEME_BTN_CLASS = "theme-btn";
+
+/** Class of the toolbar's hide-seen toggle button (mirrors Shift+X). */
+export const HIDE_SEEN_BTN_CLASS = "hide-seen-btn";
+
+/** Class of the toolbar's help button (mirrors the "?" key). */
+export const HELP_BTN_CLASS = "help-btn";
+
+/**
+ * Accessible label for the toolbar theme button. Names the action the click
+ * will perform, so it flips with the currently applied theme. Untrusted
+ * input (attribute round-trips) other than the literal "light" counts as
+ * dark, matching parseStoredTheme.
+ */
+export function themeButtonLabel(theme) {
+  return theme === "light" ? "Switch to dark theme" : "Switch to light theme";
+}
+
+/** Accessible label for the toolbar hide-seen button, from the current mode. */
+export function hideSeenButtonLabel(on) {
+  return on === true ? "Show seen items" : "Hide seen items";
 }
 
 /* ------------------------------------------------------------------ */
@@ -415,6 +444,14 @@ function systemPrefersLight() {
 function applyTheme(theme) {
   if (theme === "light") document.documentElement.setAttribute("data-theme", "light");
   else document.documentElement.removeAttribute("data-theme");
+  // Keep the toolbar button's label naming the action a click will perform;
+  // every theme mutation (toggle, restore, live OS change) funnels through here.
+  const btn = document.querySelector(`.${THEME_BTN_CLASS}`);
+  if (btn) {
+    const label = themeButtonLabel(theme);
+    btn.setAttribute("aria-label", label);
+    btn.title = label;
+  }
 }
 
 function toggleTheme() {
@@ -636,6 +673,15 @@ function refreshAllSeenPanels() {
 function applyHideSeen(on) {
   document.documentElement.classList.toggle(HIDE_SEEN_CLASS, on);
   refreshAllSeenPanels();
+  // Keep the toolbar button's pressed state and label in step with the mode;
+  // every hide-seen mutation (toggle, restore) funnels through here.
+  const btn = document.querySelector(`.${HIDE_SEEN_BTN_CLASS}`);
+  if (btn) {
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+    const label = hideSeenButtonLabel(on);
+    btn.setAttribute("aria-label", label);
+    btn.title = label;
+  }
 }
 
 function toggleHideSeen() {
@@ -896,6 +942,39 @@ function injectMouseAffordances() {
   }
 }
 
+/**
+ * Inject the top-corner toolbar with clickable equivalents of the page-wide
+ * keys: theme toggle (t), hide-seen (Shift+X), and the help overlay (?).
+ * Injected before the restore* calls so their apply* funnels can sync the
+ * buttons' labels and pressed state to the persisted choices.
+ */
+function injectToolbar() {
+  const bar = document.createElement("div");
+  bar.className = TOOLBAR_CLASS;
+  bar.setAttribute("role", "toolbar");
+  bar.setAttribute("aria-label", "Dashboard controls");
+
+  // Labels here are the pre-restore defaults (dark theme, seen items shown);
+  // applyTheme/applyHideSeen overwrite them the moment state is known.
+  const theme = makeAffordanceButton(THEME_BTN_CLASS, "◐", themeButtonLabel("dark"));
+  theme.addEventListener("click", toggleTheme);
+  bar.appendChild(theme);
+
+  const hideSeen = makeAffordanceButton(HIDE_SEEN_BTN_CLASS, "◎", hideSeenButtonLabel(false));
+  hideSeen.setAttribute("aria-pressed", "false");
+  hideSeen.addEventListener("click", toggleHideSeen);
+  bar.appendChild(hideSeen);
+
+  const help = makeAffordanceButton(HELP_BTN_CLASS, "?", "Keyboard shortcuts");
+  help.addEventListener("click", () => {
+    if (helpOpen()) closeHelp();
+    else openHelp();
+  });
+  bar.appendChild(help);
+
+  document.body.appendChild(bar);
+}
+
 function onKeydown(event) {
   if (shouldIgnoreKeydown(event)) return;
 
@@ -953,6 +1032,7 @@ function onKeydown(event) {
 if (typeof document !== "undefined" && typeof window !== "undefined") {
   document.addEventListener("keydown", onKeydown);
   injectMouseAffordances();
+  injectToolbar();
   restoreCollapsedPanels();
   restoreTheme();
   restoreHideSeen();
