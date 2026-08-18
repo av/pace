@@ -222,6 +222,9 @@
 - label: The dashboard injects a fixed top-right toolbar (page-toolbar) with clickable equivalents of the page-wide keys - a theme toggle (theme-btn, label naming the theme a click switches to), a hide-seen toggle (hide-seen-btn, aria-pressed synced with the mode), and a help button (help-btn) - each driving the same logic as the t/Shift+X/? keys; the toolbar is client-injected by dashboard.js so static/no-JS pages never render it
   command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'toolbar'
   tags: [spec, implemented]
+- label: While hide-seen mode is on, the toolbar's hide-seen button shows a badge counting the seen items the mode currently hides, kept in step with every seen-state mutation and mirrored into the button's accessible label ("Show seen items (N hidden)"); the badge collapses when the mode is off or nothing is hidden, and is client-injected so static/no-JS pages never render it
+  command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'hiddenCountBadge|hidden count|hidden-count'
+  tags: [spec, implemented]
 - label: pace notify test sends a sample webhook delivery (real payload shape, marked as a test, rule criteria in the summary) to every configured notify rule or one selected by name, reports per-rule ok/failure, exits non-zero when any delivery fails, and never touches the notified_items ledger
   command: bun test src/cli-notify.test.ts
   tags: [spec, implemented]

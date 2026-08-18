@@ -397,6 +397,19 @@ a:hover {
   border-color: var(--accent);
 }
 
+/* Hidden-count badge inside the hide-seen button: how many seen items the
+   mode currently hides. Empty (mode off or nothing hidden) it collapses so
+   the button keeps its square glyph-only look. */
+.page-toolbar .hide-seen-btn .hidden-count {
+  margin-left: 0.25rem;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.page-toolbar .hide-seen-btn .hidden-count:empty {
+  display: none;
+}
+
 .panel-body {
   padding: 0;
 }

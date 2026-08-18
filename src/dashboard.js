@@ -28,7 +28,8 @@
  * injects a collapse chevron and a mark-panel-seen button into every panel
  * header, and a per-item mark-seen button that appears on hover/focus. A
  * small fixed toolbar in the top-right corner mirrors the page-wide keys —
- * theme toggle (t), hide-seen (Shift+X), and help (?). All of these are
+ * theme toggle (t), hide-seen (Shift+X, with a badge counting the items the
+ * mode currently hides), and help (?). All of these are
  * client-injected so static exports never render them.
  *
  * Pure helpers are exported so the test suite can unit-test them without a
@@ -234,9 +235,30 @@ export function themeButtonLabel(theme) {
   return theme === "light" ? "Switch to dark theme" : "Switch to light theme";
 }
 
-/** Accessible label for the toolbar hide-seen button, from the current mode. */
-export function hideSeenButtonLabel(on) {
-  return on === true ? "Show seen items" : "Hide seen items";
+/**
+ * Accessible label for the toolbar hide-seen button, from the current mode.
+ * While hiding, the label also carries the number of items the mode hides so
+ * assistive tech hears what the visual badge shows.
+ */
+export function hideSeenButtonLabel(on, count) {
+  if (on !== true) return "Hide seen items";
+  const n = hiddenCountBadge(on, count);
+  return n === "" ? "Show seen items" : `Show seen items (${n} hidden)`;
+}
+
+/** Class of the count badge inside the toolbar hide-seen button. */
+export const HIDDEN_COUNT_CLASS = "hidden-count";
+
+/**
+ * Badge text for the hide-seen button: the number of seen items the mode is
+ * currently hiding. Empty when the mode is off or nothing is hidden, so the
+ * badge (styled to collapse when :empty) disappears entirely. Count is
+ * whatever a DOM query produced, so only positive finite integers render.
+ */
+export function hiddenCountBadge(on, count) {
+  if (on !== true) return "";
+  if (typeof count !== "number" || !Number.isInteger(count) || count <= 0) return "";
+  return String(count);
 }
 
 /* ------------------------------------------------------------------ */
@@ -733,20 +755,31 @@ function refreshAllSeenPanels() {
     btn.setAttribute("aria-label", label);
     btn.title = label;
   }
+  syncHideSeenButton();
+}
+
+/**
+ * Keep the toolbar hide-seen button's pressed state, label, and hidden-count
+ * badge in step with the mode and the page. Every mutation that can change
+ * either — hide-seen toggles/restores via applyHideSeen, seen marks via
+ * refreshAllSeenPanels — funnels through here.
+ */
+function syncHideSeenButton() {
+  const btn = document.querySelector(`.${HIDE_SEEN_BTN_CLASS}`);
+  if (!btn) return;
+  const on = hideSeenActive();
+  const count = document.querySelectorAll(`.item.${SEEN_CLASS}`).length;
+  btn.setAttribute("aria-pressed", on ? "true" : "false");
+  const label = hideSeenButtonLabel(on, count);
+  btn.setAttribute("aria-label", label);
+  btn.title = label;
+  const badge = btn.querySelector(`.${HIDDEN_COUNT_CLASS}`);
+  if (badge) badge.textContent = hiddenCountBadge(on, count);
 }
 
 function applyHideSeen(on) {
   document.documentElement.classList.toggle(HIDE_SEEN_CLASS, on);
-  refreshAllSeenPanels();
-  // Keep the toolbar button's pressed state and label in step with the mode;
-  // every hide-seen mutation (toggle, restore) funnels through here.
-  const btn = document.querySelector(`.${HIDE_SEEN_BTN_CLASS}`);
-  if (btn) {
-    btn.setAttribute("aria-pressed", on ? "true" : "false");
-    const label = hideSeenButtonLabel(on);
-    btn.setAttribute("aria-label", label);
-    btn.title = label;
-  }
+  refreshAllSeenPanels(); // also syncs the toolbar button via its funnel
 }
 
 function toggleHideSeen() {
@@ -1027,6 +1060,12 @@ function injectToolbar() {
 
   const hideSeen = makeAffordanceButton(HIDE_SEEN_BTN_CLASS, "◎", hideSeenButtonLabel(false));
   hideSeen.setAttribute("aria-pressed", "false");
+  // Count badge: shows how many seen items the mode currently hides. The
+  // label carries the number too, so the visual badge is decoration only.
+  const badge = document.createElement("span");
+  badge.className = HIDDEN_COUNT_CLASS;
+  badge.setAttribute("aria-hidden", "true");
+  hideSeen.appendChild(badge);
   hideSeen.addEventListener("click", toggleHideSeen);
   bar.appendChild(hideSeen);
 

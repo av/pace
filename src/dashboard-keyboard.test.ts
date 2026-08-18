@@ -39,6 +39,8 @@ import {
   HELP_BTN_CLASS,
   themeButtonLabel,
   hideSeenButtonLabel,
+  HIDDEN_COUNT_CLASS,
+  hiddenCountBadge,
 } from "./dashboard.js";
 import { itemSeenKey } from "./db";
 import { renderDashboard, type PanelData } from "./layout";
@@ -593,6 +595,31 @@ describe("top-corner toolbar helpers", () => {
     expect(hideSeenButtonLabel(undefined)).toBe("Hide seen items");
   });
 
+  test("hideSeenButtonLabel carries the hidden count while hiding", () => {
+    expect(hideSeenButtonLabel(true, 12)).toBe("Show seen items (12 hidden)");
+    expect(hideSeenButtonLabel(true, 0)).toBe("Show seen items");
+    // Off-mode labels never mention a count, whatever is passed.
+    expect(hideSeenButtonLabel(false, 12)).toBe("Hide seen items");
+  });
+
+  test("hiddenCountBadge renders only positive integer counts while hiding", () => {
+    expect(HIDDEN_COUNT_CLASS).toBe("hidden-count");
+    expect(hiddenCountBadge(true, 3)).toBe("3");
+    expect(hiddenCountBadge(true, 0)).toBe("");
+    expect(hiddenCountBadge(false, 3)).toBe("");
+    // Untrusted counts: non-numbers, negatives, and non-integers collapse.
+    expect(hiddenCountBadge(true, -1)).toBe("");
+    expect(hiddenCountBadge(true, 2.5)).toBe("");
+    expect(hiddenCountBadge(true, "3")).toBe("");
+    expect(hiddenCountBadge(true, NaN)).toBe("");
+  });
+
+  test("the hidden-count badge is client-injected: the server never renders it", () => {
+    for (const mode of ["interactive", "static"] as const) {
+      expect(renderModeDashboard(mode)).not.toContain(HIDDEN_COUNT_CLASS);
+    }
+  });
+
   test("the toolbar is client-injected: the server never renders it", () => {
     for (const mode of ["interactive", "static"] as const) {
       const html = renderModeDashboard(mode);
@@ -813,5 +840,13 @@ describe("mouse affordance CSS", () => {
     );
     expect(pressed).not.toBeNull();
     expect(pressed![1]).toContain("var(--accent)");
+  });
+
+  test("empty hidden-count badge collapses so the button stays glyph-only", () => {
+    const empty = STYLES.match(
+      /\.page-toolbar \.hide-seen-btn \.hidden-count:empty\s*\{([^}]*)\}/s,
+    );
+    expect(empty).not.toBeNull();
+    expect(empty![1]).toContain("display: none");
   });
 });

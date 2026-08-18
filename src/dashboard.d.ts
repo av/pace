@@ -55,4 +55,6 @@ export declare const THEME_BTN_CLASS: string;
 export declare const HIDE_SEEN_BTN_CLASS: string;
 export declare const HELP_BTN_CLASS: string;
 export declare function themeButtonLabel(theme: unknown): string;
-export declare function hideSeenButtonLabel(on: unknown): string;
+export declare function hideSeenButtonLabel(on: unknown, count?: unknown): string;
+export declare const HIDDEN_COUNT_CLASS: string;
+export declare function hiddenCountBadge(on: unknown, count: unknown): string;
