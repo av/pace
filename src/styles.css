@@ -363,6 +363,18 @@ a:hover {
   opacity: 1;
 }
 
+/* Hide-seen mode (Shift+X; dashboard.js sets .hide-seen on <html> and
+   persists it in localStorage): seen items vanish entirely, and panels
+   left with nothing unread are dimmed so their emptiness reads as
+   "all caught up" rather than "broken". */
+html.hide-seen .item.item-seen {
+  display: none;
+}
+
+html.hide-seen .panel.all-seen {
+  opacity: 0.45;
+}
+
 .item-title {
   font-size: 0.85rem;
   font-weight: 500;

@@ -32,3 +32,6 @@ export declare function parseStoredTheme(raw: unknown): "dark" | "light";
 export declare function nextTheme(current: unknown): "dark" | "light";
 export declare const SEEN_CLASS: string;
 export declare function parseSeenKeys(body: unknown): string[];
+export declare const HIDE_SEEN_CLASS: string;
+export declare const HIDE_SEEN_STORAGE_KEY: string;
+export declare function parseStoredHideSeen(raw: unknown): boolean;

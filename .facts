@@ -195,6 +195,9 @@
 - label: Pressing x on the dashboard toggles the focused item's seen state: seen items render dimmed, the state persists server-side in SQLite keyed by the item's dedup identity (normalized url, or id when url is empty) so it survives refreshes and is shared across browsers; GET /api/seen lists the seen keys and POST /api/seen {key, seen} sets one, with the same cross-site guard as refresh
   command: bun test src/server/api-seen.test.ts
   tags: [spec, implemented]
+- label: Pressing Shift+X on the dashboard toggles hide-seen mode: items marked seen are hidden from every panel (j/k navigation skips them and panels left with only seen items are dimmed), pressing it again shows them; the mode persists per browser in localStorage (pace.hide-seen) and is restored on load, and static/no-JS pages are unaffected
+  command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'hide-seen'
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server

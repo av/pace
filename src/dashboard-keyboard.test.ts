@@ -18,6 +18,9 @@ import {
   nextTheme,
   SEEN_CLASS,
   parseSeenKeys,
+  HIDE_SEEN_CLASS,
+  HIDE_SEEN_STORAGE_KEY,
+  parseStoredHideSeen,
 } from "./dashboard.js";
 import { itemSeenKey } from "./db";
 import { renderDashboard, type PanelData } from "./layout";
@@ -265,7 +268,7 @@ describe("nextTheme", () => {
 describe("HELP_ROWS", () => {
   test("documents every advertised shortcut", () => {
     const keys = HELP_ROWS.map(([k]) => k).join(" ");
-    for (const fragment of ["j / k", "h / l", "Tab", "Enter", "r", "c", "t", "x", "/", "?", "Esc"]) {
+    for (const fragment of ["j / k", "h / l", "Tab", "Enter", "r", "c", "t", "x", "X", "/", "?", "Esc"]) {
       expect(keys).toContain(fragment);
     }
     for (const [, description] of HELP_ROWS) {
@@ -344,6 +347,33 @@ describe("seen item markup and helpers", () => {
   test("parseSeenKeys tolerates garbage payloads", () => {
     for (const body of [null, undefined, "x", 42, [], { keys: "a" }, {}]) {
       expect(parseSeenKeys(body)).toEqual([]);
+    }
+  });
+});
+
+describe("hide-seen mode helpers", () => {
+  test("HIDE_SEEN_STORAGE_KEY is a stable, namespaced localStorage key", () => {
+    expect(HIDE_SEEN_STORAGE_KEY).toBe("pace.hide-seen");
+  });
+
+  test("HELP_ROWS documents the hide-seen Shift+X shortcut", () => {
+    const row = HELP_ROWS.find(([keys]) => keys === "X");
+    expect(row).toBeDefined();
+    expect(row![1].toLowerCase()).toContain("seen");
+  });
+
+  test("parseStoredHideSeen accepts only the literal string 1", () => {
+    expect(parseStoredHideSeen("1")).toBe(true);
+    for (const raw of ["0", "true", "", null, undefined, 1, {}, ["1"]]) {
+      expect(parseStoredHideSeen(raw)).toBe(false);
+    }
+  });
+
+  test("hide-seen is client state only: the server never renders its classes", () => {
+    for (const mode of ["interactive", "static"] as const) {
+      const html = renderModeDashboard(mode);
+      expect(html).not.toContain(HIDE_SEEN_CLASS);
+      expect(html).not.toContain("all-seen");
     }
   });
 });
@@ -447,6 +477,15 @@ describe("keyboard navigation CSS", () => {
     const restore = STYLES.match(/\.item\.item-seen:hover,\s*\.item\.item-seen:focus-within\s*\{([^}]*)\}/s);
     expect(restore).not.toBeNull();
     expect(restore![1]).toContain("opacity: 1");
+  });
+
+  test("hide-seen mode hides seen items and dims fully-seen panels", () => {
+    const hide = STYLES.match(/html\.hide-seen \.item\.item-seen\s*\{([^}]*)\}/s);
+    expect(hide).not.toBeNull();
+    expect(hide![1]).toContain("display: none");
+    const dim = STYLES.match(/html\.hide-seen \.panel\.all-seen\s*\{([^}]*)\}/s);
+    expect(dim).not.toBeNull();
+    expect(dim![1]).toContain("opacity");
   });
 
   test("light theme block shadows every dark token and restyles source badges", () => {

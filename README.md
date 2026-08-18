@@ -345,6 +345,7 @@ The dashboard can be driven entirely from the keyboard; pressing `?` on a runnin
 | `c` | Collapse or expand the focused panel (remembered per browser) |
 | `t` | Toggle light / dark theme (remembered per browser) |
 | `x` | Mark the focused item seen / unseen (dimmed; persisted server-side, shared across browsers) |
+| `X` | Hide / show seen items across all panels (Shift+x; remembered per browser) |
 | `/` | Filter items across panels |
 | `?` | Show or hide the help overlay |
 | `Esc` | Close the help overlay |

@@ -13,7 +13,8 @@
  * c collapses/expands the focused panel (persisted per panel in
  * localStorage), t toggles between the dark and light themes (persisted in
  * localStorage), x marks the focused item as seen/unseen (dimmed; persisted
- * server-side via /api/seen so it is shared across browsers), ? toggles a
+ * server-side via /api/seen so it is shared across browsers), Shift+X hides
+ * every seen item across all panels (persisted in localStorage), ? toggles a
  * small help overlay (Escape closes it), and / opens a filter bar that
  * live-filters items across all panels (Escape clears and closes).
  *
@@ -83,6 +84,7 @@ export const HELP_ROWS = [
   ["c", "Collapse or expand the focused panel"],
   ["t", "Toggle light / dark theme"],
   ["x", "Mark the focused item seen / unseen"],
+  ["X", "Hide or show seen items"],
   ["/", "Filter items across panels"],
   ["?", "Show or hide this help"],
   ["Esc", "Close this help"],
@@ -159,7 +161,9 @@ function focusTargets(panel) {
   const links = Array.from(panel.querySelectorAll(".panel-body .item-title a")).filter(
     (link) => {
       const item = link.closest ? link.closest(".item") : null;
-      return !(item && item.hidden);
+      if (!item) return true;
+      if (item.hidden) return false;
+      return !(hideSeenActive() && item.classList.contains(SEEN_CLASS));
     },
   );
   if (links.length > 0) return links;
@@ -330,6 +334,20 @@ function restoreTheme() {
 /** Class marking an item the user has already seen (dimmed by the stylesheet). */
 export const SEEN_CLASS = "item-seen";
 
+/** Root <html> class while hide-seen mode is on (seen items display: none). */
+export const HIDE_SEEN_CLASS = "hide-seen";
+
+/** localStorage key holding the hide-seen flag ("1"; absent = show seen items). */
+export const HIDE_SEEN_STORAGE_KEY = "pace.hide-seen";
+
+/**
+ * Normalize a stored hide-seen value. localStorage contents are untrusted, so
+ * only the literal string "1" turns the mode on.
+ */
+export function parseStoredHideSeen(raw) {
+  return raw === "1";
+}
+
 /**
  * Extract the seen-key list from a GET /api/seen response body. The payload
  * crosses a network boundary, so anything that is not `{ keys: string[] }`
@@ -361,6 +379,7 @@ function applySeenKeys(keys) {
   for (const item of document.querySelectorAll(".item[data-seen-key]")) {
     if (set.has(item.getAttribute("data-seen-key"))) item.classList.add(SEEN_CLASS);
   }
+  refreshAllSeenPanels();
 }
 
 /** Re-apply the server-persisted seen marks to the freshly rendered page. */
@@ -386,8 +405,16 @@ function toggleFocusedItemSeen() {
     for (const twin of twins) {
       if (twin.getAttribute("data-seen-key") === key) twin.classList.toggle(SEEN_CLASS, on);
     }
+    refreshAllSeenPanels();
   };
   toggle(seen);
+  if (seen && hideSeenActive()) {
+    // The item just vanished from under the focus; keep the keyboard flow
+    // going by landing on the panel's next remaining target.
+    const panel = item.closest(".panel");
+    const target = panel ? focusTargets(panel)[0] : null;
+    if (target) target.focus({ preventScroll: true });
+  }
   fetch(`${apiBase()}/api/seen`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -397,6 +424,60 @@ function toggleFocusedItemSeen() {
       if (!res.ok) toggle(!seen); // rejected: roll the optimistic dimming back
     })
     .catch(() => toggle(!seen));
+}
+
+/* ------------------------------------------------------------------ */
+/* Hide-seen mode (toggled with Shift+X, persisted in localStorage)    */
+/* ------------------------------------------------------------------ */
+
+function hideSeenActive() {
+  return document.documentElement.classList.contains(HIDE_SEEN_CLASS);
+}
+
+/** Dim panels whose every item is seen (only visible while hide-seen is on). */
+function refreshAllSeenPanels() {
+  for (const panel of document.querySelectorAll(".panel")) {
+    const items = panel.querySelectorAll(".panel-body .item");
+    const allSeen =
+      items.length > 0 &&
+      Array.from(items).every((item) => item.classList.contains(SEEN_CLASS));
+    panel.classList.toggle("all-seen", allSeen);
+  }
+}
+
+function applyHideSeen(on) {
+  document.documentElement.classList.toggle(HIDE_SEEN_CLASS, on);
+  refreshAllSeenPanels();
+}
+
+function toggleHideSeen() {
+  const on = !hideSeenActive();
+  applyHideSeen(on);
+  try {
+    if (on) window.localStorage.setItem(HIDE_SEEN_STORAGE_KEY, "1");
+    else window.localStorage.removeItem(HIDE_SEEN_STORAGE_KEY);
+  } catch {
+    // Storage unavailable: the toggle still works, it just won't persist.
+  }
+  // Focus may sit on an item that just got hidden; move it somewhere reachable.
+  const active = document.activeElement;
+  const item = active && active.closest ? active.closest(".item") : null;
+  if (on && item && item.classList.contains(SEEN_CLASS)) {
+    const panel = item.closest(".panel");
+    const target = panel ? focusTargets(panel)[0] : null;
+    if (target) target.focus({ preventScroll: true });
+  }
+}
+
+/** Re-apply the persisted hide-seen choice to the freshly rendered page. */
+function restoreHideSeen() {
+  try {
+    if (parseStoredHideSeen(window.localStorage.getItem(HIDE_SEEN_STORAGE_KEY))) {
+      applyHideSeen(true);
+    }
+  } catch {
+    // Storage disabled (private mode, embedded webview): stay in show-all mode.
+  }
 }
 
 let helpEl = null;
@@ -592,6 +673,10 @@ function onKeydown(event) {
     toggleFocusedItemSeen();
     return;
   }
+  if (event.key === "X") {
+    toggleHideSeen();
+    return;
+  }
 
   const move = keyMove(event.key);
   if (move === null || event.shiftKey) return;
@@ -602,5 +687,6 @@ if (typeof document !== "undefined" && typeof window !== "undefined") {
   document.addEventListener("keydown", onKeydown);
   restoreCollapsedPanels();
   restoreTheme();
+  restoreHideSeen();
   restoreSeenItems();
 }
