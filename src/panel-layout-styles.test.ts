@@ -256,6 +256,6 @@ describe("reduced motion CSS", () => {
   it("disables hover transitions under prefers-reduced-motion", () => {
     const start = STYLES.indexOf("@media (prefers-reduced-motion: reduce)");
     const scoped = STYLES.slice(start);
-    expect(scoped).toMatch(/\.item,\s*\.refresh-btn\s*\{[^}]*transition:\s*none/s);
+    expect(scoped).toMatch(/\.item,\s*\.refresh-btn,\s*\.collapse-btn\s*\{[^}]*transition:\s*none/s);
   });
 });

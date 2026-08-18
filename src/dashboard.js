@@ -19,6 +19,11 @@
  * small help overlay (Escape closes it), and / opens a filter bar that
  * live-filters items across all panels (Escape clears and closes).
  *
+ * The same collapse/seen actions are also reachable by mouse: the module
+ * injects a collapse chevron and a mark-panel-seen button into every panel
+ * header, and a per-item mark-seen button that appears on hover/focus. All
+ * of these are client-injected so static exports never render them.
+ *
  * Pure helpers are exported so the test suite can unit-test them without a
  * DOM; the event wiring at the bottom only runs in a real browser.
  */
@@ -144,9 +149,45 @@ export function togglePanelId(ids, id) {
   return list.includes(id) ? list.filter((entry) => entry !== id) : [...list, id];
 }
 
+/** Class of the injected panel-header collapse chevron button. */
+export const COLLAPSE_BTN_CLASS = "collapse-btn";
+
+/** Class of the injected panel-header mark-panel-seen button. */
+export const PANEL_SEEN_BTN_CLASS = "panel-seen-btn";
+
+/** Class of the injected per-item mark-seen button (shown on hover/focus). */
+export const ITEM_SEEN_BTN_CLASS = "item-seen-btn";
+
+/**
+ * Accessible label for a panel's collapse chevron. Reflects the action the
+ * click will perform, so it flips as the panel opens and closes. The title
+ * comes from panel markup (untrusted-ish); non-strings fall back to "panel".
+ */
+export function collapseButtonLabel(title, collapsed) {
+  const name = typeof title === "string" && title.length > 0 ? title : "panel";
+  return `${collapsed ? "Expand" : "Collapse"} ${name}`;
+}
+
+/** Accessible label for a per-item mark-seen button, from its current state. */
+export function itemSeenButtonLabel(seen) {
+  return seen === true ? "Mark item unseen" : "Mark item seen";
+}
+
+/** Accessible label for a panel's mark-all-seen button. */
+export function panelSeenButtonLabel(title) {
+  const name = typeof title === "string" && title.length > 0 ? title : "panel";
+  return `Mark all in ${name} seen / unseen`;
+}
+
 /* ------------------------------------------------------------------ */
 /* DOM wiring (browser only)                                          */
 /* ------------------------------------------------------------------ */
+
+/** A panel's visible title text (for accessible labels on injected buttons). */
+function panelTitle(panel) {
+  const heading = panel.querySelector(".panel-header h2");
+  return heading ? heading.textContent.trim() : "";
+}
 
 function reducedMotion() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -265,6 +306,13 @@ function writeCollapsedIds(ids) {
 
 function setPanelCollapsed(panel, collapsed) {
   panel.classList.toggle("panel-collapsed", collapsed);
+  const btn = panel.querySelector(`.${COLLAPSE_BTN_CLASS}`);
+  if (btn) {
+    btn.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    const label = collapseButtonLabel(panelTitle(panel), collapsed);
+    btn.setAttribute("aria-label", label);
+    btn.title = label;
+  }
 }
 
 /** Re-apply the persisted collapsed state to the freshly rendered page. */
@@ -282,14 +330,20 @@ function restoreCollapsedPanels() {
 function toggleFocusedPanel() {
   const active = document.activeElement;
   const panel = active && active.closest ? active.closest(".panel") : null;
-  if (!panel) return;
+  if (panel) togglePanelCollapsed(panel);
+}
+
+/** Collapse/expand one panel and persist the change (shared by "c" and the chevron). */
+function togglePanelCollapsed(panel) {
   const collapsed = !panel.classList.contains("panel-collapsed");
   setPanelCollapsed(panel, collapsed);
   const id = panel.getAttribute("data-panel-id");
   if (id) writeCollapsedIds(togglePanelId(readCollapsedIds(), id));
-  if (collapsed) {
+  const active = document.activeElement;
+  if (collapsed && active && active.closest && active.closest(".panel-body") !== null) {
     // Focus was inside the now-hidden body; move it to the panel's one
     // remaining target so keyboard navigation doesn't fall off the page.
+    // (A chevron click keeps focus on the still-visible chevron instead.)
     const target = focusTargets(panel)[0];
     if (target) target.focus({ preventScroll: true });
   }
@@ -408,7 +462,11 @@ function restoreSeenItems() {
 /** Toggle the focused item's seen state optimistically and persist it. */
 function toggleFocusedItemSeen() {
   const item = itemForSeenToggle();
-  if (!item) return;
+  if (item) toggleItemSeen(item);
+}
+
+/** Toggle one item's seen state (shared by the "x" key and the item button). */
+function toggleItemSeen(item) {
   const key = item.getAttribute("data-seen-key");
   const seen = !item.classList.contains(SEEN_CLASS);
   // Every duplicate of the story shares the key, so keep the page consistent
@@ -443,7 +501,11 @@ function toggleFocusedItemSeen() {
 function toggleFocusedPanelSeen() {
   const active = document.activeElement;
   const panel = active && active.closest ? active.closest(".panel") : null;
-  if (!panel) return;
+  if (panel) togglePanelSeen(panel);
+}
+
+/** Toggle a whole panel's seen state (shared by "a" and the header button). */
+function togglePanelSeen(panel) {
   const items = Array.from(panel.querySelectorAll(".panel-body .item[data-seen-key]"));
   if (items.length === 0) return;
   const seen = panelSeenTarget(items.map((item) => item.classList.contains(SEEN_CLASS)));
@@ -495,6 +557,16 @@ function refreshAllSeenPanels() {
       items.length > 0 &&
       Array.from(items).every((item) => item.classList.contains(SEEN_CLASS));
     panel.classList.toggle("all-seen", allSeen);
+  }
+  // Keep the injected per-item buttons' ARIA state in step with the marks;
+  // every seen-state mutation funnels through here.
+  for (const btn of document.querySelectorAll(`.${ITEM_SEEN_BTN_CLASS}`)) {
+    const item = btn.closest(".item");
+    const seen = item !== null && item.classList.contains(SEEN_CLASS);
+    btn.setAttribute("aria-pressed", seen ? "true" : "false");
+    const label = itemSeenButtonLabel(seen);
+    btn.setAttribute("aria-label", label);
+    btn.title = label;
   }
 }
 
@@ -686,6 +758,62 @@ function closeFilter() {
   filterReturnFocus = null;
 }
 
+/* ------------------------------------------------------------------ */
+/* Mouse affordances (injected buttons mirroring the c/a/x keys)       */
+/* ------------------------------------------------------------------ */
+
+function makeAffordanceButton(className, glyph, label) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  // Share the refresh button's look; the extra class carries behavior/state.
+  btn.className = `refresh-btn ${className}`;
+  btn.textContent = glyph;
+  btn.setAttribute("aria-label", label);
+  btn.title = label;
+  return btn;
+}
+
+/**
+ * Inject the clickable equivalents of the keyboard actions: a collapse
+ * chevron and a mark-panel-seen button in each panel header, and a
+ * mark-seen button on each item (revealed on hover/focus by the
+ * stylesheet). Keyboard users already have c/a/x, so the per-item buttons
+ * stay out of the Tab order.
+ */
+function injectMouseAffordances() {
+  for (const panel of document.querySelectorAll(".panel")) {
+    const actions = panel.querySelector(".panel-header .panel-actions");
+    if (!actions) continue;
+    const title = panelTitle(panel);
+    if (panel.querySelector(".panel-body .item[data-seen-key]")) {
+      const seenBtn = makeAffordanceButton(
+        PANEL_SEEN_BTN_CLASS,
+        "✓",
+        panelSeenButtonLabel(title),
+      );
+      seenBtn.addEventListener("click", () => togglePanelSeen(panel));
+      actions.insertBefore(seenBtn, actions.firstChild);
+    }
+    const collapsed = panel.classList.contains("panel-collapsed");
+    const chevron = makeAffordanceButton(
+      COLLAPSE_BTN_CLASS,
+      "▾",
+      collapseButtonLabel(title, collapsed),
+    );
+    chevron.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    chevron.addEventListener("click", () => togglePanelCollapsed(panel));
+    actions.appendChild(chevron);
+  }
+  for (const item of document.querySelectorAll(".panel-body .item[data-seen-key]")) {
+    const seen = item.classList.contains(SEEN_CLASS);
+    const btn = makeAffordanceButton(ITEM_SEEN_BTN_CLASS, "✓", itemSeenButtonLabel(seen));
+    btn.tabIndex = -1;
+    btn.setAttribute("aria-pressed", seen ? "true" : "false");
+    btn.addEventListener("click", () => toggleItemSeen(item));
+    item.appendChild(btn);
+  }
+}
+
 function onKeydown(event) {
   if (shouldIgnoreKeydown(event)) return;
 
@@ -742,6 +870,7 @@ function onKeydown(event) {
 
 if (typeof document !== "undefined" && typeof window !== "undefined") {
   document.addEventListener("keydown", onKeydown);
+  injectMouseAffordances();
   restoreCollapsedPanels();
   restoreTheme();
   restoreHideSeen();

@@ -351,7 +351,9 @@ The dashboard can be driven entirely from the keyboard; pressing `?` on a runnin
 | `?` | Show or hide the help overlay |
 | `Esc` | Close the help overlay |
 
-The keys come from one small script (`/dashboard.js`) served alongside the page — a progressive enhancement, not a requirement: everything stays reachable with `Tab` alone, and static snapshots ship without the script.
+The collapse and seen actions are also clickable: each panel header gains a collapse chevron and a mark-all-seen button next to refresh, and hovering an item reveals a mark-seen button in its corner (always visible on touch screens).
+
+The keys and buttons come from one small script (`/dashboard.js`) served alongside the page — a progressive enhancement, not a requirement: everything stays reachable with `Tab` alone, and static snapshots ship without the script.
 
 ## LLM integration (optional)
 

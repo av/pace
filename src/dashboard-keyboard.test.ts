@@ -22,6 +22,12 @@ import {
   HIDE_SEEN_CLASS,
   HIDE_SEEN_STORAGE_KEY,
   parseStoredHideSeen,
+  COLLAPSE_BTN_CLASS,
+  PANEL_SEEN_BTN_CLASS,
+  ITEM_SEEN_BTN_CLASS,
+  collapseButtonLabel,
+  itemSeenButtonLabel,
+  panelSeenButtonLabel,
 } from "./dashboard.js";
 import { itemSeenKey } from "./db";
 import { renderDashboard, type PanelData } from "./layout";
@@ -399,6 +405,47 @@ describe("hide-seen mode helpers", () => {
   });
 });
 
+describe("mouse affordance helpers", () => {
+  test("button classes are stable and distinct from server-rendered classes", () => {
+    expect(COLLAPSE_BTN_CLASS).toBe("collapse-btn");
+    expect(PANEL_SEEN_BTN_CLASS).toBe("panel-seen-btn");
+    expect(ITEM_SEEN_BTN_CLASS).toBe("item-seen-btn");
+  });
+
+  test("collapseButtonLabel names the action about to happen", () => {
+    expect(collapseButtonLabel("News", false)).toBe("Collapse News");
+    expect(collapseButtonLabel("News", true)).toBe("Expand News");
+  });
+
+  test("collapseButtonLabel falls back to 'panel' for missing titles", () => {
+    for (const title of ["", null, undefined, 42]) {
+      expect(collapseButtonLabel(title, false)).toBe("Collapse panel");
+    }
+  });
+
+  test("itemSeenButtonLabel flips with the item's current seen state", () => {
+    expect(itemSeenButtonLabel(false)).toBe("Mark item seen");
+    expect(itemSeenButtonLabel(true)).toBe("Mark item unseen");
+    // Untrusted state (attribute round-trips) only counts literal true.
+    expect(itemSeenButtonLabel("true")).toBe("Mark item seen");
+    expect(itemSeenButtonLabel(undefined)).toBe("Mark item seen");
+  });
+
+  test("panelSeenButtonLabel names the panel and falls back to 'panel'", () => {
+    expect(panelSeenButtonLabel("News")).toBe("Mark all in News seen / unseen");
+    expect(panelSeenButtonLabel("")).toBe("Mark all in panel seen / unseen");
+  });
+
+  test("mouse affordance buttons are client-injected: the server never renders them", () => {
+    for (const mode of ["interactive", "static"] as const) {
+      const html = renderModeDashboard(mode);
+      expect(html).not.toContain(COLLAPSE_BTN_CLASS);
+      expect(html).not.toContain(PANEL_SEEN_BTN_CLASS);
+      expect(html).not.toContain(ITEM_SEEN_BTN_CLASS);
+    }
+  });
+});
+
 /* ------------------------------------------------------------------ */
 /* Serving the script                                                  */
 /* ------------------------------------------------------------------ */
@@ -541,5 +588,48 @@ describe("keyboard navigation CSS", () => {
     // Match declarations (colon-suffixed), not prose in comments.
     expect(overlaySection).not.toContain("animation:");
     expect(overlaySection).not.toContain("transition:");
+  });
+});
+
+describe("mouse affordance CSS", () => {
+  test("collapse chevron rotates when its panel is collapsed", () => {
+    const rotated = STYLES.match(/\.panel-collapsed \.collapse-btn\s*\{([^}]*)\}/s);
+    expect(rotated).not.toBeNull();
+    expect(rotated![1]).toContain("rotate");
+  });
+
+  test("item seen button is hidden until hover/focus and never swallows clicks", () => {
+    const base = STYLES.match(/\.item \.item-seen-btn\s*\{([^}]*)\}/s);
+    expect(base).not.toBeNull();
+    expect(base![1]).toContain("opacity: 0");
+    // A transparent button over the title corner must not intercept clicks.
+    expect(base![1]).toContain("pointer-events: none");
+    const reveal = STYLES.match(
+      /\.item:hover \.item-seen-btn,\s*\.item:focus-within \.item-seen-btn\s*\{([^}]*)\}/s,
+    );
+    expect(reveal).not.toBeNull();
+    expect(reveal![1]).toContain("opacity: 1");
+    expect(reveal![1]).toContain("pointer-events: auto");
+  });
+
+  test("coarse pointers (no hover) get the item seen button always visible", () => {
+    const coarse = STYLES.match(
+      /@media \(pointer: coarse\)\s*\{\s*\.item \.item-seen-btn\s*\{([^}]*)\}/s,
+    );
+    expect(coarse).not.toBeNull();
+    expect(coarse![1]).toContain("opacity: 1");
+  });
+
+  test("pressed item seen buttons surface the accent so state is visible", () => {
+    const pressed = STYLES.match(
+      /\.item \.item-seen-btn\[aria-pressed="true"\]\s*\{([^}]*)\}/s,
+    );
+    expect(pressed).not.toBeNull();
+    expect(pressed![1]).toContain("var(--accent)");
+  });
+
+  test("chevron transition is disabled for reduced-motion users", () => {
+    const start = STYLES.indexOf("@media (prefers-reduced-motion: reduce)");
+    expect(STYLES.slice(start)).toContain(".collapse-btn");
   });
 });

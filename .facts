@@ -201,6 +201,9 @@
 - label: Pressing Shift+X on the dashboard toggles hide-seen mode: items marked seen are hidden from every panel (j/k navigation skips them and panels left with only seen items are dimmed), pressing it again shows them; the mode persists per browser in localStorage (pace.hide-seen) and is restored on load, and static/no-JS pages are unaffected
   command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'hide-seen'
   tags: [spec, implemented]
+- label: The dashboard injects mouse affordances for the keyboard actions: a collapse chevron (collapse-btn) and a mark-panel-seen check (panel-seen-btn) in each panel header next to refresh, and a per-item mark-seen button (item-seen-btn) shown on item hover/focus, each driving the same collapse/seen logic as the c/a/x keys with synced aria state; all are client-injected by dashboard.js so static/no-JS pages never render them
+  command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'mouse affordance'
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server

@@ -328,6 +328,52 @@ a:hover {
   }
 }
 
+/* Mouse affordances (injected by dashboard.js; keyboard equivalents c/a/x).
+   All three share .refresh-btn for the base look; the extra class carries
+   behavior and state. Server-rendered pages never contain these classes. */
+.collapse-btn {
+  transition: transform 0.15s ease, color 0.15s, border-color 0.15s;
+}
+
+.panel-collapsed .collapse-btn {
+  transform: rotate(-90deg);
+}
+
+/* The per-item mark-seen button sits in the item's top-right corner and only
+   materializes on hover/focus (pointer-events too, so the hidden button never
+   swallows clicks meant for the title). Touch screens have no hover, so
+   coarse pointers get it always-on. */
+.item {
+  position: relative;
+}
+
+.item .item-seen-btn {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.5rem;
+  opacity: 0;
+  pointer-events: none;
+  background: var(--bg-elevated);
+}
+
+.item:hover .item-seen-btn,
+.item:focus-within .item-seen-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.item .item-seen-btn[aria-pressed="true"] {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+@media (pointer: coarse) {
+  .item .item-seen-btn {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
 .panel-body {
   padding: 0;
 }
@@ -946,7 +992,8 @@ html.hide-seen .panel.all-seen {
   }
 
   .item,
-  .refresh-btn {
+  .refresh-btn,
+  .collapse-btn {
     transition: none;
   }
 }
