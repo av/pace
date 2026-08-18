@@ -364,6 +364,7 @@ The dashboard can be driven entirely from the keyboard; pressing `?` on a runnin
 | `Enter` | Open the focused item (marks it seen) |
 | `r` | Refresh the focused panel |
 | `c` | Collapse or expand the focused panel (remembered per browser) |
+| `C` | Collapse all panels, or expand them all when everything is collapsed (Shift+c) |
 | `t` | Toggle light / dark theme (follows the OS preference until toggled; remembered per browser) |
 | `x` | Mark the focused item seen / unseen (dimmed; persisted server-side, shared across browsers) |
 | `a` | Mark the whole panel seen / unseen (all items at once; persisted server-side) |

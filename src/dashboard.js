@@ -14,7 +14,8 @@
  * as the x key,
  * r refreshes the focused panel through its existing refresh form,
  * c collapses/expands the focused panel (persisted per panel in
- * localStorage), t toggles between the dark and light themes (the OS
+ * localStorage), Shift+C collapses every panel at once (or expands them all
+ * when every panel is already collapsed), t toggles between the dark and light themes (the OS
  * prefers-color-scheme preference is followed until the first toggle, which
  * pins an explicit choice in localStorage), x marks the focused item as seen/unseen (dimmed; persisted
  * server-side via /api/seen so it is shared across browsers), a marks the whole
@@ -94,6 +95,7 @@ export const HELP_ROWS = [
   ["Enter", "Open the focused item (marks it seen)"],
   ["r", "Refresh the focused panel"],
   ["c", "Collapse or expand the focused panel"],
+  ["C", "Collapse or expand all panels"],
   ["t", "Toggle light / dark theme"],
   ["x", "Mark the focused item seen / unseen"],
   ["a", "Mark the whole panel seen / unseen"],
@@ -166,6 +168,18 @@ export function togglePanelId(ids, id) {
     : [];
   if (typeof id !== "string" || id.length === 0) return list;
   return list.includes(id) ? list.filter((entry) => entry !== id) : [...list, id];
+}
+
+/**
+ * The collapsed state a collapse-all toggle should apply, from the panels'
+ * current collapsed flags: collapse everything unless every panel already
+ * is, in which case expand everything (mirrors panelSeenTarget). Empty or
+ * invalid input yields false so a page without panels is a no-op at the
+ * call site.
+ */
+export function collapseAllTarget(flags) {
+  if (!Array.isArray(flags) || flags.length === 0) return false;
+  return !flags.every((flag) => flag === true);
 }
 
 /** Class of the injected panel-header collapse chevron button. */
@@ -412,6 +426,38 @@ function togglePanelCollapsed(panel) {
     // remaining target so keyboard navigation doesn't fall off the page.
     // (A chevron click keeps focus on the still-visible chevron instead.)
     const target = focusTargets(panel)[0];
+    if (target) target.focus({ preventScroll: true });
+  }
+}
+
+/** Collapse every panel at once (or expand all when everything already is). */
+function toggleAllPanelsCollapsed() {
+  const panels = Array.from(document.querySelectorAll(".panel"));
+  if (panels.length === 0) return;
+  const collapsed = collapseAllTarget(
+    panels.map((panel) => panel.classList.contains("panel-collapsed")),
+  );
+  const activeBefore = document.activeElement;
+  const pageIds = [];
+  for (const panel of panels) {
+    setPanelCollapsed(panel, collapsed);
+    const id = panel.getAttribute("data-panel-id");
+    if (id) pageIds.push(id);
+  }
+  // Persist in one write: replace this page's ids wholesale while leaving
+  // ids from other dashboards sharing the origin (different configs) alone.
+  const others = readCollapsedIds().filter((id) => !pageIds.includes(id));
+  writeCollapsedIds(collapsed ? [...others, ...pageIds] : others);
+  if (
+    collapsed &&
+    activeBefore &&
+    activeBefore.closest &&
+    activeBefore.closest(".panel-body") !== null
+  ) {
+    // Focus was inside a now-hidden body; land on that panel's one remaining
+    // target so keyboard navigation doesn't fall off the page.
+    const panel = activeBefore.closest(".panel");
+    const target = panel ? focusTargets(panel)[0] : null;
     if (target) target.focus({ preventScroll: true });
   }
 }
@@ -1048,6 +1094,10 @@ function onKeydown(event) {
   }
   if (event.key === "a" && !event.shiftKey) {
     toggleFocusedPanelSeen();
+    return;
+  }
+  if (event.key === "C") {
+    toggleAllPanelsCollapsed();
     return;
   }
   if (event.key === "X") {

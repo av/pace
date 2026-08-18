@@ -14,6 +14,7 @@ import {
   COLLAPSE_STORAGE_KEY,
   parseStoredPanelIds,
   togglePanelId,
+  collapseAllTarget,
   THEME_STORAGE_KEY,
   parseStoredTheme,
   nextTheme,
@@ -265,6 +266,23 @@ describe("togglePanelId", () => {
   });
 });
 
+describe("collapseAllTarget", () => {
+  test("collapses everything unless every panel already is, then expands", () => {
+    expect(collapseAllTarget([false, false])).toBe(true);
+    expect(collapseAllTarget([true, false])).toBe(true);
+    expect(collapseAllTarget([true, true])).toBe(false);
+    expect(collapseAllTarget([true])).toBe(false);
+  });
+
+  test("treats empty/invalid input as a no-op (false)", () => {
+    for (const flags of [[], null, undefined, "junk"]) {
+      expect(collapseAllTarget(flags)).toBe(false);
+    }
+    // Non-boolean entries are not "collapsed", so a mixed list still collapses.
+    expect(collapseAllTarget([1, "yes"])).toBe(true);
+  });
+});
+
 describe("COLLAPSE_STORAGE_KEY", () => {
   test("is a stable, namespaced localStorage key", () => {
     expect(COLLAPSE_STORAGE_KEY).toBe("pace.collapsed-panels");
@@ -332,7 +350,7 @@ describe("resolveTheme", () => {
 describe("HELP_ROWS", () => {
   test("documents every advertised shortcut", () => {
     const keys = HELP_ROWS.map(([k]) => k).join(" ");
-    for (const fragment of ["j / k", "h / l", "Tab", "Enter", "r", "c", "t", "x", "a", "X", "/", "?", "Esc"]) {
+    for (const fragment of ["j / k", "h / l", "Tab", "Enter", "r", "c", "C", "t", "x", "a", "X", "/", "?", "Esc"]) {
       expect(keys).toContain(fragment);
     }
     for (const [, description] of HELP_ROWS) {
@@ -477,6 +495,12 @@ describe("seen item markup and helpers", () => {
 describe("hide-seen mode helpers", () => {
   test("HIDE_SEEN_STORAGE_KEY is a stable, namespaced localStorage key", () => {
     expect(HIDE_SEEN_STORAGE_KEY).toBe("pace.hide-seen");
+  });
+
+  test("HELP_ROWS documents the collapse-all Shift+C shortcut", () => {
+    const row = HELP_ROWS.find(([keys]) => keys === "C");
+    expect(row).toBeDefined();
+    expect(row?.[1].toLowerCase()).toContain("all panels");
   });
 
   test("HELP_ROWS documents the hide-seen Shift+X shortcut", () => {

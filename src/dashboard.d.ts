@@ -28,6 +28,7 @@ export declare function searchFeedUrl(base: unknown, raw: unknown): string | nul
 export declare const COLLAPSE_STORAGE_KEY: string;
 export declare function parseStoredPanelIds(raw: unknown): string[];
 export declare function togglePanelId(ids: unknown, id: unknown): string[];
+export declare function collapseAllTarget(flags: unknown): boolean;
 export declare const THEME_STORAGE_KEY: string;
 export declare function parseStoredTheme(raw: unknown): "dark" | "light";
 export declare function nextTheme(current: unknown): "dark" | "light";
