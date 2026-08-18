@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { installTempDbHooks } from "./test/temp-db";
-import { NOTIFY_FORMATS, renderNotifyDelivery } from "./notify-format";
+import { mergeNotifyHeaders, NOTIFY_FORMATS, renderNotifyDelivery } from "./notify-format";
 import { runNotifyRules, type NotifyPayload, type NotifyPayloadItem } from "./notify";
 import { validateParsedConfig } from "./config-validate";
 import { DEFAULT_LAYOUT } from "./config/domain";
@@ -117,6 +117,50 @@ describe("notify-format: delivery wiring", () => {
     expect(calls[0].body).toContain("hot story");
     expect(() => JSON.parse(calls[0].body)).toThrow();
   });
+
+  test("runNotifyRules sends the rule's custom headers merged over the preset's", async () => {
+    saveItems("news", [makeContentItem({ url: "https://ex.com/b", title: "auth story" })]);
+    getDb().prepare("UPDATE content_items SET score = 9 WHERE panel_id = 'news'").run();
+    const calls: { headers: Record<string, string> }[] = [];
+    const fetchImpl = (async (_url: unknown, init?: RequestInit) => {
+      calls.push({ headers: init?.headers as Record<string, string> });
+      return new Response("ok", { status: 200 });
+    }) as typeof fetch;
+    const rule: NotifyRuleConfig = {
+      url: WEBHOOK_URL,
+      min_score: 8,
+      format: "ntfy",
+      headers: { Authorization: "Bearer tk_secret", "x-title": "custom title" },
+    };
+    await spyConsole(["log"], () => runNotifyRules([rule], ["news"], { fetchImpl }));
+    expect(calls).toHaveLength(1);
+    expect(calls[0].headers["Authorization"]).toBe("Bearer tk_secret");
+    // Custom header replaces the preset's X-Title case-insensitively.
+    expect(calls[0].headers["x-title"]).toBe("custom title");
+    expect(calls[0].headers["X-Title"]).toBeUndefined();
+    expect(calls[0].headers["Content-Type"]).toBe("text/plain; charset=utf-8");
+  });
+});
+
+describe("notify-format: mergeNotifyHeaders", () => {
+  test("returns the preset untouched when the rule has no custom headers", () => {
+    const preset = { "Content-Type": "application/json" };
+    expect(mergeNotifyHeaders(preset, undefined)).toBe(preset);
+  });
+
+  test("custom headers win case-insensitively; preset extras survive", () => {
+    expect(
+      mergeNotifyHeaders(
+        { "Content-Type": "text/plain; charset=utf-8", "X-Title": "preset", "X-Click": "https://ex.com" },
+        { "X-TITLE": "custom", Authorization: "Bearer t" },
+      ),
+    ).toEqual({
+      "Content-Type": "text/plain; charset=utf-8",
+      "X-Click": "https://ex.com",
+      "X-TITLE": "custom",
+      Authorization: "Bearer t",
+    });
+  });
 });
 
 describe("notify-format: config validation", () => {
@@ -142,6 +186,43 @@ describe("notify-format: config validation", () => {
       /notify\[0\]\.format must be one of json, ntfy, discord, slack/,
     );
   });
+
+  test("accepts a headers map of auth-style headers", () => {
+    expect(() =>
+      validate({
+        url: WEBHOOK_URL,
+        min_score: 8,
+        headers: { Authorization: "Bearer tk_secret", "X-Api-Key": "k" },
+      }),
+    ).not.toThrow();
+  });
+
+  test("rejects non-map headers", () => {
+    expect(() => validate({ url: WEBHOOK_URL, min_score: 8, headers: ["Authorization"] })).toThrow(
+      /notify\[0\]\.headers must be a map/,
+    );
+  });
+
+  test("rejects invalid header names", () => {
+    expect(() =>
+      validate({ url: WEBHOOK_URL, min_score: 8, headers: { "Bad Name": "v" } }),
+    ).toThrow(/notify\[0\]\.headers has invalid header name "Bad Name"/);
+  });
+
+  test("rejects Content-Type overrides in any casing", () => {
+    expect(() =>
+      validate({ url: WEBHOOK_URL, min_score: 8, headers: { "content-type": "text/csv" } }),
+    ).toThrow(/must not set Content-Type/);
+  });
+
+  test("rejects empty and newline-carrying header values", () => {
+    expect(() => validate({ url: WEBHOOK_URL, min_score: 8, headers: { "X-Api-Key": "" } })).toThrow(
+      /notify\[0\]\.headers\.X-Api-Key must be a non-empty string/,
+    );
+    expect(() =>
+      validate({ url: WEBHOOK_URL, min_score: 8, headers: { "X-Api-Key": "a\r\nInjected: b" } }),
+    ).toThrow(/must not contain newline characters/);
+  });
 });
 
 describe("notify-format: rule identity", () => {
@@ -149,5 +230,13 @@ describe("notify-format: rule identity", () => {
     const { notifyRuleKey } = await import("./notify");
     const base: NotifyRuleConfig = { url: WEBHOOK_URL, min_score: 8 };
     expect(notifyRuleKey({ ...base, format: "ntfy" })).toBe(notifyRuleKey(base));
+  });
+
+  test("changing headers (e.g. rotating a token) does not restart the ledger", async () => {
+    const { notifyRuleKey } = await import("./notify");
+    const base: NotifyRuleConfig = { url: WEBHOOK_URL, min_score: 8 };
+    expect(notifyRuleKey({ ...base, headers: { Authorization: "Bearer new" } })).toBe(
+      notifyRuleKey(base),
+    );
   });
 });

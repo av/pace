@@ -4,7 +4,7 @@ import {
   notifyRuleLabel,
   type NotifyPayload,
 } from "./notify";
-import { renderNotifyDelivery } from "./notify-format";
+import { mergeNotifyHeaders, renderNotifyDelivery } from "./notify-format";
 import { errorMessage } from "./utils";
 
 /**
@@ -101,7 +101,7 @@ export async function runNotifyTest(
       );
       const res = await fetchImpl(rule.url, {
         method: "POST",
-        headers: delivery.headers,
+        headers: mergeNotifyHeaders(delivery.headers, rule.headers),
         body: delivery.body,
         signal: AbortSignal.timeout(NOTIFY_TIMEOUT_MS),
       });

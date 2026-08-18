@@ -320,5 +320,7 @@ layout:
 #     keywords: [rust, wasm]                # and/or: any keyword in title/body/summary (case-insensitive)
 #     panels: [tech-feed]                   # optional: restrict to these panel ids (set id: on the layout panel)
 #     format: ntfy                          # optional delivery format: json (default), ntfy, discord, slack
+#     headers:                              # optional extra HTTP headers (auth tokens etc.)
+#       Authorization: Bearer ${NTFY_TOKEN} # ${VAR} env expansion keeps secrets out of the file
 
 # see skills/pace-config/SKILL.md for the full reference (adapters, transforms, pipelines, layout, LLM config and examples).

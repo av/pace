@@ -16,6 +16,25 @@ export interface NotifyDelivery {
   headers: Record<string, string>;
 }
 
+/**
+ * Merge a rule's custom `headers` over a format preset's delivery headers.
+ * Custom headers win case-insensitively (so `x-title` replaces the ntfy
+ * preset's `X-Title`), except config validation guarantees `Content-Type`
+ * never appears among them — the preset owns the body shape.
+ */
+export function mergeNotifyHeaders(
+  preset: Record<string, string>,
+  custom: Record<string, string> | undefined,
+): Record<string, string> {
+  if (custom === undefined) return preset;
+  const merged: Record<string, string> = {};
+  const customNames = new Set(Object.keys(custom).map((name) => name.toLowerCase()));
+  for (const [name, value] of Object.entries(preset)) {
+    if (!customNames.has(name.toLowerCase())) merged[name] = value;
+  }
+  return Object.assign(merged, custom);
+}
+
 /** Discord caps message `content` at 2000 characters; stay safely under it. */
 const DISCORD_CONTENT_LIMIT = 2000;
 

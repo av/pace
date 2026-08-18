@@ -225,6 +225,9 @@
 - label: While hide-seen mode is on, the toolbar's hide-seen button shows a badge counting the seen items the mode currently hides, kept in step with every seen-state mutation and mirrored into the button's accessible label ("Show seen items (N hidden)"); the badge collapses when the mode is off or nothing is hidden, and is client-injected so static/no-JS pages never render it
   command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'hiddenCountBadge|hidden count|hidden-count'
   tags: [spec, implemented]
+- label: A notify rule's optional headers map adds custom HTTP headers (auth tokens etc.) to every webhook delivery including pace notify test, merged case-insensitively over the format preset's headers with the custom value winning; config validation rejects Content-Type overrides, invalid header-name tokens, and empty or newline-carrying values, and headers never affect matching or the notified_items ledger so rotating a token never re-notifies
+  command: bun test src/notify-format.test.ts src/cli-notify.test.ts
+  tags: [spec, implemented]
 - label: pace notify test sends a sample webhook delivery (real payload shape, marked as a test, rule criteria in the summary) to every configured notify rule or one selected by name, reports per-rule ok/failure, exits non-zero when any delivery fails, and never touches the notified_items ledger
   command: bun test src/cli-notify.test.ts
   tags: [spec, implemented]

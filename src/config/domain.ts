@@ -149,6 +149,14 @@ export interface NotifyRuleConfig {
    * Presentation only — never affects matching or the delivery ledger.
    */
   format?: "json" | "ntfy" | "discord" | "slack";
+  /**
+   * Extra HTTP headers sent with every delivery to this rule's webhook —
+   * typically auth (`Authorization: Bearer ${TOKEN}` via env expansion, ntfy
+   * access tokens, shared-secret headers). Merged over the format preset's
+   * headers; `Content-Type` stays preset-owned (rejected at validation).
+   * Transport only — never affects matching or the delivery ledger.
+   */
+  headers?: Record<string, string>;
 }
 
 export interface ServerConfig {

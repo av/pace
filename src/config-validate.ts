@@ -751,6 +751,38 @@ function validatePipelineAdapterNameCollision(
   }
 }
 
+/** RFC 7230 header-name token characters. */
+const HEADER_NAME_PATTERN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
+
+/**
+ * Validate a notify rule's optional `headers` map: header names must be valid
+ * tokens, values non-empty single-line strings (CR/LF would allow header
+ * injection), and `Content-Type` is rejected because the delivery `format`
+ * preset owns the body shape and its content type.
+ */
+function validateNotifyHeaders(headers: unknown, path: string): void {
+  if (headers === undefined) return;
+  if (!isRecord(headers)) {
+    throw new Error(`config: ${path} must be a map of header names to string values (got ${describeValue(headers)})`);
+  }
+  for (const [name, value] of Object.entries(headers)) {
+    if (!HEADER_NAME_PATTERN.test(name)) {
+      throw new Error(`config: ${path} has invalid header name ${JSON.stringify(name)}`);
+    }
+    if (name.toLowerCase() === "content-type") {
+      throw new Error(
+        `config: ${path} must not set Content-Type (the delivery format preset owns the body and its content type)`,
+      );
+    }
+    if (typeof value !== "string" || value.length === 0) {
+      throw new Error(`config: ${path}.${name} must be a non-empty string (got ${describeValue(value)})`);
+    }
+    if (/[\r\n]/.test(value)) {
+      throw new Error(`config: ${path}.${name} must not contain newline characters`);
+    }
+  }
+}
+
 export function validateNotifyConfig(
   notify: unknown,
   panelIds: Set<string>,
@@ -762,9 +794,10 @@ export function validateNotifyConfig(
     if (!isRecord(rule)) {
       throw new Error(`config: ${path} must be an object (got ${describeValue(rule)})`);
     }
-    validateAllowedKeys(rule, ["url", "name", "min_score", "keywords", "panels", "format"], (key) =>
+    validateAllowedKeys(rule, ["url", "name", "min_score", "keywords", "panels", "format", "headers"], (key) =>
       `${path}.${key} is not a valid notify rule field`,
     );
+    validateNotifyHeaders(rule.headers, `${path}.headers`);
     if (rule.format !== undefined && !NOTIFY_FORMATS.includes(rule.format as NotifyFormat)) {
       throw new Error(
         `config: ${path}.format must be one of ${NOTIFY_FORMATS.join(", ")} (got ${describeValue(rule.format)})`,

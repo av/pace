@@ -99,6 +99,17 @@ describe("runNotifyTest", () => {
     expect(stub.calls.map((c) => (c.body as { rule: string }).rule)).toEqual(["one", "two"]);
   });
 
+  test("sends the rule's custom headers, like real deliveries", async () => {
+    const seen: Record<string, string>[] = [];
+    const fetchImpl = (async (_url: unknown, init?: RequestInit) => {
+      seen.push(init?.headers as Record<string, string>);
+      return new Response("ok", { status: 200 });
+    }) as typeof fetch;
+    await runNotifyTest([rule({ headers: { Authorization: "Bearer tk_test" } })], { fetchImpl });
+    expect(seen[0]["Authorization"]).toBe("Bearer tk_test");
+    expect(seen[0]["Content-Type"]).toBe("application/json");
+  });
+
   test("reports non-2xx and thrown fetches as failures without throwing", async () => {
     const bad = fetchStub(500);
     expect((await runNotifyTest([rule()], { fetchImpl: bad.fetchImpl }))[0]).toMatchObject({
