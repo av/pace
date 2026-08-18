@@ -150,6 +150,9 @@
 - label: Pressing t on an interactive dashboard toggles between the default dark theme and a light theme by setting data-theme=light on the document root; the choice persists in localStorage under pace.theme and is restored on load, all theme colors resolve from CSS custom properties overridden by a :root[data-theme=light] block (including readable light-mode source-badge colors), and static exports and no-JS browsers keep the dark default
   command: bun test src/dashboard-keyboard.test.ts
   tags: [spec, rendering, theme-toggle, implemented]
+- label: Until t pins an explicit theme choice in localStorage, an interactive dashboard resolves its theme from the OS prefers-color-scheme preference and follows live OS appearance changes; an explicit stored light or dark choice always wins over the OS preference
+  command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'resolveTheme|parseStoredThemeChoice'
+  tags: [spec, rendering, theme-system-default, implemented]
 
 # packaging
 

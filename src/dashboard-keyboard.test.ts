@@ -17,6 +17,8 @@ import {
   THEME_STORAGE_KEY,
   parseStoredTheme,
   nextTheme,
+  parseStoredThemeChoice,
+  resolveTheme,
   SEEN_CLASS,
   panelSeenTarget,
   parseSeenKeys,
@@ -289,6 +291,33 @@ describe("nextTheme", () => {
   test("untrusted current values count as dark, so the toggle goes light", () => {
     for (const raw of [null, undefined, "", "solarized"]) {
       expect(nextTheme(raw)).toBe("light");
+    }
+  });
+});
+
+describe("parseStoredThemeChoice", () => {
+  test("accepts the literal explicit choices", () => {
+    expect(parseStoredThemeChoice("light")).toBe("light");
+    expect(parseStoredThemeChoice("dark")).toBe("dark");
+  });
+
+  test("anything else means no choice was made (null)", () => {
+    for (const raw of ["LIGHT", "Dark", "", null, undefined, 42, {}, ["light"]]) {
+      expect(parseStoredThemeChoice(raw)).toBe(null);
+    }
+  });
+});
+
+describe("resolveTheme", () => {
+  test("an explicit stored choice wins over the OS preference", () => {
+    expect(resolveTheme("light", false)).toBe("light");
+    expect(resolveTheme("dark", true)).toBe("dark");
+  });
+
+  test("without a stored choice the OS preference decides", () => {
+    for (const raw of [null, undefined, "", "solarized"]) {
+      expect(resolveTheme(raw, true)).toBe("light");
+      expect(resolveTheme(raw, false)).toBe("dark");
     }
   });
 });

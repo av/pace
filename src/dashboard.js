@@ -11,8 +11,9 @@
  * Enter activates the focused link natively (so target/rel are respected),
  * r refreshes the focused panel through its existing refresh form,
  * c collapses/expands the focused panel (persisted per panel in
- * localStorage), t toggles between the dark and light themes (persisted in
- * localStorage), x marks the focused item as seen/unseen (dimmed; persisted
+ * localStorage), t toggles between the dark and light themes (the OS
+ * prefers-color-scheme preference is followed until the first toggle, which
+ * pins an explicit choice in localStorage), x marks the focused item as seen/unseen (dimmed; persisted
  * server-side via /api/seen so it is shared across browsers), a marks the whole
  * focused panel seen (or unseen when every item already is), Shift+X hides
  * every seen item across all panels (persisted in localStorage), ? toggles a
@@ -280,7 +281,8 @@ function refreshFocusedPanel() {
   if (button) button.click();
 }
 
-/** localStorage key holding the chosen theme ("light"; absent = dark). */
+/** localStorage key holding the explicit theme choice ("light" or "dark";
+ *  absent = follow the OS prefers-color-scheme preference). */
 export const THEME_STORAGE_KEY = "pace.theme";
 
 /**
@@ -294,6 +296,26 @@ export function parseStoredTheme(raw) {
 /** The theme to switch to from `current` ("dark" <-> "light"). */
 export function nextTheme(current) {
   return parseStoredTheme(current) === "light" ? "dark" : "light";
+}
+
+/**
+ * Normalize a stored theme value into an explicit choice or null. Unlike
+ * parseStoredTheme (which collapses everything to a theme), this preserves
+ * "no choice made yet" so the OS prefers-color-scheme preference can fill in.
+ * Only the literal strings "light" and "dark" count as explicit choices.
+ */
+export function parseStoredThemeChoice(raw) {
+  return raw === "light" || raw === "dark" ? raw : null;
+}
+
+/**
+ * Resolve the theme to render: an explicit stored choice wins; otherwise the
+ * OS preference decides (systemPrefersLight true -> "light", else "dark").
+ */
+export function resolveTheme(storedChoice, systemPrefersLight) {
+  const choice = parseStoredThemeChoice(storedChoice);
+  if (choice) return choice;
+  return systemPrefersLight ? "light" : "dark";
 }
 
 /* ------------------------------------------------------------------ */
@@ -363,15 +385,31 @@ function togglePanelCollapsed(panel) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Theme toggle (toggled with "t", persisted in localStorage)          */
+/* Theme toggle (toggled with "t", persisted in localStorage; follows   */
+/* the OS prefers-color-scheme preference until the first toggle)       */
 /* ------------------------------------------------------------------ */
 
-function readTheme() {
+/** The stored explicit choice, or null when the OS preference should decide. */
+function readThemeChoice() {
   try {
-    return parseStoredTheme(window.localStorage.getItem(THEME_STORAGE_KEY));
+    return parseStoredThemeChoice(window.localStorage.getItem(THEME_STORAGE_KEY));
   } catch {
-    return "dark"; // storage disabled (private mode, embedded webview)
+    return null; // storage disabled (private mode, embedded webview)
   }
+}
+
+/** The (prefers-color-scheme: light) media query, or null when unsupported. */
+function lightSchemeQuery() {
+  try {
+    return window.matchMedia("(prefers-color-scheme: light)");
+  } catch {
+    return null;
+  }
+}
+
+function systemPrefersLight() {
+  const query = lightSchemeQuery();
+  return query ? query.matches : false;
 }
 
 function applyTheme(theme) {
@@ -380,20 +418,32 @@ function applyTheme(theme) {
 }
 
 function toggleTheme() {
-  const theme = nextTheme(readTheme());
+  const theme = nextTheme(resolveTheme(readThemeChoice(), systemPrefersLight()));
   applyTheme(theme);
   try {
-    if (theme === "light") window.localStorage.setItem(THEME_STORAGE_KEY, theme);
-    else window.localStorage.removeItem(THEME_STORAGE_KEY);
+    // Store the choice explicitly (including "dark") so it keeps winning
+    // over the OS preference on future visits.
+    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
   } catch {
     // Storage unavailable: the toggle still works, it just won't persist.
   }
 }
 
-/** Re-apply the persisted theme choice to the freshly rendered page. */
+/**
+ * Apply the persisted explicit choice, or follow the OS preference (live —
+ * flipping the OS between light and dark retints an open dashboard) until
+ * the first "t" toggle pins one.
+ */
 function restoreTheme() {
-  const theme = readTheme();
-  if (theme !== "dark") applyTheme(theme);
+  const choice = readThemeChoice();
+  applyTheme(resolveTheme(choice, systemPrefersLight()));
+  if (choice) return;
+  const query = lightSchemeQuery();
+  if (query && typeof query.addEventListener === "function") {
+    query.addEventListener("change", (event) => {
+      if (readThemeChoice() === null) applyTheme(event.matches ? "light" : "dark");
+    });
+  }
 }
 
 /* ------------------------------------------------------------------ */

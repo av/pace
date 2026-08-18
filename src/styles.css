@@ -27,7 +27,8 @@
 }
 
 /* Light theme — toggled with "t" (dashboard.js sets data-theme="light" on
-   <html> and persists the choice in localStorage under pace.theme). Every
+   <html>; the OS prefers-color-scheme preference is followed until the first
+   toggle pins an explicit choice in localStorage under pace.theme). Every
    color below shadows a dark token above; static/no-JS pages stay dark. */
 :root[data-theme='light'] {
   --bg-base: #f4f4f2;
