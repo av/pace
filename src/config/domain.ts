@@ -142,6 +142,13 @@ export interface NotifyRuleConfig {
   keywords?: string[];
   /** Restrict the rule to these panel ids (default: every refreshed panel). */
   panels?: string[];
+  /**
+   * Delivery format preset: raw "json" payload (default), or a body shaped
+   * for "ntfy" (plain text + title/click headers), "discord" (webhook
+   * `content` markdown), or "slack" (incoming-webhook `text` mrkdwn).
+   * Presentation only — never affects matching or the delivery ledger.
+   */
+  format?: "json" | "ntfy" | "discord" | "slack";
 }
 
 export interface ServerConfig {

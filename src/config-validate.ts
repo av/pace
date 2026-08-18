@@ -15,6 +15,7 @@ import {
   type ServerConfig,
 } from "./config/types";
 import { warnConfig } from "./config-warn";
+import { NOTIFY_FORMATS, type NotifyFormat } from "./notify-format";
 import { validateTransforms } from "./transform-validate";
 import { getAdapterName, simpleHash, slugify } from "./utils";
 import {
@@ -761,9 +762,14 @@ export function validateNotifyConfig(
     if (!isRecord(rule)) {
       throw new Error(`config: ${path} must be an object (got ${describeValue(rule)})`);
     }
-    validateAllowedKeys(rule, ["url", "name", "min_score", "keywords", "panels"], (key) =>
+    validateAllowedKeys(rule, ["url", "name", "min_score", "keywords", "panels", "format"], (key) =>
       `${path}.${key} is not a valid notify rule field`,
     );
+    if (rule.format !== undefined && !NOTIFY_FORMATS.includes(rule.format as NotifyFormat)) {
+      throw new Error(
+        `config: ${path}.format must be one of ${NOTIFY_FORMATS.join(", ")} (got ${describeValue(rule.format)})`,
+      );
+    }
     validateSafeUrl(rule.url, `${path}.url`);
     validateOptionalNonEmptyString(rule.name, `${path}.name`);
     if (rule.min_score !== undefined) {

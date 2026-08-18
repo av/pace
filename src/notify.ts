@@ -6,6 +6,7 @@ import {
   markKeysNotified,
   type ContentItemRow,
 } from "./db";
+import { renderNotifyDelivery } from "./notify-format";
 import { logNotify, warnNotifyDeliveryFailure } from "./notify-warn";
 import { compareIsoTimestamp } from "./utils";
 
@@ -39,8 +40,9 @@ export function notifyRuleLabel(rule: NotifyRuleConfig): string {
 
 /**
  * Stable ledger identity for a rule: url plus criteria (NOT the display
- * name), so renaming a rule never re-notifies but changing what it matches
- * (or where it points) starts a fresh ledger.
+ * name or delivery `format` — those only change presentation), so renaming or
+ * reformatting a rule never re-notifies but changing what it matches (or
+ * where it points) starts a fresh ledger.
  */
 export function notifyRuleKey(rule: NotifyRuleConfig): string {
   return JSON.stringify({
@@ -139,10 +141,11 @@ export async function runNotifyRules(
         rule,
         newKeys.map((key) => matchesByKey.get(key)!),
       );
+      const delivery = renderNotifyDelivery(rule.format ?? "json", payload);
       const res = await fetchImpl(rule.url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        headers: delivery.headers,
+        body: delivery.body,
         signal: AbortSignal.timeout(NOTIFY_TIMEOUT_MS),
       });
       if (!res.ok) {

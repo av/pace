@@ -213,6 +213,9 @@
 - label: The interactive dashboard's / filter bar shows an RSS subscribe link whenever the query has terms, pointing at /api/search.rss?q= for the normalized terms (base_path respected); the link hides when the query is empty and the bar (including the link) is client-injected so servers and static exports never render it
   command: bun test src/dashboard-keyboard.test.ts
   tags: [spec, implemented]
+- label: A notify rule's optional format field renders deliveries for a service preset - ntfy (plain text plus X-Title/X-Click headers), discord (webhook markdown content capped under 2000 chars by folding overflow into an and-N-more line), slack (incoming-webhook mrkdwn with links), or the default raw json payload - with per-service escaping, config-check validation of the preset name, pace notify test honoring it, and no effect on matching or the notified_items ledger
+  command: bun test src/notify-format.test.ts
+  tags: [spec, implemented]
 - label: pace notify test sends a sample webhook delivery (real payload shape, marked as a test, rule criteria in the summary) to every configured notify rule or one selected by name, reports per-rule ok/failure, exits non-zero when any delivery fails, and never touches the notified_items ledger
   command: bun test src/cli-notify.test.ts
   tags: [spec, implemented]

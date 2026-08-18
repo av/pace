@@ -319,5 +319,6 @@ layout:
 #     min_score: 8                          # only items ranked at/above this (llm-rank / keyword-score)
 #     keywords: [rust, wasm]                # and/or: any keyword in title/body/summary (case-insensitive)
 #     panels: [tech-feed]                   # optional: restrict to these panel ids (set id: on the layout panel)
+#     format: ntfy                          # optional delivery format: json (default), ntfy, discord, slack
 
 # see skills/pace-config/SKILL.md for the full reference (adapters, transforms, pipelines, layout, LLM config and examples).

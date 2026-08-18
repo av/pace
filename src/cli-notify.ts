@@ -4,6 +4,7 @@ import {
   notifyRuleLabel,
   type NotifyPayload,
 } from "./notify";
+import { renderNotifyDelivery } from "./notify-format";
 import { errorMessage } from "./utils";
 
 /**
@@ -94,10 +95,14 @@ export async function runNotifyTest(
   for (const rule of rules) {
     const label = notifyRuleLabel(rule);
     try {
+      const delivery = renderNotifyDelivery(
+        rule.format ?? "json",
+        buildNotifyTestPayload(rule, deps.now),
+      );
       const res = await fetchImpl(rule.url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildNotifyTestPayload(rule, deps.now)),
+        headers: delivery.headers,
+        body: delivery.body,
         signal: AbortSignal.timeout(NOTIFY_TIMEOUT_MS),
       });
       results.push({
@@ -139,7 +144,8 @@ export function formatNotifyUsage(): string {
 Sends a sample webhook delivery to every configured notify rule (or only the
 rule whose name matches [rule]) so you can verify endpoints receive pace
 payloads before a real high-signal item arrives. The sample uses the exact
-payload shape of real deliveries, marked as a test in its title and summary,
+payload shape and format preset of real deliveries (each rule's \`format\`:
+json, ntfy, discord, or slack), marked as a test in its title and summary,
 and never touches the delivery ledger. Exits non-zero when any delivery fails.
 
 Options:
