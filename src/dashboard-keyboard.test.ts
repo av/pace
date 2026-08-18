@@ -10,6 +10,9 @@ import {
   moveIndex,
   parseFilterQuery,
   shouldIgnoreKeydown,
+  COLLAPSE_STORAGE_KEY,
+  parseStoredPanelIds,
+  togglePanelId,
 } from "./dashboard.js";
 import { renderDashboard, type PanelData } from "./layout";
 import { normalizeBasePath } from "./config/domain";
@@ -165,10 +168,67 @@ describe("itemMatchesFilter", () => {
   });
 });
 
+describe("parseStoredPanelIds", () => {
+  test("parses a JSON array of non-empty strings", () => {
+    expect(parseStoredPanelIds('["news","github"]')).toEqual(["news", "github"]);
+  });
+
+  test("drops non-string and empty entries", () => {
+    expect(parseStoredPanelIds('["news",42,null,"",["x"],"dev"]')).toEqual(["news", "dev"]);
+  });
+
+  test("malformed JSON, non-arrays, and non-strings yield no ids", () => {
+    expect(parseStoredPanelIds("not json")).toEqual([]);
+    expect(parseStoredPanelIds('{"a":1}')).toEqual([]);
+    expect(parseStoredPanelIds('"news"')).toEqual([]);
+    expect(parseStoredPanelIds("")).toEqual([]);
+    expect(parseStoredPanelIds(null)).toEqual([]);
+    expect(parseStoredPanelIds(undefined)).toEqual([]);
+    expect(parseStoredPanelIds(42)).toEqual([]);
+  });
+});
+
+describe("togglePanelId", () => {
+  test("adds an absent id and removes a present one", () => {
+    expect(togglePanelId([], "news")).toEqual(["news"]);
+    expect(togglePanelId(["news"], "dev")).toEqual(["news", "dev"]);
+    expect(togglePanelId(["news", "dev"], "news")).toEqual(["dev"]);
+  });
+
+  test("does not mutate the input list", () => {
+    const ids = ["news"];
+    togglePanelId(ids, "dev");
+    togglePanelId(ids, "news");
+    expect(ids).toEqual(["news"]);
+  });
+
+  test("invalid ids leave the (sanitized) list unchanged", () => {
+    expect(togglePanelId(["news"], "")).toEqual(["news"]);
+    expect(togglePanelId(["news"], undefined)).toEqual(["news"]);
+    expect(togglePanelId(["news", 42, ""], null)).toEqual(["news"]);
+  });
+
+  test("non-array input is treated as an empty list", () => {
+    expect(togglePanelId(undefined, "news")).toEqual(["news"]);
+    expect(togglePanelId("junk", "news")).toEqual(["news"]);
+  });
+
+  test("round-trips with parseStoredPanelIds through JSON", () => {
+    const stored = JSON.stringify(togglePanelId(togglePanelId([], "a"), "b"));
+    expect(parseStoredPanelIds(stored)).toEqual(["a", "b"]);
+  });
+});
+
+describe("COLLAPSE_STORAGE_KEY", () => {
+  test("is a stable, namespaced localStorage key", () => {
+    expect(COLLAPSE_STORAGE_KEY).toBe("pace.collapsed-panels");
+  });
+});
+
 describe("HELP_ROWS", () => {
   test("documents every advertised shortcut", () => {
     const keys = HELP_ROWS.map(([k]) => k).join(" ");
-    for (const fragment of ["j / k", "h / l", "Tab", "Enter", "r", "/", "?", "Esc"]) {
+    for (const fragment of ["j / k", "h / l", "Tab", "Enter", "r", "c", "/", "?", "Esc"]) {
       expect(keys).toContain(fragment);
     }
     for (const [, description] of HELP_ROWS) {
@@ -203,6 +263,23 @@ describe("dashboard keyboard script tag", () => {
     const html = renderModeDashboard("static");
     expect(html).not.toContain("dashboard.js");
     expect(html).not.toContain("<script");
+  });
+});
+
+describe("panel collapse markup", () => {
+  test("panels carry a data-panel-id for the persisted collapse state", () => {
+    const html = renderModeDashboard("interactive");
+    const attr = html.match(/class="panel" data-panel-id="([^"]+)"/);
+    expect(attr).not.toBeNull();
+    // The attribute carries the same resolved panel id the refresh route uses.
+    const refresh = html.match(/action="\/refresh\/([^"]+)"/);
+    expect(attr![1]).toBe(refresh![1]!);
+  });
+
+  test("no panel is server-rendered collapsed (collapse is client state only)", () => {
+    for (const mode of ["interactive", "static"] as const) {
+      expect(renderModeDashboard(mode)).not.toContain("panel-collapsed");
+    }
   });
 });
 
@@ -285,6 +362,17 @@ describe("keyboard navigation CSS", () => {
     expect(STYLES).toContain(".item-filter-input");
     expect(STYLES).toContain(".item-filter-count");
     expect(STYLES).toContain(".panel.filter-no-match");
+  });
+
+  test("collapsed panels hide the body, counter grid, and fade gradient", () => {
+    const rule = STYLES.match(/\.panel\.panel-collapsed[^{]*\{([^}]*)\}/s);
+    expect(rule).not.toBeNull();
+    const start = STYLES.indexOf(".panel.panel-collapsed");
+    const selector = STYLES.slice(start, STYLES.indexOf("{", start));
+    expect(selector).toContain(".panel.panel-collapsed .panel-body");
+    expect(selector).toContain(".panel.panel-collapsed .counter-panel");
+    expect(selector).toContain(".panel.panel-collapsed::after");
+    expect(rule![1]).toContain("display: none");
   });
 
   test("overlay adds no animation or transition (nothing new for reduced motion to disable)", () => {

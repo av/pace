@@ -144,6 +144,9 @@
 - label: At phone widths, deeply nested Layout containers and Panels stack at natural height with page-level vertical scrolling so every populated Panel and the footer are reachable; desktop retains its fixed-height canvas and internal Panel scrolling
   command: bun test src/mobile-nested-layout-styles.test.ts
   tags: [spec, implemented, mobile-page-scroll]
+- label: Pressing c on an interactive dashboard collapses the focused panel to its header row and expands it again; collapsed panel ids persist in localStorage under pace.collapsed-panels (keyed by the panel's data-panel-id) and are restored on load, panel navigation still reaches a collapsed panel via its refresh button, and static exports and no-JS browsers are unaffected
+  command: bun test src/dashboard-keyboard.test.ts
+  tags: [spec, rendering, panel-collapse, implemented]
 
 # packaging
 

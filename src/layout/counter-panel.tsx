@@ -180,7 +180,7 @@ export const CounterPanel: FC<{ node: PanelConfig; panelData: Map<string, PanelD
 
   return (
     <div class="flex-panel" style={flexStyle(node.flex)}>
-      <div class="panel">
+      <div class="panel" data-panel-id={panelId}>
         <PanelHeader
           title={node.panel}
           panelId={panelId}

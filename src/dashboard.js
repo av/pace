@@ -9,9 +9,11 @@
  * Keys (see HELP_ROWS): j/k or Up/Down move item focus within a panel,
  * h/l or Left/Right jump between panels (Tab keeps its native behavior),
  * Enter activates the focused link natively (so target/rel are respected),
- * r refreshes the focused panel through its existing refresh form, and
- * ? toggles a small help overlay (Escape closes it), and / opens a filter
- * bar that live-filters items across all panels (Escape clears and closes).
+ * r refreshes the focused panel through its existing refresh form,
+ * c collapses/expands the focused panel (persisted per panel in
+ * localStorage), ? toggles a small help overlay (Escape closes it), and
+ * / opens a filter bar that live-filters items across all panels
+ * (Escape clears and closes).
  *
  * Pure helpers are exported so the test suite can unit-test them without a
  * DOM; the event wiring at the bottom only runs in a real browser.
@@ -76,6 +78,7 @@ export const HELP_ROWS = [
   ["Tab", "Move through links and buttons"],
   ["Enter", "Open the focused item"],
   ["r", "Refresh the focused panel"],
+  ["c", "Collapse or expand the focused panel"],
   ["/", "Filter items across panels"],
   ["?", "Show or hide this help"],
   ["Esc", "Close this help"],
@@ -101,6 +104,38 @@ export function itemMatchesFilter(terms, text) {
   return terms.every((term) => haystack.includes(String(term).toLowerCase()));
 }
 
+/** localStorage key holding the JSON array of collapsed panel ids. */
+export const COLLAPSE_STORAGE_KEY = "pace.collapsed-panels";
+
+/**
+ * Parse the stored collapsed-panel list. localStorage contents are untrusted
+ * (another tab, an old version, manual edits), so anything that is not a
+ * JSON array yields [], and non-string / empty entries are dropped.
+ */
+export function parseStoredPanelIds(raw) {
+  if (typeof raw !== "string" || raw.length === 0) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((id) => typeof id === "string" && id.length > 0);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Return a new list with `id` removed if present, appended otherwise.
+ * Invalid ids (non-strings, "") leave the list unchanged so a panel without
+ * a data-panel-id can never pollute the stored state.
+ */
+export function togglePanelId(ids, id) {
+  const list = Array.isArray(ids)
+    ? ids.filter((entry) => typeof entry === "string" && entry.length > 0)
+    : [];
+  if (typeof id !== "string" || id.length === 0) return list;
+  return list.includes(id) ? list.filter((entry) => entry !== id) : [...list, id];
+}
+
 /* ------------------------------------------------------------------ */
 /* DOM wiring (browser only)                                          */
 /* ------------------------------------------------------------------ */
@@ -111,6 +146,12 @@ function reducedMotion() {
 
 /** Focusable targets inside a panel: visible item links, else its refresh button. */
 function focusTargets(panel) {
+  if (panel.classList.contains("panel-collapsed")) {
+    // A collapsed panel keeps exactly one target (its refresh button) so
+    // h/l can still land on it and "c" can expand it again.
+    const refresh = panel.querySelector(".refresh-btn");
+    return refresh ? [refresh] : [];
+  }
   const links = Array.from(panel.querySelectorAll(".panel-body .item-title a")).filter(
     (link) => {
       const item = link.closest ? link.closest(".item") : null;
@@ -173,6 +214,59 @@ function refreshFocusedPanel() {
   const panel = active && active.closest ? active.closest(".panel") : null;
   const button = panel ? panel.querySelector(".refresh-btn") : null;
   if (button) button.click();
+}
+
+/* ------------------------------------------------------------------ */
+/* Panel collapse (toggled with "c", persisted in localStorage)        */
+/* ------------------------------------------------------------------ */
+
+function readCollapsedIds() {
+  try {
+    return parseStoredPanelIds(window.localStorage.getItem(COLLAPSE_STORAGE_KEY));
+  } catch {
+    return []; // storage disabled (private mode, embedded webview)
+  }
+}
+
+function writeCollapsedIds(ids) {
+  try {
+    if (ids.length === 0) window.localStorage.removeItem(COLLAPSE_STORAGE_KEY);
+    else window.localStorage.setItem(COLLAPSE_STORAGE_KEY, JSON.stringify(ids));
+  } catch {
+    // Storage unavailable: collapse still works, it just won't persist.
+  }
+}
+
+function setPanelCollapsed(panel, collapsed) {
+  panel.classList.toggle("panel-collapsed", collapsed);
+}
+
+/** Re-apply the persisted collapsed state to the freshly rendered page. */
+function restoreCollapsedPanels() {
+  const ids = readCollapsedIds();
+  if (ids.length === 0) return;
+  for (const panel of document.querySelectorAll(".panel[data-panel-id]")) {
+    if (ids.includes(panel.getAttribute("data-panel-id"))) {
+      setPanelCollapsed(panel, true);
+    }
+  }
+}
+
+/** Collapse/expand the panel containing focus and persist the change. */
+function toggleFocusedPanel() {
+  const active = document.activeElement;
+  const panel = active && active.closest ? active.closest(".panel") : null;
+  if (!panel) return;
+  const collapsed = !panel.classList.contains("panel-collapsed");
+  setPanelCollapsed(panel, collapsed);
+  const id = panel.getAttribute("data-panel-id");
+  if (id) writeCollapsedIds(togglePanelId(readCollapsedIds(), id));
+  if (collapsed) {
+    // Focus was inside the now-hidden body; move it to the panel's one
+    // remaining target so keyboard navigation doesn't fall off the page.
+    const target = focusTargets(panel)[0];
+    if (target) target.focus({ preventScroll: true });
+  }
 }
 
 let helpEl = null;
@@ -356,6 +450,10 @@ function onKeydown(event) {
     refreshFocusedPanel();
     return;
   }
+  if (event.key === "c" && !event.shiftKey) {
+    toggleFocusedPanel();
+    return;
+  }
 
   const move = keyMove(event.key);
   if (move === null || event.shiftKey) return;
@@ -364,4 +462,5 @@ function onKeydown(event) {
 
 if (typeof document !== "undefined" && typeof window !== "undefined") {
   document.addEventListener("keydown", onKeydown);
+  restoreCollapsedPanels();
 }

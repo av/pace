@@ -135,7 +135,7 @@ export const Panel: FC<{ node: PanelConfig; panelData: Map<string, PanelData>; m
 
   return (
     <div class="flex-panel" style={flexStyle(node.flex)}>
-      <div class="panel">
+      <div class="panel" data-panel-id={panelId}>
         <PanelHeader
           title={node.panel}
           panelId={panelId}

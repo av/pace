@@ -864,6 +864,16 @@ a:hover {
   opacity: 0.45;
 }
 
+/* Collapsed panels (keyboard "c"; state persisted in localStorage by
+   dashboard.js). The header row stays so the panel remains identifiable
+   and its refresh button focusable; the body and the bottom fade-out
+   gradient are hidden. */
+.panel.panel-collapsed .panel-body,
+.panel.panel-collapsed .counter-panel,
+.panel.panel-collapsed::after {
+  display: none;
+}
+
 /* Users with vestibular disorders opt out of motion at the OS level; the
    infinite iframe-loading stripe animation in particular must respect that.
    (dashboard.js separately swaps smooth focus scrolling for instant.) */
