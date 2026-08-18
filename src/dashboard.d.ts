@@ -22,3 +22,5 @@ export declare function shouldIgnoreKeydown(event: KeydownLike): boolean;
 export declare const KEY_MOVES: Record<string, KeyMove>;
 export declare function keyMove(key: string): KeyMove | null;
 export declare const HELP_ROWS: ReadonlyArray<readonly [string, string]>;
+export declare function parseFilterQuery(raw: unknown): string[];
+export declare function itemMatchesFilter(terms: readonly string[], text: unknown): boolean;

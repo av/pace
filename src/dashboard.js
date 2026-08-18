@@ -10,7 +10,8 @@
  * h/l or Left/Right jump between panels (Tab keeps its native behavior),
  * Enter activates the focused link natively (so target/rel are respected),
  * r refreshes the focused panel through its existing refresh form, and
- * ? toggles a small help overlay (Escape closes it).
+ * ? toggles a small help overlay (Escape closes it), and / opens a filter
+ * bar that live-filters items across all panels (Escape clears and closes).
  *
  * Pure helpers are exported so the test suite can unit-test them without a
  * DOM; the event wiring at the bottom only runs in a real browser.
@@ -75,9 +76,30 @@ export const HELP_ROWS = [
   ["Tab", "Move through links and buttons"],
   ["Enter", "Open the focused item"],
   ["r", "Refresh the focused panel"],
+  ["/", "Filter items across panels"],
   ["?", "Show or hide this help"],
   ["Esc", "Close this help"],
 ];
+
+/**
+ * Split a raw filter query into lowercase search terms. Non-strings (a
+ * detached input, undefined value) yield no terms, i.e. "match everything".
+ */
+export function parseFilterQuery(raw) {
+  if (typeof raw !== "string") return [];
+  return raw.toLowerCase().split(/\s+/).filter((term) => term.length > 0);
+}
+
+/**
+ * True when every term occurs in the item text (case-insensitive AND).
+ * An empty term list matches everything, so clearing the input restores all
+ * items without a special case at the call site.
+ */
+export function itemMatchesFilter(terms, text) {
+  if (!Array.isArray(terms) || terms.length === 0) return true;
+  const haystack = String(text ?? "").toLowerCase();
+  return terms.every((term) => haystack.includes(String(term).toLowerCase()));
+}
 
 /* ------------------------------------------------------------------ */
 /* DOM wiring (browser only)                                          */
@@ -87,9 +109,14 @@ function reducedMotion() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-/** Focusable targets inside a panel: item links, else its refresh button. */
+/** Focusable targets inside a panel: visible item links, else its refresh button. */
 function focusTargets(panel) {
-  const links = Array.from(panel.querySelectorAll(".panel-body .item-title a"));
+  const links = Array.from(panel.querySelectorAll(".panel-body .item-title a")).filter(
+    (link) => {
+      const item = link.closest ? link.closest(".item") : null;
+      return !(item && item.hidden);
+    },
+  );
   if (links.length > 0) return links;
   const refresh = panel.querySelector(".refresh-btn");
   return refresh ? [refresh] : [];
@@ -209,9 +236,106 @@ function closeHelp() {
   helpReturnFocus = null;
 }
 
+/* ------------------------------------------------------------------ */
+/* Item filter bar (toggled with "/")                                  */
+/* ------------------------------------------------------------------ */
+
+let filterEl = null;
+let filterInput = null;
+let filterCount = null;
+let filterReturnFocus = null;
+
+/** Hide/show items to match the query; dim panels left with no matches. */
+function applyFilter(raw) {
+  const terms = parseFilterQuery(raw);
+  let visible = 0;
+  let total = 0;
+  for (const item of document.querySelectorAll(".panel-body .item")) {
+    total += 1;
+    const match = itemMatchesFilter(terms, item.textContent);
+    item.hidden = !match;
+    if (match) visible += 1;
+  }
+  for (const panel of document.querySelectorAll(".panel")) {
+    const items = panel.querySelectorAll(".panel-body .item");
+    const anyVisible = Array.from(items).some((item) => !item.hidden);
+    panel.classList.toggle("filter-no-match", items.length > 0 && !anyVisible);
+  }
+  if (filterCount) {
+    filterCount.textContent = terms.length === 0 ? "" : `${visible} / ${total}`;
+  }
+}
+
+function buildFilterBar() {
+  const bar = document.createElement("div");
+  bar.className = "item-filter";
+  bar.setAttribute("role", "search");
+  bar.hidden = true;
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "item-filter-input";
+  input.placeholder = "Filter items…";
+  input.setAttribute("aria-label", "Filter items across panels");
+  input.addEventListener("input", () => applyFilter(input.value));
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeFilter();
+      event.preventDefault();
+      event.stopPropagation();
+    } else if (event.key === "Enter") {
+      // Jump to the first visible match; the filter stays applied.
+      const panels = navigablePanels();
+      const firstLink = panels
+        .map((panel) => focusTargets(panel)[0])
+        .find((target) => target && target.matches && target.matches(".item-title a"));
+      if (firstLink) focusElement(firstLink);
+      event.preventDefault();
+    }
+  });
+  bar.appendChild(input);
+
+  const count = document.createElement("span");
+  count.className = "item-filter-count";
+  count.setAttribute("aria-live", "polite");
+  bar.appendChild(count);
+
+  document.body.appendChild(bar);
+  filterInput = input;
+  filterCount = count;
+  return bar;
+}
+
+function filterOpen() {
+  return filterEl !== null && !filterEl.hidden;
+}
+
+function openFilter() {
+  if (filterEl === null) filterEl = buildFilterBar();
+  filterReturnFocus = document.activeElement;
+  filterEl.hidden = false;
+  filterInput.focus();
+  filterInput.select();
+}
+
+/** Close the bar and clear the filter so every item is visible again. */
+function closeFilter() {
+  if (!filterOpen()) return;
+  filterInput.value = "";
+  applyFilter("");
+  filterEl.hidden = true;
+  if (filterReturnFocus && filterReturnFocus.isConnected) filterReturnFocus.focus();
+  filterReturnFocus = null;
+}
+
 function onKeydown(event) {
   if (shouldIgnoreKeydown(event)) return;
 
+  if (event.key === "/") {
+    openFilter();
+    event.preventDefault();
+    return;
+  }
   if (event.key === "?") {
     if (helpOpen()) closeHelp();
     else openHelp();
@@ -221,6 +345,9 @@ function onKeydown(event) {
   if (event.key === "Escape") {
     if (helpOpen()) {
       closeHelp();
+      event.preventDefault();
+    } else if (filterOpen()) {
+      closeFilter();
       event.preventDefault();
     }
     return;

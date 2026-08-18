@@ -811,6 +811,59 @@ a:hover {
   color: var(--text-primary);
 }
 
+/* Item filter bar (created lazily by dashboard.js; toggled with "/").
+   Filtered-out items get the hidden attribute; panels whose every item is
+   filtered out are dimmed rather than removed so the layout stays stable. */
+.item-filter {
+  position: fixed;
+  top: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+}
+
+.item-filter[hidden] {
+  display: none;
+}
+
+.item-filter-input {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  padding: 0.25rem 0.5rem;
+  width: min(60vw, 18rem);
+}
+
+.item-filter-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.item-filter-count {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.item[hidden] {
+  display: none;
+}
+
+.panel.filter-no-match {
+  opacity: 0.45;
+}
+
 /* Users with vestibular disorders opt out of motion at the OS level; the
    infinite iframe-loading stripe animation in particular must respect that.
    (dashboard.js separately swaps smooth focus scrolling for instant.) */

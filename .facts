@@ -4,6 +4,7 @@
 - label: rendering > counter panel stat cards scale gracefully at narrow widths (single-card panels shrink content instead of overflowing or warping layout)
   command: grep -q "minmax(min(100%, 140px), 1fr)" src/styles.css && grep -q "clamp(1rem, 6cqi, 1.75rem)" src/styles.css && bun test src/panel-layout-styles.test.ts --test-name-pattern "counter panel narrow-width"
   tags: [spec, implemented]
+- Pressing / on an interactive dashboard opens a filter bar that live-filters items across all panels by case-insensitive AND of whitespace-separated terms; Escape clears the filter and closes the bar, Enter jumps to the first visible match, panels with no matches are dimmed, and keyboard item navigation skips filtered-out items. Progressive enhancement only: static exports and no-JS browsers are unaffected. @spec @rendering @item-filter @implemented
 
 # config
 

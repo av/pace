@@ -319,6 +319,7 @@ The dashboard can be driven entirely from the keyboard; pressing `?` on a runnin
 | `Tab` | Move through links and buttons |
 | `Enter` | Open the focused item |
 | `r` | Refresh the focused panel |
+| `/` | Filter items across panels |
 | `?` | Show or hide the help overlay |
 | `Esc` | Close the help overlay |
 

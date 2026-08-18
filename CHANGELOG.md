@@ -4,6 +4,10 @@ Notable changes per release, newest first. Also published as [GitHub releases](h
 
 ## Unreleased
 
+### New features
+
+- **Dashboard item filter** — pressing `/` opens a filter bar that live-filters items across every panel (case-insensitive, all terms must match). `Enter` jumps to the first match, `Escape` clears and closes, panels with no matches are dimmed, and `j`/`k` navigation skips filtered-out items. Same dependency-free progressive-enhancement module as keyboard navigation; static exports and no-JS browsers are unaffected.
+
 ### Documentation
 
 - AGENTS.md CLI reference now lists `pace doctor` and `pace import <feeds.opml>`, which were missing.

@@ -5,8 +5,10 @@ import {
   HELP_ROWS,
   KEY_MOVES,
   isTypingTarget,
+  itemMatchesFilter,
   keyMove,
   moveIndex,
+  parseFilterQuery,
   shouldIgnoreKeydown,
 } from "./dashboard.js";
 import { renderDashboard, type PanelData } from "./layout";
@@ -124,10 +126,49 @@ describe("keyMove", () => {
   });
 });
 
+describe("parseFilterQuery", () => {
+  test("splits on whitespace and lowercases", () => {
+    expect(parseFilterQuery("Rust WASM")).toEqual(["rust", "wasm"]);
+    expect(parseFilterQuery("  llama\t cpp \n")).toEqual(["llama", "cpp"]);
+  });
+
+  test("empty or non-string input yields no terms", () => {
+    expect(parseFilterQuery("")).toEqual([]);
+    expect(parseFilterQuery("   ")).toEqual([]);
+    expect(parseFilterQuery(undefined)).toEqual([]);
+    expect(parseFilterQuery(null)).toEqual([]);
+    expect(parseFilterQuery(42)).toEqual([]);
+  });
+});
+
+describe("itemMatchesFilter", () => {
+  test("no terms matches everything (clearing the input restores all items)", () => {
+    expect(itemMatchesFilter([], "anything")).toBe(true);
+    expect(itemMatchesFilter([], "")).toBe(true);
+  });
+
+  test("all terms must appear, case-insensitively (AND semantics)", () => {
+    const text = "Show HN: A Rust-based WASM runtime";
+    expect(itemMatchesFilter(["rust", "wasm"], text)).toBe(true);
+    expect(itemMatchesFilter(["rust", "python"], text)).toBe(false);
+    expect(itemMatchesFilter(["RUST"], text.toLowerCase())).toBe(true);
+  });
+
+  test("missing or non-string text never matches a non-empty query", () => {
+    expect(itemMatchesFilter(["rust"], undefined)).toBe(false);
+    expect(itemMatchesFilter(["rust"], null)).toBe(false);
+  });
+
+  test("round-trips with parseFilterQuery", () => {
+    expect(itemMatchesFilter(parseFilterQuery("GPU cluster"), "New GPU cluster benchmarks")).toBe(true);
+    expect(itemMatchesFilter(parseFilterQuery("GPU cluster"), "CPU cluster benchmarks")).toBe(false);
+  });
+});
+
 describe("HELP_ROWS", () => {
   test("documents every advertised shortcut", () => {
     const keys = HELP_ROWS.map(([k]) => k).join(" ");
-    for (const fragment of ["j / k", "h / l", "Tab", "Enter", "r", "?", "Esc"]) {
+    for (const fragment of ["j / k", "h / l", "Tab", "Enter", "r", "/", "?", "Esc"]) {
       expect(keys).toContain(fragment);
     }
     for (const [, description] of HELP_ROWS) {
@@ -225,6 +266,25 @@ describe("keyboard navigation CSS", () => {
 
     expect(STYLES).toContain(".kbd-help kbd");
     expect(STYLES).toContain(".kbd-help-close");
+  });
+
+  test("filter bar is styled, hidden by [hidden], and filtered items collapse", () => {
+    const bar = STYLES.match(/\n\.item-filter\s*\{([^}]*)\}/s);
+    expect(bar).not.toBeNull();
+    expect(bar![1]).toContain("position: fixed");
+    expect(bar![1]).toContain("var(--bg-elevated)");
+
+    const hiddenBar = STYLES.match(/\.item-filter\[hidden\]\s*\{([^}]*)\}/s);
+    expect(hiddenBar).not.toBeNull();
+    expect(hiddenBar![1]).toContain("display: none");
+
+    const hiddenItem = STYLES.match(/\.item\[hidden\]\s*\{([^}]*)\}/s);
+    expect(hiddenItem).not.toBeNull();
+    expect(hiddenItem![1]).toContain("display: none");
+
+    expect(STYLES).toContain(".item-filter-input");
+    expect(STYLES).toContain(".item-filter-count");
+    expect(STYLES).toContain(".panel.filter-no-match");
   });
 
   test("overlay adds no animation or transition (nothing new for reduced motion to disable)", () => {
