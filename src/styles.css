@@ -965,6 +965,25 @@ html.hide-seen .panel.all-seen {
   white-space: nowrap;
 }
 
+/* Saved-search feed link in the filter bar (hidden while the query is
+   empty); points at /api/search.rss for the current query. */
+.item-filter-subscribe {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--accent);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.item-filter-subscribe:hover,
+.item-filter-subscribe:focus-visible {
+  text-decoration: underline;
+}
+
+.item-filter-subscribe[hidden] {
+  display: none;
+}
+
 .item[hidden] {
   display: none;
 }

@@ -117,6 +117,19 @@ export function itemMatchesFilter(terms, text) {
   return terms.every((term) => haystack.includes(String(term).toLowerCase()));
 }
 
+/**
+ * Build the /api/search.rss subscribe URL for a filter query, or null when
+ * the query has no terms (nothing to subscribe to). Terms are normalized
+ * through parseFilterQuery so the feed searches exactly what the bar shows,
+ * and the base must be a string (the api root, no trailing slash).
+ */
+export function searchFeedUrl(base, raw) {
+  if (typeof base !== "string") return null;
+  const terms = parseFilterQuery(raw);
+  if (terms.length === 0) return null;
+  return `${base}/api/search.rss?q=${encodeURIComponent(terms.join(" "))}`;
+}
+
 /** localStorage key holding the JSON array of collapsed panel ids. */
 export const COLLAPSE_STORAGE_KEY = "pace.collapsed-panels";
 
@@ -673,6 +686,7 @@ function closeHelp() {
 let filterEl = null;
 let filterInput = null;
 let filterCount = null;
+let filterSubscribe = null;
 let filterReturnFocus = null;
 
 /** Hide/show items to match the query; dim panels left with no matches. */
@@ -693,6 +707,13 @@ function applyFilter(raw) {
   }
   if (filterCount) {
     filterCount.textContent = terms.length === 0 ? "" : `${visible} / ${total}`;
+  }
+  if (filterSubscribe) {
+    // Offer the query as a saved-search feed; the server-side search shares
+    // the bar's term semantics, so the feed matches what the user sees.
+    const feed = searchFeedUrl(apiBase(), raw);
+    filterSubscribe.hidden = feed === null;
+    if (feed !== null) filterSubscribe.href = feed;
   }
 }
 
@@ -730,9 +751,20 @@ function buildFilterBar() {
   count.setAttribute("aria-live", "polite");
   bar.appendChild(count);
 
+  // Saved-search feed link: every non-empty query is subscribable via
+  // /api/search.rss, which shares the bar's term semantics.
+  const subscribe = document.createElement("a");
+  subscribe.className = "item-filter-subscribe";
+  subscribe.textContent = "RSS";
+  subscribe.title = "Subscribe to this search as an RSS feed";
+  subscribe.setAttribute("aria-label", "Subscribe to this search as an RSS feed");
+  subscribe.hidden = true;
+  bar.appendChild(subscribe);
+
   document.body.appendChild(bar);
   filterInput = input;
   filterCount = count;
+  filterSubscribe = subscribe;
   return bar;
 }
 

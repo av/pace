@@ -9,6 +9,7 @@ import {
   keyMove,
   moveIndex,
   parseFilterQuery,
+  searchFeedUrl,
   shouldIgnoreKeydown,
   COLLAPSE_STORAGE_KEY,
   parseStoredPanelIds,
@@ -176,6 +177,26 @@ describe("itemMatchesFilter", () => {
   test("missing or non-string text never matches a non-empty query", () => {
     expect(itemMatchesFilter(["rust"], undefined)).toBe(false);
     expect(itemMatchesFilter(["rust"], null)).toBe(false);
+  });
+
+  test("searchFeedUrl builds a /api/search.rss link from the query terms", () => {
+    expect(searchFeedUrl("", "Rust WASM")).toBe("/api/search.rss?q=rust%20wasm");
+    expect(searchFeedUrl("/pace", "  llama\t cpp \n")).toBe(
+      "/pace/api/search.rss?q=llama%20cpp",
+    );
+    // Terms are normalized like the filter bar, so the feed searches exactly
+    // what the bar shows; characters meaningful in URLs are escaped.
+    expect(searchFeedUrl("", "c++ & rust?")).toBe(
+      "/api/search.rss?q=c%2B%2B%20%26%20rust%3F",
+    );
+  });
+
+  test("searchFeedUrl yields null for empty queries and non-string bases", () => {
+    for (const raw of ["", "   ", undefined, null, 42]) {
+      expect(searchFeedUrl("", raw)).toBeNull();
+    }
+    expect(searchFeedUrl(undefined, "rust")).toBeNull();
+    expect(searchFeedUrl(null, "rust")).toBeNull();
   });
 
   test("round-trips with parseFilterQuery", () => {
@@ -442,6 +463,8 @@ describe("mouse affordance helpers", () => {
       expect(html).not.toContain(COLLAPSE_BTN_CLASS);
       expect(html).not.toContain(PANEL_SEEN_BTN_CLASS);
       expect(html).not.toContain(ITEM_SEEN_BTN_CLASS);
+      // The filter bar (and its subscribe link) is client-injected too.
+      expect(html).not.toContain("item-filter");
     }
   });
 });
@@ -525,6 +548,12 @@ describe("keyboard navigation CSS", () => {
     expect(STYLES).toContain(".item-filter-input");
     expect(STYLES).toContain(".item-filter-count");
     expect(STYLES).toContain(".panel.filter-no-match");
+
+    // The subscribe link is styled and disappears with the empty query.
+    expect(STYLES).toContain(".item-filter-subscribe");
+    const hiddenSubscribe = STYLES.match(/\.item-filter-subscribe\[hidden\]\s*\{([^}]*)\}/s);
+    expect(hiddenSubscribe).not.toBeNull();
+    expect(hiddenSubscribe![1]).toContain("display: none");
   });
 
   test("collapsed panels hide the body, counter grid, and fade gradient", () => {

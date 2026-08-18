@@ -24,6 +24,7 @@ export declare function keyMove(key: string): KeyMove | null;
 export declare const HELP_ROWS: ReadonlyArray<readonly [string, string]>;
 export declare function parseFilterQuery(raw: unknown): string[];
 export declare function itemMatchesFilter(terms: readonly string[], text: unknown): boolean;
+export declare function searchFeedUrl(base: unknown, raw: unknown): string | null;
 export declare const COLLAPSE_STORAGE_KEY: string;
 export declare function parseStoredPanelIds(raw: unknown): string[];
 export declare function togglePanelId(ids: unknown, id: unknown): string[];

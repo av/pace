@@ -207,6 +207,9 @@
 - label: Top-level notify: config rules POST new matching items (min_score and/or keywords, optional panel-id scope) as JSON to a webhook after each refresh; a SQLite notified_items ledger keyed by (rule criteria, item dedup identity) guarantees at-most-once delivery per rule, failed deliveries (non-2xx or 10s timeout) retry next refresh without failing the refresh, and ledger rows age out with retention once no stored item carries the key
   command: bun test src/notify.test.ts
   tags: [spec, implemented]
+- label: The interactive dashboard's / filter bar shows an RSS subscribe link whenever the query has terms, pointing at /api/search.rss?q= for the normalized terms (base_path respected); the link hides when the query is empty and the bar (including the link) is client-injected so servers and static exports never render it
+  command: bun test src/dashboard-keyboard.test.ts
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server

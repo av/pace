@@ -232,7 +232,7 @@ Feed items carry the title, link, a stable non-permalink `guid`, the source feed
 curl 'http://localhost:7453/api/search?q=rust+wasm&limit=10'
 ```
 
-`GET /api/search.rss?q=<terms>` is the same search rendered as an RSS 2.0 feed — subscribe to any query as a **saved search** in a regular feed reader and new matches from any source show up there. Same term semantics, `?panel=` scoping, and `?limit=` cap as the JSON endpoint; the channel is titled after the query and the feed's self link keeps the query string, since that is the feed's identity:
+`GET /api/search.rss?q=<terms>` is the same search rendered as an RSS 2.0 feed — subscribe to any query as a **saved search** in a regular feed reader and new matches from any source show up there. Same term semantics, `?panel=` scoping, and `?limit=` cap as the JSON endpoint; the channel is titled after the query and the feed's self link keeps the query string, since that is the feed's identity. The dashboard's `/` filter bar links every non-empty query here (the **RSS** link), so a filter you keep typing is one click from becoming a feed:
 
 ```bash
 curl 'http://localhost:7453/api/search.rss?q=rust+wasm'
@@ -362,7 +362,7 @@ The dashboard can be driven entirely from the keyboard; pressing `?` on a runnin
 | `x` | Mark the focused item seen / unseen (dimmed; persisted server-side, shared across browsers) |
 | `a` | Mark the whole panel seen / unseen (all items at once; persisted server-side) |
 | `X` | Hide / show seen items across all panels (Shift+x; remembered per browser) |
-| `/` | Filter items across panels |
+| `/` | Filter items across panels (the bar links the query as an RSS saved search) |
 | `?` | Show or hide the help overlay |
 | `Esc` | Close the help overlay |
 
