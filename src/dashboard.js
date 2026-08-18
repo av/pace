@@ -8,7 +8,10 @@
  *
  * Keys (see HELP_ROWS): j/k or Up/Down move item focus within a panel,
  * h/l or Left/Right jump between panels (Tab keeps its native behavior),
- * Enter activates the focused link natively (so target/rel are respected),
+ * Enter activates the focused link natively (so target/rel are respected)
+ * and opening an item's title link — by Enter, click, or middle-click —
+ * automatically marks the item seen through the same /api/seen machinery
+ * as the x key,
  * r refreshes the focused panel through its existing refresh form,
  * c collapses/expands the focused panel (persisted per panel in
  * localStorage), t toggles between the dark and light themes (the OS
@@ -88,7 +91,7 @@ export const HELP_ROWS = [
   ["j / k", "Next / previous item in the panel"],
   ["h / l", "Previous / next panel"],
   ["Tab", "Move through links and buttons"],
-  ["Enter", "Open the focused item"],
+  ["Enter", "Open the focused item (marks it seen)"],
   ["r", "Refresh the focused panel"],
   ["c", "Collapse or expand the focused panel"],
   ["t", "Toggle light / dark theme"],
@@ -559,6 +562,22 @@ function restoreSeenItems() {
     });
 }
 
+/**
+ * The unseen, seen-keyed item whose title link an activation event hit, or
+ * null. Opening an item counts as reading it, so activations found here are
+ * auto-marked seen; already-seen items return null so re-opening one never
+ * toggles it back to unread. Pure given a target exposing closest/classList,
+ * so the test suite can exercise it without a DOM.
+ */
+export function autoSeenItem(target) {
+  if (!target || typeof target.closest !== "function") return null;
+  const link = target.closest(".item-title a");
+  if (!link || typeof link.closest !== "function") return null;
+  const item = link.closest(".item[data-seen-key]");
+  if (!item || item.classList.contains(SEEN_CLASS)) return null;
+  return item;
+}
+
 /** Toggle the focused item's seen state optimistically and persist it. */
 function toggleFocusedItemSeen() {
   const item = itemForSeenToggle();
@@ -975,6 +994,18 @@ function injectToolbar() {
   document.body.appendChild(bar);
 }
 
+/**
+ * Auto-mark an item seen when its title link is activated (Enter fires a
+ * click on the focused link, so one handler covers keyboard, click, and —
+ * via auxclick — middle-click opening in a new tab). Modified clicks
+ * (ctrl/cmd) still open in a new tab and still count as read.
+ */
+function autoMarkOpenedSeen(event) {
+  if (event.type === "auxclick" && event.button !== 1) return;
+  const item = autoSeenItem(event.target);
+  if (item) toggleItemSeen(item); // item is unseen, so this always marks seen
+}
+
 function onKeydown(event) {
   if (shouldIgnoreKeydown(event)) return;
 
@@ -1031,6 +1062,8 @@ function onKeydown(event) {
 
 if (typeof document !== "undefined" && typeof window !== "undefined") {
   document.addEventListener("keydown", onKeydown);
+  document.addEventListener("click", autoMarkOpenedSeen);
+  document.addEventListener("auxclick", autoMarkOpenedSeen);
   injectMouseAffordances();
   injectToolbar();
   restoreCollapsedPanels();

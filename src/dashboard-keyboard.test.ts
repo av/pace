@@ -20,6 +20,7 @@ import {
   parseStoredThemeChoice,
   resolveTheme,
   SEEN_CLASS,
+  autoSeenItem,
   panelSeenTarget,
   parseSeenKeys,
   HIDE_SEEN_CLASS,
@@ -413,6 +414,38 @@ describe("seen item markup and helpers", () => {
     }
   });
 
+  // Minimal element stubs for autoSeenItem: a target whose closest() finds a
+  // title link, whose closest() in turn finds (or not) a seen-keyed item.
+  function fakeItem(seen: boolean) {
+    return { classList: { contains: (cls: string) => cls === SEEN_CLASS && seen } };
+  }
+  function fakeActivationTarget(link: object | null) {
+    return { closest: (sel: string) => (sel === ".item-title a" ? link : null) };
+  }
+  function fakeTitleLink(item: object | null) {
+    return { closest: (sel: string) => (sel === ".item[data-seen-key]" ? item : null) };
+  }
+
+  test("autoSeenItem returns the unseen keyed item behind an activated title link", () => {
+    const item = fakeItem(false);
+    expect(autoSeenItem(fakeActivationTarget(fakeTitleLink(item)))).toBe(item);
+  });
+
+  test("autoSeenItem never re-marks an already-seen item (open doesn't toggle back)", () => {
+    expect(autoSeenItem(fakeActivationTarget(fakeTitleLink(fakeItem(true))))).toBeNull();
+  });
+
+  test("autoSeenItem ignores activations outside item title links", () => {
+    expect(autoSeenItem(fakeActivationTarget(null))).toBeNull(); // not a title link
+    expect(autoSeenItem(fakeActivationTarget(fakeTitleLink(null)))).toBeNull(); // link w/o keyed item
+  });
+
+  test("autoSeenItem tolerates non-element targets", () => {
+    for (const target of [null, undefined, "a", 42, {}, { closest: "x" }]) {
+      expect(autoSeenItem(target)).toBeNull();
+    }
+  });
+
   test("panelSeenTarget marks the panel seen unless every item already is", () => {
     expect(panelSeenTarget([false, false])).toBe(true);
     expect(panelSeenTarget([true, false])).toBe(true);
@@ -424,6 +457,13 @@ describe("seen item markup and helpers", () => {
     for (const flags of [[], null, undefined, "x", 42]) {
       expect(panelSeenTarget(flags)).toBe(false);
     }
+  });
+
+  test("HELP_ROWS documents that opening an item marks it seen", () => {
+    const row = HELP_ROWS.find(([keys]) => keys === "Enter");
+    expect(row).toBeDefined();
+    expect(row![1].toLowerCase()).toContain("open");
+    expect(row![1].toLowerCase()).toContain("seen");
   });
 
   test("HELP_ROWS documents the whole-panel seen shortcut a", () => {

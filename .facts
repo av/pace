@@ -198,6 +198,9 @@
 - label: Pressing x on the dashboard toggles the focused item's seen state: seen items render dimmed, the state persists server-side in SQLite keyed by the item's dedup identity (normalized url, or id when url is empty) so it survives refreshes and is shared across browsers; GET /api/seen lists the seen keys and POST /api/seen {key, seen} sets one, with the same cross-site guard as refresh
   command: bun test src/server/api-seen.test.ts
   tags: [spec, implemented]
+- label: Opening an item's title link on the dashboard (Enter, click, or middle-click) automatically marks the item seen through the same persisted /api/seen state as the x key, dimming its duplicates on other panels too; re-opening an already-seen item never unmarks it, and static/no-JS pages are unaffected
+  command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'autoSeenItem|opening an item'
+  tags: [spec, implemented]
 - label: Pressing a on the dashboard marks every item in the focused panel seen at once (or unmarks them all when every item already is), persisted through POST /api/seen accepting a bulk {keys, seen} body of up to 500 validated keys applied atomically in one transaction, with the same cross-site guard as single marks
   command: bun test src/server/api-seen.test.ts src/dashboard-keyboard.test.ts
   tags: [spec, implemented]

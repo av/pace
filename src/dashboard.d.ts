@@ -37,6 +37,7 @@ export declare function resolveTheme(
   systemPrefersLight: boolean,
 ): "dark" | "light";
 export declare const SEEN_CLASS: string;
+export declare function autoSeenItem(target: unknown): object | null;
 export declare function parseSeenKeys(body: unknown): string[];
 export declare function panelSeenTarget(flags: unknown): boolean;
 export declare const HIDE_SEEN_CLASS: string;

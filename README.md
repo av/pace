@@ -361,7 +361,7 @@ The dashboard can be driven entirely from the keyboard; pressing `?` on a runnin
 | `j / k` | Next / previous item in the panel |
 | `h / l` | Previous / next panel |
 | `Tab` | Move through links and buttons |
-| `Enter` | Open the focused item |
+| `Enter` | Open the focused item (marks it seen) |
 | `r` | Refresh the focused panel |
 | `c` | Collapse or expand the focused panel (remembered per browser) |
 | `t` | Toggle light / dark theme (follows the OS preference until toggled; remembered per browser) |
@@ -372,7 +372,7 @@ The dashboard can be driven entirely from the keyboard; pressing `?` on a runnin
 | `?` | Show or hide the help overlay |
 | `Esc` | Close the help overlay |
 
-The collapse and seen actions are also clickable: each panel header gains a collapse chevron and a mark-all-seen button next to refresh, and hovering an item reveals a mark-seen button in its corner (always visible on touch screens). A small toolbar fixed in the top-right corner mirrors the page-wide keys — theme toggle (`t`), hide/show seen items (`Shift+X`), and the help overlay (`?`) — so a mouse or touch user can reach every dashboard action without the keyboard.
+The collapse and seen actions are also clickable: each panel header gains a collapse chevron and a mark-all-seen button next to refresh, and hovering an item reveals a mark-seen button in its corner (always visible on touch screens). A small toolbar fixed in the top-right corner mirrors the page-wide keys — theme toggle (`t`), hide/show seen items (`Shift+X`), and the help overlay (`?`) — so a mouse or touch user can reach every dashboard action without the keyboard. Opening an item — `Enter`, click, or middle-click on its title — automatically marks it seen, so the read-tracking keeps itself up to date as you browse; `x` still un-marks anything you want to keep unread.
 
 The keys and buttons come from one small script (`/dashboard.js`) served alongside the page — a progressive enhancement, not a requirement: everything stays reachable with `Tab` alone, and static snapshots ship without the script.
 
