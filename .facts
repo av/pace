@@ -213,6 +213,9 @@
 - label: The interactive dashboard's / filter bar shows an RSS subscribe link whenever the query has terms, pointing at /api/search.rss?q= for the normalized terms (base_path respected); the link hides when the query is empty and the bar (including the link) is client-injected so servers and static exports never render it
   command: bun test src/dashboard-keyboard.test.ts
   tags: [spec, implemented]
+- label: pace notify test sends a sample webhook delivery (real payload shape, marked as a test, rule criteria in the summary) to every configured notify rule or one selected by name, reports per-rule ok/failure, exits non-zero when any delivery fails, and never touches the notified_items ledger
+  command: bun test src/cli-notify.test.ts
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server

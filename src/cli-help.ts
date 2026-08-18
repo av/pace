@@ -31,6 +31,12 @@ import {
   formatExportWarnings,
   generateOpml,
 } from "./cli-export";
+import {
+  formatNotifyTestReport,
+  formatNotifyUsage,
+  runNotifyTest,
+  selectNotifyTestRules,
+} from "./cli-notify";
 import { errorMessage, normalizeParamBoolean, parseCliPort } from "./utils";
 import {
   exportStaticDashboard,
@@ -1000,6 +1006,41 @@ const CLI_COMMANDS: CliCommand[] = [
     },
   },
   {
+    name: "notify",
+    summary: "Test notify webhook deliveries",
+    usage: formatNotifyUsage(),
+    async run(positionals, values, ctx) {
+      const usage = formatNotifyUsage();
+      const NOTIFY_ALLOWED = new Set(["config", "preset", "chdir"]);
+      rejectInvalidCommandOptions(values, usage, NOTIFY_ALLOWED);
+      const sub = positionals[0];
+      if (sub !== "test") {
+        cliFailWithHelp(
+          sub === undefined ? "Unknown subcommand: (none)\n" : `Unknown subcommand: ${sub}\n`,
+          usage,
+        );
+      }
+      if (positionals.length > 2) {
+        cliFailWithHelp(`Unknown argument: ${positionals[2]}\n`, usage);
+      }
+
+      let rules;
+      try {
+        applyCliConfigEnv(values, ctx.deps);
+        const readConfig = ctx.deps.loadConfig ?? loadConfig;
+        rules = selectNotifyTestRules(readConfig().notify, positionals[1]);
+      } catch (err) {
+        cliDie(errorMessage(err));
+      }
+
+      const report = formatNotifyTestReport(await runNotifyTest(rules));
+      const output = report.lines.join("\n");
+      if (report.ok) cliExitOk(output);
+      writeCliStdout(output);
+      process.exit(1);
+    },
+  },
+  {
     name: "config",
     summary: "Validate config file",
     usage: formatConfigUsage(),
@@ -1117,6 +1158,7 @@ Commands:
   doctor                   Fetch-check every configured source
   import <feeds.opml>      Convert an OPML feed export to a pace config
   export [output.opml]     Export configured feed URLs as OPML
+  notify test [rule]       Send a test delivery to notify webhooks
 
 Options:
   -c, --config <path>   Path to config file (default: ./config.yaml)

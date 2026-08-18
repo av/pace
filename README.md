@@ -138,6 +138,7 @@ pace config check [path]   # validate a config file
 pace doctor                # fetch-check every configured source
 pace import feeds.opml     # convert an OPML feed export to a pace config
 pace export feeds.opml     # export configured feed URLs as OPML
+pace notify test           # send a test delivery to notify webhooks
 ```
 
 Validate before serving: `pace config check config.yaml` catches schema errors without starting the server. To verify the configured feeds actually respond, run `pace doctor` — it fetches every source once and reports per-source ok/failure with the underlying error (exit 1 if anything failed).
@@ -335,6 +336,8 @@ notify:
 ```
 
 Each rule needs `min_score` and/or `keywords` (when both are set, both must match). The delivery body is `{"rule": "...", "matched": N, "items": [...]}` with the newest 20 matches at most; each item carries `title`, `url`, `source`, `panel`, `timestamp`, `score`, and `summary`. Every item notifies at most once per rule: the ledger lives in SQLite keyed by the item's dedup identity, so cross-panel duplicates and re-fetches never re-notify, failed deliveries (non-2xx, or a 10s timeout) are retried on the next refresh, and ledger entries age out with `server.retention_days` alongside the items they cover. Pairs well with `llm-rank` pipelines: score your merged feeds against your interests, then get pinged only above your threshold.
+
+Verify your endpoints with `pace notify test` — it sends a sample delivery (same payload shape, clearly marked as a test in its title and summary) to every configured rule, or just one with `pace notify test <rule-name>`, without touching the at-most-once delivery ledger. Exits non-zero when any delivery fails, so you find out about a broken webhook now instead of when a high-signal item silently disappears.
 
 ## Layout
 
