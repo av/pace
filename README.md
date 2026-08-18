@@ -26,7 +26,7 @@ Pace collects content from Hacker News, RSS, GitHub, Lemmy, Mastodon, YouTube, a
 - **Filtering and ranking** - filter, exclude, dedupe, time-decay, cluster, keyword-score, and optionally use an LLM to summarize, filter, merge, or rank items.
 - **Flexible layout** - arrange panels, counters, markdown, images, and iframes with a recursive flexbox layout.
 - **Portable output** - server-rendered HTML, SQLite storage, a JSON and RSS endpoint for every panel, and static snapshots you can export or publish through Gist.
-- **Practical tooling** - `pace doctor` fetch-checks every configured source, `pace import` turns an OPML feed-reader export into a working config, and the dashboard is fully keyboard-navigable.
+- **Practical tooling** - `pace doctor` fetch-checks every configured source, `pace import` / `pace export` convert between OPML feed-reader exports and pace configs in both directions, and the dashboard is fully keyboard-navigable.
 - **Agent-readable config** - bundled skills document setup and configuration workflows for coding agents.
 
 ## Presets
@@ -137,11 +137,14 @@ docker run -d \
 pace config check [path]   # validate a config file
 pace doctor                # fetch-check every configured source
 pace import feeds.opml     # convert an OPML feed export to a pace config
+pace export feeds.opml     # export configured feed URLs as OPML
 ```
 
 Validate before serving: `pace config check config.yaml` catches schema errors without starting the server. To verify the configured feeds actually respond, run `pace doctor` — it fetches every source once and reports per-source ok/failure with the underlying error (exit 1 if anything failed).
 
 Migrating from a feed reader? `pace import feeds.opml` converts an OPML export (the standard export format of Feedly, Inoreader, NewsBlur, Miniflux, etc.) into a ready-to-use config: one `rss` adapter and one panel per OPML folder (nested folders join with `` / ``; feeds outside any folder land in a "Feeds" panel). It prints YAML to stdout, or writes to a file when given a second argument — `pace import feeds.opml config.yaml`. Duplicate feeds and outlines without an `xmlUrl` are skipped with a warning, and the generated file passes `pace config check` as-is.
+
+Going the other way, `pace export` writes the feed URLs from the active config (`--config`/`--preset` work as usual) as an OPML 2.0 file any feed reader can import: one folder per `rss` or `podcast` adapter, one outline per URL. It prints OPML to stdout or writes to a file when given a path — `pace export feeds.opml`. Adapters without feed URLs (hackernews, github, arxiv, ...) are skipped with a warning, and the output round-trips through `pace import`.
 
 ## Server Configuration
 

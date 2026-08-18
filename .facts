@@ -177,6 +177,9 @@
 - Users can add keyword filters or excludes in their Config so that, for example, hiring posts or off-topic content never appear in the Dashboard
 
 # usage
+- label: pace export writes the active config's rss/podcast feed URLs as OPML 2.0 (one folder per adapter) that round-trips through pace import; non-feed adapters and duplicate URLs are skipped with a warning
+  command: bun test src/cli-export.test.ts
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server

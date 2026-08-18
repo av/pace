@@ -12,6 +12,7 @@ pace presets list                # bundled starter configs
 pace config check [path]         # validate config without starting the server
 pace doctor                      # fetch-check every configured source live
 pace import <feeds.opml>         # convert an OPML feed export to a pace config
+pace export [output.opml]        # export configured feed URLs as OPML
 pace skill [name]                # list or print bundled agent skills
 ```
 

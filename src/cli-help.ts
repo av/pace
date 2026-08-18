@@ -24,6 +24,13 @@ import {
   generateImportedConfig,
   parseOpml,
 } from "./cli-import";
+import {
+  collectExportFeeds,
+  formatExportSummary,
+  formatExportUsage,
+  formatExportWarnings,
+  generateOpml,
+} from "./cli-export";
 import { errorMessage, normalizeParamBoolean, parseCliPort } from "./utils";
 import {
   exportStaticDashboard,
@@ -943,6 +950,56 @@ const CLI_COMMANDS: CliCommand[] = [
     },
   },
   {
+    name: "export",
+    summary: "Export configured feed URLs as OPML",
+    usage: formatExportUsage(),
+    async run(positionals, values, ctx) {
+      const usage = formatExportUsage();
+      const EXPORT_ALLOWED = new Set(["config", "preset", "chdir"]);
+      rejectInvalidCommandOptions(values, usage, EXPORT_ALLOWED);
+      if (positionals.length > 1) {
+        cliFailWithHelp(`Unknown argument: ${positionals[1]}\n`, usage);
+      }
+
+      let config: AppConfig;
+      let configLabel: string;
+      try {
+        applyCliConfigEnv(values, ctx.deps);
+        const readConfig = ctx.deps.loadConfig ?? loadConfig;
+        config = readConfig();
+        configLabel = values.preset !== undefined ? `preset ${values.preset}` : (values.config ?? process.env.PACE_CONFIG ?? "config.yaml");
+      } catch (err) {
+        cliDie(errorMessage(err));
+      }
+
+      let xml: string;
+      let summary: string;
+      let warnings: string[];
+      try {
+        const result = collectExportFeeds(config);
+        xml = generateOpml(result, configLabel);
+        summary = formatExportSummary(result);
+        warnings = formatExportWarnings(result);
+      } catch (err) {
+        cliDie(errorMessage(err));
+      }
+
+      for (const warning of warnings) writeCliStderr(warning);
+
+      const outputPath = positionals[0];
+      if (outputPath === undefined) {
+        writeCliStderr(`export: ${summary}`);
+        cliExitOk(xml);
+      }
+      try {
+        writeFileSync(outputPath, xml + "\n");
+      } catch (err) {
+        cliDie(`export: cannot write ${outputPath}: ${describeWriteFailure(err, outputPath)}`);
+      }
+      cliExitOk(`export: wrote ${summary} to ${outputPath}`);
+    },
+  },
+  {
     name: "config",
     summary: "Validate config file",
     usage: formatConfigUsage(),
@@ -1059,6 +1116,7 @@ Commands:
   config check [path]      Validate a config file
   doctor                   Fetch-check every configured source
   import <feeds.opml>      Convert an OPML feed export to a pace config
+  export [output.opml]     Export configured feed URLs as OPML
 
 Options:
   -c, --config <path>   Path to config file (default: ./config.yaml)

@@ -6,6 +6,7 @@ Notable changes per release, newest first. Also published as [GitHub releases](h
 
 ### New features
 
+- **`pace export` (OPML export)** — the inverse of `pace import`: exports the feed URLs from the active config (`--config`/`--preset` supported) as an OPML 2.0 file any feed reader can import — one folder per `rss` or `podcast` adapter, one outline per URL. Prints to stdout or writes to a file (`pace export feeds.opml`); non-feed adapters and duplicate URLs are skipped with a warning, and the output is validated to round-trip through `pace import`.
 - **Dashboard item filter** — pressing `/` opens a filter bar that live-filters items across every panel (case-insensitive, all terms must match). `Enter` jumps to the first match, `Escape` clears and closes, panels with no matches are dimmed, and `j`/`k` navigation skips filtered-out items. Same dependency-free progressive-enhancement module as keyboard navigation; static exports and no-JS browsers are unaffected.
 
 ### Documentation
