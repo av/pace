@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import { getSeenKeys, setItemSeen } from "../db";
+import { getSeenKeys, setItemsSeen } from "../db";
 import { resolveCrossSiteRefreshRejection } from "./routes";
 
 /**
@@ -10,27 +10,61 @@ import { resolveCrossSiteRefreshRejection } from "./routes";
  */
 export const MAX_SEEN_KEY_LENGTH = 2048;
 
-export type ParsedSeenBody = { ok: true; key: string; seen: boolean } | { ok: false; error: string };
+/**
+ * Upper bound for one bulk request's key count. The dashboard sends at most
+ * one panel's worth of items (bounded by the panel limit of 500), so anything
+ * larger is garbage — and an unbounded batch would let any local page grow
+ * the seen table without limit in a single POST.
+ */
+export const MAX_SEEN_KEYS = 500;
+
+export type ParsedSeenBody = { ok: true; keys: string[]; seen: boolean } | { ok: false; error: string };
+
+/** Validate one seen key: non-empty string within the length cap. */
+function seenKeyError(key: unknown, name: string): string | null {
+  if (typeof key !== "string" || key.length === 0) {
+    return `${name} must be a non-empty string`;
+  }
+  if (key.length > MAX_SEEN_KEY_LENGTH) {
+    return `${name} must be at most ${MAX_SEEN_KEY_LENGTH} characters`;
+  }
+  return null;
+}
 
 /**
- * Validate a POST /api/seen JSON body: `{ key: string, seen: boolean }`.
- * The body is client input, so shape, type, and length are all checked.
+ * Validate a POST /api/seen JSON body: `{ key: string, seen: boolean }` for a
+ * single mark, or `{ keys: string[], seen: boolean }` for a bulk update (mark
+ * a whole panel read). The body is client input, so shape, type, length, and
+ * batch size are all checked. A valid single key normalizes to a one-entry
+ * `keys` list so the handler has exactly one path.
  */
 export function parseSeenBody(body: unknown): ParsedSeenBody {
   if (typeof body !== "object" || body === null || Array.isArray(body)) {
-    return { ok: false, error: "body must be a JSON object: { key, seen }" };
+    return { ok: false, error: "body must be a JSON object: { key, seen } or { keys, seen }" };
   }
-  const { key, seen } = body as { key?: unknown; seen?: unknown };
-  if (typeof key !== "string" || key.length === 0) {
-    return { ok: false, error: "key must be a non-empty string" };
-  }
-  if (key.length > MAX_SEEN_KEY_LENGTH) {
-    return { ok: false, error: `key must be at most ${MAX_SEEN_KEY_LENGTH} characters` };
-  }
+  const { key, keys, seen } = body as { key?: unknown; keys?: unknown; seen?: unknown };
   if (typeof seen !== "boolean") {
     return { ok: false, error: "seen must be a boolean" };
   }
-  return { ok: true, key, seen };
+  if (key !== undefined && keys !== undefined) {
+    return { ok: false, error: "pass either key or keys, not both" };
+  }
+  if (keys !== undefined) {
+    if (!Array.isArray(keys) || keys.length === 0) {
+      return { ok: false, error: "keys must be a non-empty array of strings" };
+    }
+    if (keys.length > MAX_SEEN_KEYS) {
+      return { ok: false, error: `keys must contain at most ${MAX_SEEN_KEYS} entries` };
+    }
+    for (const entry of keys) {
+      const error = seenKeyError(entry, "every keys entry");
+      if (error) return { ok: false, error };
+    }
+    return { ok: true, keys: [...new Set(keys as string[])], seen };
+  }
+  const error = seenKeyError(key, "key");
+  if (error) return { ok: false, error };
+  return { ok: true, keys: [key as string], seen };
 }
 
 /**
@@ -43,10 +77,11 @@ export function handleApiSeenList(c: Context): Response {
 }
 
 /**
- * POST /api/seen with `{ key, seen }` — persist or clear one seen mark.
- * State-changing, so it carries the same cross-site guard as the refresh
- * endpoint: same-origin browsers and header-less non-browser clients pass,
- * cross-origin pages are rejected.
+ * POST /api/seen with `{ key, seen }` or `{ keys, seen }` — persist or clear
+ * one or many seen marks (bulk writes are atomic). State-changing, so it
+ * carries the same cross-site guard as the refresh endpoint: same-origin
+ * browsers and header-less non-browser clients pass, cross-origin pages are
+ * rejected.
  */
 export async function handleApiSeenSet(c: Context): Promise<Response> {
   const rejection = resolveCrossSiteRefreshRejection(c.req.raw.headers);
@@ -56,11 +91,11 @@ export async function handleApiSeenSet(c: Context): Promise<Response> {
   try {
     body = await c.req.json();
   } catch {
-    return c.json({ error: "body must be valid JSON: { key, seen }" }, 400);
+    return c.json({ error: "body must be valid JSON: { key, seen } or { keys, seen }" }, 400);
   }
   const parsed = parseSeenBody(body);
   if (!parsed.ok) return c.json({ error: parsed.error }, 400);
 
-  setItemSeen(parsed.key, parsed.seen);
-  return c.json({ key: parsed.key, seen: parsed.seen });
+  setItemsSeen(parsed.keys, parsed.seen);
+  return c.json({ count: parsed.keys.length, keys: parsed.keys, seen: parsed.seen });
 }

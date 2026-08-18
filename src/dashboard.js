@@ -13,7 +13,8 @@
  * c collapses/expands the focused panel (persisted per panel in
  * localStorage), t toggles between the dark and light themes (persisted in
  * localStorage), x marks the focused item as seen/unseen (dimmed; persisted
- * server-side via /api/seen so it is shared across browsers), Shift+X hides
+ * server-side via /api/seen so it is shared across browsers), a marks the whole
+ * focused panel seen (or unseen when every item already is), Shift+X hides
  * every seen item across all panels (persisted in localStorage), ? toggles a
  * small help overlay (Escape closes it), and / opens a filter bar that
  * live-filters items across all panels (Escape clears and closes).
@@ -84,6 +85,7 @@ export const HELP_ROWS = [
   ["c", "Collapse or expand the focused panel"],
   ["t", "Toggle light / dark theme"],
   ["x", "Mark the focused item seen / unseen"],
+  ["a", "Mark the whole panel seen / unseen"],
   ["X", "Hide or show seen items"],
   ["/", "Filter items across panels"],
   ["?", "Show or hide this help"],
@@ -363,6 +365,17 @@ export function parseSeenKeys(body) {
  * `${basePath}/dashboard.js`, so stripping the filename from its own URL
  * yields the dashboard root wherever it is mounted.
  */
+/**
+ * The seen state a whole-panel toggle should apply, from the panel items'
+ * current seen flags: mark everything seen unless every item already is, in
+ * which case unmark everything. Empty/invalid input yields false so a panel
+ * without items is a no-op at the call site (no keys to send anyway).
+ */
+export function panelSeenTarget(flags) {
+  if (!Array.isArray(flags) || flags.length === 0) return false;
+  return !flags.every((flag) => flag === true);
+}
+
 function apiBase() {
   return import.meta.url.replace(/\/dashboard\.js.*$/, "");
 }
@@ -424,6 +437,46 @@ function toggleFocusedItemSeen() {
       if (!res.ok) toggle(!seen); // rejected: roll the optimistic dimming back
     })
     .catch(() => toggle(!seen));
+}
+
+/** Toggle every item in the focused panel optimistically and persist in bulk. */
+function toggleFocusedPanelSeen() {
+  const active = document.activeElement;
+  const panel = active && active.closest ? active.closest(".panel") : null;
+  if (!panel) return;
+  const items = Array.from(panel.querySelectorAll(".panel-body .item[data-seen-key]"));
+  if (items.length === 0) return;
+  const seen = panelSeenTarget(items.map((item) => item.classList.contains(SEEN_CLASS)));
+  const keys = new Set(items.map((item) => item.getAttribute("data-seen-key")));
+  // Remember each affected item's current state (duplicates included, since
+  // twins on other panels share the keys) so a rejected POST can roll back to
+  // exactly what was on screen, not a blanket inverse.
+  const affected = Array.from(document.querySelectorAll(".item[data-seen-key]")).filter(
+    (item) => keys.has(item.getAttribute("data-seen-key")),
+  );
+  const before = new Map(affected.map((item) => [item, item.classList.contains(SEEN_CLASS)]));
+  for (const item of affected) item.classList.toggle(SEEN_CLASS, seen);
+  refreshAllSeenPanels();
+  if (seen && hideSeenActive()) {
+    // The whole panel just emptied from under the focus; land on the next
+    // navigable panel's first target so keyboard flow continues.
+    const panels = navigablePanels();
+    const target = panels.length > 0 ? focusTargets(panels[0])[0] : null;
+    if (target) target.focus({ preventScroll: true });
+  }
+  const rollback = () => {
+    for (const [item, wasSeen] of before) item.classList.toggle(SEEN_CLASS, wasSeen);
+    refreshAllSeenPanels();
+  };
+  fetch(`${apiBase()}/api/seen`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ keys: [...keys], seen }),
+  })
+    .then((res) => {
+      if (!res.ok) rollback(); // rejected: roll the optimistic dimming back
+    })
+    .catch(rollback);
 }
 
 /* ------------------------------------------------------------------ */
@@ -671,6 +724,10 @@ function onKeydown(event) {
   }
   if (event.key === "x" && !event.shiftKey) {
     toggleFocusedItemSeen();
+    return;
+  }
+  if (event.key === "a" && !event.shiftKey) {
+    toggleFocusedPanelSeen();
     return;
   }
   if (event.key === "X") {

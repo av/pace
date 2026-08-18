@@ -17,6 +17,7 @@ import {
   parseStoredTheme,
   nextTheme,
   SEEN_CLASS,
+  panelSeenTarget,
   parseSeenKeys,
   HIDE_SEEN_CLASS,
   HIDE_SEEN_STORAGE_KEY,
@@ -268,7 +269,7 @@ describe("nextTheme", () => {
 describe("HELP_ROWS", () => {
   test("documents every advertised shortcut", () => {
     const keys = HELP_ROWS.map(([k]) => k).join(" ");
-    for (const fragment of ["j / k", "h / l", "Tab", "Enter", "r", "c", "t", "x", "X", "/", "?", "Esc"]) {
+    for (const fragment of ["j / k", "h / l", "Tab", "Enter", "r", "c", "t", "x", "a", "X", "/", "?", "Esc"]) {
       expect(keys).toContain(fragment);
     }
     for (const [, description] of HELP_ROWS) {
@@ -348,6 +349,26 @@ describe("seen item markup and helpers", () => {
     for (const body of [null, undefined, "x", 42, [], { keys: "a" }, {}]) {
       expect(parseSeenKeys(body)).toEqual([]);
     }
+  });
+
+  test("panelSeenTarget marks the panel seen unless every item already is", () => {
+    expect(panelSeenTarget([false, false])).toBe(true);
+    expect(panelSeenTarget([true, false])).toBe(true);
+    expect(panelSeenTarget([true, true])).toBe(false);
+    expect(panelSeenTarget([true])).toBe(false);
+  });
+
+  test("panelSeenTarget treats empty/invalid input as a no-op (false)", () => {
+    for (const flags of [[], null, undefined, "x", 42]) {
+      expect(panelSeenTarget(flags)).toBe(false);
+    }
+  });
+
+  test("HELP_ROWS documents the whole-panel seen shortcut a", () => {
+    const row = HELP_ROWS.find(([keys]) => keys === "a");
+    expect(row).toBeDefined();
+    expect(row![1].toLowerCase()).toContain("panel");
+    expect(row![1].toLowerCase()).toContain("seen");
   });
 });
 

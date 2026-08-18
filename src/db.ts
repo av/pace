@@ -471,6 +471,26 @@ export function setItemSeen(key: string, seen: boolean): void {
   }
 }
 
+/**
+ * Persist (or clear) the seen marks for many dedup keys at once, atomically:
+ * a "mark whole panel read" either lands completely or not at all, so the
+ * client's optimistic UI never ends up half-rolled-back.
+ */
+export function setItemsSeen(keys: string[], seen: boolean): void {
+  const db = getDb();
+  try {
+    const apply = db.transaction((batch: string[]) => {
+      const stmt = seen
+        ? db.prepare("INSERT INTO seen_items (seen_key) VALUES (?) ON CONFLICT(seen_key) DO NOTHING")
+        : db.prepare("DELETE FROM seen_items WHERE seen_key = ?");
+      for (const key of batch) stmt.run(key);
+    });
+    apply(keys);
+  } catch (e: unknown) {
+    throw new Error(`db: failed to set seen=${seen} for ${keys.length} keys: ${errorMessage(e)}`);
+  }
+}
+
 /** All stored seen keys, oldest mark first. */
 export function getSeenKeys(): string[] {
   const db = getDb();

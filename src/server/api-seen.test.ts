@@ -7,8 +7,9 @@ import {
   pruneOldItems,
   saveItems,
   setItemSeen,
+  setItemsSeen,
 } from "../db";
-import { MAX_SEEN_KEY_LENGTH, parseSeenBody } from "./api-seen";
+import { MAX_SEEN_KEY_LENGTH, MAX_SEEN_KEYS, parseSeenBody } from "./api-seen";
 import { makeContentItem as makeItem } from "../test/content-items";
 import { installTempDbHooks } from "../test/temp-db";
 import { flexCfg, panelCfg } from "../test/layout-cfg";
@@ -98,6 +99,20 @@ describe("setItemSeen / getSeenKeys", () => {
   });
 });
 
+describe("setItemsSeen", () => {
+  test("marks and clears many keys at once, idempotently", () => {
+    initDb();
+    setItemsSeen(["a", "b", "c"], true);
+    setItemsSeen(["b", "c"], true);
+    expect(getSeenKeys().sort()).toEqual(["a", "b", "c"]);
+
+    setItemsSeen(["a", "c", "never-marked"], false);
+    expect(getSeenKeys()).toEqual(["b"]);
+    setItemsSeen([], true); // empty batch is a no-op, not an error
+    expect(getSeenKeys()).toEqual(["b"]);
+  });
+});
+
 describe("seen retention (pruneOldItems)", () => {
   test("old orphaned marks are pruned; marks for live items and recent marks survive", () => {
     initDb();
@@ -125,13 +140,21 @@ describe("seen retention (pruneOldItems)", () => {
 /* ------------------------------------------------------------------ */
 
 describe("parseSeenBody", () => {
-  test("accepts { key, seen }", () => {
+  test("accepts { key, seen } and normalizes it to a one-entry keys list", () => {
     expect(parseSeenBody({ key: "https://ex.com/a", seen: true })).toEqual({
       ok: true,
-      key: "https://ex.com/a",
+      keys: ["https://ex.com/a"],
       seen: true,
     });
-    expect(parseSeenBody({ key: "k", seen: false })).toEqual({ ok: true, key: "k", seen: false });
+    expect(parseSeenBody({ key: "k", seen: false })).toEqual({ ok: true, keys: ["k"], seen: false });
+  });
+
+  test("accepts { keys, seen } and dedupes repeated entries", () => {
+    expect(parseSeenBody({ keys: ["a", "b", "a"], seen: true })).toEqual({
+      ok: true,
+      keys: ["a", "b"],
+      seen: true,
+    });
   });
 
   test("rejects non-objects, missing/invalid keys, and non-boolean seen", () => {
@@ -139,6 +162,26 @@ describe("parseSeenBody", () => {
       const parsed = parseSeenBody(body);
       expect(parsed.ok).toBe(false);
     }
+  });
+
+  test("rejects invalid bulk bodies: empty/non-array keys, bad entries, key+keys together", () => {
+    for (const body of [
+      { keys: [], seen: true },
+      { keys: "a", seen: true },
+      { keys: ["a", ""], seen: true },
+      { keys: ["a", 7], seen: true },
+      { keys: ["a", "x".repeat(MAX_SEEN_KEY_LENGTH + 1)], seen: true },
+      { key: "a", keys: ["b"], seen: true },
+      { keys: ["a"] },
+    ]) {
+      expect(parseSeenBody(body).ok).toBe(false);
+    }
+  });
+
+  test("caps bulk batches at MAX_SEEN_KEYS entries", () => {
+    const keys = Array.from({ length: MAX_SEEN_KEYS }, (_, i) => `k${i}`);
+    expect(parseSeenBody({ keys, seen: true }).ok).toBe(true);
+    expect(parseSeenBody({ keys: [...keys, "extra"], seen: true }).ok).toBe(false);
   });
 
   test("rejects keys beyond the length cap", () => {
@@ -179,11 +222,31 @@ describe("POST /api/seen", () => {
     const app = makeApp();
     const set = await postSeen(app, JSON.stringify({ key: "https://ex.com/a", seen: true }));
     expect(set.status).toBe(200);
-    expect(await set.json()).toEqual({ key: "https://ex.com/a", seen: true });
+    expect(await set.json()).toEqual({ count: 1, keys: ["https://ex.com/a"], seen: true });
     expect(getSeenKeys()).toEqual(["https://ex.com/a"]);
 
     const clear = await postSeen(app, JSON.stringify({ key: "https://ex.com/a", seen: false }));
     expect(clear.status).toBe(200);
+    expect(getSeenKeys()).toEqual([]);
+  });
+
+  test("bulk body persists all keys and clears them again", async () => {
+    const app = makeApp();
+    const set = await postSeen(app, JSON.stringify({ keys: ["a", "b", "a"], seen: true }));
+    expect(set.status).toBe(200);
+    expect(await set.json()).toEqual({ count: 2, keys: ["a", "b"], seen: true });
+    expect(getSeenKeys().sort()).toEqual(["a", "b"]);
+
+    const clear = await postSeen(app, JSON.stringify({ keys: ["a", "b"], seen: false }));
+    expect(clear.status).toBe(200);
+    expect(getSeenKeys()).toEqual([]);
+  });
+
+  test("rejects invalid bulk bodies with 400", async () => {
+    const app = makeApp();
+    const res = await postSeen(app, JSON.stringify({ keys: [], seen: true }));
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { error: string }).error).toContain("keys");
     expect(getSeenKeys()).toEqual([]);
   });
 
