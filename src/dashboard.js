@@ -12,9 +12,10 @@
  * r refreshes the focused panel through its existing refresh form,
  * c collapses/expands the focused panel (persisted per panel in
  * localStorage), t toggles between the dark and light themes (persisted in
- * localStorage), ? toggles a small help overlay (Escape closes it), and
- * / opens a filter bar that live-filters items across all panels
- * (Escape clears and closes).
+ * localStorage), x marks the focused item as seen/unseen (dimmed; persisted
+ * server-side via /api/seen so it is shared across browsers), ? toggles a
+ * small help overlay (Escape closes it), and / opens a filter bar that
+ * live-filters items across all panels (Escape clears and closes).
  *
  * Pure helpers are exported so the test suite can unit-test them without a
  * DOM; the event wiring at the bottom only runs in a real browser.
@@ -81,6 +82,7 @@ export const HELP_ROWS = [
   ["r", "Refresh the focused panel"],
   ["c", "Collapse or expand the focused panel"],
   ["t", "Toggle light / dark theme"],
+  ["x", "Mark the focused item seen / unseen"],
   ["/", "Filter items across panels"],
   ["?", "Show or hide this help"],
   ["Esc", "Close this help"],
@@ -321,6 +323,82 @@ function restoreTheme() {
   if (theme !== "dark") applyTheme(theme);
 }
 
+/* ------------------------------------------------------------------ */
+/* Seen/read item state (toggled with "x", persisted via /api/seen)    */
+/* ------------------------------------------------------------------ */
+
+/** Class marking an item the user has already seen (dimmed by the stylesheet). */
+export const SEEN_CLASS = "item-seen";
+
+/**
+ * Extract the seen-key list from a GET /api/seen response body. The payload
+ * crosses a network boundary, so anything that is not `{ keys: string[] }`
+ * yields [] and non-string / empty entries are dropped.
+ */
+export function parseSeenKeys(body) {
+  if (typeof body !== "object" || body === null || !Array.isArray(body.keys)) return [];
+  return body.keys.filter((key) => typeof key === "string" && key.length > 0);
+}
+
+/**
+ * API base for same-origin fetches: this module is served as
+ * `${basePath}/dashboard.js`, so stripping the filename from its own URL
+ * yields the dashboard root wherever it is mounted.
+ */
+function apiBase() {
+  return import.meta.url.replace(/\/dashboard\.js.*$/, "");
+}
+
+function itemForSeenToggle() {
+  const active = document.activeElement;
+  const item = active && active.closest ? active.closest(".item") : null;
+  return item && item.getAttribute("data-seen-key") ? item : null;
+}
+
+function applySeenKeys(keys) {
+  if (keys.length === 0) return;
+  const set = new Set(keys);
+  for (const item of document.querySelectorAll(".item[data-seen-key]")) {
+    if (set.has(item.getAttribute("data-seen-key"))) item.classList.add(SEEN_CLASS);
+  }
+}
+
+/** Re-apply the server-persisted seen marks to the freshly rendered page. */
+function restoreSeenItems() {
+  fetch(`${apiBase()}/api/seen`)
+    .then((res) => (res.ok ? res.json() : null))
+    .then((body) => applySeenKeys(parseSeenKeys(body)))
+    .catch(() => {
+      // Server unreachable: the dashboard stays usable, items just aren't dimmed.
+    });
+}
+
+/** Toggle the focused item's seen state optimistically and persist it. */
+function toggleFocusedItemSeen() {
+  const item = itemForSeenToggle();
+  if (!item) return;
+  const key = item.getAttribute("data-seen-key");
+  const seen = !item.classList.contains(SEEN_CLASS);
+  // Every duplicate of the story shares the key, so keep the page consistent
+  // with what the server will store.
+  const twins = document.querySelectorAll(".item[data-seen-key]");
+  const toggle = (on) => {
+    for (const twin of twins) {
+      if (twin.getAttribute("data-seen-key") === key) twin.classList.toggle(SEEN_CLASS, on);
+    }
+  };
+  toggle(seen);
+  fetch(`${apiBase()}/api/seen`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ key, seen }),
+  })
+    .then((res) => {
+      if (!res.ok) toggle(!seen); // rejected: roll the optimistic dimming back
+    })
+    .catch(() => toggle(!seen));
+}
+
 let helpEl = null;
 let helpReturnFocus = null;
 
@@ -510,6 +588,10 @@ function onKeydown(event) {
     toggleTheme();
     return;
   }
+  if (event.key === "x" && !event.shiftKey) {
+    toggleFocusedItemSeen();
+    return;
+  }
 
   const move = keyMove(event.key);
   if (move === null || event.shiftKey) return;
@@ -520,4 +602,5 @@ if (typeof document !== "undefined" && typeof window !== "undefined") {
   document.addEventListener("keydown", onKeydown);
   restoreCollapsedPanels();
   restoreTheme();
+  restoreSeenItems();
 }

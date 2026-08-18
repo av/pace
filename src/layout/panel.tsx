@@ -3,6 +3,7 @@ import type { FC } from "hono/jsx";
 import type { ContentItemRow, DashboardRenderMode, PanelConfig, PanelData } from "./types";
 import { resolvePanelId } from "./types";
 import { absoluteUtcTime, parseJsonStringArray, relativeTime, safeLinkUrl } from "../utils";
+import { itemSeenKey } from "../db";
 import { flexStyle } from "./flex-styles";
 import { stripHtml } from "../adapters/html";
 
@@ -99,7 +100,9 @@ const ContentItemCard: FC<{ item: ContentItemRow; mode: DashboardRenderMode }> =
   const origins = parseJsonStringArray(item.origins);
   const merged = origins.length > 1;
   return (
-    <li class="item">
+    // data-seen-key carries the item's dedup identity so the client-side
+    // seen/read state (dashboard.js "x" key, /api/seen) can address it.
+    <li class="item" data-seen-key={itemSeenKey(item)}>
       <div class="item-title">
         {href
           ? <a href={href} target="_blank" rel="noopener noreferrer">{item.title}</a>

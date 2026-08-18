@@ -352,6 +352,17 @@ a:hover {
   background: var(--hover-bg);
 }
 
+/* Seen/read items ("x" key, persisted via /api/seen): dimmed but readable.
+   Focused seen items regain full opacity so keyboard review stays legible. */
+.item.item-seen {
+  opacity: 0.45;
+}
+
+.item.item-seen:hover,
+.item.item-seen:focus-within {
+  opacity: 1;
+}
+
 .item-title {
   font-size: 0.85rem;
   font-weight: 500;

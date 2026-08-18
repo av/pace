@@ -266,6 +266,17 @@ export function initDb(): void {
       CREATE INDEX IF NOT EXISTS idx_content_items_timestamp
       ON content_items(timestamp DESC)
     `);
+
+    // Seen/read state, keyed by the item's dedup identity (see itemSeenKey)
+    // rather than (id, panel_id): marking a story seen on one panel marks its
+    // copies on every other panel too, and the state survives an id-changing
+    // re-fetch as long as the URL is stable.
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS seen_items (
+        seen_key TEXT PRIMARY KEY,
+        seen_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `);
   } catch (e: unknown) {
     throw new Error(`db: failed to init ${currentDbPath || "default"}: ${errorMessage(e)}`);
   }
@@ -428,6 +439,45 @@ export function searchItems(
     ${termClauses.map((clause) => `AND ${clause}`).join("\n    ")}
     ORDER BY timestamp DESC LIMIT ?`;
   return db.prepare(sql).all(...params, ...termParams, options.limit) as ContentItemRow[];
+}
+
+// --- Seen/read item state ----------------------------------------------------
+
+/**
+ * The identity a seen mark is stored under: the item's dedup group. Mirrors
+ * DEDUP_GROUP_EXPR (`CASE WHEN url = '' THEN id ELSE lower(rtrim(url, '/'))
+ * END`) so an item and its cross-panel/pipeline duplicates share one seen
+ * state. Lowercasing is ASCII-only to match SQLite's lower(); trailing
+ * slashes are stripped like rtrim(url, '/').
+ */
+export function itemSeenKey(item: { id: string; url: string }): string {
+  if (item.url === "") return item.id;
+  return item.url.replace(/[A-Z]/g, (ch) => ch.toLowerCase()).replace(/\/+$/, "");
+}
+
+/** Persist (or clear) the seen mark for one dedup key. */
+export function setItemSeen(key: string, seen: boolean): void {
+  const db = getDb();
+  try {
+    if (seen) {
+      db.prepare(
+        "INSERT INTO seen_items (seen_key) VALUES (?) ON CONFLICT(seen_key) DO NOTHING",
+      ).run(key);
+    } else {
+      db.prepare("DELETE FROM seen_items WHERE seen_key = ?").run(key);
+    }
+  } catch (e: unknown) {
+    throw new Error(`db: failed to set seen=${seen} for key=${key}: ${errorMessage(e)}`);
+  }
+}
+
+/** All stored seen keys, oldest mark first. */
+export function getSeenKeys(): string[] {
+  const db = getDb();
+  const rows = db
+    .prepare("SELECT seen_key FROM seen_items ORDER BY seen_at ASC, seen_key ASC")
+    .all() as { seen_key: string }[];
+  return rows.map((row) => row.seen_key);
 }
 
 export function getRecentItems(limit: number = DEFAULT_PANEL_LIMIT): ContentItemRow[] {
@@ -701,6 +751,18 @@ export function pruneOldItems(days: number = 30): number {
   }
   const db = getDb();
   const res = db.prepare(`DELETE FROM content_items WHERE fetched_at < datetime('now', ?)`).run(`-${days} days`);
+  // Seen marks age out on the same retention window, but only once no stored
+  // item still carries the key — a long-lived story the user marked seen
+  // months ago must not resurrect as unseen while it keeps rendering. Best
+  // effort: retention of content rows must not fail on a seen-table hiccup.
+  try {
+    db.prepare(
+      `DELETE FROM seen_items WHERE seen_at < datetime('now', ?)
+        AND seen_key NOT IN (SELECT ${DEDUP_GROUP_EXPR} FROM content_items)`,
+    ).run(`-${days} days`);
+  } catch (e: unknown) {
+    warnDb(`failed to prune seen_items: ${errorMessage(e)}`);
+  }
   return res.changes;
 }
 

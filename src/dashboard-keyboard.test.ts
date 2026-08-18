@@ -16,7 +16,10 @@ import {
   THEME_STORAGE_KEY,
   parseStoredTheme,
   nextTheme,
+  SEEN_CLASS,
+  parseSeenKeys,
 } from "./dashboard.js";
+import { itemSeenKey } from "./db";
 import { renderDashboard, type PanelData } from "./layout";
 import { normalizeBasePath } from "./config/domain";
 import { installTempDbHooks } from "./test/temp-db";
@@ -262,7 +265,7 @@ describe("nextTheme", () => {
 describe("HELP_ROWS", () => {
   test("documents every advertised shortcut", () => {
     const keys = HELP_ROWS.map(([k]) => k).join(" ");
-    for (const fragment of ["j / k", "h / l", "Tab", "Enter", "r", "c", "t", "/", "?", "Esc"]) {
+    for (const fragment of ["j / k", "h / l", "Tab", "Enter", "r", "c", "t", "x", "/", "?", "Esc"]) {
       expect(keys).toContain(fragment);
     }
     for (const [, description] of HELP_ROWS) {
@@ -313,6 +316,34 @@ describe("panel collapse markup", () => {
   test("no panel is server-rendered collapsed (collapse is client state only)", () => {
     for (const mode of ["interactive", "static"] as const) {
       expect(renderModeDashboard(mode)).not.toContain("panel-collapsed");
+    }
+  });
+});
+
+describe("seen item markup and helpers", () => {
+  test("items carry a data-seen-key with the item's dedup identity", () => {
+    const item = makeItem({ title: "Story", source: "rss", url: "https://Ex.com/Story/" });
+    const panelData = new Map<string, PanelData>([["Feed", { items: [item] }]]);
+    const layout = flexCfg("row", [panelCfg("Feed", "rss")]);
+    const html = renderDashboard({ layout, panelData, updatedAt: "now", mode: "interactive" });
+    expect(html).toContain(`data-seen-key="${itemSeenKey(item)}"`);
+    expect(html).toContain('data-seen-key="https://ex.com/story"');
+  });
+
+  test("no item is server-rendered seen (seen dimming is client state only)", () => {
+    for (const mode of ["interactive", "static"] as const) {
+      expect(renderModeDashboard(mode)).not.toContain(SEEN_CLASS);
+    }
+  });
+
+  test("parseSeenKeys keeps only non-empty string keys from a trusted-shape body", () => {
+    expect(parseSeenKeys({ keys: ["a", "", 7, "b", null] })).toEqual(["a", "b"]);
+    expect(parseSeenKeys({ count: 0, keys: [] })).toEqual([]);
+  });
+
+  test("parseSeenKeys tolerates garbage payloads", () => {
+    for (const body of [null, undefined, "x", 42, [], { keys: "a" }, {}]) {
+      expect(parseSeenKeys(body)).toEqual([]);
     }
   });
 });
@@ -407,6 +438,15 @@ describe("keyboard navigation CSS", () => {
     expect(selector).toContain(".panel.panel-collapsed .counter-panel");
     expect(selector).toContain(".panel.panel-collapsed::after");
     expect(rule![1]).toContain("display: none");
+  });
+
+  test("seen items are dimmed but regain full opacity on hover/focus", () => {
+    const dim = STYLES.match(/\.item\.item-seen\s*\{([^}]*)\}/s);
+    expect(dim).not.toBeNull();
+    expect(dim![1]).toContain("opacity");
+    const restore = STYLES.match(/\.item\.item-seen:hover,\s*\.item\.item-seen:focus-within\s*\{([^}]*)\}/s);
+    expect(restore).not.toBeNull();
+    expect(restore![1]).toContain("opacity: 1");
   });
 
   test("light theme block shadows every dark token and restyles source badges", () => {

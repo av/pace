@@ -238,6 +238,14 @@ curl 'http://localhost:7453/api/search?q=rust+wasm&limit=10'
 curl 'http://localhost:7453/api/search.rss?q=rust+wasm'
 ```
 
+### `/api/seen` - read state
+
+`GET /api/seen` lists the keys of every item marked seen (pressing `x` on the dashboard), and `POST /api/seen` with `{"key": "...", "seen": true}` sets or clears one mark. Keys are the item's dedup identity — the normalized URL, or the item id when there is no URL — so marking a story seen covers its copies on every panel. Seen state lives in the server's SQLite database, shared by every browser that opens the dashboard, and marks age out with `server.retention_days` once no stored item carries the key:
+
+```bash
+curl http://localhost:7453/api/seen
+```
+
 Unknown panels return a JSON 404 (`{"error": "Unknown panel: ..."}`). All of these endpoints respect `server.base_path`.
 
 ## Share a Snapshot
@@ -336,6 +344,7 @@ The dashboard can be driven entirely from the keyboard; pressing `?` on a runnin
 | `r` | Refresh the focused panel |
 | `c` | Collapse or expand the focused panel (remembered per browser) |
 | `t` | Toggle light / dark theme (remembered per browser) |
+| `x` | Mark the focused item seen / unseen (dimmed; persisted server-side, shared across browsers) |
 | `/` | Filter items across panels |
 | `?` | Show or hide the help overlay |
 | `Esc` | Close the help overlay |

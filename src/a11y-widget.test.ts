@@ -474,7 +474,7 @@ describe("Document semantics", () => {
   it("marks up content items as a list", () => {
     const html = renderWidget(panelCfg("News", "news"), feedPanelData("2026-06-20T07:06:05.000Z"));
     expect(html).toContain('<ul class="item-list">');
-    expect(html).toContain('<li class="item">');
+    expect(html).toMatch(/<li class="item" data-seen-key="[^"]+">/);
     expect(html).not.toContain('<div class="item">');
   });
 

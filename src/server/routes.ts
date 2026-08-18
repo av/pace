@@ -20,6 +20,7 @@ import { handleApiPanelItems, handleApiPanelList } from "./api-panels";
 import { handleApiSearch } from "./api-search";
 import { handleApiSearchRss } from "./api-search-rss";
 import { handleApiPanelRss, RSS_PANEL_SUFFIX } from "./api-panels-rss";
+import { handleApiSeenList, handleApiSeenSet } from "./api-seen";
 
 export type RefreshSourcesFn = (sourceNames: string[]) => Promise<RefreshResult[]>;
 
@@ -263,6 +264,10 @@ export function registerServerRoutes(app: Hono, deps: ServerRouteDeps): void {
   // The same search rendered as RSS 2.0 — any query becomes a subscribable
   // "saved search" feed for regular feed readers.
   app.get(`/api/search${RSS_PANEL_SUFFIX}`, (c) => handleApiSearchRss(c, deps));
+  // Seen/read item state: the dashboard's "x" key persists which items the
+  // user has read, keyed by dedup identity so duplicates share the mark.
+  app.get("/api/seen", (c) => handleApiSeenList(c));
+  app.post("/api/seen", (c) => handleApiSeenSet(c));
   // A ".rss" suffix on the panel segment switches the same lookup to an
   // RSS 2.0 rendering, so pace panels can feed regular feed readers.
   app.get("/api/panels/:panel", (c) =>
