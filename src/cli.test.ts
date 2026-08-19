@@ -199,6 +199,7 @@ Commands:
   import <feeds.opml>      Convert an OPML feed export to a pace config
   export [output.opml]     Export configured feed URLs as OPML
   notify test [rule]       Send a test delivery to notify webhooks
+  panels list              List the active config's panels
   search <query...>        Search stored dashboard items
 
 Options:

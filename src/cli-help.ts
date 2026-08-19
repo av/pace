@@ -46,6 +46,12 @@ import {
   parseSearchCliLimit,
   resolveSearchCliPanelId,
 } from "./cli-search";
+import {
+  collectPanelsList,
+  formatPanelsList,
+  formatPanelsSummary,
+  formatPanelsUsage,
+} from "./cli-panels";
 import { initDb, searchItems } from "./db";
 import { DEFAULT_API_SEARCH_LIMIT, parseSearchQuery } from "./server/api-search";
 import { errorMessage, normalizeParamBoolean, parseCliPort } from "./utils";
@@ -1056,6 +1062,37 @@ const CLI_COMMANDS: CliCommand[] = [
     },
   },
   {
+    name: "panels",
+    summary: "List the active config's panels",
+    usage: formatPanelsUsage(),
+    async run(positionals, values, ctx) {
+      const usage = formatPanelsUsage();
+      const PANELS_ALLOWED = new Set(["config", "preset", "chdir"]);
+      rejectInvalidCommandOptions(values, usage, PANELS_ALLOWED);
+      const sub = positionals[0];
+      if (sub === "list") {
+        if (positionals.length > 1) {
+          cliFailWithHelp(`Unknown subcommand: ${positionals[1]}\n`, usage);
+        }
+        let rows;
+        try {
+          applyCliConfigEnv(values, ctx.deps);
+          const readConfig = ctx.deps.loadConfig ?? loadConfig;
+          rows = collectPanelsList(readConfig());
+        } catch (err) {
+          cliDie(errorMessage(err));
+        }
+        writeCliStderr(formatPanelsSummary(rows));
+        cliExitOk(formatPanelsList(rows));
+      } else {
+        cliFailWithHelp(
+          sub === undefined ? "Unknown subcommand: (none)\n" : `Unknown subcommand: ${sub}\n`,
+          usage,
+        );
+      }
+    },
+  },
+  {
     name: "search",
     summary: "Search stored dashboard items",
     usage: formatSearchUsage(),
@@ -1225,6 +1262,7 @@ Commands:
   import <feeds.opml>      Convert an OPML feed export to a pace config
   export [output.opml]     Export configured feed URLs as OPML
   notify test [rule]       Send a test delivery to notify webhooks
+  panels list              List the active config's panels
   search <query...>        Search stored dashboard items
 
 Options:

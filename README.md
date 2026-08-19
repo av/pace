@@ -140,6 +140,7 @@ pace import feeds.opml     # convert an OPML feed export to a pace config
 pace export feeds.opml     # export configured feed URLs as OPML
 pace notify test           # send a test delivery to notify webhooks
 pace search <query...>     # search stored items from the terminal
+pace panels list           # list the active config's panels (ids, names, sources)
 ```
 
 Validate before serving: `pace config check config.yaml` catches schema errors without starting the server. To verify the configured feeds actually respond, run `pace doctor` — it fetches every source once and reports per-source ok/failure with the underlying error (exit 1 if anything failed).
@@ -149,6 +150,8 @@ Migrating from a feed reader? `pace import feeds.opml` converts an OPML export (
 Going the other way, `pace export` writes the feed URLs from the active config (`--config`/`--preset` work as usual) as an OPML 2.0 file any feed reader can import: one folder per `rss` or `podcast` adapter, one outline per URL. It prints OPML to stdout or writes to a file when given a path — `pace export feeds.opml`. Adapters without feed URLs (hackernews, github, arxiv, ...) are skipped with a warning, and the output round-trips through `pace import`.
 
 `pace search rust seen:no` searches the stored dashboard database from the terminal — no server needed. It speaks the exact `/api/search` grammar (AND of case-insensitive terms over title/url/source/summary/body, plus `starred:yes|no`, `seen:yes|no`, and `panel:<id>` operators), returns the newest 50 matches with each hit marked `★` when starred and `·` when read, and prints a `search: N matches` summary to stderr so the hits pipe cleanly. `--limit N` (`-n N`) caps the hits like the API's `?limit=` (1-500), and `--json` emits them as a JSON document instead — the `/api/search` response shape with each item additionally carrying `starred`/`seen` booleans, always parseable even at zero matches, so scripts and agents skip the glyph parsing. The config is only loaded when a `panel:` operator needs resolving; `--chdir` points the command at another dashboard's directory.
+
+`pace panels list` prints the active config's panels in layout order — resolved panel id, display name, and the source names feeding each panel (`source: all` panels are marked `(all sources)`). The ids are exactly what the `panel:` search operator, `/api/search`'s `?panel=` parameter, per-panel feeds (`/api/panels/<id>.rss`), and the refresh routes accept, so this is the quickest way to discover them. Ids go to stdout (one panel per line, aligned columns) and a `panels: N panels` summary to stderr, so the output pipes cleanly; `--config`/`--preset`/`--chdir` select the config as usual.
 
 ## Server Configuration
 
