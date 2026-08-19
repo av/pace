@@ -249,6 +249,9 @@
 - label: A notify rule with format: template delivers its own template string as the body with {{rule}}, {{matched}}, {{headline}}, and {{items}} substituted per delivery (items is the plain-text bullet list with an and-N-more overflow line); config validation requires a non-empty template exactly when format is template, rejects unknown {{placeholder}} names listing the valid set, and uniquely allows a custom Content-Type header since the user owns the body; template is presentation-only and never affects matching or the notified_items ledger
   command: bun test src/notify-format.test.ts
   tags: [spec, implemented]
+- label: The {{items_json_array}} template placeholder takes an optional field selection ({{items_json_array:title,url,score}}) substituting the matched items as a JSON array of objects narrowed to just the listed NotifyPayloadItem fields in the listed order (so bulky summary can be omitted); config validation rejects unknown or empty field selections naming the valid fields, bare {{items_json_array}} keeps the full shape, item_template never takes the selection form, and the selection is presentation-only so editing it never re-notifies
+  command: bun test src/notify-format.test.ts --test-name-pattern 'field selection'
+  tags: [spec, implemented]
 - label: A notify rule with format: template may set an optional item_template string rendered once per delivered item for {{items}} (placeholders {{title}}, {{url}}, {{source}}, {{score}} empty when unscored, {{meta}}), keeping the and-N-more overflow line; config validation rejects it outside format: template, empty strings, and unknown per-item placeholders listing the valid set, and item_template is presentation-only so editing it never re-notifies
   command: bun test src/notify-format.test.ts
   tags: [spec, implemented]

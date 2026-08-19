@@ -77,7 +77,11 @@ function plainItemLines(payload: NotifyPayload): string[] {
  * array of the payload's item objects — the same {@link NotifyPayloadItem}
  * shape the `json` format sends (`title`, `url`, `source`, `panel`,
  * `timestamp`, `score`, `summary`) — for receivers that want structured
- * items rather than one preformatted text blob.
+ * items rather than one preformatted text blob. It also takes a field
+ * selection — `{{items_json_array:title,url,score}}` — that narrows each
+ * object to just the listed {@link NOTIFY_ITEM_FIELDS} in the listed order,
+ * so a rule can drop the bulky `summary` (or anything else the receiver
+ * doesn't want) instead of shipping every field on every delivery.
  */
 const NOTIFY_TEMPLATE_BASE = ["rule", "matched", "headline", "items"] as const;
 export const NOTIFY_TEMPLATE_PLACEHOLDERS: readonly string[] = [
@@ -100,11 +104,55 @@ export const NOTIFY_ITEM_TEMPLATE_PLACEHOLDERS: readonly string[] = [
   ...NOTIFY_ITEM_TEMPLATE_BASE.map((name) => `${name}_json`),
 ];
 
-function unknownPlaceholders(template: string, names: readonly string[]): string[] {
+/**
+ * The item-object fields a `{{items_json_array:…}}` selection may pick from —
+ * exactly the {@link NotifyPayloadItem} keys, in payload order.
+ */
+export const NOTIFY_ITEM_FIELDS = [
+  "title",
+  "url",
+  "source",
+  "panel",
+  "timestamp",
+  "score",
+  "summary",
+] as const;
+export type NotifyItemField = (typeof NOTIFY_ITEM_FIELDS)[number];
+
+/**
+ * Parse a placeholder name of the field-selecting form
+ * `items_json_array:field,field,…` into its trimmed field list, or `null`
+ * when the name is not that form (including bare `items_json_array`, which
+ * stays a plain placeholder). The returned fields are as written — possibly
+ * invalid; {@link validItemFieldSelection} decides whether they pass.
+ */
+export function parseItemsJsonArrayFields(name: string): string[] | null {
+  if (!name.startsWith("items_json_array:")) return null;
+  return name
+    .slice("items_json_array:".length)
+    .split(",")
+    .map((field) => field.trim());
+}
+
+/** A parsed selection is valid when non-empty and every field is a real one. */
+function validItemFieldSelection(fields: string[]): fields is NotifyItemField[] {
+  return (
+    fields.length > 0 &&
+    fields.every((field) => (NOTIFY_ITEM_FIELDS as readonly string[]).includes(field))
+  );
+}
+
+function unknownPlaceholders(template: string, names: readonly string[], fieldSelections = false): string[] {
   const known = new Set<string>(names);
   const unknown = new Set<string>();
   for (const match of template.matchAll(/\{\{\s*([^{}]*?)\s*\}\}/g)) {
-    if (!known.has(match[1]!)) unknown.add(match[1]!);
+    const name = match[1]!;
+    if (known.has(name)) continue;
+    if (fieldSelections) {
+      const fields = parseItemsJsonArrayFields(name);
+      if (fields !== null && validItemFieldSelection(fields)) continue;
+    }
+    unknown.add(name);
   }
   return [...unknown];
 }
@@ -115,7 +163,7 @@ function unknownPlaceholders(template: string, names: readonly string[]): string
  * `pace config check` instead of delivering itself literally forever.
  */
 export function unknownTemplatePlaceholders(template: string): string[] {
-  return unknownPlaceholders(template, NOTIFY_TEMPLATE_PLACEHOLDERS);
+  return unknownPlaceholders(template, NOTIFY_TEMPLATE_PLACEHOLDERS, true);
 }
 
 /** Same, for an `item_template` against the per-item placeholder set. */
@@ -123,10 +171,15 @@ export function unknownItemTemplatePlaceholders(template: string): string[] {
   return unknownPlaceholders(template, NOTIFY_ITEM_TEMPLATE_PLACEHOLDERS);
 }
 
-function substitute(template: string, values: Record<string, string>): string {
-  return template.replace(/\{\{\s*([^{}]*?)\s*\}\}/g, (token, name: string) =>
-    Object.hasOwn(values, name) ? values[name]! : token,
-  );
+function substitute(
+  template: string,
+  values: Record<string, string>,
+  resolve?: (name: string) => string | undefined,
+): string {
+  return template.replace(/\{\{\s*([^{}]*?)\s*\}\}/g, (token, name: string) => {
+    if (Object.hasOwn(values, name)) return values[name]!;
+    return resolve?.(name) ?? token;
+  });
 }
 
 /**
@@ -177,19 +230,36 @@ function renderTemplate(template: string, payload: NotifyPayload, itemTemplate?:
     const more = moreLine(payload, payload.items.length);
     if (more !== null) itemLines.push(more);
   }
-  const body = substitute(template, {
-    ...withJsonTwins(
-      {
-        rule: payload.rule,
-        matched: String(payload.matched),
-        headline: headline(payload),
-        items: itemLines.join("\n"),
-      },
-      { matched: payload.matched },
-    ),
-    // Structural extra (not a twin): the item objects as a real JSON array.
-    items_json_array: JSON.stringify(payload.items),
-  });
+  const body = substitute(
+    template,
+    {
+      ...withJsonTwins(
+        {
+          rule: payload.rule,
+          matched: String(payload.matched),
+          headline: headline(payload),
+          items: itemLines.join("\n"),
+        },
+        { matched: payload.matched },
+      ),
+      // Structural extra (not a twin): the item objects as a real JSON array.
+      items_json_array: JSON.stringify(payload.items),
+    },
+    // Field-selecting form: {{items_json_array:title,url}} narrows each item
+    // object to the listed fields, in the listed order. Config validation
+    // guarantees selections here are valid; anything else stays literal.
+    (name) => {
+      const fields = parseItemsJsonArrayFields(name);
+      if (fields === null || !validItemFieldSelection(fields)) return undefined;
+      return JSON.stringify(
+        payload.items.map((item) => {
+          const picked: Partial<NotifyPayloadItem> = {};
+          for (const field of fields) picked[field] = item[field] as never;
+          return picked;
+        }),
+      );
+    },
+  );
   return { body, headers: { "Content-Type": "text/plain; charset=utf-8" } };
 }
 

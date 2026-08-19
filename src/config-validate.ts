@@ -17,6 +17,7 @@ import {
 import { warnConfig } from "./config-warn";
 import {
   NOTIFY_FORMATS,
+  NOTIFY_ITEM_FIELDS,
   NOTIFY_ITEM_TEMPLATE_PLACEHOLDERS,
   NOTIFY_TEMPLATE_PLACEHOLDERS,
   unknownItemTemplatePlaceholders,
@@ -822,8 +823,13 @@ export function validateNotifyConfig(
       }
       const unknown = unknownTemplatePlaceholders(rule.template);
       if (unknown.length > 0) {
+        // A bad {{items_json_array:…}} selection is an unknown placeholder;
+        // name the valid fields so the fix is obvious.
+        const fieldHint = unknown.some((name) => name.startsWith("items_json_array:"))
+          ? `; {{items_json_array:field,…}} selects from: ${NOTIFY_ITEM_FIELDS.join(", ")}`
+          : "";
         throw new Error(
-          `config: ${path}.template has unknown placeholder(s) ${unknown.map((name) => `{{${name}}}`).join(", ")} — valid placeholders: ${NOTIFY_TEMPLATE_PLACEHOLDERS.map((name) => `{{${name}}}`).join(", ")}`,
+          `config: ${path}.template has unknown placeholder(s) ${unknown.map((name) => `{{${name}}}`).join(", ")} — valid placeholders: ${NOTIFY_TEMPLATE_PLACEHOLDERS.map((name) => `{{${name}}}`).join(", ")}${fieldHint}`,
         );
       }
       if (rule.item_template !== undefined) {

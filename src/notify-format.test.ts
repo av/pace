@@ -217,6 +217,38 @@ describe("notify-format: renderNotifyDelivery", () => {
     expect(unknownItemTemplatePlaceholders("{{items_json_array}}")).toEqual(["items_json_array"]);
   });
 
+  test("{{items_json_array:fields}} narrows each item to the listed fields, in order", () => {
+    const d = renderNotifyDelivery(
+      "template",
+      payload({
+        matched: 2,
+        items: [item({ summary: "a very long summary" }), item({ title: "plain", score: null })],
+      }),
+      "{{ items_json_array:title, url, score }}",
+    );
+    // Only the selected fields — summary (and the rest) omitted.
+    expect(JSON.parse(d.body)).toEqual([
+      { title: "Rust 2.0 released", url: "https://ex.com/rust", score: 9 },
+      { title: "plain", url: "https://ex.com/rust", score: null },
+    ]);
+    // Selection order is the listed order, not payload order.
+    const reordered = renderNotifyDelivery("template", payload(), "{{items_json_array:url,title}}");
+    expect(Object.keys((JSON.parse(reordered.body) as object[])[0]!)).toEqual(["url", "title"]);
+  });
+
+  test("field selections validate: real fields pass, typos and empty fail", () => {
+    expect(unknownTemplatePlaceholders("{{items_json_array:title,url,score,summary}}")).toEqual([]);
+    expect(unknownTemplatePlaceholders("{{items_json_array:title, panel , timestamp}}")).toEqual([]);
+    expect(unknownTemplatePlaceholders("{{items_json_array:titel,url}}")).toEqual([
+      "items_json_array:titel,url",
+    ]);
+    expect(unknownTemplatePlaceholders("{{items_json_array:}}")).toEqual(["items_json_array:"]);
+    // item_template never takes the selection form.
+    expect(unknownItemTemplatePlaceholders("{{items_json_array:title}}")).toEqual([
+      "items_json_array:title",
+    ]);
+  });
+
   test("template format without a template throws (validation prevents this)", () => {
     expect(() => renderNotifyDelivery("template", payload())).toThrow(/requires a template/);
   });
@@ -351,6 +383,27 @@ describe("notify-format: config validation", () => {
     ).toThrow(
       /notify\[0\]\.template has unknown placeholder\(s\) \{\{item\}\} — valid placeholders: \{\{rule\}\}, \{\{matched\}\}, \{\{headline\}\}, \{\{items\}\}, \{\{rule_json\}\}, \{\{matched_json\}\}, \{\{headline_json\}\}, \{\{items_json\}\}/,
     );
+  });
+
+  test("a bad items_json_array field selection fails config check naming the valid fields", () => {
+    expect(() =>
+      validate({
+        url: WEBHOOK_URL,
+        min_score: 8,
+        format: "template",
+        template: "{{items_json_array:titel,url}}",
+      }),
+    ).toThrow(
+      /\{\{items_json_array:titel,url\}\}.*\{\{items_json_array:field,…\}\} selects from: title, url, source, panel, timestamp, score, summary/,
+    );
+    expect(() =>
+      validate({
+        url: WEBHOOK_URL,
+        min_score: 8,
+        format: "template",
+        template: '{"items": {{items_json_array:title,url,score}}}',
+      }),
+    ).not.toThrow();
   });
 
   test("item_template must be a non-empty string with known per-item placeholders", () => {
