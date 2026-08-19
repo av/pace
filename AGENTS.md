@@ -15,7 +15,7 @@ pace import <feeds.opml>         # convert an OPML feed export to a pace config
 pace export [output.opml]        # export configured feed URLs as OPML
 pace notify test [rule]          # send a test delivery to notify webhooks
 pace search <query...>           # search stored items (same grammar as /api/search; --json, --limit N)
-pace panels list                 # list the active config's panels (ids, names, sources)
+pace panels list                 # list the active config's panels (ids, names, sources; --json for machine output)
 pace skill [name]                # list or print bundled agent skills
 ```
 

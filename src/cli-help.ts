@@ -48,6 +48,7 @@ import {
 } from "./cli-search";
 import {
   collectPanelsList,
+  formatPanelsJson,
   formatPanelsList,
   formatPanelsSummary,
   formatPanelsUsage,
@@ -1067,7 +1068,7 @@ const CLI_COMMANDS: CliCommand[] = [
     usage: formatPanelsUsage(),
     async run(positionals, values, ctx) {
       const usage = formatPanelsUsage();
-      const PANELS_ALLOWED = new Set(["config", "preset", "chdir"]);
+      const PANELS_ALLOWED = new Set(["config", "preset", "chdir", "json"]);
       rejectInvalidCommandOptions(values, usage, PANELS_ALLOWED);
       const sub = positionals[0];
       if (sub === "list") {
@@ -1083,6 +1084,9 @@ const CLI_COMMANDS: CliCommand[] = [
           cliDie(errorMessage(err));
         }
         writeCliStderr(formatPanelsSummary(rows));
+        if (values.json === true) {
+          cliExitOk(formatPanelsJson(rows));
+        }
         cliExitOk(formatPanelsList(rows));
       } else {
         cliFailWithHelp(

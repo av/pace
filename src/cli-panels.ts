@@ -13,6 +13,8 @@ parameter, per-panel feeds (/api/panels/<id>.rss), and the refresh routes
 all resolve. Panels whose source is "all" span every configured source.
 
 Options:
+      --json            Emit the panels as JSON ({count, panels} with each
+                        panel's id, name, sources, and all flag)
   -c, --config <path>   Path to config file (default: ./config.yaml)
   -P, --preset <name>   Use a bundled preset config
   -C, --chdir <dir>     Change to directory (for config/data loads)
@@ -70,6 +72,23 @@ export function formatPanelsList(rows: readonly PanelsListRow[]): string {
       return `${row.id.padEnd(idWidth)}  ${row.name.padEnd(nameWidth)}  ${sources}`.trimEnd();
     })
     .join("\n");
+}
+
+/**
+ * The whole listing as pretty-printed JSON for `--json`: {count, panels} with
+ * each panel's id, display name, resolved source names, and an `all` flag for
+ * source: all panels — the row shape verbatim except `isAll` exposed as `all`
+ * (JSON consumers should not inherit an internal naming quirk). Always a
+ * parseable document, mirroring `pace search --json`.
+ */
+export function formatPanelsJson(rows: readonly PanelsListRow[]): string {
+  const panels = rows.map(({ id, name, sources, isAll }) => ({
+    id,
+    name,
+    sources,
+    all: isAll,
+  }));
+  return JSON.stringify({ count: rows.length, panels }, null, 2);
 }
 
 /** Stderr summary line, keeping stdout clean for piping ids into scripts. */

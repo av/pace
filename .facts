@@ -333,6 +333,9 @@
 - label: the service worker cache name carries the pace package version, so a release upgrade retires the previous release's offline caches on activate instead of serving a stale app shell
   command: bun test src/server.test.ts --test-name-pattern 'cache version is wired'
   tags: [spec, implemented]
+- label: pace panels list --json emits the listing as one JSON document ({count, panels} with each panel's id, name, resolved sources, and an all flag for source-all panels) so scripts discover panel ids without parsing aligned columns; always parseable, summary still on stderr
+  command: bun test src/cli-panels.test.ts --test-name-pattern 'json'
+  tags: [spec, implemented]
 - label: pace panels list prints the active config's panels in layout order (resolved panel id, display name, and resolved source names, with source: all panels marked all-sources) so users can discover the ids the panel: operator, ?panel=, /api/panels/<id>.rss, and refresh routes accept; summary goes to stderr, a panel-less layout is a clear error, and serve-only options are rejected
   command: bun test src/cli-panels.test.ts
   tags: [spec, implemented]

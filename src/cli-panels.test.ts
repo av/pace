@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
   collectPanelsList,
+  formatPanelsJson,
   formatPanelsList,
   formatPanelsSummary,
   formatPanelsUsage,
@@ -74,6 +75,23 @@ describe("formatPanelsList", () => {
   });
 });
 
+describe("formatPanelsJson", () => {
+  test("emits {count, panels} with isAll exposed as all", () => {
+    const doc = JSON.parse(formatPanelsJson(collectPanelsList(panelsConfig())));
+    expect(doc.count).toBe(2);
+    expect(doc.panels).toHaveLength(2);
+    expect(doc.panels[0]).toEqual({
+      id: "hn-panel",
+      name: "Hacker News",
+      sources: ["hn"],
+      all: false,
+    });
+    expect(doc.panels[1].all).toBe(true);
+    // Internal naming quirk never leaks into the JSON shape.
+    expect(doc.panels[0]).not.toHaveProperty("isAll");
+  });
+});
+
 describe("formatPanelsSummary", () => {
   test("counts panels with singular/plural forms", () => {
     const rows = collectPanelsList(panelsConfig());
@@ -109,6 +127,26 @@ describe("pace panels (CLI)", () => {
       expect(result.status).toBe(0);
       expect(result.stdout).toContain("hn-panel");
       expect(result.stdout).toContain("Hacker News");
+      expect(result.stderr).toContain("panels: 1 panel");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("panels list --json prints a parseable JSON document on stdout", () => {
+    const dir = mkdtempSync(join(tmpdir(), "pace-cli-panels-"));
+    try {
+      const result = runCli(["panels", "list", "--json", "--config", writeConfig(dir)]);
+      expect(result.status).toBe(0);
+      const doc = JSON.parse(result.stdout);
+      expect(doc.count).toBe(1);
+      expect(doc.panels[0]).toEqual({
+        id: "hn-panel",
+        name: "Hacker News",
+        sources: ["hn"],
+        all: false,
+      });
+      // The summary stays on stderr so stdout pipes into jq cleanly.
       expect(result.stderr).toContain("panels: 1 panel");
     } finally {
       rmSync(dir, { recursive: true, force: true });
