@@ -145,10 +145,18 @@ export interface NotifyRuleConfig {
   /**
    * Delivery format preset: raw "json" payload (default), or a body shaped
    * for "ntfy" (plain text + title/click headers), "discord" (webhook
-   * `content` markdown), or "slack" (incoming-webhook `text` mrkdwn).
-   * Presentation only — never affects matching or the delivery ledger.
+   * `content` markdown), "slack" (incoming-webhook `text` mrkdwn), or
+   * "template" (the rule's own `template` string with `{{placeholder}}`
+   * substitution). Presentation only — never affects matching or the
+   * delivery ledger.
    */
-  format?: "json" | "ntfy" | "discord" | "slack";
+  format?: "json" | "ntfy" | "discord" | "slack" | "template";
+  /**
+   * User-defined delivery body for `format: template`. Placeholders:
+   * `{{rule}}`, `{{matched}}`, `{{headline}}`, `{{items}}` (plain-text
+   * bullet list). Required with — and only valid with — `format: template`.
+   */
+  template?: string;
   /**
    * Extra HTTP headers sent with every delivery to this rule's webhook —
    * typically auth (`Authorization: Bearer ${TOKEN}` via env expansion, ntfy

@@ -1,6 +1,11 @@
 import { describe, test, expect } from "bun:test";
 import { installTempDbHooks } from "./test/temp-db";
-import { mergeNotifyHeaders, NOTIFY_FORMATS, renderNotifyDelivery } from "./notify-format";
+import {
+  mergeNotifyHeaders,
+  NOTIFY_FORMATS,
+  renderNotifyDelivery,
+  unknownTemplatePlaceholders,
+} from "./notify-format";
 import { runNotifyRules, type NotifyPayload, type NotifyPayloadItem } from "./notify";
 import { validateParsedConfig } from "./config-validate";
 import { DEFAULT_LAYOUT } from "./config/domain";
@@ -95,8 +100,38 @@ describe("notify-format: renderNotifyDelivery", () => {
 
   test("every declared format renders without throwing", () => {
     for (const format of NOTIFY_FORMATS) {
-      expect(renderNotifyDelivery(format, payload({ matched: 3, items: [] })).body.length).toBeGreaterThan(0);
+      const template = format === "template" ? "{{headline}}" : undefined;
+      expect(
+        renderNotifyDelivery(format, payload({ matched: 3, items: [] }), template).body.length,
+      ).toBeGreaterThan(0);
     }
+  });
+
+  test("template substitutes every placeholder, tolerating inner whitespace", () => {
+    const d = renderNotifyDelivery(
+      "template",
+      payload({ matched: 25, items: [item(), item()] }),
+      "rule={{rule}} matched={{ matched }}\n{{headline}}\n{{items}}",
+    );
+    expect(d.headers).toEqual({ "Content-Type": "text/plain; charset=utf-8" });
+    expect(d.body).toBe(
+      'rule=high-signal matched=25\npace: 25 new items for "high-signal"\n' +
+        "• Rust 2.0 released (Hacker News, score 9)\n  https://ex.com/rust\n" +
+        "• Rust 2.0 released (Hacker News, score 9)\n  https://ex.com/rust\n" +
+        "…and 23 more",
+    );
+  });
+
+  test("template format without a template throws (validation prevents this)", () => {
+    expect(() => renderNotifyDelivery("template", payload())).toThrow(/requires a template/);
+  });
+
+  test("unknownTemplatePlaceholders flags typos and passes known names", () => {
+    expect(unknownTemplatePlaceholders("{{rule}} {{matched}} {{headline}} {{items}}")).toEqual([]);
+    expect(unknownTemplatePlaceholders("{{item}} and {{ITEMS}} and {{item}}")).toEqual([
+      "item",
+      "ITEMS",
+    ]);
   });
 });
 
@@ -116,6 +151,28 @@ describe("notify-format: delivery wiring", () => {
     expect(calls[0].headers["Content-Type"]).toBe("text/plain; charset=utf-8");
     expect(calls[0].body).toContain("hot story");
     expect(() => JSON.parse(calls[0].body)).toThrow();
+  });
+
+  test("runNotifyRules delivers a rule's user-defined template body", async () => {
+    saveItems("news", [makeContentItem({ url: "https://ex.com/t", title: "template story" })]);
+    getDb().prepare("UPDATE content_items SET score = 9 WHERE panel_id = 'news'").run();
+    const calls: { headers: Record<string, string>; body: string }[] = [];
+    const fetchImpl = (async (_url: unknown, init?: RequestInit) => {
+      calls.push({ headers: init?.headers as Record<string, string>, body: String(init?.body) });
+      return new Response("ok", { status: 200 });
+    }) as typeof fetch;
+    const rule: NotifyRuleConfig = {
+      url: WEBHOOK_URL,
+      min_score: 8,
+      format: "template",
+      template: "ALERT {{matched}}: {{items}}",
+      headers: { "Content-Type": "application/json" },
+    };
+    await spyConsole(["log"], () => runNotifyRules([rule], ["news"], { fetchImpl }));
+    expect(calls).toHaveLength(1);
+    expect(calls[0].body.startsWith("ALERT 1: • template story")).toBe(true);
+    // Custom Content-Type wins over the template default (text/plain).
+    expect(calls[0].headers["Content-Type"]).toBe("application/json");
   });
 
   test("runNotifyRules sends the rule's custom headers merged over the preset's", async () => {
@@ -177,8 +234,52 @@ describe("notify-format: config validation", () => {
 
   test("accepts every preset format", () => {
     for (const format of NOTIFY_FORMATS) {
-      expect(() => validate({ url: WEBHOOK_URL, min_score: 8, format })).not.toThrow();
+      const rule: Record<string, unknown> = { url: WEBHOOK_URL, min_score: 8, format };
+      if (format === "template") rule.template = "{{headline}}";
+      expect(() => validate(rule)).not.toThrow();
     }
+  });
+
+  test("format: template requires a non-empty template", () => {
+    expect(() => validate({ url: WEBHOOK_URL, min_score: 8, format: "template" })).toThrow(
+      /notify\[0\]\.template must be a non-empty string when format is "template"/,
+    );
+    expect(() =>
+      validate({ url: WEBHOOK_URL, min_score: 8, format: "template", template: "" }),
+    ).toThrow(/notify\[0\]\.template must be a non-empty string/);
+  });
+
+  test("template placeholder typos fail config check with the valid list", () => {
+    expect(() =>
+      validate({ url: WEBHOOK_URL, min_score: 8, format: "template", template: "{{item}} {{rule}}" }),
+    ).toThrow(
+      /notify\[0\]\.template has unknown placeholder\(s\) \{\{item\}\} — valid placeholders: \{\{rule\}\}, \{\{matched\}\}, \{\{headline\}\}, \{\{items\}\}/,
+    );
+  });
+
+  test("template without format: template is rejected", () => {
+    expect(() => validate({ url: WEBHOOK_URL, min_score: 8, template: "{{headline}}" })).toThrow(
+      /notify\[0\]\.template is only valid with format: template \(got format "json"\)/,
+    );
+    expect(() =>
+      validate({ url: WEBHOOK_URL, min_score: 8, format: "ntfy", template: "{{headline}}" }),
+    ).toThrow(/only valid with format: template \(got format "ntfy"\)/);
+  });
+
+  test("format: template may set Content-Type (the user owns the body there)", () => {
+    expect(() =>
+      validate({
+        url: WEBHOOK_URL,
+        min_score: 8,
+        format: "template",
+        template: '{"text": "{{headline}}"}',
+        headers: { "Content-Type": "application/json" },
+      }),
+    ).not.toThrow();
+    // Preset formats still reject it.
+    expect(() =>
+      validate({ url: WEBHOOK_URL, min_score: 8, format: "ntfy", headers: { "Content-Type": "application/json" } }),
+    ).toThrow(/must not set Content-Type/);
   });
 
   test("rejects unknown formats with the preset list in the message", () => {
@@ -230,6 +331,14 @@ describe("notify-format: rule identity", () => {
     const { notifyRuleKey } = await import("./notify");
     const base: NotifyRuleConfig = { url: WEBHOOK_URL, min_score: 8 };
     expect(notifyRuleKey({ ...base, format: "ntfy" })).toBe(notifyRuleKey(base));
+  });
+
+  test("changing or editing a template does not restart the delivery ledger", async () => {
+    const { notifyRuleKey } = await import("./notify");
+    const base: NotifyRuleConfig = { url: WEBHOOK_URL, min_score: 8 };
+    expect(notifyRuleKey({ ...base, format: "template", template: "{{headline}}" })).toBe(
+      notifyRuleKey(base),
+    );
   });
 
   test("changing headers (e.g. rotating a token) does not restart the ledger", async () => {

@@ -98,6 +98,7 @@ export async function runNotifyTest(
       const delivery = renderNotifyDelivery(
         rule.format ?? "json",
         buildNotifyTestPayload(rule, deps.now),
+        rule.template,
       );
       const res = await fetchImpl(rule.url, {
         method: "POST",
@@ -145,7 +146,7 @@ Sends a sample webhook delivery to every configured notify rule (or only the
 rule whose name matches [rule]) so you can verify endpoints receive pace
 payloads before a real high-signal item arrives. The sample uses the exact
 payload shape and format preset of real deliveries (each rule's \`format\`:
-json, ntfy, discord, or slack), marked as a test in its title and summary,
+json, ntfy, discord, slack, or template), marked as a test in its title and summary,
 and never touches the delivery ledger. Exits non-zero when any delivery fails.
 
 Options:

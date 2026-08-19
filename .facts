@@ -246,6 +246,9 @@
 - label: the dashboard toolbar includes a filter button that opens and closes the / item-filter bar, so touch and mouse users can filter without a keyboard
   command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'toolbar'
   tags: [spec, implemented]
+- label: A notify rule with format: template delivers its own template string as the body with {{rule}}, {{matched}}, {{headline}}, and {{items}} substituted per delivery (items is the plain-text bullet list with an and-N-more overflow line); config validation requires a non-empty template exactly when format is template, rejects unknown {{placeholder}} names listing the valid set, and uniquely allows a custom Content-Type header since the user owns the body; template is presentation-only and never affects matching or the notified_items ledger
+  command: bun test src/notify-format.test.ts
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server

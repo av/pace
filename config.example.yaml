@@ -319,7 +319,8 @@ layout:
 #     min_score: 8                          # only items ranked at/above this (llm-rank / keyword-score)
 #     keywords: [rust, wasm]                # and/or: any keyword in title/body/summary (case-insensitive)
 #     panels: [tech-feed]                   # optional: restrict to these panel ids (set id: on the layout panel)
-#     format: ntfy                          # optional delivery format: json (default), ntfy, discord, slack
+#     format: ntfy                          # optional delivery format: json (default), ntfy, discord, slack, template
+#     # template: "ALERT {{matched}}: {{items}}"  # custom body for format: template ({{rule}}, {{matched}}, {{headline}}, {{items}})
 #     headers:                              # optional extra HTTP headers (auth tokens etc.)
 #       Authorization: Bearer ${NTFY_TOKEN} # ${VAR} env expansion keeps secrets out of the file
 

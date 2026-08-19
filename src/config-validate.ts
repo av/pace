@@ -15,7 +15,12 @@ import {
   type ServerConfig,
 } from "./config/types";
 import { warnConfig } from "./config-warn";
-import { NOTIFY_FORMATS, type NotifyFormat } from "./notify-format";
+import {
+  NOTIFY_FORMATS,
+  NOTIFY_TEMPLATE_PLACEHOLDERS,
+  unknownTemplatePlaceholders,
+  type NotifyFormat,
+} from "./notify-format";
 import { validateTransforms } from "./transform-validate";
 import { getAdapterName, simpleHash, slugify } from "./utils";
 import {
@@ -758,9 +763,10 @@ const HEADER_NAME_PATTERN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
  * Validate a notify rule's optional `headers` map: header names must be valid
  * tokens, values non-empty single-line strings (CR/LF would allow header
  * injection), and `Content-Type` is rejected because the delivery `format`
- * preset owns the body shape and its content type.
+ * preset owns the body shape and its content type — except for
+ * `format: template`, where the user owns the body and may declare what it is.
  */
-function validateNotifyHeaders(headers: unknown, path: string): void {
+function validateNotifyHeaders(headers: unknown, path: string, allowContentType: boolean): void {
   if (headers === undefined) return;
   if (!isRecord(headers)) {
     throw new Error(`config: ${path} must be a map of header names to string values (got ${describeValue(headers)})`);
@@ -769,7 +775,7 @@ function validateNotifyHeaders(headers: unknown, path: string): void {
     if (!HEADER_NAME_PATTERN.test(name)) {
       throw new Error(`config: ${path} has invalid header name ${JSON.stringify(name)}`);
     }
-    if (name.toLowerCase() === "content-type") {
+    if (name.toLowerCase() === "content-type" && !allowContentType) {
       throw new Error(
         `config: ${path} must not set Content-Type (the delivery format preset owns the body and its content type)`,
       );
@@ -794,13 +800,30 @@ export function validateNotifyConfig(
     if (!isRecord(rule)) {
       throw new Error(`config: ${path} must be an object (got ${describeValue(rule)})`);
     }
-    validateAllowedKeys(rule, ["url", "name", "min_score", "keywords", "panels", "format", "headers"], (key) =>
+    validateAllowedKeys(rule, ["url", "name", "min_score", "keywords", "panels", "format", "headers", "template"], (key) =>
       `${path}.${key} is not a valid notify rule field`,
     );
-    validateNotifyHeaders(rule.headers, `${path}.headers`);
     if (rule.format !== undefined && !NOTIFY_FORMATS.includes(rule.format as NotifyFormat)) {
       throw new Error(
         `config: ${path}.format must be one of ${NOTIFY_FORMATS.join(", ")} (got ${describeValue(rule.format)})`,
+      );
+    }
+    validateNotifyHeaders(rule.headers, `${path}.headers`, rule.format === "template");
+    if (rule.format === "template") {
+      if (typeof rule.template !== "string" || rule.template.length === 0) {
+        throw new Error(
+          `config: ${path}.template must be a non-empty string when format is "template" (got ${describeValue(rule.template)})`,
+        );
+      }
+      const unknown = unknownTemplatePlaceholders(rule.template);
+      if (unknown.length > 0) {
+        throw new Error(
+          `config: ${path}.template has unknown placeholder(s) ${unknown.map((name) => `{{${name}}}`).join(", ")} — valid placeholders: ${NOTIFY_TEMPLATE_PLACEHOLDERS.map((name) => `{{${name}}}`).join(", ")}`,
+        );
+      }
+    } else if (rule.template !== undefined) {
+      throw new Error(
+        `config: ${path}.template is only valid with format: template (got format ${describeValue(rule.format ?? "json")})`,
       );
     }
     validateSafeUrl(rule.url, `${path}.url`);

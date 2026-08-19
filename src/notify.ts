@@ -40,7 +40,7 @@ export function notifyRuleLabel(rule: NotifyRuleConfig): string {
 
 /**
  * Stable ledger identity for a rule: url plus criteria (NOT the display
- * name, delivery `format`, or custom `headers` — those only change
+ * name, delivery `format`/`template`, or custom `headers` — those only change
  * presentation/transport), so renaming, reformatting, or rotating an auth
  * token never re-notifies but changing what a rule matches (or where it
  * points) starts a fresh ledger.
@@ -142,7 +142,7 @@ export async function runNotifyRules(
         rule,
         newKeys.map((key) => matchesByKey.get(key)!),
       );
-      const delivery = renderNotifyDelivery(rule.format ?? "json", payload);
+      const delivery = renderNotifyDelivery(rule.format ?? "json", payload, rule.template);
       const res = await fetchImpl(rule.url, {
         method: "POST",
         headers: mergeNotifyHeaders(delivery.headers, rule.headers),
