@@ -722,6 +722,28 @@ function apiBase() {
   return import.meta.url.replace(/\/dashboard\.js.*$/, "");
 }
 
+/**
+ * URL of the served service worker, derived from this module's own URL the
+ * same way apiBase() is — `${basePath}/sw.js` sits next to
+ * `${basePath}/dashboard.js`, so the worker's default scope is exactly the
+ * dashboard root wherever it is mounted. Pure so tests can pin the mapping.
+ */
+export function serviceWorkerUrl(moduleUrl) {
+  return String(moduleUrl).replace(/\/dashboard\.js.*$/, "/sw.js");
+}
+
+/**
+ * Register the offline service worker (interactive pages only — this module
+ * never loads on static exports). Best-effort: unsupported browsers, private
+ * modes, and registration failures leave the page exactly as it was.
+ */
+function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+  navigator.serviceWorker.register(serviceWorkerUrl(import.meta.url)).catch(() => {
+    // Offline viewing is an enhancement; the live dashboard works without it.
+  });
+}
+
 function itemForSeenToggle() {
   const active = document.activeElement;
   const item = active && active.closest ? active.closest(".item") : null;
@@ -1409,4 +1431,5 @@ if (typeof document !== "undefined" && typeof window !== "undefined") {
   restoreTheme();
   restoreHideSeen();
   restoreSeenItems();
+  registerServiceWorker();
 }

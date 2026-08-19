@@ -10,6 +10,7 @@ import {
   moveIndex,
   parseFilterQuery,
   searchFeedUrl,
+  serviceWorkerUrl,
   shouldIgnoreKeydown,
   COLLAPSE_STORAGE_KEY,
   parseStoredPanelIds,
@@ -824,6 +825,27 @@ describe("GET /dashboard.js", () => {
     const res = await requestServerRoute(app, "/pace/dashboard.js");
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/javascript");
+  });
+});
+
+describe("service worker registration", () => {
+  test("serviceWorkerUrl maps the module URL to the sibling /sw.js", () => {
+    expect(serviceWorkerUrl("http://localhost:3000/dashboard.js")).toBe(
+      "http://localhost:3000/sw.js",
+    );
+    // Base-path mounts keep the worker (and thus its default scope) under
+    // the same dashboard root the module was served from.
+    expect(serviceWorkerUrl("https://example.com/pace/dashboard.js?v=2")).toBe(
+      "https://example.com/pace/sw.js",
+    );
+  });
+
+  test("the served module registers the worker (interactive pages only)", async () => {
+    const layout = flexCfg("row", [panelCfg("Feed", "rss")]);
+    const app = createTestServerApp(makeServerRouteDeps({ layout }));
+    const body = await (await requestServerRoute(app, "/dashboard.js")).text();
+    expect(body).toContain("navigator.serviceWorker.register");
+    // Static exports never load this module, so they can never register one.
   });
 });
 

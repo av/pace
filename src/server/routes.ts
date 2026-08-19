@@ -23,6 +23,7 @@ import { handleApiPanelRss, RSS_PANEL_SUFFIX } from "./api-panels-rss";
 import { handleApiSeenList, handleApiSeenSet } from "./api-seen";
 import { faviconSvg } from "../dashboard.js";
 import { MANIFEST_CONTENT_TYPE, webAppManifest } from "./manifest";
+import { serviceWorkerScript, SW_CONTENT_TYPE } from "./sw";
 
 export type RefreshSourcesFn = (sourceNames: string[]) => Promise<RefreshResult[]>;
 
@@ -307,6 +308,16 @@ export function registerServerRoutes(app: Hono, deps: ServerRouteDeps): void {
     c.body(JSON.stringify(webAppManifest(deps.basePath), null, 2), 200, {
       "Content-Type": MANIFEST_CONTENT_TYPE,
       "Cache-Control": "public, max-age=3600",
+    }));
+
+  // Service worker for offline last-render viewing: same-origin GETs are
+  // served network-first with the cache as fallback, so the installed app
+  // (or any tab) still shows the last-rendered dashboard when the server is
+  // unreachable. no-cache so browsers pick up worker updates promptly.
+  app.get("/sw.js", (c) =>
+    c.body(serviceWorkerScript(deps.basePath), 200, {
+      "Content-Type": SW_CONTENT_TYPE,
+      "Cache-Control": "no-cache",
     }));
 
   app.get("/", async (c) => {

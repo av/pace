@@ -288,6 +288,9 @@
 - label: A layout panel's own hide_seen: true/false overrides the page-wide hide-seen mode for that panel in either direction: the layout stamps data-hide-seen="on"/"off" on the interactive panel element, CSS and the client check the item's panel before the page-wide mode (on always hides that panel's seen items and dims it when caught up, off exempts it from Shift+X), keyboard navigation skips exactly what is hidden, and the toolbar's hidden-count badge counts only toggle-governed items; non-boolean values fail config check and static exports never carry the stamp
   command: bun test src/server.test.ts --test-name-pattern 'per-panel hide_seen|itemHiddenBySeen'
   tags: [spec, implemented]
+- label: the dashboard serves a service worker at /sw.js that caches the app shell network-first so the last render stays viewable offline; static exports never register one
+  command: bun test src/server.test.ts --test-name-pattern 'sw.js'
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server

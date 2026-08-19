@@ -6,6 +6,7 @@ import { DEFAULT_LAYOUT } from "./config/domain";
 import { autoMarkSeenDisabled, itemAutoMarkSeenDisabled, itemHiddenBySeen, THEME_COLORS } from "./dashboard.js";
 import { renderDashboard } from "./layout";
 import { MANIFEST_CONTENT_TYPE } from "./server/manifest";
+import { serviceWorkerScript, SW_CACHE_PREFIX, SW_CACHE_VERSION, SW_CONTENT_TYPE } from "./server/sw";
 import { securityHeadersMiddleware } from "./server/security-headers";
 import type { ServerRouteDeps } from "./server/routes";
 import type { RefreshResult } from "./refresh-result";
@@ -439,6 +440,46 @@ describe("GET /manifest.webmanifest", () => {
       mode: "static",
     });
     expect(html).not.toContain('rel="manifest"');
+  });
+});
+
+describe("GET /sw.js", () => {
+  installTempDbHooks({ prefix: "pace-server-sw-" });
+
+  function makeApp(basePath = "") {
+    const layout = testAppLayout(singlePanelLayout("Tech", "hackernews", { id: "tech-panel" }));
+    return createTestServerApp(makeServerRouteDeps({ layout, basePath }));
+  }
+
+  test("serves the offline service worker with prompt-update caching", async () => {
+    const res = await requestServerRoute(makeApp(), "/sw.js");
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe(SW_CONTENT_TYPE);
+    // no-cache so browsers revalidate and pick up worker updates promptly.
+    expect(res.headers.get("cache-control")).toBe("no-cache");
+    const body = await res.text();
+    expect(body).toBe(serviceWorkerScript(""));
+    // The precached app shell covers everything an offline reload needs.
+    for (const url of ["\"/\"", "\"/styles.css\"", "\"/dashboard.js\"", "\"/favicon.svg\"", "\"/manifest.webmanifest\""]) {
+      expect(body).toContain(url);
+    }
+    // Network-first: the live server always wins; the cache is a fallback.
+    expect(body).toContain("fetch(request)");
+    expect(body).toContain("caches.match(request)");
+    expect(body).toContain(SW_CACHE_PREFIX + SW_CACHE_VERSION);
+  });
+
+  test("scopes the app shell under the base path", async () => {
+    const res = await requestServerRoute(makeApp("/pace"), "/pace/sw.js");
+
+    expect(res.status).toBe(200);
+    const body = await res.text();
+    expect(body).toBe(serviceWorkerScript("/pace"));
+    expect(body).toContain('const ROOT = "/pace"');
+    for (const url of ["\"/pace/styles.css\"", "\"/pace/dashboard.js\"", "\"/pace/favicon.svg\"", "\"/pace/manifest.webmanifest\""]) {
+      expect(body).toContain(url);
+    }
   });
 });
 
