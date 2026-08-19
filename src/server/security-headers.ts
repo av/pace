@@ -6,7 +6,9 @@ export const SECURITY_HEADERS = {
   "X-Frame-Options": "DENY",
   "Referrer-Policy": "strict-origin-when-cross-origin",
   "Content-Security-Policy":
-    "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src *; frame-src *",
+    // img-src data: lets the dashboard module set its inline-SVG favicon
+    // (the unread-dot icon); item thumbnails come from arbitrary feeds (*).
+    "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src * data:; frame-src *",
   "Permissions-Policy": "interest-cohort=()",
 } as const;
 

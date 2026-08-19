@@ -43,6 +43,7 @@ import {
   hiddenCountBadge,
   UNSEEN_COUNT_CLASS,
   pageTitleWithUnread,
+  faviconHref,
   unseenCountBadge,
 } from "./dashboard.js";
 import { itemSeenKey } from "./db";
@@ -646,6 +647,29 @@ describe("top-corner toolbar helpers", () => {
     expect(pageTitleWithUnread("pace", NaN)).toBe("pace");
     // A broken base can never leak "undefined" into the tab.
     expect(pageTitleWithUnread(undefined, 3)).toBe("");
+  });
+
+  test("faviconHref renders an inline SVG with a dot only for positive integer counts", () => {
+    const plain = faviconHref(0);
+    expect(plain.startsWith("data:image/svg+xml,")).toBe(true);
+    const plainSvg = decodeURIComponent(plain.slice("data:image/svg+xml,".length));
+    // A real standalone SVG (xmlns) carrying the pace monogram, no dot.
+    expect(plainSvg).toContain('xmlns="http://www.w3.org/2000/svg"');
+    expect(plainSvg).toContain(">p</text>");
+    expect(plainSvg).not.toContain("<circle");
+    // Unread: same icon plus the dot. Same count rules as pageTitleWithUnread.
+    const unread = decodeURIComponent(faviconHref(3).slice("data:image/svg+xml,".length));
+    expect(unread).toContain("<circle");
+    // Untrusted DOM-derived counts degrade to the plain icon, never garbage.
+    for (const count of [-1, 2.5, "7", NaN, undefined, null]) {
+      expect(faviconHref(count)).toBe(plain);
+    }
+  });
+
+  test("the favicon is client-injected: the server never renders an icon link", () => {
+    for (const mode of ["interactive", "static"] as const) {
+      expect(renderModeDashboard(mode)).not.toContain('rel="icon"');
+    }
   });
 
   test("the unseen-count badge is client-injected: the server never renders it", () => {

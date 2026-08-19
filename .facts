@@ -240,6 +240,9 @@
 - label: The dashboard's browser-tab title carries the page's unread total email style ((N) pace) counting distinct unseen dedup keys so cross-panel duplicates count once, updating live through the seen-state funnel and restoring the untouched server-rendered title at zero; client-side only, so static/no-JS pages keep their normal title
   command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'pageTitleWithUnread'
   tags: [spec, implemented]
+- label: The dashboard favicon is a client-injected inline SVG that gains an unread dot while any read-tracked story is unseen (same distinct-story count semantics as the tab title) and reverts to the plain icon at zero; the server never renders a favicon link, so static exports and no-JS browsers are unaffected
+  command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'faviconHref|favicon'
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server

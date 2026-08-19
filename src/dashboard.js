@@ -33,8 +33,9 @@
  * theme toggle (t), hide-seen (Shift+X, with a badge counting the items the
  * mode currently hides), and help (?). All of these are
  * client-injected so static exports never render them. The browser-tab title
- * mirrors the page's unread total ("(N) pace", distinct stories), synced
- * through the same seen-state funnel.
+ * mirrors the page's unread total ("(N) pace", distinct stories), and the
+ * favicon — a client-injected inline SVG — gains an unread dot while any
+ * story is unseen; both are synced through the same seen-state funnel.
  *
  * Pure helpers are exported so the test suite can unit-test them without a
  * DOM; the event wiring at the bottom only runs in a real browser.
@@ -295,6 +296,28 @@ export function pageTitleWithUnread(base, count) {
   if (typeof base !== "string") return "";
   if (typeof count !== "number" || !Number.isInteger(count) || count <= 0) return base;
   return `(${count}) ${base}`;
+}
+
+/**
+ * Inline-SVG favicon for the dashboard, as a data: URL: a rounded dark
+ * square with the accent "p" monogram, plus an unread dot in the top-right
+ * corner while any read-tracked story is unseen. The count follows the same
+ * rules as pageTitleWithUnread (only positive integers show the dot), so the
+ * favicon and the tab-title prefix always agree. Colors are fixed — favicons
+ * do not follow the page theme — matching the dark palette's accent.
+ */
+export function faviconHref(count) {
+  const dot =
+    typeof count === "number" && Number.isInteger(count) && count > 0
+      ? '<circle cx="50" cy="14" r="13" fill="#e0645c"/>'
+      : "";
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">' +
+    '<rect width="64" height="64" rx="14" fill="#16161e"/>' +
+    '<text x="32" y="47" font-family="monospace" font-size="44" font-weight="700" text-anchor="middle" fill="#5a8a9f">p</text>' +
+    dot +
+    "</svg>";
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -802,6 +825,26 @@ function syncPageTitle() {
     if (!item.classList.contains(SEEN_CLASS)) unread.add(item.dataset.seenKey);
   }
   document.title = pageTitleWithUnread(basePageTitle, unread.size);
+  syncFavicon(unread.size);
+}
+
+/**
+ * Mirror the unread total into the tab's favicon: the pace monogram gains a
+ * dot while anything is unread. The server never renders a favicon link, so
+ * the first sync injects one (which also gives the dashboard an icon at all);
+ * later syncs just swap its href. Called from syncPageTitle so the icon and
+ * the title prefix move together through the seen-state funnel.
+ */
+function syncFavicon(count) {
+  let link = document.querySelector('link[rel="icon"]');
+  if (!link) {
+    link = document.createElement("link");
+    link.rel = "icon";
+    link.type = "image/svg+xml";
+    document.head.appendChild(link);
+  }
+  const href = faviconHref(count);
+  if (link.href !== href) link.href = href;
 }
 
 /** Dim panels whose every item is seen (only visible while hide-seen is on). */
