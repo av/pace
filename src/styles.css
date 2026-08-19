@@ -458,6 +458,17 @@ a:hover {
   display: none;
 }
 
+/* Offline banner: client-injected while the browser is offline, telling the
+   reader the page is the service worker's cached last render (and how old it
+   is), not live data. Removed the moment the network returns. */
+.offline-banner {
+  padding: 0.4rem 1rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+}
+
 .panel-body {
   padding: 0;
 }

@@ -196,7 +196,7 @@ describe("server.auto_mark_seen (mark-on-open opt-out)", () => {
 
   test("autoMarkSeen: false stamps data-auto-seen=\"off\" on the dashboard body", async () => {
     const html = await (await requestDashboard(makeApp(false))).text();
-    expect(html).toContain('<body data-auto-seen="off">');
+    expect(html).toContain('<body data-auto-seen="off"');
   });
 
   test("per-panel auto_mark_seen: validates as an optional boolean panel field", () => {
@@ -293,7 +293,7 @@ describe("server.hide_seen (first-visit hide-seen default)", () => {
 
   test("hideSeenDefault: true stamps data-hide-seen=\"on\" on the dashboard body", async () => {
     const html = await (await requestDashboard(makeApp(true))).text();
-    expect(html).toContain('<body data-hide-seen="on">');
+    expect(html).toContain('<body data-hide-seen="on"');
   });
 
   test("per-panel hide_seen: validates as an optional boolean panel field", () => {

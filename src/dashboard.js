@@ -744,6 +744,66 @@ function registerServiceWorker() {
   });
 }
 
+/** Class of the injected offline banner (shown while the browser is offline). */
+export const OFFLINE_BANNER_CLASS = "offline-banner";
+
+/**
+ * Text of the offline banner. Names the render's timestamp when the page
+ * carries one, so a cached copy served by the service worker says exactly
+ * how stale it is; without a timestamp the banner still explains the state.
+ * Pure so tests can pin both wordings.
+ */
+export function offlineBannerText(updatedAt) {
+  const at = typeof updatedAt === "string" ? updatedAt.trim() : "";
+  return at === ""
+    ? "Offline — showing the last saved render"
+    : `Offline — showing the last saved render from ${at} UTC`;
+}
+
+/**
+ * The page's render timestamp from the body's data-updated-at stamp (the
+ * same "YYYY-MM-DD HH:MM:SS" string the footer shows), or "" when absent.
+ * Pure given anything exposing getAttribute, so tests need no DOM.
+ */
+export function pageUpdatedAt(body) {
+  const raw = body && typeof body.getAttribute === "function" ? body.getAttribute("data-updated-at") : null;
+  return typeof raw === "string" ? raw.trim() : "";
+}
+
+/**
+ * Show or remove the offline banner to match connectivity. The banner tells
+ * the reader the page they are looking at is the service worker's cached
+ * last render (and how old it is), not live data — without it an offline
+ * page is indistinguishable from a fresh one. role="status" announces the
+ * transition to screen readers; idempotent so repeated events are no-ops.
+ */
+function syncOfflineBanner(online) {
+  const existing = document.querySelector(`.${OFFLINE_BANNER_CLASS}`);
+  if (online) {
+    if (existing) existing.remove();
+    return;
+  }
+  if (existing) return;
+  const banner = document.createElement("div");
+  banner.className = OFFLINE_BANNER_CLASS;
+  banner.setAttribute("role", "status");
+  banner.textContent = offlineBannerText(pageUpdatedAt(document.body));
+  document.body.prepend(banner);
+}
+
+/**
+ * Keep the offline banner in step with the browser's connectivity: shown
+ * immediately when a page loads offline (a cached render straight from the
+ * service worker) and on every later drop, removed the moment the network
+ * returns. navigator.onLine only ever reports false reliably, which is the
+ * one direction the banner needs.
+ */
+function watchOffline() {
+  window.addEventListener("offline", () => syncOfflineBanner(false));
+  window.addEventListener("online", () => syncOfflineBanner(true));
+  if (navigator.onLine === false) syncOfflineBanner(false);
+}
+
 function itemForSeenToggle() {
   const active = document.activeElement;
   const item = active && active.closest ? active.closest(".item") : null;
@@ -1432,4 +1492,5 @@ if (typeof document !== "undefined" && typeof window !== "undefined") {
   restoreHideSeen();
   restoreSeenItems();
   registerServiceWorker();
+  watchOffline();
 }

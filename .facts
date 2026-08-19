@@ -291,6 +291,9 @@
 - label: the dashboard serves a service worker at /sw.js that caches the app shell network-first so the last render stays viewable offline; static exports never register one
   command: bun test src/server.test.ts --test-name-pattern 'sw.js'
   tags: [spec, implemented]
+- label: While the browser is offline, the interactive dashboard shows a status banner naming the timestamp of the last saved render it is displaying (from the body's data-updated-at stamp) and removes it when connectivity returns; the banner is client-injected so static exports and no-JS pages never render it
+  command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'offline banner'
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server

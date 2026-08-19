@@ -75,6 +75,10 @@ const Dashboard: FC<DashboardProps> = ({ layout, panelData, updatedAt, cssHref, 
          first-visit default; static exports have no client module (or seen
          state) to act on it, so they never render the attribute. */
       data-hide-seen={hideSeenDefault === true && mode === "interactive" ? "on" : undefined}
+      /* The client's offline banner names the render it is showing from this
+         stamp; static exports have no service worker (or client module) to
+         serve a stale copy, so they never carry it. */
+      data-updated-at={mode === "interactive" ? updatedAt : undefined}
     >
       {notice ? (
         <div

@@ -12,6 +12,9 @@ import {
   searchFeedUrl,
   serviceWorkerUrl,
   shouldIgnoreKeydown,
+  OFFLINE_BANNER_CLASS,
+  offlineBannerText,
+  pageUpdatedAt,
   COLLAPSE_STORAGE_KEY,
   parseStoredPanelIds,
   togglePanelId,
@@ -849,11 +852,68 @@ describe("service worker registration", () => {
   });
 });
 
+describe("offline banner", () => {
+  test("offlineBannerText names the render's timestamp when known", () => {
+    expect(offlineBannerText("2026-08-19 01:02:03")).toBe(
+      "Offline — showing the last saved render from 2026-08-19 01:02:03 UTC",
+    );
+    // Padding never leaks into the sentence.
+    expect(offlineBannerText("  2026-08-19 01:02:03  ")).toBe(
+      "Offline — showing the last saved render from 2026-08-19 01:02:03 UTC",
+    );
+  });
+
+  test("offlineBannerText still explains the state without a timestamp", () => {
+    for (const raw of ["", "   ", null, undefined, 42]) {
+      expect(offlineBannerText(raw)).toBe("Offline — showing the last saved render");
+    }
+  });
+
+  test("pageUpdatedAt reads exactly the body's data-updated-at stamp", () => {
+    const stamped = { getAttribute: (n: string) => (n === "data-updated-at" ? "2026-08-19 01:02:03" : null) };
+    const bare = { getAttribute: () => null };
+    expect(pageUpdatedAt(stamped)).toBe("2026-08-19 01:02:03");
+    expect(pageUpdatedAt(bare)).toBe("");
+    expect(pageUpdatedAt(null)).toBe("");
+    expect(pageUpdatedAt(undefined)).toBe("");
+  });
+
+  test("interactive pages stamp data-updated-at; static exports never do", () => {
+    const layout = flexCfg("row", [panelCfg("Feed", "rss")]);
+    const item = makeItem({ title: "Story", source: "rss" });
+    const panelData = new Map<string, PanelData>([["Feed", { items: [item] }]]);
+    const interactiveHtml = renderDashboard({ layout, panelData, updatedAt: "2026-08-19 01:02:03" });
+    expect(interactiveHtml).toContain('data-updated-at="2026-08-19 01:02:03"');
+    // Static exports have no service worker to serve a stale copy of them.
+    const staticHtml = renderDashboard({ layout, panelData, updatedAt: "2026-08-19 01:02:03", mode: "static" });
+    expect(staticHtml).not.toContain("data-updated-at");
+    // The banner itself is client-injected: no server render carries it.
+    expect(interactiveHtml).not.toContain(OFFLINE_BANNER_CLASS);
+    expect(staticHtml).not.toContain(OFFLINE_BANNER_CLASS);
+  });
+
+  test("the served module watches connectivity and injects the banner", async () => {
+    const layout = flexCfg("row", [panelCfg("Feed", "rss")]);
+    const app = createTestServerApp(makeServerRouteDeps({ layout }));
+    const body = await (await requestServerRoute(app, "/dashboard.js")).text();
+    expect(body).toContain('addEventListener("offline"');
+    expect(body).toContain('addEventListener("online"');
+    expect(body).toContain("offline-banner");
+  });
+});
+
 /* ------------------------------------------------------------------ */
 /* Stylesheet contract                                                 */
 /* ------------------------------------------------------------------ */
 
 const STYLES = readFileSync(join(import.meta.dir, "styles.css"), "utf-8");
+
+describe("offline banner CSS", () => {
+  test("the stylesheet styles the injected banner class", () => {
+    expect(OFFLINE_BANNER_CLASS).toBe("offline-banner");
+    expect(STYLES).toContain(".offline-banner {");
+  });
+});
 
 describe("keyboard navigation CSS", () => {
   test("focus-visible ring uses the theme accent on item links and refresh buttons", () => {
