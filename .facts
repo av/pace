@@ -264,6 +264,9 @@
 - label: The favicon's unread dot renders the count as a digit while it is 1-9 (same distinct-story semantics as the tab-title prefix) and goes plain at 10 or more; the served /favicon.svg and static exports always stay the plain monogram
   command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'favicon dot renders the unread count'
   tags: [spec, implemented]
+- label: Every notify template placeholder (both template and item_template) has a {{name_json}} twin substituting a JSON literal — strings escaped and quoted, {{matched_json}} a bare number, {{score_json}} a number or null when unscored — so a template body can be a valid JSON envelope regardless of quotes or newlines in feed titles; the twins pass config validation and unknown-placeholder errors list them
+  command: bun test src/notify-format.test.ts
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server

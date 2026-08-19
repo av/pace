@@ -152,6 +152,50 @@ describe("notify-format: renderNotifyDelivery", () => {
     ]);
   });
 
+  test("{{name_json}} twins substitute JSON literals for a safe JSON envelope", () => {
+    const d = renderNotifyDelivery(
+      "template",
+      payload({
+        rule: 'say "hi"',
+        matched: 2,
+        items: [item({ title: 'A "quoted"\ntitle' }), item({ title: "plain", score: null })],
+      }),
+      '{"rule": {{rule_json}}, "matched": {{matched_json}}, "headline": {{ headline_json }}, "items": {{items_json}}}',
+    );
+    const parsed = JSON.parse(d.body) as Record<string, unknown>;
+    expect(parsed.rule).toBe('say "hi"');
+    expect(parsed.matched).toBe(2);
+    expect(parsed.headline).toBe('pace: 2 new items for "say "hi""');
+    expect(parsed.items).toContain('A "quoted"\ntitle');
+  });
+
+  test("per-item _json twins: strings quoted, score a bare number or null", () => {
+    const d = renderNotifyDelivery(
+      "template",
+      payload({ matched: 2, items: [item(), item({ title: "no score", score: null })] }),
+      "[{{items}}]",
+      '{"title": {{title_json}}, "url": {{url_json}}, "source": {{source_json}}, "score": {{score_json}}, "meta": {{meta_json}}},',
+    );
+    const parsed = JSON.parse(d.body.replace(",]", "]")) as Array<Record<string, unknown>>;
+    expect(parsed[0]).toEqual({
+      title: "Rust 2.0 released",
+      url: "https://ex.com/rust",
+      source: "Hacker News",
+      score: 9,
+      meta: "Hacker News, score 9",
+    });
+    expect(parsed[1]!.score).toBeNull();
+    expect(parsed[1]!.meta).toBe("Hacker News");
+  });
+
+  test("_json placeholders pass config validation in both templates", () => {
+    expect(unknownTemplatePlaceholders("{{rule_json}} {{matched_json}} {{headline_json}} {{items_json}}")).toEqual([]);
+    expect(
+      unknownItemTemplatePlaceholders("{{title_json}} {{url_json}} {{source_json}} {{score_json}} {{meta_json}}"),
+    ).toEqual([]);
+    expect(unknownTemplatePlaceholders("{{rule_JSON}}")).toEqual(["rule_JSON"]);
+  });
+
   test("template format without a template throws (validation prevents this)", () => {
     expect(() => renderNotifyDelivery("template", payload())).toThrow(/requires a template/);
   });
@@ -284,7 +328,7 @@ describe("notify-format: config validation", () => {
     expect(() =>
       validate({ url: WEBHOOK_URL, min_score: 8, format: "template", template: "{{item}} {{rule}}" }),
     ).toThrow(
-      /notify\[0\]\.template has unknown placeholder\(s\) \{\{item\}\} — valid placeholders: \{\{rule\}\}, \{\{matched\}\}, \{\{headline\}\}, \{\{items\}\}/,
+      /notify\[0\]\.template has unknown placeholder\(s\) \{\{item\}\} — valid placeholders: \{\{rule\}\}, \{\{matched\}\}, \{\{headline\}\}, \{\{items\}\}, \{\{rule_json\}\}, \{\{matched_json\}\}, \{\{headline_json\}\}, \{\{items_json\}\}/,
     );
   });
 
@@ -301,7 +345,7 @@ describe("notify-format: config validation", () => {
         item_template: "{{link}} {{title}}",
       }),
     ).toThrow(
-      /notify\[0\]\.item_template has unknown placeholder\(s\) \{\{link\}\} — valid placeholders: \{\{title\}\}, \{\{url\}\}, \{\{source\}\}, \{\{score\}\}, \{\{meta\}\}/,
+      /notify\[0\]\.item_template has unknown placeholder\(s\) \{\{link\}\} — valid placeholders: \{\{title\}\}, \{\{url\}\}, \{\{source\}\}, \{\{score\}\}, \{\{meta\}\}, \{\{title_json\}\}, \{\{url_json\}\}, \{\{source_json\}\}, \{\{score_json\}\}, \{\{meta_json\}\}/,
     );
     expect(() =>
       validate({

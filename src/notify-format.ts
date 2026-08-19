@@ -66,16 +66,32 @@ function plainItemLines(payload: NotifyPayload): string[] {
  * the rule's label, the total match count, the standard one-line headline,
  * and the plain-text item list (one bullet per item plus the `…and N more`
  * overflow line — the same list the ntfy preset sends).
+ *
+ * Every placeholder also has a `{{name_json}}` twin that substitutes as a
+ * JSON literal instead of raw text — strings escaped and quoted, `matched`
+ * a bare number — so a template can be a JSON envelope (say
+ * `{"text": {{headline_json}}}`) that stays valid no matter what quotes or
+ * newlines a feed title carries.
  */
-export const NOTIFY_TEMPLATE_PLACEHOLDERS = ["rule", "matched", "headline", "items"] as const;
+const NOTIFY_TEMPLATE_BASE = ["rule", "matched", "headline", "items"] as const;
+export const NOTIFY_TEMPLATE_PLACEHOLDERS: readonly string[] = [
+  ...NOTIFY_TEMPLATE_BASE,
+  ...NOTIFY_TEMPLATE_BASE.map((name) => `${name}_json`),
+];
 
 /**
  * Placeholders an `item_template` may use, `{{name}}` style — one substitution
  * per payload item: its title, link, source adapter label, numeric score
  * (empty string when the item is unscored), and the standard "source" /
- * "source, score N" meta text the built-in presets show.
+ * "source, score N" meta text the built-in presets show. Each also has a
+ * `{{name_json}}` JSON-literal twin; `{{score_json}}` is a bare number, or
+ * `null` when the item is unscored.
  */
-export const NOTIFY_ITEM_TEMPLATE_PLACEHOLDERS = ["title", "url", "source", "score", "meta"] as const;
+const NOTIFY_ITEM_TEMPLATE_BASE = ["title", "url", "source", "score", "meta"] as const;
+export const NOTIFY_ITEM_TEMPLATE_PLACEHOLDERS: readonly string[] = [
+  ...NOTIFY_ITEM_TEMPLATE_BASE,
+  ...NOTIFY_ITEM_TEMPLATE_BASE.map((name) => `${name}_json`),
+];
 
 function unknownPlaceholders(template: string, names: readonly string[]): string[] {
   const known = new Set<string>(names);
@@ -107,11 +123,26 @@ function substitute(template: string, values: Record<string, string>): string {
 }
 
 /**
+ * Add a `name_json` JSON-literal twin for every substitution value. The twin
+ * encodes the plain-text value by default; `raw` overrides the value a twin
+ * encodes for names whose JSON shape differs from their display text
+ * (`matched` as a number, `score` as a number or `null`).
+ */
+function withJsonTwins(values: Record<string, string>, raw: Record<string, unknown> = {}): Record<string, string> {
+  const out: Record<string, string> = { ...values };
+  for (const [name, value] of Object.entries(values)) {
+    out[`${name}_json`] = JSON.stringify(Object.hasOwn(raw, name) ? raw[name] : value);
+  }
+  return out;
+}
+
+/**
  * User-defined body: the template with `{{placeholder}}` tokens substituted
  * (whitespace inside braces tolerated: `{{ rule }}` works). When the rule also
  * sets `item_template`, `{{items}}` is one rendered line per payload item
  * (per-item placeholders substituted) instead of the default bullet list; the
- * `…and N more` overflow line stays in either rendering. Delivered as
+ * `…and N more` overflow line stays in either rendering. `{{name_json}}`
+ * twins substitute JSON literals in both templates. Delivered as
  * plain text; a rule whose receiver wants a different content type sets a
  * custom `Content-Type` header — allowed for this format only, because here
  * the user, not a preset, owns the body shape.
@@ -122,23 +153,35 @@ function renderTemplate(template: string, payload: NotifyPayload, itemTemplate?:
     itemLines = plainItemLines(payload);
   } else {
     itemLines = payload.items.map((item) =>
-      substitute(itemTemplate, {
-        title: item.title,
-        url: item.url,
-        source: item.source,
-        score: item.score !== null ? String(item.score) : "",
-        meta: itemMeta(item),
-      }),
+      substitute(
+        itemTemplate,
+        withJsonTwins(
+          {
+            title: item.title,
+            url: item.url,
+            source: item.source,
+            score: item.score !== null ? String(item.score) : "",
+            meta: itemMeta(item),
+          },
+          { score: item.score },
+        ),
+      ),
     );
     const more = moreLine(payload, payload.items.length);
     if (more !== null) itemLines.push(more);
   }
-  const body = substitute(template, {
-    rule: payload.rule,
-    matched: String(payload.matched),
-    headline: headline(payload),
-    items: itemLines.join("\n"),
-  });
+  const body = substitute(
+    template,
+    withJsonTwins(
+      {
+        rule: payload.rule,
+        matched: String(payload.matched),
+        headline: headline(payload),
+        items: itemLines.join("\n"),
+      },
+      { matched: payload.matched },
+    ),
+  );
   return { body, headers: { "Content-Type": "text/plain; charset=utf-8" } };
 }
 
