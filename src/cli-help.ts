@@ -44,6 +44,7 @@ import {
   formatSearchSummary,
   formatSearchUsage,
   loadSearchStateMarks,
+  markSearchHitsSeen,
   parseSearchCliLimit,
   resolveSearchCliPanelId,
 } from "./cli-search";
@@ -118,6 +119,7 @@ export const CLI_PARSE_OPTIONS = {
   "single-file": { type: "boolean" },
   json: { type: "boolean" },
   rss: { type: "boolean" },
+  "mark-seen": { type: "boolean" },
   limit: { type: "string", short: "n" },
   help: { type: "boolean", short: "h" },
   version: { type: "boolean", short: "v" },
@@ -135,7 +137,13 @@ export function isCliKnownOption(key: string): boolean {
 }
 
 /** camelCase twins created by normalizeCliParsedValues for kebab-case flags. */
-const CAMEL_CASE_ALIAS_KEYS = new Set(["listPresets", "rendererUrl", "gistId", "outputDir"]);
+const CAMEL_CASE_ALIAS_KEYS = new Set([
+  "listPresets",
+  "rendererUrl",
+  "gistId",
+  "outputDir",
+  "markSeen",
+]);
 
 function isCamelCaseAliasKey(key: string): boolean {
   return CAMEL_CASE_ALIAS_KEYS.has(key);
@@ -156,6 +164,7 @@ export type CliParsedValues = Record<string, unknown> & {
   singleFile?: boolean;
   json?: boolean;
   rss?: boolean;
+  markSeen?: boolean;
   limit?: string;
 };
 
@@ -175,6 +184,9 @@ export function normalizeCliParsedValues(values: CliParsedValues): void {
   }
   if (values["single-file"] !== undefined) {
     values.singleFile = normalizeParamBoolean(values, "single-file");
+  }
+  if (values["mark-seen"] !== undefined) {
+    values.markSeen = normalizeParamBoolean(values, "mark-seen");
   }
 }
 
@@ -1109,10 +1121,22 @@ const CLI_COMMANDS: CliCommand[] = [
     usage: formatSearchUsage(),
     async run(positionals, values, ctx) {
       const usage = formatSearchUsage();
-      const SEARCH_ALLOWED = new Set(["config", "preset", "chdir", "json", "limit", "rss", "port"]);
+      const SEARCH_ALLOWED = new Set([
+        "config",
+        "preset",
+        "chdir",
+        "json",
+        "limit",
+        "rss",
+        "port",
+        "mark-seen",
+      ]);
       rejectInvalidCommandOptions(values, usage, SEARCH_ALLOWED);
       if (values.rss === true && values.json === true) {
         cliDie("search: --rss and --json cannot be combined");
+      }
+      if (values.rss === true && values.markSeen === true) {
+        cliDie("search: --rss and --mark-seen cannot be combined (--rss never searches)");
       }
       if (values.port !== undefined && values.rss !== true) {
         cliDie("search: --port is only meaningful with --rss (the feed URL's port)");
@@ -1160,13 +1184,19 @@ const CLI_COMMANDS: CliCommand[] = [
         seen: parsed.seen,
       });
       writeCliStderr(formatSearchSummary(parsed.query, rows.length));
+      // State marks are read BEFORE any --mark-seen mutation so the output
+      // shows the read state the hits had when the search ran.
+      const marks = loadSearchStateMarks();
+      if (values.markSeen === true) {
+        writeCliStderr(markSearchHitsSeen(rows));
+      }
       if (values.json === true) {
         // JSON mode always emits a document, even for zero matches, so
         // scripts can parse unconditionally.
-        cliExitOk(formatSearchJson(parsed.query, rows, loadSearchStateMarks()));
+        cliExitOk(formatSearchJson(parsed.query, rows, marks));
       }
       if (rows.length === 0) process.exit(0);
-      cliExitOk(formatSearchResults(rows, loadSearchStateMarks()));
+      cliExitOk(formatSearchResults(rows, marks));
     },
   },
   {

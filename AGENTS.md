@@ -14,7 +14,7 @@ pace doctor                      # fetch-check every configured source live
 pace import <feeds.opml>         # convert an OPML feed export to a pace config
 pace export [output.opml]        # export configured feed URLs as OPML
 pace notify test [rule]          # send a test delivery to notify webhooks
-pace search <query...>           # search stored items (same grammar as /api/search; --json, --limit N, --rss prints the saved-search feed URL)
+pace search <query...>           # search stored items (same grammar as /api/search; --json, --limit N, --rss prints the saved-search feed URL, --mark-seen marks hits read)
 pace panels list                 # list the active config's panels (ids, names, stored item counts, sources; --json for machine output)
 pace skill [name]                # list or print bundled agent skills
 ```

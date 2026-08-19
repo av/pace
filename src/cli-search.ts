@@ -2,6 +2,7 @@ import {
   getSeenKeys,
   getStarredKeys,
   itemSeenKey,
+  setItemsSeen,
   type ContentItemRow,
 } from "./db";
 import { resolveSearchPanelScope, serializeApiSearchItem } from "./server/api-search";
@@ -25,10 +26,15 @@ Examples:
   pace search seen:no panel:hacker-news
   pace search --json --limit 5 starred:yes
   pace search --rss rust seen:no
+  pace search --mark-seen release panel:changelogs
 
 Options:
   --json                Emit hits as JSON (the /api/search shape plus
                         starred/seen booleans) instead of text lines
+  --mark-seen           After printing the hits, mark them all read (the
+                        same read state as the dashboard's x key and
+                        /api/seen; cross-panel twins clear together).
+                        Output shows the state from before the marking.
   --rss                 Print the saved-search feed URL (/api/search.rss)
                         for the query instead of searching, ready to paste
                         into a feed reader. Points at http://localhost:<port>
@@ -146,6 +152,31 @@ export function formatSearchFeedUrl(query: string, port: number, limit?: number)
   const params = new URLSearchParams({ q: query });
   if (limit !== undefined) params.set("limit", String(limit));
   return `http://localhost:${port}/api/search.rss?${params.toString()}`;
+}
+
+/**
+ * Deduped read-state keys for a result set, in hit order — the same dedup
+ * identity /api/seen and the dashboard's x key write (itemSeenKey), so a
+ * `--mark-seen` pass clears cross-panel twins exactly like one x press would.
+ */
+export function searchHitSeenKeys(rows: readonly ContentItemRow[]): string[] {
+  return [...new Set(rows.map(itemSeenKey))];
+}
+
+/**
+ * Apply `--mark-seen` to a result set: marks every hit's story read in one
+ * transaction and returns the stderr summary line. Zero hits mark nothing.
+ */
+export function markSearchHitsSeen(rows: readonly ContentItemRow[]): string {
+  const keys = searchHitSeenKeys(rows);
+  if (keys.length > 0) setItemsSeen(keys, true);
+  return formatMarkSeenSummary(keys.length);
+}
+
+/** Stderr summary line for `--mark-seen`, counting distinct stories marked. */
+export function formatMarkSeenSummary(count: number): string {
+  if (count === 0) return "search: nothing to mark seen";
+  return `search: marked ${count} ${count === 1 ? "story" : "stories"} seen`;
 }
 
 /** Stderr summary line, mirroring the export/import command style. */

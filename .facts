@@ -345,6 +345,9 @@
 - label: pace search --rss prints the query's /api/search.rss saved-search feed URL (query normalized through the shared grammar, panel: kept in the URL for server-side resolution, --limit carried as ?limit=) at http://localhost:<port> from --port or $PORT (default 7453) instead of searching, touching neither config nor database; --rss with --json is an error and --port without --rss is an error
   command: bun test src/cli-search.test.ts --test-name-pattern 'rss|FeedUrl'
   tags: [spec, implemented]
+- label: pace search --mark-seen marks every hit of the search read after printing it, through the same dedup identity /api/seen and the dashboard x key write (cross-panel twins clear together); the printed hits show their pre-sweep state, a search: marked N stories seen summary goes to stderr (search: nothing to mark seen at zero hits), and --rss with --mark-seen is an error
+  command: bun test src/cli-search.test.ts --test-name-pattern 'mark-seen|markSearchHitsSeen|searchHitSeenKeys'
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server

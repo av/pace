@@ -6,15 +6,18 @@ import { tmpdir } from "node:os";
 import {
   formatSearchFeedUrl,
   formatSearchHit,
+  formatMarkSeenSummary,
   formatSearchJson,
   formatSearchResults,
+  markSearchHitsSeen,
+  searchHitSeenKeys,
   formatSearchSummary,
   formatSearchUsage,
   parseSearchCliLimit,
   resolveSearchCliPanelId,
   type SearchStateMarks,
 } from "./cli-search";
-import { itemSeenKey, saveItems, setItemSeen, setItemStarred } from "./db";
+import { getSeenKeys, itemSeenKey, saveItems, setItemSeen, setItemStarred } from "./db";
 import { makeContentItem, makeContentItemRow } from "./test/content-items";
 import { installTempDbHooks } from "./test/temp-db";
 import { flexCfg, panelCfg } from "./test/layout-cfg";
@@ -179,6 +182,38 @@ describe("formatSearchFeedUrl", () => {
   });
 });
 
+describe("searchHitSeenKeys / markSearchHitsSeen", () => {
+  test("dedupes cross-panel twins down to one read-state key", () => {
+    const rows = [
+      makeContentItemRow({ panel_id: "tech-panel", url: "https://ex.com/Story/" }),
+      makeContentItemRow({ panel_id: "all-panel", url: "https://ex.com/story" }),
+      makeContentItemRow({ panel_id: "tech-panel", url: "https://ex.com/other" }),
+    ];
+    expect(searchHitSeenKeys(rows)).toEqual(["https://ex.com/story", "https://ex.com/other"]);
+  });
+
+  test("marks every hit's story seen in the db and reports the distinct count", () => {
+    const rows = [
+      makeContentItemRow({ panel_id: "tech-panel", url: "https://ex.com/a" }),
+      makeContentItemRow({ panel_id: "all-panel", url: "https://ex.com/a" }),
+      makeContentItemRow({ panel_id: "tech-panel", url: "https://ex.com/b" }),
+    ];
+    expect(markSearchHitsSeen(rows)).toBe("search: marked 2 stories seen");
+    expect(new Set(getSeenKeys())).toEqual(new Set(["https://ex.com/a", "https://ex.com/b"]));
+  });
+
+  test("zero hits mark nothing", () => {
+    expect(markSearchHitsSeen([])).toBe("search: nothing to mark seen");
+    expect(getSeenKeys()).toEqual([]);
+  });
+
+  test("summary wording covers singular and plural", () => {
+    expect(formatMarkSeenSummary(1)).toBe("search: marked 1 story seen");
+    expect(formatMarkSeenSummary(3)).toBe("search: marked 3 stories seen");
+    expect(formatMarkSeenSummary(0)).toBe("search: nothing to mark seen");
+  });
+});
+
 describe("pace search CLI", () => {
   // Spawn against the test's temp database (installTempDbHooks sets
   // PACE_DB_PATH), so hits seeded in-process are visible to the subprocess.
@@ -326,6 +361,31 @@ describe("pace search CLI", () => {
     expect(missing.status).toBe(1);
     expect(missing.stderr).toContain("Missing query");
     expect(missing.stdout).toContain("pace search <query...>");
+  });
+
+  test("--mark-seen marks the hits read, printing their pre-mark state", () => {
+    seedItems();
+    const first = runSearch(["--mark-seen", "ships"]);
+    expect(first.status).toBe(0);
+    expect(first.stderr).toContain('search: 2 matches for "ships"');
+    expect(first.stderr).toContain("search: marked 2 stories seen");
+    // Output reflects the state before the marking: nothing shows as read yet.
+    expect(first.stdout).not.toContain("· ");
+    expect(new Set(getSeenKeys())).toEqual(new Set(["https://ex.com/rust", "https://ex.com/go"]));
+
+    const second = runSearch(["ships"]);
+    expect(second.status).toBe(0);
+    expect(second.stdout).toContain("· ");
+
+    const none = runSearch(["--mark-seen", "nomatch"]);
+    expect(none.status).toBe(0);
+    expect(none.stderr).toContain("search: nothing to mark seen");
+  });
+
+  test("--rss rejects --mark-seen", () => {
+    const res = runSearch(["--rss", "--mark-seen", "rust"]);
+    expect(res.status).toBe(1);
+    expect(res.stderr).toContain("search: --rss and --mark-seen cannot be combined");
   });
 
   test("serve-only options are rejected", () => {
