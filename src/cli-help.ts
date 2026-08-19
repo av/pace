@@ -38,10 +38,12 @@ import {
   selectNotifyTestRules,
 } from "./cli-notify";
 import {
+  formatSearchJson,
   formatSearchResults,
   formatSearchSummary,
   formatSearchUsage,
   loadSearchStateMarks,
+  parseSearchCliLimit,
   resolveSearchCliPanelId,
 } from "./cli-search";
 import { initDb, searchItems } from "./db";
@@ -106,6 +108,8 @@ export const CLI_PARSE_OPTIONS = {
   secret: { type: "boolean" },
   "output-dir": { type: "string", short: "o" },
   "single-file": { type: "boolean" },
+  json: { type: "boolean" },
+  limit: { type: "string", short: "n" },
   help: { type: "boolean", short: "h" },
   version: { type: "boolean", short: "v" },
 } as const;
@@ -141,6 +145,8 @@ export type CliParsedValues = Record<string, unknown> & {
   secret?: boolean;
   outputDir?: string;
   singleFile?: boolean;
+  json?: boolean;
+  limit?: string;
 };
 
 /** Map kebab-case flags from parseArgs (e.g. list-presets) onto camelCase fields. */
@@ -1055,7 +1061,7 @@ const CLI_COMMANDS: CliCommand[] = [
     usage: formatSearchUsage(),
     async run(positionals, values, ctx) {
       const usage = formatSearchUsage();
-      const SEARCH_ALLOWED = new Set(["config", "preset", "chdir"]);
+      const SEARCH_ALLOWED = new Set(["config", "preset", "chdir", "json", "limit"]);
       rejectInvalidCommandOptions(values, usage, SEARCH_ALLOWED);
       if (positionals.length === 0) {
         cliFailWithHelp("Missing query\n", usage);
@@ -1063,6 +1069,12 @@ const CLI_COMMANDS: CliCommand[] = [
       const queryResult = parseSearchQuery(positionals.join(" "));
       if (!queryResult.ok) cliDie(`search: ${queryResult.error}`);
       const parsed = queryResult.parsed;
+      let limitOverride: number | undefined;
+      try {
+        limitOverride = parseSearchCliLimit(values.limit);
+      } catch (err) {
+        cliDie(errorMessage(err));
+      }
 
       // The database lives under cwd (or PACE_DB_PATH) — the config is only
       // needed when a panel: operator must resolve against the layout.
@@ -1080,11 +1092,16 @@ const CLI_COMMANDS: CliCommand[] = [
       initDb();
       const rows = searchItems(parsed.terms, {
         panelId,
-        limit: DEFAULT_API_SEARCH_LIMIT,
+        limit: limitOverride ?? DEFAULT_API_SEARCH_LIMIT,
         starred: parsed.starred,
         seen: parsed.seen,
       });
       writeCliStderr(formatSearchSummary(parsed.query, rows.length));
+      if (values.json === true) {
+        // JSON mode always emits a document, even for zero matches, so
+        // scripts can parse unconditionally.
+        cliExitOk(formatSearchJson(parsed.query, rows, loadSearchStateMarks()));
+      }
       if (rows.length === 0) process.exit(0);
       cliExitOk(formatSearchResults(rows, loadSearchStateMarks()));
     },

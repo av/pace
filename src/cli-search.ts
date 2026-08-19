@@ -4,7 +4,8 @@ import {
   itemSeenKey,
   type ContentItemRow,
 } from "./db";
-import { resolveSearchPanelScope } from "./server/api-search";
+import { resolveSearchPanelScope, serializeApiSearchItem } from "./server/api-search";
+import { parseApiPanelItemsLimit } from "./server/api-panels";
 import { buildLayoutRuntimeMaps } from "./layout/domain";
 import { getAdapterName } from "./utils";
 import type { AppConfig } from "./config/types";
@@ -22,9 +23,12 @@ matches; each hit is marked ★ when starred and · when already read.
 Examples:
   pace search rust async
   pace search seen:no panel:hacker-news
-  pace search starred:yes
+  pace search --json --limit 5 starred:yes
 
 Options:
+  --json                Emit hits as JSON (the /api/search shape plus
+                        starred/seen booleans) instead of text lines
+  -n, --limit <n>       Maximum hits to return (1-500, default 50)
   -c, --config <path>   Path to config file (default: ./config.yaml)
   -P, --preset <name>   Use a bundled preset config
   -C, --chdir <dir>     Change to directory (for config/data loads)
@@ -85,6 +89,40 @@ export function formatSearchResults(
   marks: SearchStateMarks,
 ): string {
   return rows.flatMap((row) => formatSearchHit(row, marks)).join("\n");
+}
+
+/**
+ * Parse a `--limit` value with the exact semantics of the API's `?limit=`
+ * (integer 1-500), so the CLI and /api/search agree on what a limit means.
+ * Absent → undefined (caller applies the default). Throws a `search:`-prefixed
+ * error on invalid values.
+ */
+export function parseSearchCliLimit(raw: string | undefined): number | undefined {
+  const result = parseApiPanelItemsLimit(raw);
+  if (!result.ok) throw new Error(`search: ${result.error}`);
+  return result.limit;
+}
+
+/**
+ * The whole result set as pretty-printed JSON for `--json`: the /api/search
+ * response shape (query/count/items with each item's `panel`), with each item
+ * additionally carrying `starred`/`seen` booleans — the CLI reads the state
+ * marks anyway, so scripts get them structurally instead of parsing ★/· glyphs.
+ */
+export function formatSearchJson(
+  query: string,
+  rows: readonly ContentItemRow[],
+  marks: SearchStateMarks,
+): string {
+  const items = rows.map((row) => {
+    const key = itemSeenKey(row);
+    return {
+      ...serializeApiSearchItem(row),
+      starred: marks.starredKeys.has(key),
+      seen: marks.seenKeys.has(key),
+    };
+  });
+  return JSON.stringify({ query, count: rows.length, items }, null, 2);
 }
 
 /** Stderr summary line, mirroring the export/import command style. */

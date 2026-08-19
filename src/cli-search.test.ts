@@ -5,9 +5,11 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
   formatSearchHit,
+  formatSearchJson,
   formatSearchResults,
   formatSearchSummary,
   formatSearchUsage,
+  parseSearchCliLimit,
   resolveSearchCliPanelId,
   type SearchStateMarks,
 } from "./cli-search";
@@ -111,6 +113,57 @@ describe("formatSearchResults", () => {
   });
 });
 
+describe("parseSearchCliLimit", () => {
+  test("shares the API's ?limit= semantics: absent passes through, 1-500 parse", () => {
+    expect(parseSearchCliLimit(undefined)).toBeUndefined();
+    expect(parseSearchCliLimit("1")).toBe(1);
+    expect(parseSearchCliLimit("500")).toBe(500);
+  });
+
+  test("rejects out-of-range and non-integer values with a search: error", () => {
+    for (const bad of ["0", "501", "-1", "abc", "1.5"]) {
+      expect(() => parseSearchCliLimit(bad)).toThrow(/^search: limit must be/);
+    }
+  });
+});
+
+describe("formatSearchJson", () => {
+  test("emits the /api/search shape plus starred/seen booleans per item", () => {
+    const row = makeContentItemRow({
+      panel_id: "tech-panel",
+      title: "Rust 2.0",
+      url: "https://ex.com/rust",
+    });
+    const key = itemSeenKey(row);
+    const doc = JSON.parse(
+      formatSearchJson("rust seen:no", [row], {
+        starredKeys: new Set([key]),
+        seenKeys: new Set(),
+      }),
+    );
+    expect(doc.query).toBe("rust seen:no");
+    expect(doc.count).toBe(1);
+    expect(doc.items).toHaveLength(1);
+    const item = doc.items[0];
+    expect(item.panel).toBe("tech-panel");
+    expect(item.title).toBe("Rust 2.0");
+    expect(item.url).toBe("https://ex.com/rust");
+    expect(item.starred).toBe(true);
+    expect(item.seen).toBe(false);
+    for (const field of ["id", "source", "timestamp", "fetched_at", "score", "origins"]) {
+      expect(item).toHaveProperty(field);
+    }
+  });
+
+  test("zero matches still yield a parseable document", () => {
+    expect(JSON.parse(formatSearchJson("nope", [], NO_MARKS))).toEqual({
+      query: "nope",
+      count: 0,
+      items: [],
+    });
+  });
+});
+
 describe("pace search CLI", () => {
   // Spawn against the test's temp database (installTempDbHooks sets
   // PACE_DB_PATH), so hits seeded in-process are visible to the subprocess.
@@ -186,6 +239,36 @@ describe("pace search CLI", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  test("--json emits a parseable document with state booleans, summary still on stderr", () => {
+    seedItems();
+    setItemStarred("https://ex.com/rust", true);
+    setItemSeen("https://ex.com/go", true);
+    const res = runSearch(["--json", "ships"]);
+    expect(res.status).toBe(0);
+    expect(res.stderr).toContain('search: 2 matches for "ships"');
+    const doc = JSON.parse(res.stdout);
+    expect(doc.count).toBe(2);
+    const byTitle = Object.fromEntries(doc.items.map((i: any) => [i.title, i]));
+    expect(byTitle["Rust ships"].starred).toBe(true);
+    expect(byTitle["Rust ships"].panel).toBe("tech-panel");
+    expect(byTitle["Go ships"].seen).toBe(true);
+
+    const empty = runSearch(["--json", "nothing-here"]);
+    expect(empty.status).toBe(0);
+    expect(JSON.parse(empty.stdout)).toEqual({ query: "nothing-here", count: 0, items: [] });
+  });
+
+  test("--limit caps hits and rejects invalid values like the API", () => {
+    seedItems();
+    const capped = runSearch(["-n", "1", "ships"]);
+    expect(capped.status).toBe(0);
+    expect(capped.stderr).toContain('search: 1 match for "ships"');
+
+    const bad = runSearch(["--limit", "0", "ships"]);
+    expect(bad.status).toBe(1);
+    expect(bad.stderr).toContain("search: limit must be between 1 and 500");
   });
 
   test("invalid operators and a missing query fail with clear errors", () => {
