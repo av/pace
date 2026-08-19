@@ -24,6 +24,10 @@
   --accent-dim: color-mix(in srgb, var(--accent) 15%, transparent);
   --scrollbar-thumb: color-mix(in srgb, var(--accent) 35%, var(--border-light));
   --scrollbar-thumb-hover: var(--accent);
+  /* Tell the browser the page is dark so native UI it owns (form controls,
+     classic scrollbars, canvas behind overscroll) matches the palette. The
+     light blocks below flip it to light alongside the tokens. */
+  color-scheme: dark;
 }
 
 /* Light theme — toggled with "t" (dashboard.js sets data-theme="light" on
@@ -43,6 +47,7 @@
   --hover: #111;
   --hover-bg: #e0e0dc;
   --accent: #3d708a;
+  color-scheme: light;
 }
 
 /* Static exports follow the OS light/dark preference: no JS runs there, so
@@ -65,6 +70,7 @@
     --hover: #111;
     --hover-bg: #e0e0dc;
     --accent: #3d708a;
+    color-scheme: light;
   }
 }
 

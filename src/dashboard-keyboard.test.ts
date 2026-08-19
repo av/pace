@@ -904,6 +904,17 @@ describe("keyboard navigation CSS", () => {
     expect(bare).not.toContain(":root:has(body.static-dashboard)");
   });
 
+  test("color-scheme follows the active theme so native UI matches", () => {
+    // The browser owns some chrome CSS can't reach (form controls, classic
+    // scrollbars, the canvas behind overscroll); color-scheme keeps it in
+    // step with the palette: dark by default, light in both light blocks
+    // (interactive data-theme toggle and static-export media block — the
+    // palette-parity test above keeps the latter two from drifting).
+    const block = (selector: RegExp) => STYLES.match(selector)?.[1] ?? "";
+    expect(block(/:root\s*\{([^}]*)\}/s)).toContain("color-scheme: dark;");
+    expect(block(/:root\[data-theme='light'\]\s*\{([^}]*)\}/s)).toContain("color-scheme: light;");
+  });
+
   test("the server never renders a theme attribute (theme is client state only)", () => {
     for (const mode of ["interactive", "static"] as const) {
       expect(renderModeDashboard(mode)).not.toContain("data-theme");
