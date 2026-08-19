@@ -21,6 +21,7 @@ import { handleApiSearch } from "./api-search";
 import { handleApiSearchRss } from "./api-search-rss";
 import { handleApiPanelRss, RSS_PANEL_SUFFIX } from "./api-panels-rss";
 import { handleApiSeenList, handleApiSeenSet } from "./api-seen";
+import { handleApiStarList, handleApiStarSet } from "./api-star";
 import { faviconSvg } from "../dashboard.js";
 import { MANIFEST_CONTENT_TYPE, webAppManifest } from "./manifest";
 import { serviceWorkerScript, SW_CONTENT_TYPE } from "./sw";
@@ -283,6 +284,10 @@ export function registerServerRoutes(app: Hono, deps: ServerRouteDeps): void {
   // user has read, keyed by dedup identity so duplicates share the mark.
   app.get("/api/seen", (c) => handleApiSeenList(c));
   app.post("/api/seen", (c) => handleApiSeenSet(c));
+  // Starred/pinned item state: the dashboard's "s" key persists which items
+  // the user wants to keep, sharing the seen marks' dedup identity.
+  app.get("/api/star", (c) => handleApiStarList(c));
+  app.post("/api/star", (c) => handleApiStarSet(c));
   // A ".rss" suffix on the panel segment switches the same lookup to an
   // RSS 2.0 rendering, so pace panels can feed regular feed readers.
   app.get("/api/panels/:panel", (c) =>

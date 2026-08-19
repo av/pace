@@ -278,6 +278,17 @@ export function initDb(): void {
       )
     `);
 
+    // Starred/pinned item state, keyed like seen_items by the item's dedup
+    // identity (see itemSeenKey): starring a story on one panel stars its
+    // copies everywhere. Stars are deliberate keep-marks, so unlike seen
+    // marks they are never pruned by retention.
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS starred_items (
+        star_key TEXT PRIMARY KEY,
+        starred_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `);
+
     // Webhook notification ledger, keyed by (rule, item dedup identity):
     // an item is notified at most once per notify rule, across refreshes,
     // panels, and cross-panel duplicates (item_key mirrors itemSeenKey).
@@ -510,6 +521,37 @@ export function getSeenKeys(): string[] {
     .prepare("SELECT seen_key FROM seen_items ORDER BY seen_at ASC, seen_key ASC")
     .all() as { seen_key: string }[];
   return rows.map((row) => row.seen_key);
+}
+
+// --- Starred/pinned item state -----------------------------------------------
+
+/**
+ * Persist (or clear) the star mark for one dedup key (see itemSeenKey — stars
+ * share the seen marks' identity so duplicates star together). Stars survive
+ * retention pruning: they are deliberate keep-marks, not read state.
+ */
+export function setItemStarred(key: string, starred: boolean): void {
+  const db = getDb();
+  try {
+    if (starred) {
+      db.prepare(
+        "INSERT INTO starred_items (star_key) VALUES (?) ON CONFLICT(star_key) DO NOTHING",
+      ).run(key);
+    } else {
+      db.prepare("DELETE FROM starred_items WHERE star_key = ?").run(key);
+    }
+  } catch (e: unknown) {
+    throw new Error(`db: failed to set starred=${starred} for key=${key}: ${errorMessage(e)}`);
+  }
+}
+
+/** All stored star keys, oldest mark first. */
+export function getStarredKeys(): string[] {
+  const db = getDb();
+  const rows = db
+    .prepare("SELECT star_key FROM starred_items ORDER BY starred_at ASC, star_key ASC")
+    .all() as { star_key: string }[];
+  return rows.map((row) => row.star_key);
 }
 
 // --- Webhook notification ledger ---------------------------------------------

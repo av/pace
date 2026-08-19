@@ -21,7 +21,10 @@
  * prefers-color-scheme preference is followed until the first toggle, which
  * pins an explicit choice in localStorage), x marks the focused item as seen/unseen (dimmed; persisted
  * server-side via /api/seen so it is shared across browsers), a marks the whole
- * focused panel seen (or unseen when every item already is), Shift+X hides
+ * focused panel seen (or unseen when every item already is), s stars/unstars
+ * the focused item (an accent ★ after the title; persisted server-side via
+ * /api/star, and starred items are exempt from hide-seen and the seen
+ * dimming so kept stories never vanish), Shift+X hides
  * every seen item across all panels (persisted in localStorage), ? toggles a
  * small help overlay (Escape closes it), and / opens a filter bar that
  * live-filters items across all panels (Escape clears and closes).
@@ -107,6 +110,7 @@ export const HELP_ROWS = [
   ["t", "Toggle light / dark theme"],
   ["x", "Mark the focused item seen / unseen"],
   ["a", "Mark the whole panel seen / unseen"],
+  ["s", "Star / unstar the focused item (starred items stay visible)"],
   ["X", "Hide or show seen items"],
   ["/", "Filter items across panels"],
   ["?", "Show or hide this help"],
@@ -212,6 +216,14 @@ export function collapseButtonLabel(title, collapsed) {
 /** Accessible label for a per-item mark-seen button, from its current state. */
 export function itemSeenButtonLabel(seen) {
   return seen === true ? "Mark item unseen" : "Mark item seen";
+}
+
+/** Class of the injected per-item star button (shown on hover/focus). */
+export const ITEM_STAR_BTN_CLASS = "item-star-btn";
+
+/** Accessible label for a per-item star button, from its current state. */
+export function itemStarButtonLabel(starred) {
+  return starred === true ? "Unstar item" : "Star item";
 }
 
 /** Accessible label for a panel's mark-all-seen button. */
@@ -899,6 +911,10 @@ export function autoMarkSeenDisabled(body) {
 export function itemHiddenBySeen(item, hideSeenOn) {
   if (!item || typeof item.closest !== "function" || !item.classList) return false;
   if (!item.classList.contains(SEEN_CLASS)) return false;
+  // Starred items are deliberate keep-marks: hide-seen never hides them, so a
+  // starred story stays reachable even after it is read (mirrors the
+  // stylesheet's :not(.item-starred) on the hide rules).
+  if (item.classList.contains(STARRED_CLASS)) return false;
   const panel = item.closest(".panel[data-hide-seen]");
   if (panel && typeof panel.getAttribute === "function") {
     return panel.getAttribute("data-hide-seen") === "on";
@@ -923,6 +939,81 @@ export function autoSeenItem(target) {
   const item = link.closest(".item[data-seen-key]");
   if (!item || item.classList.contains(SEEN_CLASS)) return null;
   return item;
+}
+
+/* ------------------------------------------------------------------ */
+/* Starred item state (toggled with "s", persisted via /api/star)      */
+/* ------------------------------------------------------------------ */
+
+/** Class marking a starred item (star accent by the stylesheet). */
+export const STARRED_CLASS = "item-starred";
+
+/** Mark the items whose dedup key is in `keys` starred (page load restore). */
+function applyStarredKeys(keys) {
+  if (keys.length === 0) return;
+  const set = new Set(keys);
+  for (const item of document.querySelectorAll(".item[data-seen-key]")) {
+    if (set.has(item.getAttribute("data-seen-key"))) item.classList.add(STARRED_CLASS);
+  }
+  syncStarButtons();
+}
+
+/** Re-apply the server-persisted star marks to the freshly rendered page. */
+function restoreStarredItems() {
+  // The /api/star payload shares /api/seen's `{ keys }` shape, so the same
+  // trust-boundary parser applies.
+  fetch(`${apiBase()}/api/star`)
+    .then((res) => (res.ok ? res.json() : null))
+    .then((body) => applyStarredKeys(parseSeenKeys(body)))
+    .catch(() => {
+      // Server unreachable: the dashboard stays usable, stars just don't show.
+    });
+}
+
+/** Keep the injected per-item star buttons' ARIA state in step with the marks. */
+function syncStarButtons() {
+  for (const btn of document.querySelectorAll(`.${ITEM_STAR_BTN_CLASS}`)) {
+    const item = btn.closest(".item");
+    const starred = item !== null && item.classList.contains(STARRED_CLASS);
+    btn.setAttribute("aria-pressed", starred ? "true" : "false");
+    const label = itemStarButtonLabel(starred);
+    btn.setAttribute("aria-label", label);
+    btn.title = label;
+  }
+}
+
+/** Toggle the focused item's star state optimistically and persist it. */
+function toggleFocusedItemStarred() {
+  const item = itemForSeenToggle();
+  if (item) toggleItemStarred(item);
+}
+
+/** Toggle one item's star state (shared by the "s" key and the item button). */
+function toggleItemStarred(item) {
+  const key = item.getAttribute("data-seen-key");
+  const starred = !item.classList.contains(STARRED_CLASS);
+  // Every duplicate of the story shares the key, so keep the page consistent
+  // with what the server will store.
+  const twins = document.querySelectorAll(".item[data-seen-key]");
+  const toggle = (on) => {
+    for (const twin of twins) {
+      if (twin.getAttribute("data-seen-key") === key) twin.classList.toggle(STARRED_CLASS, on);
+    }
+    syncStarButtons();
+    // Un-starring while hide-seen is on can hide a seen item again; the
+    // seen funnel keeps panel dimming and counts consistent either way.
+    refreshAllSeenPanels();
+  };
+  toggle(starred);
+  fetch(`${apiBase()}/api/star`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ key, starred }),
+  })
+    .then((res) => {
+      if (!res.ok) toggle(!starred); // rejected: roll the optimistic mark back
+    })
+    .catch(() => toggle(!starred));
 }
 
 /** Toggle the focused item's seen state optimistically and persist it. */
@@ -1391,6 +1482,12 @@ function injectMouseAffordances() {
     btn.setAttribute("aria-pressed", seen ? "true" : "false");
     btn.addEventListener("click", () => toggleItemSeen(item));
     item.appendChild(btn);
+    const starred = item.classList.contains(STARRED_CLASS);
+    const starBtn = makeAffordanceButton(ITEM_STAR_BTN_CLASS, "★", itemStarButtonLabel(starred));
+    starBtn.tabIndex = -1;
+    starBtn.setAttribute("aria-pressed", starred ? "true" : "false");
+    starBtn.addEventListener("click", () => toggleItemStarred(item));
+    item.appendChild(starBtn);
   }
 }
 
@@ -1499,6 +1596,10 @@ function onKeydown(event) {
     toggleFocusedPanelSeen();
     return;
   }
+  if (event.key === "s" && !event.shiftKey) {
+    toggleFocusedItemStarred();
+    return;
+  }
   if (event.key === "C") {
     toggleAllPanelsCollapsed();
     return;
@@ -1523,6 +1624,7 @@ if (typeof document !== "undefined" && typeof window !== "undefined") {
   restoreTheme();
   restoreHideSeen();
   restoreSeenItems();
+  restoreStarredItems();
   registerServiceWorker();
   watchOffline();
 }

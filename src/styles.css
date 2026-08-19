@@ -396,7 +396,8 @@ a:hover {
   position: relative;
 }
 
-.item .item-seen-btn {
+.item .item-seen-btn,
+.item .item-star-btn {
   position: absolute;
   top: 0.35rem;
   right: 0.5rem;
@@ -405,19 +406,28 @@ a:hover {
   background: var(--bg-elevated);
 }
 
+/* The star button sits left of the mark-seen check. */
+.item .item-star-btn {
+  right: 2.4rem;
+}
+
 .item:hover .item-seen-btn,
-.item:focus-within .item-seen-btn {
+.item:focus-within .item-seen-btn,
+.item:hover .item-star-btn,
+.item:focus-within .item-star-btn {
   opacity: 1;
   pointer-events: auto;
 }
 
-.item .item-seen-btn[aria-pressed="true"] {
+.item .item-seen-btn[aria-pressed="true"],
+.item .item-star-btn[aria-pressed="true"] {
   color: var(--accent);
   border-color: var(--accent);
 }
 
 @media (pointer: coarse) {
-  .item .item-seen-btn {
+  .item .item-seen-btn,
+  .item .item-star-btn {
     opacity: 1;
     pointer-events: auto;
   }
@@ -531,9 +541,21 @@ a:hover {
    "all caught up" rather than "broken". A panel-level hide_seen override
    stamps data-hide-seen on the .panel: "off" exempts the panel from the
    page-wide mode, "on" hides its seen items even while the mode is off. */
-html.hide-seen .panel:not([data-hide-seen="off"]) .item.item-seen,
-.panel[data-hide-seen="on"] .item.item-seen {
+html.hide-seen .panel:not([data-hide-seen="off"]) .item.item-seen:not(.item-starred),
+.panel[data-hide-seen="on"] .item.item-seen:not(.item-starred) {
   display: none;
+}
+
+/* Starred items ("s" key, persisted via /api/star): an accent star after the
+   title marks them, and — being deliberate keep-marks — they are exempt from
+   hide-seen (the :not(.item-starred) above) and from the seen dimming. */
+.item.item-starred .item-title::after {
+  content: " ★";
+  color: var(--accent);
+}
+
+.item.item-starred.item-seen {
+  opacity: 1;
 }
 
 html.hide-seen .panel.all-seen,

@@ -58,6 +58,10 @@ import {
   faviconHref,
   faviconSvg,
   unseenCountBadge,
+  STARRED_CLASS,
+  ITEM_STAR_BTN_CLASS,
+  itemStarButtonLabel,
+  itemHiddenBySeen,
 } from "./dashboard.js";
 import { itemSeenKey } from "./db";
 import { renderDashboard, type PanelData } from "./layout";
@@ -382,7 +386,7 @@ describe("themeColorFor", () => {
 describe("HELP_ROWS", () => {
   test("documents every advertised shortcut", () => {
     const keys = HELP_ROWS.map(([k]) => k).join(" ");
-    for (const fragment of ["j / k", "h / l", "Tab", "Enter", "r", "c", "C", "t", "x", "a", "X", "/", "?", "Esc"]) {
+    for (const fragment of ["j / k", "h / l", "Tab", "Enter", "r", "c", "C", "t", "x", "a", "s", "X", "/", "?", "Esc"]) {
       expect(keys).toContain(fragment);
     }
     for (const [, description] of HELP_ROWS) {
@@ -521,6 +525,66 @@ describe("seen item markup and helpers", () => {
     expect(row).toBeDefined();
     expect(row![1].toLowerCase()).toContain("panel");
     expect(row![1].toLowerCase()).toContain("seen");
+  });
+});
+
+describe("starred item state", () => {
+  test("class and button names are stable (the stylesheet keys off them)", () => {
+    expect(STARRED_CLASS).toBe("item-starred");
+    expect(ITEM_STAR_BTN_CLASS).toBe("item-star-btn");
+  });
+
+  test("HELP_ROWS documents the star shortcut s", () => {
+    const row = HELP_ROWS.find(([keys]) => keys === "s");
+    expect(row).toBeDefined();
+    expect(row![1].toLowerCase()).toContain("star");
+  });
+
+  test("itemStarButtonLabel flips with the item's current star state", () => {
+    expect(itemStarButtonLabel(false)).toBe("Star item");
+    expect(itemStarButtonLabel(true)).toBe("Unstar item");
+    // Untrusted attribute round-trips: only the literal true reads as starred.
+    expect(itemStarButtonLabel("true")).toBe("Star item");
+    expect(itemStarButtonLabel(undefined)).toBe("Star item");
+  });
+
+  test("itemHiddenBySeen never hides a starred item, mode or panel stamp notwithstanding", () => {
+    const item = (starred: boolean, panelAttr: string | null = null) => ({
+      classList: {
+        contains: (cls: string) =>
+          (cls === SEEN_CLASS) || (cls === STARRED_CLASS && starred),
+      },
+      closest: (sel: string) =>
+        sel === ".panel[data-hide-seen]" && panelAttr !== null
+          ? { getAttribute: (n: string) => (n === "data-hide-seen" ? panelAttr : null) }
+          : null,
+    });
+    // Seen but starred: exempt from the page-wide mode and even a panel "on" stamp.
+    expect(itemHiddenBySeen(item(true), true)).toBe(false);
+    expect(itemHiddenBySeen(item(true, "on"), false)).toBe(false);
+    // Same item without the star hides as usual.
+    expect(itemHiddenBySeen(item(false), true)).toBe(true);
+    expect(itemHiddenBySeen(item(false, "on"), false)).toBe(true);
+  });
+
+  test("stars are client state only: the server never renders their classes", () => {
+    for (const mode of ["interactive", "static"] as const) {
+      const html = renderModeDashboard(mode);
+      expect(html).not.toContain(STARRED_CLASS);
+      expect(html).not.toContain(ITEM_STAR_BTN_CLASS);
+    }
+  });
+
+  test("stylesheet styles the star button, the star marker, and the hide-seen exemption", () => {
+    expect(STYLES).toContain(".item .item-star-btn");
+    expect(STYLES).toContain('.item .item-star-btn[aria-pressed="true"]');
+    expect(STYLES).toContain(".item.item-starred .item-title::after");
+    // Starred items are exempt from both hide rules and from seen dimming.
+    expect(STYLES).toContain(
+      'html.hide-seen .panel:not([data-hide-seen="off"]) .item.item-seen:not(.item-starred)',
+    );
+    expect(STYLES).toContain('.panel[data-hide-seen="on"] .item.item-seen:not(.item-starred)');
+    expect(STYLES).toContain(".item.item-starred.item-seen");
   });
 });
 
@@ -1166,31 +1230,31 @@ describe("mouse affordance CSS", () => {
     expect(rotated![1]).toContain("rotate");
   });
 
-  test("item seen button is hidden until hover/focus and never swallows clicks", () => {
-    const base = STYLES.match(/\.item \.item-seen-btn\s*\{([^}]*)\}/s);
+  test("item seen and star buttons are hidden until hover/focus and never swallow clicks", () => {
+    const base = STYLES.match(/\.item \.item-seen-btn,\s*\.item \.item-star-btn\s*\{([^}]*)\}/s);
     expect(base).not.toBeNull();
     expect(base![1]).toContain("opacity: 0");
     // A transparent button over the title corner must not intercept clicks.
     expect(base![1]).toContain("pointer-events: none");
     const reveal = STYLES.match(
-      /\.item:hover \.item-seen-btn,\s*\.item:focus-within \.item-seen-btn\s*\{([^}]*)\}/s,
+      /\.item:hover \.item-seen-btn,\s*\.item:focus-within \.item-seen-btn,\s*\.item:hover \.item-star-btn,\s*\.item:focus-within \.item-star-btn\s*\{([^}]*)\}/s,
     );
     expect(reveal).not.toBeNull();
     expect(reveal![1]).toContain("opacity: 1");
     expect(reveal![1]).toContain("pointer-events: auto");
   });
 
-  test("coarse pointers (no hover) get the item seen button always visible", () => {
+  test("coarse pointers (no hover) get the item seen and star buttons always visible", () => {
     const coarse = STYLES.match(
-      /@media \(pointer: coarse\)\s*\{\s*\.item \.item-seen-btn\s*\{([^}]*)\}/s,
+      /@media \(pointer: coarse\)\s*\{\s*\.item \.item-seen-btn,\s*\.item \.item-star-btn\s*\{([^}]*)\}/s,
     );
     expect(coarse).not.toBeNull();
     expect(coarse![1]).toContain("opacity: 1");
   });
 
-  test("pressed item seen buttons surface the accent so state is visible", () => {
+  test("pressed item seen and star buttons surface the accent so state is visible", () => {
     const pressed = STYLES.match(
-      /\.item \.item-seen-btn\[aria-pressed="true"\]\s*\{([^}]*)\}/s,
+      /\.item \.item-seen-btn\[aria-pressed="true"\],\s*\.item \.item-star-btn\[aria-pressed="true"\]\s*\{([^}]*)\}/s,
     );
     expect(pressed).not.toBeNull();
     expect(pressed![1]).toContain("var(--accent)");
