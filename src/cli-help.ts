@@ -45,6 +45,7 @@ import {
   formatSearchUsage,
   loadSearchStateMarks,
   markSearchHitsSeen,
+  markSearchHitsStarred,
   parseSearchCliLimit,
   resolveSearchCliPanelId,
 } from "./cli-search";
@@ -120,6 +121,8 @@ export const CLI_PARSE_OPTIONS = {
   json: { type: "boolean" },
   rss: { type: "boolean" },
   "mark-seen": { type: "boolean" },
+  star: { type: "boolean" },
+  unstar: { type: "boolean" },
   limit: { type: "string", short: "n" },
   help: { type: "boolean", short: "h" },
   version: { type: "boolean", short: "v" },
@@ -165,6 +168,8 @@ export type CliParsedValues = Record<string, unknown> & {
   json?: boolean;
   rss?: boolean;
   markSeen?: boolean;
+  star?: boolean;
+  unstar?: boolean;
   limit?: string;
 };
 
@@ -1130,6 +1135,8 @@ const CLI_COMMANDS: CliCommand[] = [
         "rss",
         "port",
         "mark-seen",
+        "star",
+        "unstar",
       ]);
       rejectInvalidCommandOptions(values, usage, SEARCH_ALLOWED);
       if (values.rss === true && values.json === true) {
@@ -1137,6 +1144,12 @@ const CLI_COMMANDS: CliCommand[] = [
       }
       if (values.rss === true && values.markSeen === true) {
         cliDie("search: --rss and --mark-seen cannot be combined (--rss never searches)");
+      }
+      if (values.star === true && values.unstar === true) {
+        cliDie("search: --star and --unstar cannot be combined");
+      }
+      if (values.rss === true && (values.star === true || values.unstar === true)) {
+        cliDie("search: --rss and --star/--unstar cannot be combined (--rss never searches)");
       }
       if (values.port !== undefined && values.rss !== true) {
         cliDie("search: --port is only meaningful with --rss (the feed URL's port)");
@@ -1189,6 +1202,9 @@ const CLI_COMMANDS: CliCommand[] = [
       const marks = loadSearchStateMarks();
       if (values.markSeen === true) {
         writeCliStderr(markSearchHitsSeen(rows));
+      }
+      if (values.star === true || values.unstar === true) {
+        writeCliStderr(markSearchHitsStarred(rows, values.star === true));
       }
       if (values.json === true) {
         // JSON mode always emits a document, even for zero matches, so

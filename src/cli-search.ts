@@ -3,6 +3,7 @@ import {
   getStarredKeys,
   itemSeenKey,
   setItemsSeen,
+  setItemStarred,
   type ContentItemRow,
 } from "./db";
 import { resolveSearchPanelScope, serializeApiSearchItem } from "./server/api-search";
@@ -35,6 +36,11 @@ Options:
                         same read state as the dashboard's x key and
                         /api/seen; cross-panel twins clear together).
                         Output shows the state from before the marking.
+  --star                After printing the hits, star them all (the same
+                        star state as the dashboard's s key and /api/star;
+                        cross-panel twins star together). Output shows the
+                        state from before the marking.
+  --unstar              Inverse of --star: clear the star mark on every hit.
   --rss                 Print the saved-search feed URL (/api/search.rss)
                         for the query instead of searching, ready to paste
                         into a feed reader. Points at http://localhost:<port>
@@ -171,6 +177,27 @@ export function markSearchHitsSeen(rows: readonly ContentItemRow[]): string {
   const keys = searchHitSeenKeys(rows);
   if (keys.length > 0) setItemsSeen(keys, true);
   return formatMarkSeenSummary(keys.length);
+}
+
+/**
+ * Apply `--star` / `--unstar` to a result set: sets the star mark on every
+ * hit's story — the same star state as the dashboard's s key and /api/star,
+ * via the shared dedup identity (cross-panel twins star together) — and
+ * returns the stderr summary line. Zero hits mark nothing.
+ */
+export function markSearchHitsStarred(
+  rows: readonly ContentItemRow[],
+  starred: boolean,
+): string {
+  const keys = searchHitSeenKeys(rows);
+  for (const key of keys) setItemStarred(key, starred);
+  return formatStarSummary(keys.length, starred);
+}
+
+/** Stderr summary line for `--star`/`--unstar`, counting distinct stories. */
+export function formatStarSummary(count: number, starred: boolean): string {
+  if (count === 0) return `search: nothing to ${starred ? "star" : "unstar"}`;
+  return `search: ${starred ? "starred" : "unstarred"} ${count} ${count === 1 ? "story" : "stories"}`;
 }
 
 /** Stderr summary line for `--mark-seen`, counting distinct stories marked. */

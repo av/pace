@@ -7,6 +7,8 @@ import {
   formatSearchFeedUrl,
   formatSearchHit,
   formatMarkSeenSummary,
+  formatStarSummary,
+  markSearchHitsStarred,
   formatSearchJson,
   formatSearchResults,
   markSearchHitsSeen,
@@ -17,7 +19,14 @@ import {
   resolveSearchCliPanelId,
   type SearchStateMarks,
 } from "./cli-search";
-import { getSeenKeys, itemSeenKey, saveItems, setItemSeen, setItemStarred } from "./db";
+import {
+  getSeenKeys,
+  getStarredKeys,
+  itemSeenKey,
+  saveItems,
+  setItemSeen,
+  setItemStarred,
+} from "./db";
 import { makeContentItem, makeContentItemRow } from "./test/content-items";
 import { installTempDbHooks } from "./test/temp-db";
 import { flexCfg, panelCfg } from "./test/layout-cfg";
@@ -214,6 +223,32 @@ describe("searchHitSeenKeys / markSearchHitsSeen", () => {
   });
 });
 
+describe("markSearchHitsStarred / formatStarSummary", () => {
+  test("stars every hit's story in the db, twins deduped, and unstars them again", () => {
+    const rows = [
+      makeContentItemRow({ panel_id: "tech-panel", url: "https://ex.com/a" }),
+      makeContentItemRow({ panel_id: "all-panel", url: "https://ex.com/a" }),
+      makeContentItemRow({ panel_id: "tech-panel", url: "https://ex.com/b" }),
+    ];
+    expect(markSearchHitsStarred(rows, true)).toBe("search: starred 2 stories");
+    expect(new Set(getStarredKeys())).toEqual(new Set(["https://ex.com/a", "https://ex.com/b"]));
+    expect(markSearchHitsStarred(rows.slice(0, 2), false)).toBe("search: unstarred 1 story");
+    expect(getStarredKeys()).toEqual(["https://ex.com/b"]);
+  });
+
+  test("zero hits mark nothing", () => {
+    expect(markSearchHitsStarred([], true)).toBe("search: nothing to star");
+    expect(markSearchHitsStarred([], false)).toBe("search: nothing to unstar");
+    expect(getStarredKeys()).toEqual([]);
+  });
+
+  test("summary wording covers singular, plural, and both directions", () => {
+    expect(formatStarSummary(1, true)).toBe("search: starred 1 story");
+    expect(formatStarSummary(3, false)).toBe("search: unstarred 3 stories");
+    expect(formatStarSummary(0, true)).toBe("search: nothing to star");
+  });
+});
+
 describe("pace search CLI", () => {
   // Spawn against the test's temp database (installTempDbHooks sets
   // PACE_DB_PATH), so hits seeded in-process are visible to the subprocess.
@@ -380,6 +415,37 @@ describe("pace search CLI", () => {
     const none = runSearch(["--mark-seen", "nomatch"]);
     expect(none.status).toBe(0);
     expect(none.stderr).toContain("search: nothing to mark seen");
+  });
+
+  test("--star stars the hits, printing their pre-mark state; --unstar clears them", () => {
+    seedItems();
+    const first = runSearch(["--star", "ships"]);
+    expect(first.status).toBe(0);
+    expect(first.stderr).toContain("search: starred 2 stories");
+    // Output reflects the state before the marking: nothing shows starred yet.
+    expect(first.stdout).not.toContain("★");
+    expect(new Set(getStarredKeys())).toEqual(
+      new Set(["https://ex.com/rust", "https://ex.com/go"]),
+    );
+
+    const second = runSearch(["--unstar", "rust"]);
+    expect(second.status).toBe(0);
+    expect(second.stdout).toContain("★");
+    expect(second.stderr).toContain("search: unstarred 1 story");
+    expect(getStarredKeys()).toEqual(["https://ex.com/go"]);
+
+    const none = runSearch(["--star", "nomatch"]);
+    expect(none.status).toBe(0);
+    expect(none.stderr).toContain("search: nothing to star");
+  });
+
+  test("--star/--unstar guards: not together, not with --rss", () => {
+    const both = runSearch(["--star", "--unstar", "rust"]);
+    expect(both.status).toBe(1);
+    expect(both.stderr).toContain("search: --star and --unstar cannot be combined");
+    const rss = runSearch(["--rss", "--star", "rust"]);
+    expect(rss.status).toBe(1);
+    expect(rss.stderr).toContain("search: --rss and --star/--unstar cannot be combined");
   });
 
   test("--rss rejects --mark-seen", () => {
