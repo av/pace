@@ -37,6 +37,15 @@ import {
   runNotifyTest,
   selectNotifyTestRules,
 } from "./cli-notify";
+import {
+  formatSearchResults,
+  formatSearchSummary,
+  formatSearchUsage,
+  loadSearchStateMarks,
+  resolveSearchCliPanelId,
+} from "./cli-search";
+import { initDb, searchItems } from "./db";
+import { DEFAULT_API_SEARCH_LIMIT, parseSearchQuery } from "./server/api-search";
 import { errorMessage, normalizeParamBoolean, parseCliPort } from "./utils";
 import {
   exportStaticDashboard,
@@ -1041,6 +1050,46 @@ const CLI_COMMANDS: CliCommand[] = [
     },
   },
   {
+    name: "search",
+    summary: "Search stored dashboard items",
+    usage: formatSearchUsage(),
+    async run(positionals, values, ctx) {
+      const usage = formatSearchUsage();
+      const SEARCH_ALLOWED = new Set(["config", "preset", "chdir"]);
+      rejectInvalidCommandOptions(values, usage, SEARCH_ALLOWED);
+      if (positionals.length === 0) {
+        cliFailWithHelp("Missing query\n", usage);
+      }
+      const queryResult = parseSearchQuery(positionals.join(" "));
+      if (!queryResult.ok) cliDie(`search: ${queryResult.error}`);
+      const parsed = queryResult.parsed;
+
+      // The database lives under cwd (or PACE_DB_PATH) — the config is only
+      // needed when a panel: operator must resolve against the layout.
+      let panelId: string | undefined;
+      if (parsed.panel !== undefined) {
+        try {
+          applyCliConfigEnv(values, ctx.deps);
+          const readConfig = ctx.deps.loadConfig ?? loadConfig;
+          panelId = resolveSearchCliPanelId(readConfig(), parsed.panel);
+        } catch (err) {
+          cliDie(errorMessage(err));
+        }
+      }
+
+      initDb();
+      const rows = searchItems(parsed.terms, {
+        panelId,
+        limit: DEFAULT_API_SEARCH_LIMIT,
+        starred: parsed.starred,
+        seen: parsed.seen,
+      });
+      writeCliStderr(formatSearchSummary(parsed.query, rows.length));
+      if (rows.length === 0) process.exit(0);
+      cliExitOk(formatSearchResults(rows, loadSearchStateMarks()));
+    },
+  },
+  {
     name: "config",
     summary: "Validate config file",
     usage: formatConfigUsage(),
@@ -1159,6 +1208,7 @@ Commands:
   import <feeds.opml>      Convert an OPML feed export to a pace config
   export [output.opml]     Export configured feed URLs as OPML
   notify test [rule]       Send a test delivery to notify webhooks
+  search <query...>        Search stored dashboard items
 
 Options:
   -c, --config <path>   Path to config file (default: ./config.yaml)

@@ -324,6 +324,9 @@
 - label: A panel:<id> operator inside an /api/search or /api/search.rss query scopes the search to that panel exactly like ?panel= (id or display name, unknown panel a 404) so a dashboard filter-bar query pastes into q verbatim; giving both ?panel= and panel: is a 400, a bare panel: is a 400 naming the form, and the normalized operator is echoed in the JSON query field and the RSS channel title
   command: bun test src/server/api-search.test.ts src/server/api-search-rss.test.ts --test-name-pattern 'panel:'
   tags: [spec, implemented]
+- label: pace search <query...> searches the stored database from the terminal with the /api/search grammar (AND of case-insensitive terms plus starred:/seen:/panel: operators): newest 50 hits with star/read marks on stdout, a search: summary on stderr, invalid operators and unknown panels are clear errors, and the config is loaded only when a panel: operator needs resolving
+  command: bun test src/cli-search.test.ts
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server
