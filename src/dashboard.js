@@ -112,6 +112,7 @@ export const HELP_ROWS = [
   ["a", "Mark the whole panel seen / unseen"],
   ["s", "Star / unstar the focused item (starred items stay visible)"],
   ["X", "Hide or show seen items"],
+  ["S", "Show only starred items (toggle)"],
   ["/", "Filter items across panels"],
   ["?", "Show or hide this help"],
   ["Esc", "Close this help"],
@@ -283,6 +284,23 @@ export function hiddenCountBadge(on, count) {
   return String(count);
 }
 
+/** Class of the toolbar's starred-only toggle button (mirrors Shift+S). */
+export const STARRED_ONLY_BTN_CLASS = "starred-only-btn";
+
+/**
+ * Accessible label for the toolbar starred-only button, from the current
+ * mode. While the view is on, the label carries how many starred items it is
+ * showing so assistive tech hears what the filtered page contains. Count is
+ * whatever a DOM query produced, so only positive finite integers render.
+ */
+export function starredOnlyButtonLabel(on, count) {
+  if (on !== true) return "Show only starred items";
+  if (typeof count !== "number" || !Number.isInteger(count) || count <= 0) {
+    return "Show all items";
+  }
+  return `Show all items (${count} starred)`;
+}
+
 /** Class of the injected per-panel unseen-count badge (panel headers). */
 export const UNSEEN_COUNT_CLASS = "unseen-count";
 
@@ -378,6 +396,7 @@ function focusTargets(panel) {
       const item = link.closest ? link.closest(".item") : null;
       if (!item) return true;
       if (item.hidden) return false;
+      if (starredOnlyActive() && !item.classList.contains(STARRED_CLASS)) return false;
       return !itemHiddenBySeen(item, hideSeenActive());
     },
   );
@@ -682,6 +701,23 @@ export function parseStoredHideSeen(raw) {
   return raw === "1";
 }
 
+/** Root <html> class while the starred-only view is on. */
+export const STARRED_ONLY_CLASS = "starred-only";
+
+/**
+ * localStorage key holding the starred-only flag ("1" = only starred;
+ * anything else = show everything).
+ */
+export const STARRED_ONLY_STORAGE_KEY = "pace.starred-only";
+
+/**
+ * Normalize a stored starred-only value. localStorage contents are
+ * untrusted, so only the literal string "1" turns the view on.
+ */
+export function parseStoredStarredOnly(raw) {
+  return raw === "1";
+}
+
 /**
  * Whether the config asks the dashboard to start with hide-seen mode on:
  * the layout stamps data-hide-seen="on" on <body> when server.hide_seen is
@@ -956,6 +992,8 @@ function applyStarredKeys(keys) {
     if (set.has(item.getAttribute("data-seen-key"))) item.classList.add(STARRED_CLASS);
   }
   syncStarButtons();
+  // Panel dimming and the starred-only toolbar label depend on the marks.
+  refreshAllSeenPanels();
 }
 
 /** Re-apply the server-persisted star marks to the freshly rendered page. */
@@ -1166,6 +1204,11 @@ function refreshAllSeenPanels() {
       items.length > 0 &&
       Array.from(items).every((item) => item.classList.contains(SEEN_CLASS));
     panel.classList.toggle("all-seen", allSeen);
+    // Dim panels the starred-only view empties (styled only while it is on).
+    const anyStarred = Array.from(items).some((item) =>
+      item.classList.contains(STARRED_CLASS),
+    );
+    panel.classList.toggle("no-starred", items.length > 0 && !anyStarred);
     // Keep each panel header's unseen-count badge in step too; every
     // seen-state mutation funnels through here.
     syncUnseenCountBadge(panel);
@@ -1182,6 +1225,7 @@ function refreshAllSeenPanels() {
     btn.title = label;
   }
   syncHideSeenButton();
+  syncStarredOnlyButton();
 }
 
 /**
@@ -1246,6 +1290,65 @@ function restoreHideSeen() {
     // stored choice, so the config default still applies.
   }
   if (initialHideSeen(raw, document.body)) applyHideSeen(true);
+}
+
+/* ------------------------------------------------------------------ */
+/* Starred-only view (toggled with Shift+S, persisted in localStorage) */
+/* ------------------------------------------------------------------ */
+
+function starredOnlyActive() {
+  return document.documentElement.classList.contains(STARRED_ONLY_CLASS);
+}
+
+/**
+ * Keep the toolbar starred-only button's pressed state and label in step
+ * with the mode and the page's star marks. Every mutation that can change
+ * either — mode toggles via applyStarredOnly, star marks via
+ * refreshAllSeenPanels — funnels through here.
+ */
+function syncStarredOnlyButton() {
+  const btn = document.querySelector(`.${STARRED_ONLY_BTN_CLASS}`);
+  if (!btn) return;
+  const on = starredOnlyActive();
+  const count = document.querySelectorAll(`.item.${STARRED_CLASS}`).length;
+  btn.setAttribute("aria-pressed", on ? "true" : "false");
+  const label = starredOnlyButtonLabel(on, count);
+  btn.setAttribute("aria-label", label);
+  btn.title = label;
+}
+
+function applyStarredOnly(on) {
+  document.documentElement.classList.toggle(STARRED_ONLY_CLASS, on);
+  refreshAllSeenPanels(); // also re-dims panels and syncs the toolbar button
+}
+
+function toggleStarredOnly() {
+  const on = !starredOnlyActive();
+  applyStarredOnly(on);
+  try {
+    window.localStorage.setItem(STARRED_ONLY_STORAGE_KEY, on ? "1" : "0");
+  } catch {
+    // Storage unavailable: the toggle still works, it just won't persist.
+  }
+  // Focus may sit on an item the view just hid; move it somewhere reachable.
+  const active = document.activeElement;
+  const item = active && active.closest ? active.closest(".item") : null;
+  if (on && item && !item.classList.contains(STARRED_CLASS)) {
+    const panel = item.closest(".panel");
+    const target = panel ? focusTargets(panel)[0] : null;
+    if (target) target.focus({ preventScroll: true });
+  }
+}
+
+/** Re-apply the persisted starred-only choice to the freshly rendered page. */
+function restoreStarredOnly() {
+  let raw = null;
+  try {
+    raw = window.localStorage.getItem(STARRED_ONLY_STORAGE_KEY);
+  } catch {
+    // Storage disabled: start with everything visible.
+  }
+  if (parseStoredStarredOnly(raw)) applyStarredOnly(true);
 }
 
 let helpEl = null;
@@ -1522,6 +1625,15 @@ function injectToolbar() {
   hideSeen.addEventListener("click", toggleHideSeen);
   bar.appendChild(hideSeen);
 
+  const starredOnly = makeAffordanceButton(
+    STARRED_ONLY_BTN_CLASS,
+    "★",
+    starredOnlyButtonLabel(false),
+  );
+  starredOnly.setAttribute("aria-pressed", "false");
+  starredOnly.addEventListener("click", toggleStarredOnly);
+  bar.appendChild(starredOnly);
+
   const filter = makeAffordanceButton(FILTER_BTN_CLASS, "⌕", "Filter items");
   filter.addEventListener("click", () => {
     if (filterOpen()) closeFilter();
@@ -1608,6 +1720,10 @@ function onKeydown(event) {
     toggleHideSeen();
     return;
   }
+  if (event.key === "S") {
+    toggleStarredOnly();
+    return;
+  }
 
   const move = keyMove(event.key);
   if (move === null || event.shiftKey) return;
@@ -1623,6 +1739,7 @@ if (typeof document !== "undefined" && typeof window !== "undefined") {
   restoreCollapsedPanels();
   restoreTheme();
   restoreHideSeen();
+  restoreStarredOnly();
   restoreSeenItems();
   restoreStarredItems();
   registerServiceWorker();

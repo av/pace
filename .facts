@@ -303,6 +303,9 @@
 - label: Pressing s on the dashboard (or the per-item star button) toggles the focused item's starred state: starred items show an accent star after the title, keep full opacity when seen, and are exempt from hide-seen; stars persist server-side in SQLite keyed by the item's dedup identity via GET/POST /api/star (same cross-site guard as refresh) and survive retention pruning
   command: bun test src/server/api-star.test.ts
   tags: [spec, implemented]
+- label: pressing Shift+S (or the toolbar star button) shows only starred items: unstarred items hide, starless panels dim, and the choice persists per browser
+  command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'starred-only'
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server

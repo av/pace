@@ -455,6 +455,11 @@ a:hover {
   border-color: var(--accent);
 }
 
+.page-toolbar .starred-only-btn[aria-pressed="true"] {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 /* Hidden-count badge inside the hide-seen button: how many seen items the
    mode currently hides. Empty (mode off or nothing hidden) it collapses so
    the button keeps its square glyph-only look. */
@@ -560,6 +565,17 @@ html.hide-seen .panel:not([data-hide-seen="off"]) .item.item-seen:not(.item-star
 
 html.hide-seen .panel.all-seen,
 .panel[data-hide-seen="on"].all-seen {
+  opacity: 0.45;
+}
+
+/* Starred-only view (Shift+S; dashboard.js sets .starred-only on <html>):
+   every unstarred item disappears, and panels left with nothing to show dim
+   so the starred ones stand out. */
+html.starred-only .panel-body .item:not(.item-starred) {
+  display: none;
+}
+
+html.starred-only .panel.no-starred {
   opacity: 0.45;
 }
 

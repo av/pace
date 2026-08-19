@@ -62,6 +62,11 @@ import {
   ITEM_STAR_BTN_CLASS,
   itemStarButtonLabel,
   itemHiddenBySeen,
+  STARRED_ONLY_CLASS,
+  STARRED_ONLY_STORAGE_KEY,
+  STARRED_ONLY_BTN_CLASS,
+  parseStoredStarredOnly,
+  starredOnlyButtonLabel,
 } from "./dashboard.js";
 import { itemSeenKey } from "./db";
 import { renderDashboard, type PanelData } from "./layout";
@@ -386,7 +391,7 @@ describe("themeColorFor", () => {
 describe("HELP_ROWS", () => {
   test("documents every advertised shortcut", () => {
     const keys = HELP_ROWS.map(([k]) => k).join(" ");
-    for (const fragment of ["j / k", "h / l", "Tab", "Enter", "r", "c", "C", "t", "x", "a", "s", "X", "/", "?", "Esc"]) {
+    for (const fragment of ["j / k", "h / l", "Tab", "Enter", "r", "c", "C", "t", "x", "a", "s", "X", "S", "/", "?", "Esc"]) {
       expect(keys).toContain(fragment);
     }
     for (const [, description] of HELP_ROWS) {
@@ -588,6 +593,64 @@ describe("starred item state", () => {
   });
 });
 
+describe("starred-only view", () => {
+  test("class, storage key, and button class are stable", () => {
+    expect(STARRED_ONLY_CLASS).toBe("starred-only");
+    expect(STARRED_ONLY_STORAGE_KEY).toBe("pace.starred-only");
+    expect(STARRED_ONLY_BTN_CLASS).toBe("starred-only-btn");
+  });
+
+  test("parseStoredStarredOnly only trusts the literal \"1\"", () => {
+    expect(parseStoredStarredOnly("1")).toBe(true);
+    for (const raw of ["0", "", "true", "yes", 1, null, undefined]) {
+      expect(parseStoredStarredOnly(raw)).toBe(false);
+    }
+  });
+
+  test("starredOnlyButtonLabel flips with the mode and names the starred count", () => {
+    expect(starredOnlyButtonLabel(false)).toBe("Show only starred items");
+    expect(starredOnlyButtonLabel(true, 3)).toBe("Show all items (3 starred)");
+    // Untrusted state only counts literal true; bogus counts drop the suffix.
+    expect(starredOnlyButtonLabel("true", 3)).toBe("Show only starred items");
+    for (const count of [0, -1, 1.5, NaN, "3", undefined]) {
+      expect(starredOnlyButtonLabel(true, count)).toBe("Show all items");
+    }
+  });
+
+  test("HELP_ROWS documents the starred-only shortcut Shift+S", () => {
+    const row = HELP_ROWS.find(([keys]) => keys === "S");
+    expect(row).toBeDefined();
+    expect(row![1].toLowerCase()).toContain("starred");
+  });
+
+  test("stylesheet hides unstarred items and dims emptied panels while the view is on", () => {
+    expect(STYLES).toMatch(
+      /html\.starred-only \.panel-body \.item:not\(\.item-starred\)\s*\{[^}]*display:\s*none/s,
+    );
+    expect(STYLES).toContain("html.starred-only .panel.no-starred");
+    // The toolbar button surfaces the accent while pressed, like hide-seen.
+    expect(STYLES).toContain('.page-toolbar .starred-only-btn[aria-pressed="true"]');
+  });
+
+  test("the served module wires the Shift+S toggle and its restore", async () => {
+    const layout = flexCfg("row", [panelCfg("Feed", "rss")]);
+    const app = createTestServerApp(
+      makeServerRouteDeps({ layout, basePath: normalizeBasePath(undefined) }),
+    );
+    const res = await requestServerRoute(app, "/dashboard.js");
+    expect(res.status).toBe(200);
+    const js = await res.text();
+    for (const marker of [
+      "toggleStarredOnly",
+      "restoreStarredOnly",
+      STARRED_ONLY_CLASS,
+      STARRED_ONLY_STORAGE_KEY,
+    ]) {
+      expect(js).toContain(marker);
+    }
+  });
+});
+
 describe("hide-seen mode helpers", () => {
   test("HIDE_SEEN_STORAGE_KEY is a stable, namespaced localStorage key", () => {
     expect(HIDE_SEEN_STORAGE_KEY).toBe("pace.hide-seen");
@@ -721,7 +784,13 @@ describe("top-corner toolbar helpers", () => {
     expect(FILTER_BTN_CLASS).toBe("filter-btn");
     // Each toolbar button has its own class so styling and tests can target
     // one without hitting another.
-    const classes = [THEME_BTN_CLASS, HIDE_SEEN_BTN_CLASS, FILTER_BTN_CLASS, HELP_BTN_CLASS];
+    const classes = [
+      THEME_BTN_CLASS,
+      HIDE_SEEN_BTN_CLASS,
+      STARRED_ONLY_BTN_CLASS,
+      FILTER_BTN_CLASS,
+      HELP_BTN_CLASS,
+    ];
     expect(new Set(classes).size).toBe(classes.length);
   });
 
