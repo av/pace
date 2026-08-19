@@ -62,4 +62,5 @@ export declare function hiddenCountBadge(on: unknown, count: unknown): string;
 export declare const UNSEEN_COUNT_CLASS: string;
 export declare function unseenCountBadge(total: unknown, seen: unknown): string;
 export declare function pageTitleWithUnread(base: unknown, count: unknown): string;
+export declare function faviconSvg(count: unknown): string;
 export declare function faviconHref(count: unknown): string;

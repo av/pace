@@ -160,6 +160,40 @@ describe("GET / dashboard", () => {
   });
 });
 
+describe("GET /favicon.svg", () => {
+  installTempDbHooks({ prefix: "pace-server-favicon-" });
+
+  function makeApp(basePath = "") {
+    const layout = testAppLayout(singlePanelLayout("Tech", "hackernews", { id: "tech-panel" }));
+    return createTestServerApp(makeServerRouteDeps({ layout, basePath }));
+  }
+
+  test("serves the plain pace monogram as cacheable SVG", async () => {
+    const res = await requestServerRoute(makeApp(), "/favicon.svg");
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("image/svg+xml");
+    expect(res.headers.get("cache-control")).toBe("public, max-age=3600");
+    const svg = await res.text();
+    expect(svg).toContain('xmlns="http://www.w3.org/2000/svg"');
+    expect(svg).toContain(">p</text>");
+    // The unread dot is client-side only; the served asset never carries it.
+    expect(svg).not.toContain("<circle");
+  });
+
+  test("is served under the base path and linked from the dashboard head", async () => {
+    const app = makeApp("/pace");
+
+    const res = await requestServerRoute(app, "/pace/favicon.svg");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("image/svg+xml");
+
+    const html = await (await requestServerRoute(app, "/pace")).text();
+    expect(html).toContain('rel="icon"');
+    expect(html).toContain('href="/pace/favicon.svg"');
+  });
+});
+
 describe("GET /health", () => {
   test("returns bare ok payload when no refresh-health provider is wired", async () => {
     const layout = testAppLayout(singlePanelLayout("Tech", "hackernews"));

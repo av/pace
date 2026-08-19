@@ -308,19 +308,28 @@ export function pageTitleWithUnread(base, count) {
  * rules as pageTitleWithUnread (only positive integers show the dot), so the
  * favicon and the tab-title prefix always agree. Colors are fixed — favicons
  * do not follow the page theme — matching the dark palette's accent.
+ *
+ * faviconSvg returns the raw SVG markup — the server serves its plain
+ * (dot-less) rendering at /favicon.svg, so static exports and no-JS visitors
+ * get the same monogram; faviconHref wraps it as a data: URL for the
+ * client-side unread-dot swap.
  */
-export function faviconHref(count) {
+export function faviconSvg(count) {
   const dot =
     typeof count === "number" && Number.isInteger(count) && count > 0
       ? '<circle cx="50" cy="14" r="13" fill="#e0645c"/>'
       : "";
-  const svg =
+  return (
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">' +
     '<rect width="64" height="64" rx="14" fill="#16161e"/>' +
     '<text x="32" y="47" font-family="monospace" font-size="44" font-weight="700" text-anchor="middle" fill="#5a8a9f">p</text>' +
     dot +
-    "</svg>";
-  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+    "</svg>"
+  );
+}
+
+export function faviconHref(count) {
+  return `data:image/svg+xml,${encodeURIComponent(faviconSvg(count))}`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -833,9 +842,9 @@ function syncPageTitle() {
 
 /**
  * Mirror the unread total into the tab's favicon: the pace monogram gains a
- * dot while anything is unread. The server never renders a favicon link, so
- * the first sync injects one (which also gives the dashboard an icon at all);
- * later syncs just swap its href. Called from syncPageTitle so the icon and
+ * dot while anything is unread. The server renders a plain /favicon.svg link
+ * which this reuses (injecting one only if it is somehow missing), swapping
+ * its href to the data: rendering. Called from syncPageTitle so the icon and
  * the title prefix move together through the seen-state funnel.
  */
 function syncFavicon(count) {

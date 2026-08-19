@@ -2,6 +2,7 @@
 import type { FC } from "hono/jsx";
 import type { DashboardRenderMode, LayoutNodeConfig, PanelData } from "./types";
 import { LayoutNode } from "./layout-node";
+import { faviconHref } from "../dashboard.js";
 
 export type { PanelData } from "./types";
 
@@ -29,6 +30,14 @@ const Dashboard: FC<DashboardProps> = ({ layout, panelData, updatedAt, cssHref, 
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <title>pace</title>
       <link rel="stylesheet" href={cssHref ?? `${basePath}/styles.css`} />
+      {/* Interactive: the server-served plain monogram (the client swaps the
+          href for the unread-dot rendering). Static exports have no server,
+          so they embed the same icon as a self-contained data: URL. */}
+      <link
+        rel="icon"
+        type="image/svg+xml"
+        href={mode === "interactive" ? `${basePath}/favicon.svg` : faviconHref(0)}
+      />
       {/* Keyboard navigation is a progressive enhancement, so it only loads
           in interactive mode — static exports have no server to refresh
           against and must stay self-contained. Modules defer natively and

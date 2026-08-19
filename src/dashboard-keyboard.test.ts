@@ -45,6 +45,7 @@ import {
   UNSEEN_COUNT_CLASS,
   pageTitleWithUnread,
   faviconHref,
+  faviconSvg,
   unseenCountBadge,
 } from "./dashboard.js";
 import { itemSeenKey } from "./db";
@@ -672,10 +673,22 @@ describe("top-corner toolbar helpers", () => {
     }
   });
 
-  test("the favicon is client-injected: the server never renders an icon link", () => {
-    for (const mode of ["interactive", "static"] as const) {
-      expect(renderModeDashboard(mode)).not.toContain('rel="icon"');
-    }
+  test("the server renders an icon link: /favicon.svg live, embedded data: URL in static exports", () => {
+    const interactive = renderModeDashboard("interactive");
+    expect(interactive).toContain('rel="icon"');
+    expect(interactive).toContain('href="/favicon.svg"');
+    // Static exports have no server to serve the asset, so the same plain
+    // monogram is embedded self-contained.
+    const staticHtml = renderModeDashboard("static");
+    expect(staticHtml).toContain('rel="icon"');
+    expect(staticHtml).not.toContain("/favicon.svg");
+    expect(staticHtml).toContain("data:image/svg+xml,");
+  });
+
+  test("faviconSvg is the raw markup behind faviconHref (shared with the server route)", () => {
+    expect(faviconHref(0)).toBe(`data:image/svg+xml,${encodeURIComponent(faviconSvg(0))}`);
+    expect(faviconSvg(0)).not.toContain("<circle");
+    expect(faviconSvg(2)).toContain("<circle");
   });
 
   test("the unseen-count badge is client-injected: the server never renders it", () => {

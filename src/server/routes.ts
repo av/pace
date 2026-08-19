@@ -21,6 +21,7 @@ import { handleApiSearch } from "./api-search";
 import { handleApiSearchRss } from "./api-search-rss";
 import { handleApiPanelRss, RSS_PANEL_SUFFIX } from "./api-panels-rss";
 import { handleApiSeenList, handleApiSeenSet } from "./api-seen";
+import { faviconSvg } from "../dashboard.js";
 
 export type RefreshSourcesFn = (sourceNames: string[]) => Promise<RefreshResult[]>;
 
@@ -274,6 +275,16 @@ export function registerServerRoutes(app: Hono, deps: ServerRouteDeps): void {
     c.req.param("panel")!.endsWith(RSS_PANEL_SUFFIX)
       ? handleApiPanelRss(c, deps)
       : handleApiPanelItems(c, deps));
+
+  // The plain pace monogram (no unread dot) as a real asset, so browsers
+  // hitting /favicon.svg directly, no-JS visitors, and bookmarks get an icon
+  // without the client module; the dashboard swaps its href to the unread-dot
+  // data: rendering at runtime.
+  app.get("/favicon.svg", (c) =>
+    c.body(faviconSvg(0), 200, {
+      "Content-Type": "image/svg+xml",
+      "Cache-Control": "public, max-age=3600",
+    }));
 
   app.get("/", async (c) => {
     const panelData = loadDashboardPanelDataMap(deps.dashboardPanels);
