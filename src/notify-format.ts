@@ -70,12 +70,15 @@ function plainItemLines(payload: NotifyPayload): string[] {
 export const NOTIFY_TEMPLATE_PLACEHOLDERS = ["rule", "matched", "headline", "items"] as const;
 
 /**
- * Every `{{name}}` token in the template that is not a known placeholder.
- * Config validation rejects these up front, so a typo like `{{item}}` fails
- * `pace config check` instead of delivering itself literally forever.
+ * Placeholders an `item_template` may use, `{{name}}` style — one substitution
+ * per payload item: its title, link, source adapter label, numeric score
+ * (empty string when the item is unscored), and the standard "source" /
+ * "source, score N" meta text the built-in presets show.
  */
-export function unknownTemplatePlaceholders(template: string): string[] {
-  const known = new Set<string>(NOTIFY_TEMPLATE_PLACEHOLDERS);
+export const NOTIFY_ITEM_TEMPLATE_PLACEHOLDERS = ["title", "url", "source", "score", "meta"] as const;
+
+function unknownPlaceholders(template: string, names: readonly string[]): string[] {
+  const known = new Set<string>(names);
   const unknown = new Set<string>();
   for (const match of template.matchAll(/\{\{\s*([^{}]*?)\s*\}\}/g)) {
     if (!known.has(match[1]!)) unknown.add(match[1]!);
@@ -84,22 +87,58 @@ export function unknownTemplatePlaceholders(template: string): string[] {
 }
 
 /**
+ * Every `{{name}}` token in the template that is not a known placeholder.
+ * Config validation rejects these up front, so a typo like `{{item}}` fails
+ * `pace config check` instead of delivering itself literally forever.
+ */
+export function unknownTemplatePlaceholders(template: string): string[] {
+  return unknownPlaceholders(template, NOTIFY_TEMPLATE_PLACEHOLDERS);
+}
+
+/** Same, for an `item_template` against the per-item placeholder set. */
+export function unknownItemTemplatePlaceholders(template: string): string[] {
+  return unknownPlaceholders(template, NOTIFY_ITEM_TEMPLATE_PLACEHOLDERS);
+}
+
+function substitute(template: string, values: Record<string, string>): string {
+  return template.replace(/\{\{\s*([^{}]*?)\s*\}\}/g, (token, name: string) =>
+    Object.hasOwn(values, name) ? values[name]! : token,
+  );
+}
+
+/**
  * User-defined body: the template with `{{placeholder}}` tokens substituted
- * (whitespace inside braces tolerated: `{{ rule }}` works). Delivered as
+ * (whitespace inside braces tolerated: `{{ rule }}` works). When the rule also
+ * sets `item_template`, `{{items}}` is one rendered line per payload item
+ * (per-item placeholders substituted) instead of the default bullet list; the
+ * `…and N more` overflow line stays in either rendering. Delivered as
  * plain text; a rule whose receiver wants a different content type sets a
  * custom `Content-Type` header — allowed for this format only, because here
  * the user, not a preset, owns the body shape.
  */
-function renderTemplate(template: string, payload: NotifyPayload): NotifyDelivery {
-  const values: Record<string, string> = {
+function renderTemplate(template: string, payload: NotifyPayload, itemTemplate?: string): NotifyDelivery {
+  let itemLines: string[];
+  if (itemTemplate === undefined) {
+    itemLines = plainItemLines(payload);
+  } else {
+    itemLines = payload.items.map((item) =>
+      substitute(itemTemplate, {
+        title: item.title,
+        url: item.url,
+        source: item.source,
+        score: item.score !== null ? String(item.score) : "",
+        meta: itemMeta(item),
+      }),
+    );
+    const more = moreLine(payload, payload.items.length);
+    if (more !== null) itemLines.push(more);
+  }
+  const body = substitute(template, {
     rule: payload.rule,
     matched: String(payload.matched),
     headline: headline(payload),
-    items: plainItemLines(payload).join("\n"),
-  };
-  const body = template.replace(/\{\{\s*([^{}]*?)\s*\}\}/g, (token, name: string) =>
-    Object.hasOwn(values, name) ? values[name]! : token,
-  );
+    items: itemLines.join("\n"),
+  });
   return { body, headers: { "Content-Type": "text/plain; charset=utf-8" } };
 }
 
@@ -175,17 +214,19 @@ function renderSlack(payload: NotifyPayload): NotifyDelivery {
  * is format-independent, so switching a rule's `format` never changes what
  * matches or the at-most-once ledger — only how the POST body looks.
  * `template` is the rule's user-defined body (config validation guarantees it
- * exists exactly when the format is "template").
+ * exists exactly when the format is "template"); `itemTemplate` is its
+ * optional per-item line for `{{items}}`.
  */
 export function renderNotifyDelivery(
   format: NotifyFormat,
   payload: NotifyPayload,
   template?: string,
+  itemTemplate?: string,
 ): NotifyDelivery {
   switch (format) {
     case "template":
       if (template === undefined) throw new Error("notify: format \"template\" requires a template");
-      return renderTemplate(template, payload);
+      return renderTemplate(template, payload, itemTemplate);
     case "ntfy":
       return renderNtfy(payload);
     case "discord":

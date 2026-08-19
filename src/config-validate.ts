@@ -17,7 +17,9 @@ import {
 import { warnConfig } from "./config-warn";
 import {
   NOTIFY_FORMATS,
+  NOTIFY_ITEM_TEMPLATE_PLACEHOLDERS,
   NOTIFY_TEMPLATE_PLACEHOLDERS,
+  unknownItemTemplatePlaceholders,
   unknownTemplatePlaceholders,
   type NotifyFormat,
 } from "./notify-format";
@@ -800,7 +802,7 @@ export function validateNotifyConfig(
     if (!isRecord(rule)) {
       throw new Error(`config: ${path} must be an object (got ${describeValue(rule)})`);
     }
-    validateAllowedKeys(rule, ["url", "name", "min_score", "keywords", "panels", "format", "headers", "template"], (key) =>
+    validateAllowedKeys(rule, ["url", "name", "min_score", "keywords", "panels", "format", "headers", "template", "item_template"], (key) =>
       `${path}.${key} is not a valid notify rule field`,
     );
     if (rule.format !== undefined && !NOTIFY_FORMATS.includes(rule.format as NotifyFormat)) {
@@ -821,9 +823,26 @@ export function validateNotifyConfig(
           `config: ${path}.template has unknown placeholder(s) ${unknown.map((name) => `{{${name}}}`).join(", ")} — valid placeholders: ${NOTIFY_TEMPLATE_PLACEHOLDERS.map((name) => `{{${name}}}`).join(", ")}`,
         );
       }
+      if (rule.item_template !== undefined) {
+        if (typeof rule.item_template !== "string" || rule.item_template.length === 0) {
+          throw new Error(
+            `config: ${path}.item_template must be a non-empty string (got ${describeValue(rule.item_template)})`,
+          );
+        }
+        const unknownItem = unknownItemTemplatePlaceholders(rule.item_template);
+        if (unknownItem.length > 0) {
+          throw new Error(
+            `config: ${path}.item_template has unknown placeholder(s) ${unknownItem.map((name) => `{{${name}}}`).join(", ")} — valid placeholders: ${NOTIFY_ITEM_TEMPLATE_PLACEHOLDERS.map((name) => `{{${name}}}`).join(", ")}`,
+          );
+        }
+      }
     } else if (rule.template !== undefined) {
       throw new Error(
         `config: ${path}.template is only valid with format: template (got format ${describeValue(rule.format ?? "json")})`,
+      );
+    } else if (rule.item_template !== undefined) {
+      throw new Error(
+        `config: ${path}.item_template is only valid with format: template (got format ${describeValue(rule.format ?? "json")})`,
       );
     }
     validateSafeUrl(rule.url, `${path}.url`);

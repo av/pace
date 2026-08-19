@@ -99,6 +99,7 @@ export async function runNotifyTest(
         rule.format ?? "json",
         buildNotifyTestPayload(rule, deps.now),
         rule.template,
+        rule.item_template,
       );
       const res = await fetchImpl(rule.url, {
         method: "POST",

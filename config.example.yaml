@@ -321,6 +321,7 @@ layout:
 #     panels: [tech-feed]                   # optional: restrict to these panel ids (set id: on the layout panel)
 #     format: ntfy                          # optional delivery format: json (default), ntfy, discord, slack, template
 #     # template: "ALERT {{matched}}: {{items}}"  # custom body for format: template ({{rule}}, {{matched}}, {{headline}}, {{items}})
+#     # item_template: "{{title}} — {{url}}"       # optional per-item line for {{items}} ({{title}}, {{url}}, {{source}}, {{score}}, {{meta}})
 #     headers:                              # optional extra HTTP headers (auth tokens etc.)
 #       Authorization: Bearer ${NTFY_TOKEN} # ${VAR} env expansion keeps secrets out of the file
 

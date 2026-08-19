@@ -158,6 +158,14 @@ export interface NotifyRuleConfig {
    */
   template?: string;
   /**
+   * Optional per-item line for `{{items}}` in `format: template` — rendered
+   * once per delivered item instead of the default bullet list (the
+   * `…and N more` overflow line is kept). Placeholders: `{{title}}`,
+   * `{{url}}`, `{{source}}`, `{{score}}` (empty when unscored), `{{meta}}`
+   * ("source" / "source, score N"). Only valid with `format: template`.
+   */
+  item_template?: string;
+  /**
    * Extra HTTP headers sent with every delivery to this rule's webhook —
    * typically auth (`Authorization: Bearer ${TOKEN}` via env expansion, ntfy
    * access tokens, shared-secret headers). Merged over the format preset's

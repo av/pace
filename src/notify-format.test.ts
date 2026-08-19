@@ -4,6 +4,7 @@ import {
   mergeNotifyHeaders,
   NOTIFY_FORMATS,
   renderNotifyDelivery,
+  unknownItemTemplatePlaceholders,
   unknownTemplatePlaceholders,
 } from "./notify-format";
 import { runNotifyRules, type NotifyPayload, type NotifyPayloadItem } from "./notify";
@@ -122,6 +123,35 @@ describe("notify-format: renderNotifyDelivery", () => {
     );
   });
 
+  test("item_template renders {{items}} one line per item, keeping the overflow line", () => {
+    const d = renderNotifyDelivery(
+      "template",
+      payload({ matched: 25, items: [item(), item({ title: "no score", score: null })] }),
+      "{{items}}",
+      "{{title}} | {{ url }} | {{source}} | s={{score}} | {{meta}}",
+    );
+    expect(d.body).toBe(
+      "Rust 2.0 released | https://ex.com/rust | Hacker News | s=9 | Hacker News, score 9\n" +
+        "no score | https://ex.com/rust | Hacker News | s= | Hacker News\n" +
+        "…and 23 more",
+    );
+  });
+
+  test("without item_template, {{items}} keeps the default bullet list", () => {
+    const withOut = renderNotifyDelivery("template", payload(), "{{items}}");
+    expect(withOut.body).toBe("• Rust 2.0 released (Hacker News, score 9)\n  https://ex.com/rust");
+  });
+
+  test("unknownItemTemplatePlaceholders flags typos and passes known names", () => {
+    expect(
+      unknownItemTemplatePlaceholders("{{title}} {{url}} {{source}} {{score}} {{meta}}"),
+    ).toEqual([]);
+    expect(unknownItemTemplatePlaceholders("{{link}} {{Title}} {{link}}")).toEqual([
+      "link",
+      "Title",
+    ]);
+  });
+
   test("template format without a template throws (validation prevents this)", () => {
     expect(() => renderNotifyDelivery("template", payload())).toThrow(/requires a template/);
   });
@@ -166,11 +196,12 @@ describe("notify-format: delivery wiring", () => {
       min_score: 8,
       format: "template",
       template: "ALERT {{matched}}: {{items}}",
+      item_template: "<{{url}}|{{title}}>",
       headers: { "Content-Type": "application/json" },
     };
     await spyConsole(["log"], () => runNotifyRules([rule], ["news"], { fetchImpl }));
     expect(calls).toHaveLength(1);
-    expect(calls[0].body.startsWith("ALERT 1: • template story")).toBe(true);
+    expect(calls[0].body).toBe("ALERT 1: <https://ex.com/t|template story>");
     // Custom Content-Type wins over the template default (text/plain).
     expect(calls[0].headers["Content-Type"]).toBe("application/json");
   });
@@ -257,6 +288,41 @@ describe("notify-format: config validation", () => {
     );
   });
 
+  test("item_template must be a non-empty string with known per-item placeholders", () => {
+    expect(() =>
+      validate({ url: WEBHOOK_URL, min_score: 8, format: "template", template: "{{items}}", item_template: "" }),
+    ).toThrow(/notify\[0\]\.item_template must be a non-empty string/);
+    expect(() =>
+      validate({
+        url: WEBHOOK_URL,
+        min_score: 8,
+        format: "template",
+        template: "{{items}}",
+        item_template: "{{link}} {{title}}",
+      }),
+    ).toThrow(
+      /notify\[0\]\.item_template has unknown placeholder\(s\) \{\{link\}\} — valid placeholders: \{\{title\}\}, \{\{url\}\}, \{\{source\}\}, \{\{score\}\}, \{\{meta\}\}/,
+    );
+    expect(() =>
+      validate({
+        url: WEBHOOK_URL,
+        min_score: 8,
+        format: "template",
+        template: "{{items}}",
+        item_template: "{{title}} — {{url}}",
+      }),
+    ).not.toThrow();
+  });
+
+  test("item_template without format: template is rejected", () => {
+    expect(() =>
+      validate({ url: WEBHOOK_URL, min_score: 8, item_template: "{{title}}" }),
+    ).toThrow(/notify\[0\]\.item_template is only valid with format: template \(got format "json"\)/);
+    expect(() =>
+      validate({ url: WEBHOOK_URL, min_score: 8, format: "ntfy", item_template: "{{title}}" }),
+    ).toThrow(/item_template is only valid with format: template \(got format "ntfy"\)/);
+  });
+
   test("template without format: template is rejected", () => {
     expect(() => validate({ url: WEBHOOK_URL, min_score: 8, template: "{{headline}}" })).toThrow(
       /notify\[0\]\.template is only valid with format: template \(got format "json"\)/,
@@ -339,6 +405,9 @@ describe("notify-format: rule identity", () => {
     expect(notifyRuleKey({ ...base, format: "template", template: "{{headline}}" })).toBe(
       notifyRuleKey(base),
     );
+    expect(
+      notifyRuleKey({ ...base, format: "template", template: "{{items}}", item_template: "{{title}}" }),
+    ).toBe(notifyRuleKey(base));
   });
 
   test("changing headers (e.g. rotating a token) does not restart the ledger", async () => {
