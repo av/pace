@@ -496,12 +496,16 @@ a:hover {
 /* Hide-seen mode (Shift+X; dashboard.js sets .hide-seen on <html> and
    persists it in localStorage): seen items vanish entirely, and panels
    left with nothing unread are dimmed so their emptiness reads as
-   "all caught up" rather than "broken". */
-html.hide-seen .item.item-seen {
+   "all caught up" rather than "broken". A panel-level hide_seen override
+   stamps data-hide-seen on the .panel: "off" exempts the panel from the
+   page-wide mode, "on" hides its seen items even while the mode is off. */
+html.hide-seen .panel:not([data-hide-seen="off"]) .item.item-seen,
+.panel[data-hide-seen="on"] .item.item-seen {
   display: none;
 }
 
-html.hide-seen .panel.all-seen {
+html.hide-seen .panel.all-seen,
+.panel[data-hide-seen="on"].all-seen {
   opacity: 0.45;
 }
 

@@ -23,6 +23,13 @@ export interface PanelConfig {
    * server setting.
    */
   auto_mark_seen?: boolean;
+  /**
+   * Per-panel override of hide-seen mode (`server.hide_seen` / Shift+X):
+   * `true` always hides this panel's seen items regardless of the page-wide
+   * mode, `false` keeps them visible even while the mode is on (e.g. a
+   * hand-picked to-read list). Omitted panels follow the page-wide toggle.
+   */
+  hide_seen?: boolean;
 }
 
 export interface ImageWidgetConfig {

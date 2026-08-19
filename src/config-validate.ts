@@ -242,7 +242,7 @@ function validateSource(source: unknown, path: string): void {
 const PANEL_DISPLAY_VALUES = ["counter"] as const;
 
 function validatePanel(node: Record<string, unknown>, path: string): void {
-  validateAllowedKeys(node, ["panel", "id", "flex", "source", "limit", "display", "auto_mark_seen"], (key) =>
+  validateAllowedKeys(node, ["panel", "id", "flex", "source", "limit", "display", "auto_mark_seen", "hide_seen"], (key) =>
     `${path}.${key} is not a valid panel field`,
   );
   validateNonEmptyString(node.panel, `${path}.panel`);
@@ -255,6 +255,7 @@ function validatePanel(node: Record<string, unknown>, path: string): void {
   validateOptionalPositiveInteger(node.limit, `${path}.limit`);
   validateOptionalEnum(node.display, PANEL_DISPLAY_VALUES, `${path}.display`);
   validateOptionalBoolean(node.auto_mark_seen, `${path}.auto_mark_seen`);
+  validateOptionalBoolean(node.hide_seen, `${path}.hide_seen`);
 }
 
 function validateLayoutContainer(node: Record<string, unknown>, path: string): void {

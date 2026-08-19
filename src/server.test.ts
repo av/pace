@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import { initDb, saveItems } from "./db";
 import { validateParsedConfig } from "./config-validate";
 import { DEFAULT_LAYOUT } from "./config/domain";
-import { autoMarkSeenDisabled, itemAutoMarkSeenDisabled, THEME_COLORS } from "./dashboard.js";
+import { autoMarkSeenDisabled, itemAutoMarkSeenDisabled, itemHiddenBySeen, THEME_COLORS } from "./dashboard.js";
 import { renderDashboard } from "./layout";
 import { MANIFEST_CONTENT_TYPE } from "./server/manifest";
 import { securityHeadersMiddleware } from "./server/security-headers";
@@ -293,6 +293,61 @@ describe("server.hide_seen (first-visit hide-seen default)", () => {
   test("hideSeenDefault: true stamps data-hide-seen=\"on\" on the dashboard body", async () => {
     const html = await (await requestDashboard(makeApp(true))).text();
     expect(html).toContain('<body data-hide-seen="on">');
+  });
+
+  test("per-panel hide_seen: validates as an optional boolean panel field", () => {
+    const base = { adapters: [] };
+    const layoutWith = (hide_seen: unknown) => ({
+      direction: "row",
+      children: [{ panel: "Tech", source: "all", hide_seen }],
+    });
+    for (const ok of [true, false]) {
+      const validated = validateParsedConfig({ ...base, layout: layoutWith(ok) }, DEFAULT_LAYOUT);
+      expect((validated.layout as { children: { hide_seen?: boolean }[] }).children[0]!.hide_seen).toBe(ok);
+    }
+    for (const bad of ["false", 0, null, []]) {
+      expect(() =>
+        validateParsedConfig({ ...base, layout: layoutWith(bad) }, DEFAULT_LAYOUT),
+      ).toThrow(/layout\.children\[0\]\.hide_seen must be a boolean/);
+    }
+  });
+
+  test("per-panel hide_seen stamps data-hide-seen on that panel only", async () => {
+    const layout = {
+      direction: "row" as const,
+      children: [
+        { panel: "To read", source: "hackernews", id: "toread-panel", hide_seen: false },
+        { panel: "Firehose", source: "hackernews", id: "firehose-panel", hide_seen: true },
+        { panel: "Default", source: "hackernews", id: "default-panel" },
+      ],
+    };
+    const app = createTestServerApp(makeServerRouteDeps({ layout }));
+    const html = await (await requestDashboard(app)).text();
+    expect(html).toMatch(/data-panel-id="toread-panel"[^>]*data-hide-seen="off"/);
+    expect(html).toMatch(/data-panel-id="firehose-panel"[^>]*data-hide-seen="on"/);
+    expect(html).not.toMatch(/data-panel-id="default-panel"[^>]*data-hide-seen/);
+  });
+
+  test("itemHiddenBySeen: panel stamp wins over the mode, absent stamp follows it", () => {
+    const itemIn = (panelAttr: string | null, seen = true) => ({
+      classList: { contains: (cls: string) => cls === "item-seen" && seen },
+      closest: (sel: string) =>
+        sel === ".panel[data-hide-seen]" && panelAttr !== null
+          ? { getAttribute: (n: string) => (n === "data-hide-seen" ? panelAttr : null) }
+          : null,
+    });
+    // Panel "on" hides its seen items even while the mode is off.
+    expect(itemHiddenBySeen(itemIn("on"), false)).toBe(true);
+    // Panel "off" keeps its seen items visible even while the mode is on.
+    expect(itemHiddenBySeen(itemIn("off"), true)).toBe(false);
+    // No panel stamp: the page-wide mode decides.
+    expect(itemHiddenBySeen(itemIn(null), true)).toBe(true);
+    expect(itemHiddenBySeen(itemIn(null), false)).toBe(false);
+    // Unseen items are never hidden, override or not.
+    expect(itemHiddenBySeen(itemIn("on", false), true)).toBe(false);
+    // Non-DOM-shaped input is never hidden.
+    expect(itemHiddenBySeen(null, true)).toBe(false);
+    expect(itemHiddenBySeen(undefined, true)).toBe(false);
   });
 });
 

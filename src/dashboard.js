@@ -366,7 +366,7 @@ function focusTargets(panel) {
       const item = link.closest ? link.closest(".item") : null;
       if (!item) return true;
       if (item.hidden) return false;
-      return !(hideSeenActive() && item.classList.contains(SEEN_CLASS));
+      return !itemHiddenBySeen(item, hideSeenActive());
     },
   );
   if (links.length > 0) return links;
@@ -774,6 +774,24 @@ export function autoMarkSeenDisabled(body) {
  * fall back to the body-level autoMarkSeenDisabled. Pure given DOM-shaped
  * arguments, so the test suite can exercise it without a DOM.
  */
+/**
+ * Whether an item is hidden by its seen mark, given the page-wide hide-seen
+ * mode. A per-panel override wins: the layout stamps data-hide-seen="on"/"off"
+ * on the item's .panel when the config sets a panel-level hide_seen — "on"
+ * hides the item's seen mark even while the mode is off, "off" keeps it
+ * visible even while the mode is on. Unseen items are never hidden. Pure
+ * given DOM-shaped arguments, so the test suite can exercise it without a DOM.
+ */
+export function itemHiddenBySeen(item, hideSeenOn) {
+  if (!item || typeof item.closest !== "function" || !item.classList) return false;
+  if (!item.classList.contains(SEEN_CLASS)) return false;
+  const panel = item.closest(".panel[data-hide-seen]");
+  if (panel && typeof panel.getAttribute === "function") {
+    return panel.getAttribute("data-hide-seen") === "on";
+  }
+  return hideSeenOn === true;
+}
+
 export function itemAutoMarkSeenDisabled(item, body) {
   if (item && typeof item.closest === "function") {
     const panel = item.closest(".panel[data-auto-seen]");
@@ -971,7 +989,12 @@ function syncHideSeenButton() {
   const btn = document.querySelector(`.${HIDE_SEEN_BTN_CLASS}`);
   if (!btn) return;
   const on = hideSeenActive();
-  const count = document.querySelectorAll(`.item.${SEEN_CLASS}`).length;
+  // Count only the seen items the toggle actually governs: panels stamped
+  // with a hide_seen override ("on"/"off") ignore the page-wide mode, so
+  // their items would make the badge promise hides that never happen.
+  const count = Array.from(document.querySelectorAll(`.item.${SEEN_CLASS}`)).filter(
+    (item) => itemHiddenBySeen(item, true) && !itemHiddenBySeen(item, false),
+  ).length;
   btn.setAttribute("aria-pressed", on ? "true" : "false");
   const label = hideSeenButtonLabel(on, count);
   btn.setAttribute("aria-label", label);

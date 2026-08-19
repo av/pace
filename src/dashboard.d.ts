@@ -42,6 +42,7 @@ export declare function themeColorFor(theme: unknown): string;
 export declare const SEEN_CLASS: string;
 export declare function autoMarkSeenDisabled(body: unknown): boolean;
 export declare function itemAutoMarkSeenDisabled(item: unknown, body: unknown): boolean;
+export declare function itemHiddenBySeen(item: unknown, hideSeenOn: unknown): boolean;
 export declare function autoSeenItem(target: unknown): object | null;
 export declare function parseSeenKeys(body: unknown): string[];
 export declare function panelSeenTarget(flags: unknown): boolean;

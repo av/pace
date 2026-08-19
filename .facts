@@ -285,6 +285,9 @@
 - label: Setting server.hide_seen: true starts the dashboard with hide-seen mode on for visitors with no stored preference: the server stamps data-hide-seen="on" on the interactive body and the client applies it on load, while an explicit Shift+X choice (now persisted in both directions) always wins; non-boolean values fail config check, and static exports never carry the stamp
   command: bun test src/server.test.ts --test-name-pattern 'server.hide_seen'
   tags: [spec, implemented]
+- label: A layout panel's own hide_seen: true/false overrides the page-wide hide-seen mode for that panel in either direction: the layout stamps data-hide-seen="on"/"off" on the interactive panel element, CSS and the client check the item's panel before the page-wide mode (on always hides that panel's seen items and dims it when caught up, off exempts it from Shift+X), keyboard navigation skips exactly what is hidden, and the toolbar's hidden-count badge counts only toggle-governed items; non-boolean values fail config check and static exports never carry the stamp
+  command: bun test src/server.test.ts --test-name-pattern 'per-panel hide_seen|itemHiddenBySeen'
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server

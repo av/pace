@@ -576,14 +576,25 @@ describe("hide-seen mode helpers", () => {
     }
   });
 
-  test("static exports never carry the hide-seen default stamp", () => {
-    const layout = flexCfg("row", [panelCfg("Feed", "rss")]);
+  test("static exports never carry hide-seen stamps (body default or panel override)", () => {
+    const layout = flexCfg("row", [panelCfg("Feed", "rss", { hide_seen: true })]);
     const item = makeItem({ title: "Story", source: "rss" });
     const panelData = new Map<string, PanelData>([["Feed", { items: [item] }]]);
     const staticHtml = renderDashboard({ layout, panelData, updatedAt: "now", mode: "static", hideSeenDefault: true });
     expect(staticHtml).not.toContain("data-hide-seen");
     const interactiveHtml = renderDashboard({ layout, panelData, updatedAt: "now", hideSeenDefault: true });
     expect(interactiveHtml).toContain('data-hide-seen="on"');
+  });
+});
+
+describe("hide-seen CSS overrides", () => {
+  test("panel hide_seen overrides carve into the display:none rule in both directions", () => {
+    // "off" panels are exempt while the page-wide mode is on.
+    expect(STYLES).toContain('html.hide-seen .panel:not([data-hide-seen="off"]) .item.item-seen');
+    // "on" panels hide their seen items even while the mode is off.
+    expect(STYLES).toContain('.panel[data-hide-seen="on"] .item.item-seen');
+    // ...and dim like caught-up panels do under the page-wide mode.
+    expect(STYLES).toContain('.panel[data-hide-seen="on"].all-seen');
   });
 });
 
@@ -895,10 +906,10 @@ describe("keyboard navigation CSS", () => {
   });
 
   test("hide-seen mode hides seen items and dims fully-seen panels", () => {
-    const hide = STYLES.match(/html\.hide-seen \.item\.item-seen\s*\{([^}]*)\}/s);
+    const hide = STYLES.match(/html\.hide-seen \.panel:not\(\[data-hide-seen="off"\]\) \.item\.item-seen[^{]*\{([^}]*)\}/s);
     expect(hide).not.toBeNull();
     expect(hide![1]).toContain("display: none");
-    const dim = STYLES.match(/html\.hide-seen \.panel\.all-seen\s*\{([^}]*)\}/s);
+    const dim = STYLES.match(/html\.hide-seen \.panel\.all-seen[^{]*\{([^}]*)\}/s);
     expect(dim).not.toBeNull();
     expect(dim![1]).toContain("opacity");
   });

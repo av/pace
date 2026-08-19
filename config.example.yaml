@@ -313,6 +313,8 @@ layout:
 #   auto_mark_seen: true # opening an item marks it seen; false keeps read state fully manual (default: true)
 #                        # individual panels can override this either way with their own auto_mark_seen field
 #   hide_seen: false     # true starts the dashboard with seen items hidden (Shift+X); a visitor's own toggle always wins
+#                        # individual panels can override hide-seen either way with their own hide_seen field
+#                        # (true = always hide this panel's seen items, false = exempt it from the page-wide mode)
 
 # Optional webhook notifications (POST JSON to any endpoint when matching items arrive):
 #

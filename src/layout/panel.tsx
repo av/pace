@@ -139,11 +139,16 @@ export const Panel: FC<{ node: PanelConfig; panelData: Map<string, PanelData>; m
   return (
     <div class="flex-panel" style={flexStyle(node.flex)}>
       {/* data-auto-seen carries the panel's auto_mark_seen override (on/off);
-          absent when the panel follows the page-wide server.auto_mark_seen. */}
+          data-hide-seen carries its hide_seen override (on = always hide seen
+          items, off = exempt from hide-seen mode); each absent when the panel
+          follows the page-wide server setting. data-hide-seen is interactive
+          only: static exports have no seen state, so the stamp would be inert
+          and static pages stay free of hide-seen markers. */}
       <div
         class="panel"
         data-panel-id={panelId}
         data-auto-seen={node.auto_mark_seen === undefined ? undefined : node.auto_mark_seen ? "on" : "off"}
+        data-hide-seen={node.hide_seen === undefined || mode !== "interactive" ? undefined : node.hide_seen ? "on" : "off"}
       >
         <PanelHeader
           title={node.panel}
