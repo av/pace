@@ -15,6 +15,14 @@ export interface PanelConfig {
   source: SourceValue;
   limit?: number;
   display?: "counter";
+  /**
+   * Per-panel override of `server.auto_mark_seen` (mark-on-open): `false`
+   * keeps this panel's read state fully manual even when the page-wide
+   * default marks opened items seen, `true` re-enables mark-on-open on this
+   * panel when the server disabled it globally. Omitted panels follow the
+   * server setting.
+   */
+  auto_mark_seen?: boolean;
 }
 
 export interface ImageWidgetConfig {

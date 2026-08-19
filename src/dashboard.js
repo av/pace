@@ -11,8 +11,9 @@
  * Enter activates the focused link natively (so target/rel are respected)
  * and opening an item's title link — by Enter, click, or middle-click —
  * automatically marks the item seen through the same /api/seen machinery
- * as the x key (unless the server disabled it via server.auto_mark_seen:
- * false, stamped as data-auto-seen="off" on <body>),
+ * as the x key (unless disabled via server.auto_mark_seen: false, stamped
+ * as data-auto-seen="off" on <body> — a panel-level auto_mark_seen stamps
+ * the same attribute on its .panel and wins either way),
  * r refreshes the focused panel through its existing refresh form,
  * c collapses/expands the focused panel (persisted per panel in
  * localStorage), Shift+C collapses every panel at once (or expands them all
@@ -740,6 +741,24 @@ export function autoMarkSeenDisabled(body) {
   return body.getAttribute("data-auto-seen") === "off";
 }
 
+/**
+ * Whether mark-on-open is disabled for one specific item. A per-panel
+ * override wins: the layout stamps data-auto-seen="on"/"off" on the item's
+ * .panel when the config sets a panel-level auto_mark_seen, overriding the
+ * page-wide default in either direction. Items in panels without the stamp
+ * fall back to the body-level autoMarkSeenDisabled. Pure given DOM-shaped
+ * arguments, so the test suite can exercise it without a DOM.
+ */
+export function itemAutoMarkSeenDisabled(item, body) {
+  if (item && typeof item.closest === "function") {
+    const panel = item.closest(".panel[data-auto-seen]");
+    if (panel && typeof panel.getAttribute === "function") {
+      return panel.getAttribute("data-auto-seen") === "off";
+    }
+  }
+  return autoMarkSeenDisabled(body);
+}
+
 export function autoSeenItem(target) {
   if (!target || typeof target.closest !== "function") return null;
   const link = target.closest(".item-title a");
@@ -1263,10 +1282,10 @@ function injectToolbar() {
  * (ctrl/cmd) still open in a new tab and still count as read.
  */
 function autoMarkOpenedSeen(event) {
-  if (autoMarkSeenDisabled(document.body)) return;
   if (event.type === "auxclick" && event.button !== 1) return;
   const item = autoSeenItem(event.target);
-  if (item) toggleItemSeen(item); // item is unseen, so this always marks seen
+  if (!item || itemAutoMarkSeenDisabled(item, document.body)) return;
+  toggleItemSeen(item); // item is unseen, so this always marks seen
 }
 
 function onKeydown(event) {

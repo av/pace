@@ -279,6 +279,9 @@
 - label: The dashboard serves a web app manifest (GET /manifest.webmanifest, linked from the interactive page head) making pace installable as a standalone home-screen app: name/short_name pace, display standalone, id/start_url/scope under the base path so instances install as distinct apps, the served /favicon.svg as the icon, and theme/background colors matching the dark theme-color default; static exports never link a manifest
   command: bun test src/server.test.ts --test-name-pattern 'manifest'
   tags: [spec, implemented]
+- label: A layout panel's own auto_mark_seen: true/false overrides the page-wide server.auto_mark_seen for that panel in either direction: the layout stamps data-auto-seen="on"/"off" on the panel element and the client checks the item's panel before the body, so panels without the field follow the server setting; non-boolean values fail config check
+  command: bun test src/server.test.ts --test-name-pattern 'per-panel auto_mark_seen'
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server

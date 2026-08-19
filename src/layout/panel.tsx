@@ -138,7 +138,13 @@ export const Panel: FC<{ node: PanelConfig; panelData: Map<string, PanelData>; m
 
   return (
     <div class="flex-panel" style={flexStyle(node.flex)}>
-      <div class="panel" data-panel-id={panelId}>
+      {/* data-auto-seen carries the panel's auto_mark_seen override (on/off);
+          absent when the panel follows the page-wide server.auto_mark_seen. */}
+      <div
+        class="panel"
+        data-panel-id={panelId}
+        data-auto-seen={node.auto_mark_seen === undefined ? undefined : node.auto_mark_seen ? "on" : "off"}
+      >
         <PanelHeader
           title={node.panel}
           panelId={panelId}

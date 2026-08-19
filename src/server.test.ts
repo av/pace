@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import { initDb, saveItems } from "./db";
 import { validateParsedConfig } from "./config-validate";
 import { DEFAULT_LAYOUT } from "./config/domain";
-import { autoMarkSeenDisabled, THEME_COLORS } from "./dashboard.js";
+import { autoMarkSeenDisabled, itemAutoMarkSeenDisabled, THEME_COLORS } from "./dashboard.js";
 import { renderDashboard } from "./layout";
 import { MANIFEST_CONTENT_TYPE } from "./server/manifest";
 import { securityHeadersMiddleware } from "./server/security-headers";
@@ -196,6 +196,60 @@ describe("server.auto_mark_seen (mark-on-open opt-out)", () => {
   test("autoMarkSeen: false stamps data-auto-seen=\"off\" on the dashboard body", async () => {
     const html = await (await requestDashboard(makeApp(false))).text();
     expect(html).toContain('<body data-auto-seen="off">');
+  });
+
+  test("per-panel auto_mark_seen: validates as an optional boolean panel field", () => {
+    const base = { adapters: [] };
+    const layoutWith = (auto_mark_seen: unknown) => ({
+      direction: "row",
+      children: [{ panel: "Tech", source: "all", auto_mark_seen }],
+    });
+    for (const ok of [true, false]) {
+      const validated = validateParsedConfig({ ...base, layout: layoutWith(ok) }, DEFAULT_LAYOUT);
+      expect((validated.layout as { children: { auto_mark_seen?: boolean }[] }).children[0]!.auto_mark_seen).toBe(ok);
+    }
+    for (const bad of ["false", 0, null, []]) {
+      expect(() =>
+        validateParsedConfig({ ...base, layout: layoutWith(bad) }, DEFAULT_LAYOUT),
+      ).toThrow(/layout\.children\[0\]\.auto_mark_seen must be a boolean/);
+    }
+  });
+
+  test("per-panel auto_mark_seen stamps data-auto-seen on that panel only", async () => {
+    const layout = {
+      direction: "row" as const,
+      children: [
+        { panel: "Manual", source: "hackernews", id: "manual-panel", auto_mark_seen: false },
+        { panel: "Auto", source: "hackernews", id: "auto-panel", auto_mark_seen: true },
+        { panel: "Default", source: "hackernews", id: "default-panel" },
+      ],
+    };
+    const app = createTestServerApp(makeServerRouteDeps({ layout }));
+    const html = await (await requestDashboard(app)).text();
+    expect(html).toMatch(/data-panel-id="manual-panel"[^>]*data-auto-seen="off"/);
+    expect(html).toMatch(/data-panel-id="auto-panel"[^>]*data-auto-seen="on"/);
+    expect(html).not.toMatch(/data-panel-id="default-panel"[^>]*data-auto-seen/);
+  });
+
+  test("itemAutoMarkSeenDisabled: panel stamp wins over the body, absent stamp falls back", () => {
+    const bodyOff = { getAttribute: (n: string) => (n === "data-auto-seen" ? "off" : null) };
+    const bodyDefault = { getAttribute: () => null };
+    const itemIn = (panelAttr: string | null) => ({
+      closest: (sel: string) =>
+        sel === ".panel[data-auto-seen]" && panelAttr !== null
+          ? { getAttribute: (n: string) => (n === "data-auto-seen" ? panelAttr : null) }
+          : null,
+    });
+    // Panel "off" disables even when the page default is on.
+    expect(itemAutoMarkSeenDisabled(itemIn("off"), bodyDefault)).toBe(true);
+    // Panel "on" re-enables even when the body is stamped off.
+    expect(itemAutoMarkSeenDisabled(itemIn("on"), bodyOff)).toBe(false);
+    // No panel stamp: body decides.
+    expect(itemAutoMarkSeenDisabled(itemIn(null), bodyOff)).toBe(true);
+    expect(itemAutoMarkSeenDisabled(itemIn(null), bodyDefault)).toBe(false);
+    // Non-DOM-shaped item falls back to the body too.
+    expect(itemAutoMarkSeenDisabled(null, bodyOff)).toBe(true);
+    expect(itemAutoMarkSeenDisabled(undefined, bodyDefault)).toBe(false);
   });
 
   test("autoMarkSeenDisabled reads exactly the server-stamped attribute", () => {
