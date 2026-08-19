@@ -462,11 +462,32 @@ a:hover {
    reader the page is the service worker's cached last render (and how old it
    is), not live data. Removed the moment the network returns. */
 .offline-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   padding: 0.4rem 1rem;
   font-size: 0.8rem;
   color: var(--text-secondary);
   background: var(--bg-elevated);
   border-bottom: 1px solid var(--border);
+}
+
+/* The banner's "Retry now" button: re-attempts a live load (the network-first
+   service worker fetches fresh when the network is back, re-serves the cache
+   while it isn't). */
+.offline-banner .offline-retry {
+  padding: 0.15rem 0.6rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.offline-banner .offline-retry:hover {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .panel-body {

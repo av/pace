@@ -294,6 +294,9 @@
 - label: While the browser is offline, the interactive dashboard shows a status banner naming the timestamp of the last saved render it is displaying (from the body's data-updated-at stamp) and removes it when connectivity returns; the banner is client-injected so static exports and no-JS pages never render it
   command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'offline banner'
   tags: [spec, implemented]
+- label: The offline banner includes a 'Retry now' button that reloads the page to re-attempt a live load (the network-first service worker fetches fresh once the network is back, re-serving the cache while it is not)
+  command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'Retry now'
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server

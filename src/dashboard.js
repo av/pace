@@ -747,6 +747,12 @@ function registerServiceWorker() {
 /** Class of the injected offline banner (shown while the browser is offline). */
 export const OFFLINE_BANNER_CLASS = "offline-banner";
 
+/** Class of the banner's retry button (click re-attempts a live load). */
+export const OFFLINE_RETRY_CLASS = "offline-retry";
+
+/** Label of the banner's retry button. */
+export const OFFLINE_RETRY_LABEL = "Retry now";
+
 /**
  * Text of the offline banner. Names the render's timestamp when the page
  * carries one, so a cached copy served by the service worker says exactly
@@ -771,6 +777,33 @@ export function pageUpdatedAt(body) {
 }
 
 /**
+ * Build the offline banner element: the staleness sentence plus a "Retry
+ * now" button that re-attempts a live load via `reload`. The service worker
+ * is strictly network-first, so a retry once the network is back replaces
+ * the cached copy with a fresh render; while still offline it harmlessly
+ * re-serves the cache. The `offline`/`online` events don't fire for every
+ * failure mode (captive portals, a down server on a live link), so the
+ * button gives the reader a way to try again without hunting for the
+ * browser's reload. Pure given a document-like factory, so tests need no
+ * DOM.
+ */
+export function offlineBannerElement(doc, updatedAt, reload) {
+  const banner = doc.createElement("div");
+  banner.className = OFFLINE_BANNER_CLASS;
+  banner.setAttribute("role", "status");
+  const text = doc.createElement("span");
+  text.textContent = offlineBannerText(updatedAt);
+  banner.appendChild(text);
+  const retry = doc.createElement("button");
+  retry.type = "button";
+  retry.className = OFFLINE_RETRY_CLASS;
+  retry.textContent = OFFLINE_RETRY_LABEL;
+  retry.addEventListener("click", reload);
+  banner.appendChild(retry);
+  return banner;
+}
+
+/**
  * Show or remove the offline banner to match connectivity. The banner tells
  * the reader the page they are looking at is the service worker's cached
  * last render (and how old it is), not live data — without it an offline
@@ -784,10 +817,9 @@ function syncOfflineBanner(online) {
     return;
   }
   if (existing) return;
-  const banner = document.createElement("div");
-  banner.className = OFFLINE_BANNER_CLASS;
-  banner.setAttribute("role", "status");
-  banner.textContent = offlineBannerText(pageUpdatedAt(document.body));
+  const banner = offlineBannerElement(document, pageUpdatedAt(document.body), () =>
+    window.location.reload(),
+  );
   document.body.prepend(banner);
 }
 

@@ -28,6 +28,13 @@ export declare function searchFeedUrl(base: unknown, raw: unknown): string | nul
 export declare function serviceWorkerUrl(moduleUrl: unknown): string;
 export declare const OFFLINE_BANNER_CLASS: string;
 export declare function offlineBannerText(updatedAt: unknown): string;
+export declare const OFFLINE_RETRY_CLASS: string;
+export declare const OFFLINE_RETRY_LABEL: string;
+export declare function offlineBannerElement(
+  doc: unknown,
+  updatedAt: unknown,
+  reload: () => void,
+): unknown;
 export declare function pageUpdatedAt(body: unknown): string;
 export declare const COLLAPSE_STORAGE_KEY: string;
 export declare function parseStoredPanelIds(raw: unknown): string[];

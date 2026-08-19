@@ -13,6 +13,9 @@ import {
   serviceWorkerUrl,
   shouldIgnoreKeydown,
   OFFLINE_BANNER_CLASS,
+  OFFLINE_RETRY_CLASS,
+  OFFLINE_RETRY_LABEL,
+  offlineBannerElement,
   offlineBannerText,
   pageUpdatedAt,
   COLLAPSE_STORAGE_KEY,
@@ -892,6 +895,57 @@ describe("offline banner", () => {
     expect(staticHtml).not.toContain(OFFLINE_BANNER_CLASS);
   });
 
+  test("offlineBannerElement pairs the sentence with a wired Retry now button", () => {
+    type FakeEl = {
+      tag: string;
+      className: string;
+      textContent: string;
+      type?: string;
+      attrs: Record<string, string>;
+      children: FakeEl[];
+      listeners: Record<string, () => void>;
+      setAttribute(name: string, value: string): void;
+      appendChild(child: FakeEl): FakeEl;
+      addEventListener(name: string, fn: () => void): void;
+    };
+    const makeEl = (tag: string): FakeEl => ({
+      tag,
+      className: "",
+      textContent: "",
+      attrs: {},
+      children: [],
+      listeners: {},
+      setAttribute(name, value) {
+        this.attrs[name] = value;
+      },
+      appendChild(child) {
+        this.children.push(child);
+        return child;
+      },
+      addEventListener(name, fn) {
+        this.listeners[name] = fn;
+      },
+    });
+    const doc = { createElement: makeEl };
+    let reloads = 0;
+    const banner = offlineBannerElement(doc, "2026-08-19 01:02:03", () => {
+      reloads += 1;
+    }) as FakeEl;
+    expect(banner.className).toBe(OFFLINE_BANNER_CLASS);
+    expect(banner.attrs.role).toBe("status");
+    const [text, retry] = banner.children;
+    expect(text.tag).toBe("span");
+    expect(text.textContent).toBe(
+      "Offline — showing the last saved render from 2026-08-19 01:02:03 UTC",
+    );
+    expect(retry.tag).toBe("button");
+    expect(retry.type).toBe("button");
+    expect(retry.className).toBe(OFFLINE_RETRY_CLASS);
+    expect(retry.textContent).toBe(OFFLINE_RETRY_LABEL);
+    retry.listeners.click();
+    expect(reloads).toBe(1);
+  });
+
   test("the served module watches connectivity and injects the banner", async () => {
     const layout = flexCfg("row", [panelCfg("Feed", "rss")]);
     const app = createTestServerApp(makeServerRouteDeps({ layout }));
@@ -899,6 +953,9 @@ describe("offline banner", () => {
     expect(body).toContain('addEventListener("offline"');
     expect(body).toContain('addEventListener("online"');
     expect(body).toContain("offline-banner");
+    // The retry button ships with the module and reloads on click.
+    expect(body).toContain("offline-retry");
+    expect(body).toContain("window.location.reload()");
   });
 });
 
@@ -912,6 +969,11 @@ describe("offline banner CSS", () => {
   test("the stylesheet styles the injected banner class", () => {
     expect(OFFLINE_BANNER_CLASS).toBe("offline-banner");
     expect(STYLES).toContain(".offline-banner {");
+  });
+
+  test("the stylesheet styles the banner's retry button", () => {
+    expect(OFFLINE_RETRY_CLASS).toBe("offline-retry");
+    expect(STYLES).toContain(".offline-banner .offline-retry {");
   });
 });
 
