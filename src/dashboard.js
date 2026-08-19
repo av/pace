@@ -31,7 +31,7 @@
  * hover/focus. A
  * small fixed toolbar in the top-right corner mirrors the page-wide keys —
  * theme toggle (t), hide-seen (Shift+X, with a badge counting the items the
- * mode currently hides), and help (?). All of these are
+ * mode currently hides), the item filter (/), and help (?). All of these are
  * client-injected so static exports never render them. The browser-tab title
  * mirrors the page's unread total ("(N) pace", distinct stories), and the
  * favicon — a client-injected inline SVG — gains an unread dot while any
@@ -226,6 +226,9 @@ export const THEME_BTN_CLASS = "theme-btn";
 
 /** Class of the toolbar's hide-seen toggle button (mirrors Shift+X). */
 export const HIDE_SEEN_BTN_CLASS = "hide-seen-btn";
+
+/** Class of the toolbar's filter button (mirrors the "/" key). */
+export const FILTER_BTN_CLASS = "filter-btn";
 
 /** Class of the toolbar's help button (mirrors the "?" key). */
 export const HELP_BTN_CLASS = "help-btn";
@@ -1166,7 +1169,9 @@ function injectMouseAffordances() {
 
 /**
  * Inject the top-corner toolbar with clickable equivalents of the page-wide
- * keys: theme toggle (t), hide-seen (Shift+X), and the help overlay (?).
+ * keys: theme toggle (t), hide-seen (Shift+X), the item filter (/), and the
+ * help overlay (?). The filter button matters most on touch screens, which
+ * have no "/" key to press without summoning the on-screen keyboard first.
  * Injected before the restore* calls so their apply* funnels can sync the
  * buttons' labels and pressed state to the persisted choices.
  */
@@ -1192,6 +1197,13 @@ function injectToolbar() {
   hideSeen.appendChild(badge);
   hideSeen.addEventListener("click", toggleHideSeen);
   bar.appendChild(hideSeen);
+
+  const filter = makeAffordanceButton(FILTER_BTN_CLASS, "⌕", "Filter items");
+  filter.addEventListener("click", () => {
+    if (filterOpen()) closeFilter();
+    else openFilter();
+  });
+  bar.appendChild(filter);
 
   const help = makeAffordanceButton(HELP_BTN_CLASS, "?", "Keyboard shortcuts");
   help.addEventListener("click", () => {

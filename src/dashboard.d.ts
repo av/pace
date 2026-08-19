@@ -53,6 +53,7 @@ export declare function panelSeenButtonLabel(title: unknown): string;
 export declare const TOOLBAR_CLASS: string;
 export declare const THEME_BTN_CLASS: string;
 export declare const HIDE_SEEN_BTN_CLASS: string;
+export declare const FILTER_BTN_CLASS: string;
 export declare const HELP_BTN_CLASS: string;
 export declare function themeButtonLabel(theme: unknown): string;
 export declare function hideSeenButtonLabel(on: unknown, count?: unknown): string;

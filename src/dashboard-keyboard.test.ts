@@ -36,6 +36,7 @@ import {
   TOOLBAR_CLASS,
   THEME_BTN_CLASS,
   HIDE_SEEN_BTN_CLASS,
+  FILTER_BTN_CLASS,
   HELP_BTN_CLASS,
   themeButtonLabel,
   hideSeenButtonLabel,
@@ -580,6 +581,11 @@ describe("top-corner toolbar helpers", () => {
     expect(THEME_BTN_CLASS).toBe("theme-btn");
     expect(HIDE_SEEN_BTN_CLASS).toBe("hide-seen-btn");
     expect(HELP_BTN_CLASS).toBe("help-btn");
+    expect(FILTER_BTN_CLASS).toBe("filter-btn");
+    // Each toolbar button has its own class so styling and tests can target
+    // one without hitting another.
+    const classes = [THEME_BTN_CLASS, HIDE_SEEN_BTN_CLASS, FILTER_BTN_CLASS, HELP_BTN_CLASS];
+    expect(new Set(classes).size).toBe(classes.length);
   });
 
   test("themeButtonLabel names the theme a click will switch to", () => {
@@ -690,6 +696,7 @@ describe("top-corner toolbar helpers", () => {
       expect(html).not.toContain(TOOLBAR_CLASS);
       expect(html).not.toContain(THEME_BTN_CLASS);
       expect(html).not.toContain(HIDE_SEEN_BTN_CLASS);
+      expect(html).not.toContain(FILTER_BTN_CLASS);
       expect(html).not.toContain(HELP_BTN_CLASS);
     }
   });

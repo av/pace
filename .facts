@@ -243,6 +243,9 @@
 - label: The dashboard favicon is a client-injected inline SVG that gains an unread dot while any read-tracked story is unseen (same distinct-story count semantics as the tab title) and reverts to the plain icon at zero; the server never renders a favicon link, so static exports and no-JS browsers are unaffected
   command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'faviconHref|favicon'
   tags: [spec, implemented]
+- label: the dashboard toolbar includes a filter button that opens and closes the / item-filter bar, so touch and mouse users can filter without a keyboard
+  command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'toolbar'
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server
