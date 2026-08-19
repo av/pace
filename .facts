@@ -330,6 +330,9 @@
 - label: pace search --json emits the hits as one JSON document in the /api/search response shape plus per-item starred/seen booleans (parseable even at zero matches, summary still on stderr), and --limit N (-n N) caps the hits with the API's exact ?limit= semantics (integer 1-500, same error on invalid values, default 50)
   command: bun test src/cli-search.test.ts --test-name-pattern 'json|limit'
   tags: [spec, implemented]
+- label: the service worker cache name carries the pace package version, so a release upgrade retires the previous release's offline caches on activate instead of serving a stale app shell
+  command: bun test src/server.test.ts --test-name-pattern 'cache version is wired'
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server

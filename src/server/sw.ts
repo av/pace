@@ -1,11 +1,24 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 /** Content type for the served service worker script. */
 export const SW_CONTENT_TYPE = "text/javascript";
 
 /** Cache-name prefix; the version suffix retires stale caches on activate. */
 export const SW_CACHE_PREFIX = "pace-offline-";
 
-/** Bump when the caching logic changes so old caches are dropped on activate. */
-export const SW_CACHE_VERSION = "v1";
+/**
+ * Cache version, wired to the package version so every pace release retires
+ * the previous release's caches on activate — an upgraded server never keeps
+ * serving a stale app shell (old stylesheet/client module) from the worker
+ * cache. The byte-changed worker script also re-triggers install/activate on
+ * clients that still hold the old one.
+ */
+export const SW_CACHE_VERSION = `v${
+  (JSON.parse(
+    readFileSync(join(import.meta.dir, "../../package.json"), "utf-8"),
+  ) as { version: string }).version
+}`;
 
 /**
  * The pace service worker script, so the installed app (and any regular tab)

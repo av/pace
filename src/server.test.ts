@@ -1,4 +1,6 @@
 import { describe, test, expect } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { Hono } from "hono";
 import { initDb, saveItems } from "./db";
 import { validateParsedConfig } from "./config-validate";
@@ -468,6 +470,17 @@ describe("GET /sw.js", () => {
     expect(body).toContain("fetch(request)");
     expect(body).toContain("caches.match(request)");
     expect(body).toContain(SW_CACHE_PREFIX + SW_CACHE_VERSION);
+  });
+
+  test("cache version is wired to the package version so releases retire stale caches", async () => {
+    const pkg = JSON.parse(
+      readFileSync(join(import.meta.dir, "../package.json"), "utf-8"),
+    ) as { version: string };
+    expect(SW_CACHE_VERSION).toBe(`v${pkg.version}`);
+    // The served script embeds the versioned cache name, so a release byte-changes
+    // the worker and the activate handler drops the previous release's caches.
+    const body = await (await requestServerRoute(makeApp(), "/sw.js")).text();
+    expect(body).toContain(`"${SW_CACHE_PREFIX}v${pkg.version}"`);
   });
 
   test("scopes the app shell under the base path", async () => {
