@@ -6,6 +6,7 @@ import {
   replacePanelItems,
   saveItems,
   searchItems,
+  setItemSeen,
   setItemStarred,
 } from "../db";
 import {
@@ -83,6 +84,34 @@ describe("parseSearchQuery", () => {
       ok: true,
       parsed: { terms: ["rust"], starred: true, query: "rust starred:yes" },
     });
+  });
+
+  test("extracts seen:yes and seen:no case-insensitively, alone or with starred:", () => {
+    expect(parseSearchQuery("rust SEEN:Yes")).toEqual({
+      ok: true,
+      parsed: { terms: ["rust"], seen: true, query: "rust seen:yes" },
+    });
+    expect(parseSearchQuery("seen:no")).toEqual({
+      ok: true,
+      parsed: { terms: [], seen: false, query: "seen:no" },
+    });
+    expect(parseSearchQuery("starred:yes seen:no")).toEqual({
+      ok: true,
+      parsed: { terms: [], starred: true, seen: false, query: "starred:yes seen:no" },
+    });
+    // Repeated seen: operators — last one wins.
+    expect(parseSearchQuery("seen:yes rust seen:no")).toEqual({
+      ok: true,
+      parsed: { terms: ["rust"], seen: false, query: "rust seen:no" },
+    });
+  });
+
+  test("invalid seen: value is an error, not a text term", () => {
+    expect(parseSearchQuery("rust seen:ys")).toEqual({
+      ok: false,
+      error: 'Invalid seen: filter "seen:ys" — use seen:yes or seen:no',
+    });
+    expect(parseSearchQuery("seen:").ok).toBe(false);
   });
 
   test("invalid starred: value is an error, not a text term", () => {
@@ -235,6 +264,44 @@ describe("searchItems", () => {
     setItemStarred(itemSeenKey({ id: "t2", url: "https://ex.com/b" }), true);
     expect(searchItems([], { limit: 50, starred: true }).map((r) => r.id)).toEqual(["t2"]);
   });
+
+  test("seen: true keeps only seen dedup groups, false only unseen — twins included", () => {
+    initDb();
+    const seenUrl = "https://ex.com/Rust-Seen/";
+    saveItems("tech-panel", [
+      makeItem({ id: "t1", title: "rust seen", url: seenUrl }),
+      makeItem({ id: "t2", title: "rust fresh", url: "https://ex.com/rust-fresh" }),
+    ]);
+    saveItems("blogs-panel", [
+      makeItem({
+        id: "b1",
+        title: "rust seen",
+        url: seenUrl,
+        timestamp: new Date("2026-08-01T10:00:00Z"),
+      }),
+    ]);
+    // Mark under the normalized dedup key, as /api/seen does.
+    setItemSeen(itemSeenKey({ id: "t1", url: seenUrl }), true);
+
+    expect(searchItems(["rust"], { limit: 50, seen: true }).map((r) => r.id)).toEqual(["t1"]);
+    expect(searchItems(["rust"], { limit: 50, seen: false }).map((r) => r.id)).toEqual(["t2"]);
+    expect(searchItems(["rust"], { limit: 50 })).toHaveLength(2);
+  });
+
+  test("seen and starred filters combine", () => {
+    initDb();
+    saveItems("tech-panel", [
+      makeItem({ id: "t1", title: "rust a", url: "https://ex.com/a" }),
+      makeItem({ id: "t2", title: "rust b", url: "https://ex.com/b" }),
+      makeItem({ id: "t3", title: "rust c", url: "https://ex.com/c" }),
+    ]);
+    setItemStarred(itemSeenKey({ id: "t1", url: "https://ex.com/a" }), true);
+    setItemStarred(itemSeenKey({ id: "t2", url: "https://ex.com/b" }), true);
+    setItemSeen(itemSeenKey({ id: "t2", url: "https://ex.com/b" }), true);
+    expect(
+      searchItems([], { limit: 50, starred: true, seen: false }).map((r) => r.id),
+    ).toEqual(["t1"]);
+  });
 });
 
 describe("serializeApiSearchItem", () => {
@@ -353,6 +420,34 @@ describe("GET /api/search", () => {
     expect(only.res.status).toBe(200);
     expect(only.body.query).toBe("starred:yes");
     expect(only.body.items.map((item: any) => item.id)).toEqual(["t1"]);
+  });
+
+  test("seen:no filters hits to unseen items and echoes the operator", async () => {
+    initDb();
+    saveItems("tech-panel", [
+      makeItem({ id: "t1", title: "rust read", url: "https://ex.com/r" }),
+      makeItem({ id: "t2", title: "rust fresh", url: "https://ex.com/f" }),
+    ]);
+    setItemSeen(itemSeenKey({ id: "t1", url: "https://ex.com/r" }), true);
+    const app = createTestServerApp(makeServerRouteDeps({ layout: twoPanelLayout() }));
+
+    const { res, body } = await getJson(app, "/api/search?q=rust%20seen:no");
+    expect(res.status).toBe(200);
+    expect(body.query).toBe("rust seen:no");
+    expect(body.items.map((item: any) => item.id)).toEqual(["t2"]);
+
+    const only = await getJson(app, "/api/search?q=seen:yes");
+    expect(only.res.status).toBe(200);
+    expect(only.body.query).toBe("seen:yes");
+    expect(only.body.items.map((item: any) => item.id)).toEqual(["t1"]);
+  });
+
+  test("invalid seen: value is a 400 naming the valid forms", async () => {
+    initDb();
+    const app = createTestServerApp(makeServerRouteDeps({ layout: twoPanelLayout() }));
+    const { res, body } = await getJson(app, "/api/search?q=seen:maybe");
+    expect(res.status).toBe(400);
+    expect(body.error).toBe('Invalid seen: filter "seen:maybe" — use seen:yes or seen:no');
   });
 
   test("invalid starred: value is a 400 naming the valid forms", async () => {

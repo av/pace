@@ -70,7 +70,7 @@ export function resolveSearchRssFeedLinks(requestUrl: string, basePath: string):
 export function handleApiSearchRss(c: Context, deps: ServerRouteDeps): Response {
   const queryResult = parseSearchQuery(c.req.query("q"));
   if (!queryResult.ok) return c.json({ error: queryResult.error }, 400);
-  const { terms, starred, query } = queryResult.parsed;
+  const { terms, starred, seen, query } = queryResult.parsed;
 
   const limitResult = parseApiPanelItemsLimit(c.req.query("limit"));
   if (!limitResult.ok) return c.json({ error: limitResult.error }, 400);
@@ -84,7 +84,7 @@ export function handleApiSearchRss(c: Context, deps: ServerRouteDeps): Response 
     panelId = panel.isAll ? undefined : panel.pid;
   }
 
-  const rows = searchItems(terms, { panelId, limit, starred });
+  const rows = searchItems(terms, { panelId, limit, starred, seen });
   const xml = renderSearchRss(
     query,
     rows,

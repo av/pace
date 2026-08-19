@@ -444,7 +444,7 @@ export function escapeLikeTerm(term: string): string {
  */
 export function searchItems(
   terms: string[],
-  options: { panelId?: string; limit: number; starred?: boolean },
+  options: { panelId?: string; limit: number; starred?: boolean; seen?: boolean },
 ): ContentItemRow[] {
   const db = getDb();
   const { where: panelFilter, params } = panelIdWhereClause(options.panelId);
@@ -464,9 +464,16 @@ export function searchItems(
     options.starred === undefined
       ? ""
       : `AND (${DEDUP_GROUP_EXPR}) ${options.starred ? "IN" : "NOT IN"} (SELECT star_key FROM starred_items)`;
+  // Seen state uses the same dedup identity as /api/seen writes, so the
+  // filter matches an item's cross-panel twins too.
+  const seenClause =
+    options.seen === undefined
+      ? ""
+      : `AND (${DEDUP_GROUP_EXPR}) ${options.seen ? "IN" : "NOT IN"} (SELECT seen_key FROM seen_items)`;
   const sql = `SELECT * FROM content_items WHERE ${dedupWinnerSubquery(panelFilter)}
     ${termClauses.map((clause) => `AND ${clause}`).join("\n    ")}
     ${starredClause}
+    ${seenClause}
     ORDER BY timestamp DESC LIMIT ?`;
   return db.prepare(sql).all(...params, ...termParams, options.limit) as ContentItemRow[];
 }

@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { XMLParser } from "fast-xml-parser";
-import { initDb, itemSeenKey, saveItems, setItemStarred } from "../db";
+import { initDb, itemSeenKey, saveItems, setItemSeen, setItemStarred } from "../db";
 import { renderSearchRss, resolveSearchRssFeedLinks } from "./api-search-rss";
 import { RSS_CONTENT_TYPE } from "./api-panels-rss";
 import { makeContentItem as makeItem, makeContentItemRow } from "../test/content-items";
@@ -144,6 +144,25 @@ describe("GET /api/search.rss", () => {
     expect(asArray(channel.item).map((item: any) => item.title)).toEqual(["Rust starred"]);
 
     const bad = await requestServerRoute(app, "/api/search.rss?q=starred:maybe");
+    expect(bad.status).toBe(400);
+  });
+
+  test("seen:no yields an unread-items feed titled with the operator", async () => {
+    initDb();
+    saveItems("tech-panel", [
+      makeItem({ id: "t1", title: "Rust read", url: "https://ex.com/r" }),
+      makeItem({ id: "t2", title: "Rust fresh", url: "https://ex.com/f" }),
+    ]);
+    setItemSeen(itemSeenKey({ id: "t1", url: "https://ex.com/r" }), true);
+
+    const app = createTestServerApp(makeServerRouteDeps({ layout: twoPanelLayout() }));
+    const { res, text } = await getRss(app, "/api/search.rss?q=rust%20seen:no");
+    expect(res.status).toBe(200);
+    const channel = strictXmlParser.parse(text).rss.channel;
+    expect(channel.title).toBe("pace search: rust seen:no");
+    expect(asArray(channel.item).map((item: any) => item.title)).toEqual(["Rust fresh"]);
+
+    const bad = await requestServerRoute(app, "/api/search.rss?q=seen:maybe");
     expect(bad.status).toBe(400);
   });
 

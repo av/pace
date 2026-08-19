@@ -312,6 +312,9 @@
 - label: GET /api/star.rss serves the starred items as an RSS 2.0 feed, most recently starred first: star keys resolved to stored rows via the shared dedup identity so each story appears once across panels, newest star mark as lastBuildDate, ?limit= (1-500) validated like the panel endpoints, empty list still a valid feed, and pruned items absent until re-fetched
   command: bun test src/server/api-star-rss.test.ts
   tags: [spec, implemented]
+- label: A seen:yes or seen:no term in an /api/search or /api/search.rss query filters hits by seen state via the same dedup identity seen marks are saved under (operators combine with starred: and an operator-only query is valid), any other seen:* value is a 400 naming the valid forms, and the normalized operator is echoed in the JSON query field and the RSS channel title
+  command: bun test src/server/api-search.test.ts src/server/api-search-rss.test.ts --test-name-pattern 'seen'
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server
