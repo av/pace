@@ -3,7 +3,9 @@ import { Hono } from "hono";
 import { initDb, saveItems } from "./db";
 import { validateParsedConfig } from "./config-validate";
 import { DEFAULT_LAYOUT } from "./config/domain";
-import { autoMarkSeenDisabled } from "./dashboard.js";
+import { autoMarkSeenDisabled, THEME_COLORS } from "./dashboard.js";
+import { renderDashboard } from "./layout";
+import { MANIFEST_CONTENT_TYPE } from "./server/manifest";
 import { securityHeadersMiddleware } from "./server/security-headers";
 import type { ServerRouteDeps } from "./server/routes";
 import type { RefreshResult } from "./refresh-result";
@@ -237,6 +239,63 @@ describe("GET /favicon.svg", () => {
     const html = await (await requestServerRoute(app, "/pace")).text();
     expect(html).toContain('rel="icon"');
     expect(html).toContain('href="/pace/favicon.svg"');
+  });
+});
+
+describe("GET /manifest.webmanifest", () => {
+  installTempDbHooks({ prefix: "pace-server-manifest-" });
+
+  function makeApp(basePath = "") {
+    const layout = testAppLayout(singlePanelLayout("Tech", "hackernews", { id: "tech-panel" }));
+    return createTestServerApp(makeServerRouteDeps({ layout, basePath }));
+  }
+
+  test("serves an installable web app manifest matching the served icon and theme", async () => {
+    const res = await requestServerRoute(makeApp(), "/manifest.webmanifest");
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe(MANIFEST_CONTENT_TYPE);
+    expect(res.headers.get("cache-control")).toBe("public, max-age=3600");
+    const manifest = await res.json();
+    expect(manifest.name).toBe("pace");
+    expect(manifest.short_name).toBe("pace");
+    expect(manifest.display).toBe("standalone");
+    expect(manifest.start_url).toBe("/");
+    expect(manifest.scope).toBe("/");
+    expect(manifest.id).toBe("/");
+    // Splash/window chrome colors stay in lockstep with the theme-color metas.
+    expect(manifest.theme_color).toBe(THEME_COLORS.dark);
+    expect(manifest.background_color).toBe(THEME_COLORS.dark);
+    expect(manifest.icons).toEqual([
+      { src: "/favicon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
+    ]);
+  });
+
+  test("scopes id/start_url/icon under the base path and is linked from the dashboard head", async () => {
+    const app = makeApp("/pace");
+
+    const res = await requestServerRoute(app, "/pace/manifest.webmanifest");
+    expect(res.status).toBe(200);
+    const manifest = await res.json();
+    expect(manifest.start_url).toBe("/pace/");
+    expect(manifest.scope).toBe("/pace/");
+    expect(manifest.id).toBe("/pace/");
+    expect(manifest.icons[0].src).toBe("/pace/favicon.svg");
+
+    const html = await (await requestServerRoute(app, "/pace")).text();
+    expect(html).toContain('rel="manifest"');
+    expect(html).toContain('href="/pace/manifest.webmanifest"');
+  });
+
+  test("static exports never link a manifest (self-contained files have no server)", () => {
+    const layout = testAppLayout(singlePanelLayout("Tech", "hackernews", { id: "tech-panel" }));
+    const html = renderDashboard({
+      layout,
+      panelData: new Map(),
+      updatedAt: "now",
+      mode: "static",
+    });
+    expect(html).not.toContain('rel="manifest"');
   });
 });
 

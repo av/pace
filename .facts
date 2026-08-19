@@ -276,6 +276,9 @@
 - label: The dashboard renders meta name=theme-color tags matching the --bg-base palette tokens (a prefers-color-scheme light media pair plus a dark default) so mobile browser chrome matches the theme on static/no-JS pages, and the client module pins both metas to the active theme on every theme change (t toggle, restore, live OS change)
   command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'theme-color'
   tags: [spec, implemented]
+- label: The dashboard serves a web app manifest (GET /manifest.webmanifest, linked from the interactive page head) making pace installable as a standalone home-screen app: name/short_name pace, display standalone, id/start_url/scope under the base path so instances install as distinct apps, the served /favicon.svg as the icon, and theme/background colors matching the dark theme-color default; static exports never link a manifest
+  command: bun test src/server.test.ts --test-name-pattern 'manifest'
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server

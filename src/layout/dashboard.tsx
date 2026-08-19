@@ -49,6 +49,12 @@ const Dashboard: FC<DashboardProps> = ({ layout, panelData, updatedAt, cssHref, 
         type="image/svg+xml"
         href={mode === "interactive" ? `${basePath}/favicon.svg` : faviconHref(0)}
       />
+      {/* Interactive pages are installable as a standalone app; static
+          exports are self-contained files with no server to serve a
+          manifest against, so they never link one. */}
+      {mode === "interactive" && (
+        <link rel="manifest" href={`${basePath}/manifest.webmanifest`} />
+      )}
       {/* Keyboard navigation is a progressive enhancement, so it only loads
           in interactive mode — static exports have no server to refresh
           against and must stay self-contained. Modules defer natively and

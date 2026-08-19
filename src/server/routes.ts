@@ -22,6 +22,7 @@ import { handleApiSearchRss } from "./api-search-rss";
 import { handleApiPanelRss, RSS_PANEL_SUFFIX } from "./api-panels-rss";
 import { handleApiSeenList, handleApiSeenSet } from "./api-seen";
 import { faviconSvg } from "../dashboard.js";
+import { MANIFEST_CONTENT_TYPE, webAppManifest } from "./manifest";
 
 export type RefreshSourcesFn = (sourceNames: string[]) => Promise<RefreshResult[]>;
 
@@ -289,6 +290,16 @@ export function registerServerRoutes(app: Hono, deps: ServerRouteDeps): void {
   app.get("/favicon.svg", (c) =>
     c.body(faviconSvg(0), 200, {
       "Content-Type": "image/svg+xml",
+      "Cache-Control": "public, max-age=3600",
+    }));
+
+  // Web app manifest, so browsers offer to install the dashboard as a
+  // standalone home-screen app. start_url/scope/icon are absolute under the
+  // base path so multiple pace instances behind one origin install as
+  // distinct apps.
+  app.get("/manifest.webmanifest", (c) =>
+    c.body(JSON.stringify(webAppManifest(deps.basePath), null, 2), 200, {
+      "Content-Type": MANIFEST_CONTENT_TYPE,
       "Cache-Control": "public, max-age=3600",
     }));
 
