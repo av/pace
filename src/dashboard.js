@@ -305,10 +305,13 @@ export function pageTitleWithUnread(base, count) {
 /**
  * Inline-SVG favicon for the dashboard, as a data: URL: a rounded dark
  * square with the accent "p" monogram, plus an unread dot in the top-right
- * corner while any read-tracked story is unseen. The count follows the same
- * rules as pageTitleWithUnread (only positive integers show the dot), so the
- * favicon and the tab-title prefix always agree. Colors are fixed — favicons
- * do not follow the page theme — matching the dark palette's accent.
+ * corner while any read-tracked story is unseen. When the count is a single
+ * digit (1–9) the dot renders the number itself, so a glance at the tab tells
+ * you how much is waiting; at 10+ the digit would be illegible at favicon
+ * size, so the dot goes plain. The count follows the same rules as
+ * pageTitleWithUnread (only positive integers show the dot), so the favicon
+ * and the tab-title prefix always agree. Colors are fixed — favicons do not
+ * follow the page theme — matching the dark palette's accent.
  *
  * faviconSvg returns the raw SVG markup — the server serves its plain
  * (dot-less) rendering at /favicon.svg, so static exports and no-JS visitors
@@ -316,10 +319,12 @@ export function pageTitleWithUnread(base, count) {
  * client-side unread-dot swap.
  */
 export function faviconSvg(count) {
-  const dot =
-    typeof count === "number" && Number.isInteger(count) && count > 0
-      ? '<circle cx="50" cy="14" r="13" fill="#e0645c"/>'
+  const unread = typeof count === "number" && Number.isInteger(count) && count > 0;
+  const digit =
+    unread && count < 10
+      ? `<text x="50" y="21" font-family="monospace" font-size="20" font-weight="700" text-anchor="middle" fill="#ffffff">${count}</text>`
       : "";
+  const dot = unread ? '<circle cx="50" cy="14" r="13" fill="#e0645c"/>' + digit : "";
   return (
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">' +
     '<rect width="64" height="64" rx="14" fill="#16161e"/>' +

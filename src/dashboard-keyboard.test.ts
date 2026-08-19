@@ -673,6 +673,24 @@ describe("top-corner toolbar helpers", () => {
     }
   });
 
+  test("the favicon dot renders the unread count as a digit when it fits (1-9), plain dot at 10+", () => {
+    for (const count of [1, 5, 9]) {
+      const svg = faviconSvg(count);
+      expect(svg).toContain("<circle");
+      expect(svg).toContain(`>${count}</text>`);
+    }
+    // Two digits would be illegible at favicon size: the dot goes plain.
+    for (const count of [10, 42, 1000]) {
+      const svg = faviconSvg(count);
+      expect(svg).toContain("<circle");
+      expect(svg.match(/<text/g)).toHaveLength(1); // only the "p" monogram
+    }
+    // The digit sits inside the dot's circle (white on the accent red).
+    expect(faviconSvg(7)).toContain('fill="#ffffff">7</text>');
+    // Zero/invalid counts never render a digit either (plain icon).
+    expect(faviconSvg(0).match(/<text/g)).toHaveLength(1);
+  });
+
   test("the server renders an icon link: /favicon.svg live, embedded data: URL in static exports", () => {
     const interactive = renderModeDashboard("interactive");
     expect(interactive).toContain('rel="icon"');

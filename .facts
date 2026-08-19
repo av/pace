@@ -261,6 +261,9 @@
 - label: Setting server.auto_mark_seen: false in the config disables mark-on-open: the server stamps data-auto-seen="off" on the dashboard body and opening an item's title link no longer marks it seen, leaving read state fully manual via the x/a keys and mark-seen buttons; defaults to true, non-boolean values fail config check, and the attribute is absent by default
   command: bun test src/server.test.ts --test-name-pattern 'auto_mark_seen'
   tags: [spec, implemented]
+- label: The favicon's unread dot renders the count as a digit while it is 1-9 (same distinct-story semantics as the tab-title prefix) and goes plain at 10 or more; the served /favicon.svg and static exports always stay the plain monogram
+  command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'favicon dot renders the unread count'
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server
