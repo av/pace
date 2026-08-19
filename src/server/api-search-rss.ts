@@ -9,7 +9,7 @@ import {
   RSS_CONTENT_TYPE,
   type RssFeedLinks,
 } from "./api-panels-rss";
-import { DEFAULT_API_SEARCH_LIMIT, parseSearchTerms } from "./api-search";
+import { DEFAULT_API_SEARCH_LIMIT, parseSearchQuery } from "./api-search";
 import type { ServerRouteDeps } from "./routes";
 
 /**
@@ -68,10 +68,9 @@ export function resolveSearchRssFeedLinks(requestUrl: string, basePath: string):
  * JSON endpoint; errors stay JSON like the panel RSS endpoint's.
  */
 export function handleApiSearchRss(c: Context, deps: ServerRouteDeps): Response {
-  const terms = parseSearchTerms(c.req.query("q"));
-  if (terms.length === 0) {
-    return c.json({ error: "q is required and must contain at least one search term" }, 400);
-  }
+  const queryResult = parseSearchQuery(c.req.query("q"));
+  if (!queryResult.ok) return c.json({ error: queryResult.error }, 400);
+  const { terms, starred, query } = queryResult.parsed;
 
   const limitResult = parseApiPanelItemsLimit(c.req.query("limit"));
   if (!limitResult.ok) return c.json({ error: limitResult.error }, 400);
@@ -85,9 +84,9 @@ export function handleApiSearchRss(c: Context, deps: ServerRouteDeps): Response 
     panelId = panel.isAll ? undefined : panel.pid;
   }
 
-  const rows = searchItems(terms, { panelId, limit });
+  const rows = searchItems(terms, { panelId, limit, starred });
   const xml = renderSearchRss(
-    terms.join(" "),
+    query,
     rows,
     resolveSearchRssFeedLinks(c.req.url, deps.basePath),
   );

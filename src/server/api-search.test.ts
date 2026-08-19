@@ -1,6 +1,19 @@
 import { describe, test, expect } from "bun:test";
-import { escapeLikeTerm, initDb, replacePanelItems, saveItems, searchItems } from "../db";
-import { DEFAULT_API_SEARCH_LIMIT, parseSearchTerms, serializeApiSearchItem } from "./api-search";
+import {
+  escapeLikeTerm,
+  initDb,
+  itemSeenKey,
+  replacePanelItems,
+  saveItems,
+  searchItems,
+  setItemStarred,
+} from "../db";
+import {
+  DEFAULT_API_SEARCH_LIMIT,
+  parseSearchQuery,
+  parseSearchTerms,
+  serializeApiSearchItem,
+} from "./api-search";
 import { makeContentItem as makeItem, makeContentItemRow } from "../test/content-items";
 import { installTempDbHooks } from "../test/temp-db";
 import { flexCfg, panelCfg } from "../test/layout-cfg";
@@ -35,6 +48,59 @@ describe("parseSearchTerms", () => {
     expect(parseSearchTerms(undefined)).toEqual([]);
     expect(parseSearchTerms("")).toEqual([]);
     expect(parseSearchTerms("   ")).toEqual([]);
+  });
+});
+
+describe("parseSearchQuery", () => {
+  test("plain terms pass through with a normalized echo", () => {
+    expect(parseSearchQuery("rust wasm")).toEqual({
+      ok: true,
+      parsed: { terms: ["rust", "wasm"], starred: undefined, query: "rust wasm" },
+    });
+  });
+
+  test("extracts starred:yes and starred:no case-insensitively", () => {
+    expect(parseSearchQuery("rust starred:yes")).toEqual({
+      ok: true,
+      parsed: { terms: ["rust"], starred: true, query: "rust starred:yes" },
+    });
+    expect(parseSearchQuery("Starred:NO rust")).toEqual({
+      ok: true,
+      parsed: { terms: ["rust"], starred: false, query: "rust starred:no" },
+    });
+  });
+
+  test("operator-only query is valid (list star state)", () => {
+    expect(parseSearchQuery("starred:yes")).toEqual({
+      ok: true,
+      parsed: { terms: [], starred: true, query: "starred:yes" },
+    });
+  });
+
+  test("repeated operators: last one wins", () => {
+    const result = parseSearchQuery("starred:no rust starred:yes");
+    expect(result).toEqual({
+      ok: true,
+      parsed: { terms: ["rust"], starred: true, query: "rust starred:yes" },
+    });
+  });
+
+  test("invalid starred: value is an error, not a text term", () => {
+    const result = parseSearchQuery("rust starred:ys");
+    expect(result).toEqual({
+      ok: false,
+      error: 'Invalid starred: filter "starred:ys" — use starred:yes or starred:no',
+    });
+    expect(parseSearchQuery("starred:").ok).toBe(false);
+  });
+
+  test("missing or blank query is an error", () => {
+    for (const raw of [undefined, "", "   "]) {
+      expect(parseSearchQuery(raw)).toEqual({
+        ok: false,
+        error: "q is required and must contain at least one search term",
+      });
+    }
   });
 });
 
@@ -130,6 +196,44 @@ describe("searchItems", () => {
     ]);
     const hits = searchItems(["rust"], { limit: 2 });
     expect(hits.map((row) => row.id)).toEqual(["t2", "t3"]);
+  });
+
+  test("starred: true keeps only starred dedup groups, false only unstarred", () => {
+    initDb();
+    const starredUrl = "https://ex.com/rust-starred";
+    saveItems("tech-panel", [
+      makeItem({ id: "t1", title: "rust starred", url: starredUrl }),
+      makeItem({ id: "t2", title: "rust plain", url: "https://ex.com/rust-plain" }),
+    ]);
+    setItemStarred(itemSeenKey({ id: "t1", url: starredUrl }), true);
+
+    expect(searchItems(["rust"], { limit: 50, starred: true }).map((r) => r.id)).toEqual(["t1"]);
+    expect(searchItems(["rust"], { limit: 50, starred: false }).map((r) => r.id)).toEqual(["t2"]);
+    expect(searchItems(["rust"], { limit: 50 })).toHaveLength(2);
+  });
+
+  test("star filter matches cross-panel twins via the dedup identity", () => {
+    initDb();
+    const url = "https://ex.com/Shared-Story/";
+    saveItems("tech-panel", [
+      makeItem({ id: "t1", title: "rust twin", url, timestamp: new Date("2026-08-02T10:00:00Z") }),
+    ]);
+    saveItems("blogs-panel", [
+      makeItem({ id: "b1", title: "rust twin", url, timestamp: new Date("2026-08-01T10:00:00Z") }),
+    ]);
+    // Star under the normalized dedup key, as /api/star does.
+    setItemStarred(itemSeenKey({ id: "b1", url }), true);
+    expect(searchItems(["rust"], { limit: 50, starred: true })).toHaveLength(1);
+  });
+
+  test("no terms with a star filter lists every item of that star state", () => {
+    initDb();
+    saveItems("tech-panel", [
+      makeItem({ id: "t1", title: "alpha", url: "https://ex.com/a" }),
+      makeItem({ id: "t2", title: "beta", url: "https://ex.com/b" }),
+    ]);
+    setItemStarred(itemSeenKey({ id: "t2", url: "https://ex.com/b" }), true);
+    expect(searchItems([], { limit: 50, starred: true }).map((r) => r.id)).toEqual(["t2"]);
   });
 });
 
@@ -229,6 +333,36 @@ describe("GET /api/search", () => {
     const capped = await getJson(app, "/api/search?q=rust&limit=1");
     expect(capped.res.status).toBe(200);
     expect(capped.body.items.map((item: any) => item.id)).toEqual(["t1"]);
+  });
+
+  test("starred:yes filters hits to starred items and echoes the operator", async () => {
+    initDb();
+    saveItems("tech-panel", [
+      makeItem({ id: "t1", title: "rust starred", url: "https://ex.com/s" }),
+      makeItem({ id: "t2", title: "rust plain", url: "https://ex.com/p" }),
+    ]);
+    setItemStarred(itemSeenKey({ id: "t1", url: "https://ex.com/s" }), true);
+    const app = createTestServerApp(makeServerRouteDeps({ layout: twoPanelLayout() }));
+
+    const { res, body } = await getJson(app, "/api/search?q=rust%20starred:yes");
+    expect(res.status).toBe(200);
+    expect(body.query).toBe("rust starred:yes");
+    expect(body.items.map((item: any) => item.id)).toEqual(["t1"]);
+
+    const only = await getJson(app, "/api/search?q=starred:yes");
+    expect(only.res.status).toBe(200);
+    expect(only.body.query).toBe("starred:yes");
+    expect(only.body.items.map((item: any) => item.id)).toEqual(["t1"]);
+  });
+
+  test("invalid starred: value is a 400 naming the valid forms", async () => {
+    initDb();
+    const app = createTestServerApp(makeServerRouteDeps({ layout: twoPanelLayout() }));
+    const { res, body } = await getJson(app, "/api/search?q=starred:maybe");
+    expect(res.status).toBe(400);
+    expect(body.error).toBe(
+      'Invalid starred: filter "starred:maybe" — use starred:yes or starred:no',
+    );
   });
 
   test("unknown panel is a JSON 404 like the panel API", async () => {

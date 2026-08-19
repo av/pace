@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { XMLParser } from "fast-xml-parser";
-import { initDb, saveItems } from "../db";
+import { initDb, itemSeenKey, saveItems, setItemStarred } from "../db";
 import { renderSearchRss, resolveSearchRssFeedLinks } from "./api-search-rss";
 import { RSS_CONTENT_TYPE } from "./api-panels-rss";
 import { makeContentItem as makeItem, makeContentItemRow } from "../test/content-items";
@@ -126,6 +126,25 @@ describe("GET /api/search.rss", () => {
       "Rust in tech",
       "Rust on blogs",
     ]);
+  });
+
+  test("starred:yes yields a subscribable starred-search feed titled with the operator", async () => {
+    initDb();
+    saveItems("tech-panel", [
+      makeItem({ id: "t1", title: "Rust starred", url: "https://ex.com/s" }),
+      makeItem({ id: "t2", title: "Rust plain", url: "https://ex.com/p" }),
+    ]);
+    setItemStarred(itemSeenKey({ id: "t1", url: "https://ex.com/s" }), true);
+
+    const app = createTestServerApp(makeServerRouteDeps({ layout: twoPanelLayout() }));
+    const { res, text } = await getRss(app, "/api/search.rss?q=rust%20starred:yes");
+    expect(res.status).toBe(200);
+    const channel = strictXmlParser.parse(text).rss.channel;
+    expect(channel.title).toBe("pace search: rust starred:yes");
+    expect(asArray(channel.item).map((item: any) => item.title)).toEqual(["Rust starred"]);
+
+    const bad = await requestServerRoute(app, "/api/search.rss?q=starred:maybe");
+    expect(bad.status).toBe(400);
   });
 
   test("scopes to a panel and applies the limit like the JSON endpoint", async () => {

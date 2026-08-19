@@ -195,6 +195,9 @@
 - label: GET /api/search.rss?q=terms renders the same server-side search as an RSS 2.0 saved-search feed: channel titled after the query, newest hit as lastBuildDate, self link keeping the query string, and the same term semantics, ?panel= scoping, and ?limit= validation as the JSON endpoint
   command: bun test src/server/api-search-rss.test.ts
   tags: [spec, implemented]
+- label: A starred:yes or starred:no term in an /api/search or /api/search.rss query filters hits by star state via the same dedup identity stars are saved under (an operator-only query lists that whole star state), any other starred:* value is a 400 naming the valid forms, and the normalized operator is echoed in the JSON query field and the RSS channel title
+  command: bun test src/server/api-search.test.ts src/server/api-search-rss.test.ts --test-name-pattern 'starred'
+  tags: [spec, implemented]
 - label: Pressing x on the dashboard toggles the focused item's seen state: seen items render dimmed, the state persists server-side in SQLite keyed by the item's dedup identity (normalized url, or id when url is empty) so it survives refreshes and is shared across browsers; GET /api/seen lists the seen keys and POST /api/seen {key, seen} sets one, with the same cross-site guard as refresh
   command: bun test src/server/api-seen.test.ts
   tags: [spec, implemented]
