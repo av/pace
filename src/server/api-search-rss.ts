@@ -1,7 +1,7 @@
 import type { Context } from "hono";
 import type { ContentItemRow } from "../db";
 import { searchItems } from "../db";
-import { parseApiPanelItemsLimit, resolveApiPanel } from "./api-panels";
+import { parseApiPanelItemsLimit } from "./api-panels";
 import {
   escapeXml,
   formatRssDate,
@@ -9,7 +9,11 @@ import {
   RSS_CONTENT_TYPE,
   type RssFeedLinks,
 } from "./api-panels-rss";
-import { DEFAULT_API_SEARCH_LIMIT, parseSearchQuery } from "./api-search";
+import {
+  DEFAULT_API_SEARCH_LIMIT,
+  parseSearchQuery,
+  resolveSearchPanelScope,
+} from "./api-search";
 import type { ServerRouteDeps } from "./routes";
 
 /**
@@ -64,8 +68,9 @@ export function resolveSearchRssFeedLinks(requestUrl: string, basePath: string):
  * GET /api/search.rss?q=terms[&panel=id][&limit=N] — the same server-side
  * search as /api/search, rendered as an RSS 2.0 feed so any query becomes a
  * subscribable "saved search" in a regular feed reader. Same term semantics,
- * panel scoping, limit validation, and deduped newest-first item set as the
- * JSON endpoint; errors stay JSON like the panel RSS endpoint's.
+ * panel scoping (`?panel=` or a `panel:<id>` operator in q), limit
+ * validation, and deduped newest-first item set as the JSON endpoint; errors
+ * stay JSON like the panel RSS endpoint's.
  */
 export function handleApiSearchRss(c: Context, deps: ServerRouteDeps): Response {
   const queryResult = parseSearchQuery(c.req.query("q"));
@@ -76,15 +81,10 @@ export function handleApiSearchRss(c: Context, deps: ServerRouteDeps): Response 
   if (!limitResult.ok) return c.json({ error: limitResult.error }, 400);
   const limit = limitResult.limit ?? DEFAULT_API_SEARCH_LIMIT;
 
-  const panelParam = c.req.query("panel");
-  let panelId: string | undefined;
-  if (panelParam !== undefined) {
-    const panel = resolveApiPanel(panelParam, deps);
-    if (!panel) return c.json({ error: `Unknown panel: ${panelParam}` }, 404);
-    panelId = panel.isAll ? undefined : panel.pid;
-  }
+  const scope = resolveSearchPanelScope(c.req.query("panel"), queryResult.parsed.panel, deps);
+  if (!scope.ok) return c.json({ error: scope.error }, scope.status);
 
-  const rows = searchItems(terms, { panelId, limit, starred, seen });
+  const rows = searchItems(terms, { panelId: scope.panelId, limit, starred, seen });
   const xml = renderSearchRss(
     query,
     rows,

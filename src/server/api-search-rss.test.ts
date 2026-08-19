@@ -178,6 +178,19 @@ describe("GET /api/search.rss", () => {
     expect(asArray(channel.item).map((item: any) => item.title)).toEqual(["rust blog"]);
   });
 
+  test("panel: operator in q scopes the feed and appears in the channel title", async () => {
+    initDb();
+    saveItems("tech-panel", [makeItem({ id: "t1", title: "rust tech" })]);
+    saveItems("blogs-panel", [makeItem({ id: "b1", title: "rust blog" })]);
+
+    const app = createTestServerApp(makeServerRouteDeps({ layout: twoPanelLayout() }));
+    const { res, text } = await getRss(app, "/api/search.rss?q=rust%20panel:blogs-panel");
+    expect(res.status).toBe(200);
+    const channel = strictXmlParser.parse(text).rss.channel;
+    expect(channel.title).toBe("pace search: rust panel:blogs-panel");
+    expect(asArray(channel.item).map((item: any) => item.title)).toEqual(["rust blog"]);
+  });
+
   test("missing q is a JSON 400", async () => {
     initDb();
     const app = createTestServerApp(makeServerRouteDeps({ layout: twoPanelLayout() }));

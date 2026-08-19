@@ -123,6 +123,48 @@ describe("parseSearchQuery", () => {
     expect(parseSearchQuery("starred:").ok).toBe(false);
   });
 
+  test("extracts panel:<id> with the operator name case-insensitive, id kept as typed", () => {
+    const yes = parseSearchQuery("rust PANEL:tech-panel");
+    expect(yes.ok).toBe(true);
+    if (yes.ok) {
+      expect(yes.parsed.panel).toBe("tech-panel");
+      expect(yes.parsed.terms).toEqual(["rust"]);
+      expect(yes.parsed.query).toBe("rust panel:tech-panel");
+    }
+    // The id itself keeps its case: panel resolution is exact-match.
+    const cased = parseSearchQuery("rust panel:Tech");
+    if (cased.ok) expect(cased.parsed.panel).toBe("Tech");
+  });
+
+  test("repeated panel: operators — last one wins, combinable with state operators", () => {
+    const result = parseSearchQuery("panel:a rust seen:no panel:b");
+    expect(result).toEqual({
+      ok: true,
+      parsed: {
+        terms: ["rust"],
+        starred: undefined,
+        seen: false,
+        panel: "b",
+        query: "rust seen:no panel:b",
+      },
+    });
+  });
+
+  test("bare panel: is an error, not a text term", () => {
+    expect(parseSearchQuery("rust panel:")).toEqual({
+      ok: false,
+      error: 'Invalid panel: filter "panel:" — use panel:<panel-id>',
+    });
+  });
+
+  test("panel:-only query is an error pointing at the panel API", () => {
+    const result = parseSearchQuery("panel:tech-panel");
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain("/api/panels/<id>");
+    // But panel: plus a state operator is a valid query.
+    expect(parseSearchQuery("panel:tech-panel starred:yes").ok).toBe(true);
+  });
+
   test("missing or blank query is an error", () => {
     for (const raw of [undefined, "", "   "]) {
       expect(parseSearchQuery(raw)).toEqual({
@@ -365,6 +407,40 @@ describe("GET /api/search", () => {
 
     const byName = await getJson(app, "/api/search?q=rust&panel=Blogs");
     expect(byName.body.items.map((item: any) => item.id)).toEqual(["b1"]);
+  });
+
+  test("panel: operator in q scopes like ?panel= and is echoed in the query", async () => {
+    initDb();
+    saveItems("tech-panel", [makeItem({ id: "t1", title: "rust tech" })]);
+    saveItems("blogs-panel", [makeItem({ id: "b1", title: "rust blog" })]);
+
+    const app = createTestServerApp(makeServerRouteDeps({ layout: twoPanelLayout() }));
+    const byId = await getJson(app, "/api/search?q=rust%20panel:blogs-panel");
+    expect(byId.res.status).toBe(200);
+    expect(byId.body.items.map((item: any) => item.id)).toEqual(["b1"]);
+    expect(byId.body.query).toBe("rust panel:blogs-panel");
+
+    const byName = await getJson(app, "/api/search?q=rust%20panel:Blogs");
+    expect(byName.body.items.map((item: any) => item.id)).toEqual(["b1"]);
+  });
+
+  test("panel: in q with an unknown id is a JSON 404", async () => {
+    initDb();
+    const app = createTestServerApp(makeServerRouteDeps({ layout: twoPanelLayout() }));
+    const { res, body } = await getJson(app, "/api/search?q=rust%20panel:nope");
+    expect(res.status).toBe(404);
+    expect(body.error).toBe("Unknown panel: nope");
+  });
+
+  test("giving both ?panel= and a panel: operator is a 400", async () => {
+    initDb();
+    const app = createTestServerApp(makeServerRouteDeps({ layout: twoPanelLayout() }));
+    const { res, body } = await getJson(
+      app,
+      "/api/search?q=rust%20panel:tech-panel&panel=blogs-panel",
+    );
+    expect(res.status).toBe(400);
+    expect(body.error).toBe("Use either ?panel= or a panel: operator in q, not both");
   });
 
   test("empty result set is a 200 with count 0", async () => {

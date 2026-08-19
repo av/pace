@@ -321,6 +321,9 @@
 - label: The dashboard's / filter bar accepts a panel:<id> token that scopes the filter to the panel with that data-panel-id (case-insensitive, last-wins, combinable with text terms and state operators; a bare panel: stays a literal text term), and its RSS saved-search link maps the operator onto /api/search.rss's ?panel= parameter while a panel:-only query offers no link
   command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'panel:|itemMatchesPanelFilter'
   tags: [spec, implemented]
+- label: A panel:<id> operator inside an /api/search or /api/search.rss query scopes the search to that panel exactly like ?panel= (id or display name, unknown panel a 404) so a dashboard filter-bar query pastes into q verbatim; giving both ?panel= and panel: is a 400, a bare panel: is a 400 naming the form, and the normalized operator is echoed in the JSON query field and the RSS channel title
+  command: bun test src/server/api-search.test.ts src/server/api-search-rss.test.ts --test-name-pattern 'panel:'
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server
