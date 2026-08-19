@@ -42,6 +42,7 @@ import {
   HIDDEN_COUNT_CLASS,
   hiddenCountBadge,
   UNSEEN_COUNT_CLASS,
+  pageTitleWithUnread,
   unseenCountBadge,
 } from "./dashboard.js";
 import { itemSeenKey } from "./db";
@@ -632,6 +633,19 @@ describe("top-corner toolbar helpers", () => {
     expect(unseenCountBadge(5, 6)).toBe("");
     expect(unseenCountBadge(2.5, 1)).toBe("");
     expect(unseenCountBadge(5, NaN)).toBe("");
+  });
+
+  test("pageTitleWithUnread prefixes only positive integer counts", () => {
+    expect(pageTitleWithUnread("pace", 7)).toBe("(7) pace");
+    expect(pageTitleWithUnread("pace", 1)).toBe("(1) pace");
+    // Caught up (and anything non-count) restores the untouched base title.
+    expect(pageTitleWithUnread("pace", 0)).toBe("pace");
+    expect(pageTitleWithUnread("pace", -1)).toBe("pace");
+    expect(pageTitleWithUnread("pace", 2.5)).toBe("pace");
+    expect(pageTitleWithUnread("pace", "7")).toBe("pace");
+    expect(pageTitleWithUnread("pace", NaN)).toBe("pace");
+    // A broken base can never leak "undefined" into the tab.
+    expect(pageTitleWithUnread(undefined, 3)).toBe("");
   });
 
   test("the unseen-count badge is client-injected: the server never renders it", () => {

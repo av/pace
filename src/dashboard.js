@@ -32,7 +32,9 @@
  * small fixed toolbar in the top-right corner mirrors the page-wide keys —
  * theme toggle (t), hide-seen (Shift+X, with a badge counting the items the
  * mode currently hides), and help (?). All of these are
- * client-injected so static exports never render them.
+ * client-injected so static exports never render them. The browser-tab title
+ * mirrors the page's unread total ("(N) pace", distinct stories), synced
+ * through the same seen-state funnel.
  *
  * Pure helpers are exported so the test suite can unit-test them without a
  * DOM; the event wiring at the bottom only runs in a real browser.
@@ -280,6 +282,19 @@ export function unseenCountBadge(total, seen) {
   }
   const unseen = total - seen;
   return unseen > 0 ? String(unseen) : "";
+}
+
+/**
+ * Browser-tab title carrying the page's unread total, email style:
+ * "(N) <base>" while any read-tracked story is unread, the untouched base
+ * title once everything is caught up. Counts come from DOM queries, so only
+ * positive finite integers prefix anything; the base is returned unchanged
+ * otherwise so a broken count can never eat the title.
+ */
+export function pageTitleWithUnread(base, count) {
+  if (typeof base !== "string") return "";
+  if (typeof count !== "number" || !Number.isInteger(count) || count <= 0) return base;
+  return `(${count}) ${base}`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -768,6 +783,27 @@ function syncUnseenCountBadge(panel) {
   badge.title = text === "" ? "" : `${text} unread`;
 }
 
+/**
+ * The server-rendered document title, captured before the first unread-count
+ * prefix is applied so syncPageTitle can always rebuild from a clean base.
+ */
+let basePageTitle = null;
+
+/**
+ * Mirror the page's unread total into the browser-tab title ("(N) pace"),
+ * counting distinct unseen dedup keys so a story duplicated across panels
+ * counts once — matching how one x mark clears its twins everywhere. Every
+ * seen-state mutation funnels through refreshAllSeenPanels, which calls this.
+ */
+function syncPageTitle() {
+  if (basePageTitle === null) basePageTitle = document.title;
+  const unread = new Set();
+  for (const item of document.querySelectorAll(".item[data-seen-key]")) {
+    if (!item.classList.contains(SEEN_CLASS)) unread.add(item.dataset.seenKey);
+  }
+  document.title = pageTitleWithUnread(basePageTitle, unread.size);
+}
+
 /** Dim panels whose every item is seen (only visible while hide-seen is on). */
 function refreshAllSeenPanels() {
   for (const panel of document.querySelectorAll(".panel")) {
@@ -780,6 +816,7 @@ function refreshAllSeenPanels() {
     // seen-state mutation funnels through here.
     syncUnseenCountBadge(panel);
   }
+  syncPageTitle();
   // Keep the injected per-item buttons' ARIA state in step with the marks;
   // every seen-state mutation funnels through here.
   for (const btn of document.querySelectorAll(`.${ITEM_SEEN_BTN_CLASS}`)) {

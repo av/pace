@@ -237,6 +237,9 @@
 - label: The dashboard client injects an unseen-count badge into every read-tracked panel header - it shows how many of the panel's seen-keyed items are not yet marked seen, updates through the refreshAllSeenPanels funnel on every seen mutation, collapses when empty (fully read or no tracked items), and is never rendered by the server or static exports
   command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'unseenCountBadge|unseen-count'
   tags: [spec, dashboard, implemented]
+- label: The dashboard's browser-tab title carries the page's unread total email style ((N) pace) counting distinct unseen dedup keys so cross-panel duplicates count once, updating live through the seen-state funnel and restoring the untouched server-rendered title at zero; client-side only, so static/no-JS pages keep their normal title
+  command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'pageTitleWithUnread'
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server
