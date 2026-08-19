@@ -323,7 +323,8 @@ layout:
 #     format: ntfy                          # optional delivery format: json (default), ntfy, discord, slack, template
 #     # template: "ALERT {{matched}}: {{items}}"  # custom body for format: template ({{rule}}, {{matched}}, {{headline}}, {{items}})
 #     # item_template: "{{title}} — {{url}}"       # optional per-item line for {{items}} ({{title}}, {{url}}, {{source}}, {{score}}, {{meta}})
-#     #   every placeholder also has a {{name_json}} twin substituting a JSON literal, for JSON-envelope bodies
+#     #   every placeholder also has a {{name_json}} twin substituting a JSON literal, for JSON-envelope bodies;
+#     #   {{items_json_array}} substitutes the matched items as a real JSON array of item objects
 #     headers:                              # optional extra HTTP headers (auth tokens etc.)
 #       Authorization: Bearer ${NTFY_TOKEN} # ${VAR} env expansion keeps secrets out of the file
 

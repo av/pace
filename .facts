@@ -267,6 +267,9 @@
 - label: Every notify template placeholder (both template and item_template) has a {{name_json}} twin substituting a JSON literal — strings escaped and quoted, {{matched_json}} a bare number, {{score_json}} a number or null when unscored — so a template body can be a valid JSON envelope regardless of quotes or newlines in feed titles; the twins pass config validation and unknown-placeholder errors list them
   command: bun test src/notify-format.test.ts
   tags: [spec, implemented]
+- label: A notify template body may use {{items_json_array}} to substitute the matched items as a real JSON array of NotifyPayloadItem objects (the same shape the json format sends); it is valid only in the top-level template, is never reshaped by item_template, passes config validation, and appears in unknown-placeholder error lists
+  command: bun test src/notify-format.test.ts --test-name-pattern 'items_json_array'
+  tags: [spec, implemented]
 - label: The stylesheet declares CSS color-scheme per theme (dark on the base :root, light in both the data-theme='light' block and the static-export prefers-color-scheme block) so native browser UI - form controls, classic scrollbars, overscroll background - matches the active palette without JavaScript
   command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'color-scheme'
   tags: [spec, implemented]

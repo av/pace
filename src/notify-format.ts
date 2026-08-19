@@ -72,11 +72,18 @@ function plainItemLines(payload: NotifyPayload): string[] {
  * a bare number — so a template can be a JSON envelope (say
  * `{"text": {{headline_json}}}`) that stays valid no matter what quotes or
  * newlines a feed title carries.
+ *
+ * `{{items_json_array}}` is a structural extra beyond the twins: a real JSON
+ * array of the payload's item objects — the same {@link NotifyPayloadItem}
+ * shape the `json` format sends (`title`, `url`, `source`, `panel`,
+ * `timestamp`, `score`, `summary`) — for receivers that want structured
+ * items rather than one preformatted text blob.
  */
 const NOTIFY_TEMPLATE_BASE = ["rule", "matched", "headline", "items"] as const;
 export const NOTIFY_TEMPLATE_PLACEHOLDERS: readonly string[] = [
   ...NOTIFY_TEMPLATE_BASE,
   ...NOTIFY_TEMPLATE_BASE.map((name) => `${name}_json`),
+  "items_json_array",
 ];
 
 /**
@@ -170,9 +177,8 @@ function renderTemplate(template: string, payload: NotifyPayload, itemTemplate?:
     const more = moreLine(payload, payload.items.length);
     if (more !== null) itemLines.push(more);
   }
-  const body = substitute(
-    template,
-    withJsonTwins(
+  const body = substitute(template, {
+    ...withJsonTwins(
       {
         rule: payload.rule,
         matched: String(payload.matched),
@@ -181,7 +187,9 @@ function renderTemplate(template: string, payload: NotifyPayload, itemTemplate?:
       },
       { matched: payload.matched },
     ),
-  );
+    // Structural extra (not a twin): the item objects as a real JSON array.
+    items_json_array: JSON.stringify(payload.items),
+  });
   return { body, headers: { "Content-Type": "text/plain; charset=utf-8" } };
 }
 

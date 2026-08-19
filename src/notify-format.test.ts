@@ -196,6 +196,27 @@ describe("notify-format: renderNotifyDelivery", () => {
     expect(unknownTemplatePlaceholders("{{rule_JSON}}")).toEqual(["rule_JSON"]);
   });
 
+  test("{{items_json_array}} substitutes the item objects as a real JSON array", () => {
+    const d = renderNotifyDelivery(
+      "template",
+      payload({ matched: 2, items: [item({ title: 'A "quoted"\ntitle' }), item({ title: "plain", score: null })] }),
+      '{"rule": {{rule_json}}, "items": {{items_json_array}}}',
+    );
+    const parsed = JSON.parse(d.body) as { rule: string; items: NotifyPayloadItem[] };
+    // The full NotifyPayloadItem shape, exactly what the `json` format sends.
+    expect(parsed.items).toEqual([item({ title: 'A "quoted"\ntitle' }), item({ title: "plain", score: null })]);
+    // Presentation only: item_template reshapes {{items}}, never the array.
+    const shaped = renderNotifyDelivery(
+      "template",
+      payload({ matched: 1 }),
+      "{{items_json_array}}",
+      "{{title}}",
+    );
+    expect(JSON.parse(shaped.body)).toEqual([item()]);
+    expect(unknownTemplatePlaceholders("{{items_json_array}}")).toEqual([]);
+    expect(unknownItemTemplatePlaceholders("{{items_json_array}}")).toEqual(["items_json_array"]);
+  });
+
   test("template format without a template throws (validation prevents this)", () => {
     expect(() => renderNotifyDelivery("template", payload())).toThrow(/requires a template/);
   });
