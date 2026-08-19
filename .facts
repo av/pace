@@ -306,6 +306,9 @@
 - label: pressing Shift+S (or the toolbar star button) shows only starred items: unstarred items hide, starless panels dim, and the choice persists per browser
   command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'starred-only'
   tags: [spec, implemented]
+- label: GET /api/star.rss serves the starred items as an RSS 2.0 feed, most recently starred first: star keys resolved to stored rows via the shared dedup identity so each story appears once across panels, newest star mark as lastBuildDate, ?limit= (1-500) validated like the panel endpoints, empty list still a valid feed, and pruned items absent until re-fetched
+  command: bun test src/server/api-star-rss.test.ts
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server

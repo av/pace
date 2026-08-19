@@ -554,6 +554,34 @@ export function getStarredKeys(): string[] {
   return rows.map((row) => row.star_key);
 }
 
+/** A content row joined with the timestamp its star mark was created at. */
+export type StarredContentItemRow = ContentItemRow & { starred_at: string };
+
+/**
+ * The stored items carrying a star mark, most recently starred first (item
+ * timestamp breaking ties). Joins star keys back to content rows through the
+ * same dedup-group expression the keys were derived from (see itemSeenKey),
+ * over the deduped winners only — so each starred story appears once even
+ * when several panels hold copies. Stars whose item has left the retention
+ * window match no row and are simply absent (the mark itself survives, see
+ * setItemStarred).
+ */
+export function getStarredItems(limit?: number): StarredContentItemRow[] {
+  const db = getDb();
+  // Both tables have a rowid, so the winner membership test is qualified.
+  let sql = `SELECT content_items.*, starred_items.starred_at AS starred_at
+    FROM content_items
+    JOIN starred_items ON ${DEDUP_GROUP_EXPR} = starred_items.star_key
+    WHERE content_items.${dedupWinnerSubquery("")}
+    ORDER BY starred_items.starred_at DESC, timestamp DESC`;
+  const params: (string | number)[] = [];
+  if (limit != null) {
+    sql += ` LIMIT ?`;
+    params.push(limit);
+  }
+  return db.prepare(sql).all(...params) as StarredContentItemRow[];
+}
+
 // --- Webhook notification ledger ---------------------------------------------
 
 /**
