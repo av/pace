@@ -139,16 +139,74 @@ export function itemMatchesFilter(terms, text) {
 }
 
 /**
+ * Parse a filter-bar query into text terms plus optional state operators,
+ * mirroring the server's /api/search grammar: `starred:yes|no` and
+ * `seen:yes|no` tokens (case-insensitive, last-wins when repeated) filter by
+ * state, everything else is a text term. Tokens with invalid operator values
+ * (`starred:ys`) stay plain text terms — the client filter has no way to
+ * report a 400, and a literal match is the least surprising fallback.
+ */
+export function parseClientFilterQuery(raw) {
+  const parsed = { terms: [] };
+  if (typeof raw !== "string") return parsed;
+  for (const token of raw.toLowerCase().split(/\s+/)) {
+    if (token.length === 0) continue;
+    const match = token.match(/^(starred|seen):(yes|no)$/);
+    if (match) {
+      parsed[match[1]] = match[2] === "yes";
+    } else {
+      parsed.terms.push(token);
+    }
+  }
+  return parsed;
+}
+
+/**
+ * True when an item's star/seen state satisfies the query's operators.
+ * Operators the query does not use never exclude anything, so a plain text
+ * query behaves exactly as before.
+ */
+export function itemMatchesStateFilter(parsed, starred, seen) {
+  if (parsed === null || typeof parsed !== "object") return true;
+  if (typeof parsed.starred === "boolean" && parsed.starred !== (starred === true)) {
+    return false;
+  }
+  if (typeof parsed.seen === "boolean" && parsed.seen !== (seen === true)) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Rebuild the normalized query string a parsed filter represents: text terms
+ * first, then the normalized operators. Empty ("") when the query has
+ * neither, i.e. it matches everything.
+ */
+export function clientFilterQueryString(parsed) {
+  if (parsed === null || typeof parsed !== "object") return "";
+  const parts = Array.isArray(parsed.terms) ? [...parsed.terms] : [];
+  if (typeof parsed.starred === "boolean") {
+    parts.push(`starred:${parsed.starred ? "yes" : "no"}`);
+  }
+  if (typeof parsed.seen === "boolean") {
+    parts.push(`seen:${parsed.seen ? "yes" : "no"}`);
+  }
+  return parts.join(" ");
+}
+
+/**
  * Build the /api/search.rss subscribe URL for a filter query, or null when
- * the query has no terms (nothing to subscribe to). Terms are normalized
- * through parseFilterQuery so the feed searches exactly what the bar shows,
- * and the base must be a string (the api root, no trailing slash).
+ * the query has no terms and no operators (nothing to subscribe to). The
+ * query is normalized through parseClientFilterQuery so the feed searches
+ * exactly what the bar shows — the server's /api/search shares the bar's
+ * term and starred:/seen: operator semantics — and the base must be a
+ * string (the api root, no trailing slash).
  */
 export function searchFeedUrl(base, raw) {
   if (typeof base !== "string") return null;
-  const terms = parseFilterQuery(raw);
-  if (terms.length === 0) return null;
-  return `${base}/api/search.rss?q=${encodeURIComponent(terms.join(" "))}`;
+  const query = clientFilterQueryString(parseClientFilterQuery(raw));
+  if (query.length === 0) return null;
+  return `${base}/api/search.rss?q=${encodeURIComponent(query)}`;
 }
 
 /** localStorage key holding the JSON array of collapsed panel ids. */
@@ -1214,6 +1272,9 @@ function refreshAllSeenPanels() {
     syncUnseenCountBadge(panel);
   }
   syncPageTitle();
+  // While the filter bar is open, a star/seen mutation can change which items
+  // a starred:/seen: operator matches — re-apply so the view stays truthful.
+  if (filterOpen()) applyFilter(filterInput.value);
   // Keep the injected per-item buttons' ARIA state in step with the marks;
   // every seen-state mutation funnels through here.
   for (const btn of document.querySelectorAll(`.${ITEM_SEEN_BTN_CLASS}`)) {
@@ -1424,12 +1485,19 @@ let filterReturnFocus = null;
 
 /** Hide/show items to match the query; dim panels left with no matches. */
 function applyFilter(raw) {
-  const terms = parseFilterQuery(raw);
+  const parsed = parseClientFilterQuery(raw);
+  const active = clientFilterQueryString(parsed).length > 0;
   let visible = 0;
   let total = 0;
   for (const item of document.querySelectorAll(".panel-body .item")) {
     total += 1;
-    const match = itemMatchesFilter(terms, item.textContent);
+    const match =
+      itemMatchesFilter(parsed.terms, item.textContent) &&
+      itemMatchesStateFilter(
+        parsed,
+        item.classList.contains(STARRED_CLASS),
+        item.classList.contains(SEEN_CLASS),
+      );
     item.hidden = !match;
     if (match) visible += 1;
   }
@@ -1439,7 +1507,7 @@ function applyFilter(raw) {
     panel.classList.toggle("filter-no-match", items.length > 0 && !anyVisible);
   }
   if (filterCount) {
-    filterCount.textContent = terms.length === 0 ? "" : `${visible} / ${total}`;
+    filterCount.textContent = active ? `${visible} / ${total}` : "";
   }
   if (filterSubscribe) {
     // Offer the query as a saved-search feed; the server-side search shares
@@ -1459,8 +1527,11 @@ function buildFilterBar() {
   const input = document.createElement("input");
   input.type = "text";
   input.className = "item-filter-input";
-  input.placeholder = "Filter items…";
-  input.setAttribute("aria-label", "Filter items across panels");
+  input.placeholder = "Filter items… (starred:yes, seen:no)";
+  input.setAttribute(
+    "aria-label",
+    "Filter items across panels; starred:yes/no and seen:yes/no filter by state",
+  );
   input.addEventListener("input", () => applyFilter(input.value));
   input.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {

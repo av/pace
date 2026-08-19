@@ -24,6 +24,18 @@ export declare function keyMove(key: string): KeyMove | null;
 export declare const HELP_ROWS: ReadonlyArray<readonly [string, string]>;
 export declare function parseFilterQuery(raw: unknown): string[];
 export declare function itemMatchesFilter(terms: readonly string[], text: unknown): boolean;
+export interface ClientFilterQuery {
+  terms: string[];
+  starred?: boolean;
+  seen?: boolean;
+}
+export declare function parseClientFilterQuery(raw: unknown): ClientFilterQuery;
+export declare function itemMatchesStateFilter(
+  parsed: unknown,
+  starred: unknown,
+  seen: unknown,
+): boolean;
+export declare function clientFilterQueryString(parsed: unknown): string;
 export declare function searchFeedUrl(base: unknown, raw: unknown): string | null;
 export declare function serviceWorkerUrl(moduleUrl: unknown): string;
 export declare const OFFLINE_BANNER_CLASS: string;

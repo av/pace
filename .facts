@@ -315,6 +315,9 @@
 - label: A seen:yes or seen:no term in an /api/search or /api/search.rss query filters hits by seen state via the same dedup identity seen marks are saved under (operators combine with starred: and an operator-only query is valid), any other seen:* value is a 400 naming the valid forms, and the normalized operator is echoed in the JSON query field and the RSS channel title
   command: bun test src/server/api-search.test.ts src/server/api-search-rss.test.ts --test-name-pattern 'seen'
   tags: [spec, implemented]
+- label: The dashboard's / filter bar accepts starred:yes/no and seen:yes/no tokens that filter the rendered items by star/seen state with the same case-insensitive last-wins semantics as /api/search (invalid values stay plain text terms), re-filters live when star or seen marks change while the bar is open, and carries the normalized operators into its RSS saved-search link
+  command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'parseClientFilterQuery|itemMatchesStateFilter|clientFilterQueryString|operators'
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server

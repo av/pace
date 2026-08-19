@@ -233,7 +233,7 @@ Feed items carry the title, link, a stable non-permalink `guid`, the source feed
 curl 'http://localhost:7453/api/search?q=rust+wasm&limit=10'
 ```
 
-`GET /api/search.rss?q=<terms>` is the same search rendered as an RSS 2.0 feed — subscribe to any query as a **saved search** in a regular feed reader and new matches from any source show up there. Same term semantics, `?panel=` scoping, and `?limit=` cap as the JSON endpoint; the channel is titled after the query and the feed's self link keeps the query string, since that is the feed's identity. The dashboard's `/` filter bar links every non-empty query here (the **RSS** link), so a filter you keep typing is one click from becoming a feed:
+`GET /api/search.rss?q=<terms>` is the same search rendered as an RSS 2.0 feed — subscribe to any query as a **saved search** in a regular feed reader and new matches from any source show up there. Same term semantics, `?panel=` scoping, and `?limit=` cap as the JSON endpoint; the channel is titled after the query and the feed's self link keeps the query string, since that is the feed's identity. The dashboard's `/` filter bar speaks the same grammar — `starred:yes/no` and `seen:yes/no` tokens filter the rendered items by state (e.g. `rust seen:no`, or `starred:yes` alone for your pins), state marks re-filter live as you star or read things — and it links every non-empty query here (the **RSS** link), so a filter you keep typing is one click from becoming a feed:
 
 ```bash
 curl 'http://localhost:7453/api/search.rss?q=rust+wasm'
@@ -386,7 +386,7 @@ The dashboard can be driven entirely from the keyboard; pressing `?` on a runnin
 | `s` | Star / unstar the focused item (accent ★ after the title; persisted server-side, shared across browsers). Starred items are exempt from hide-seen and seen dimming, so kept stories never vanish |
 | `X` | Hide / show seen items across all panels (Shift+x; remembered per browser) |
 | `S` | Show only starred items across all panels (Shift+s; remembered per browser). Panels with nothing starred dim so your pinned stories stand out |
-| `/` | Filter items across panels (the bar links the query as an RSS saved search) |
+| `/` | Filter items across panels (text terms plus `starred:yes/no` and `seen:yes/no`; the bar links the query as an RSS saved search) |
 | `?` | Show or hide the help overlay |
 | `Esc` | Close the help overlay |
 

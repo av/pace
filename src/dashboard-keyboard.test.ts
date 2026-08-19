@@ -5,7 +5,10 @@ import {
   HELP_ROWS,
   KEY_MOVES,
   isTypingTarget,
+  clientFilterQueryString,
   itemMatchesFilter,
+  itemMatchesStateFilter,
+  parseClientFilterQuery,
   keyMove,
   moveIndex,
   parseFilterQuery,
@@ -199,6 +202,70 @@ describe("parseFilterQuery", () => {
   });
 });
 
+describe("parseClientFilterQuery", () => {
+  test("splits text terms and lifts starred:/seen: operators (case-insensitive)", () => {
+    expect(parseClientFilterQuery("Rust starred:yes")).toEqual({
+      terms: ["rust"],
+      starred: true,
+    });
+    expect(parseClientFilterQuery("SEEN:NO llama Starred:No")).toEqual({
+      terms: ["llama"],
+      starred: false,
+      seen: false,
+    });
+  });
+
+  test("repeated operators last-wins, matching /api/search", () => {
+    expect(parseClientFilterQuery("starred:no starred:yes")).toEqual({
+      terms: [],
+      starred: true,
+    });
+  });
+
+  test("invalid operator values stay plain text terms", () => {
+    expect(parseClientFilterQuery("starred:ys seen:")).toEqual({
+      terms: ["starred:ys", "seen:"],
+    });
+  });
+
+  test("empty or non-string input yields the match-everything query", () => {
+    for (const raw of ["", "   ", undefined, null, 42]) {
+      expect(parseClientFilterQuery(raw)).toEqual({ terms: [] });
+    }
+  });
+});
+
+describe("itemMatchesStateFilter", () => {
+  test("unused operators never exclude anything", () => {
+    expect(itemMatchesStateFilter({ terms: ["rust"] }, false, true)).toBe(true);
+    expect(itemMatchesStateFilter(null, true, true)).toBe(true);
+  });
+
+  test("starred: and seen: each filter on their own state", () => {
+    expect(itemMatchesStateFilter({ terms: [], starred: true }, true, false)).toBe(true);
+    expect(itemMatchesStateFilter({ terms: [], starred: true }, false, false)).toBe(false);
+    expect(itemMatchesStateFilter({ terms: [], seen: false }, false, false)).toBe(true);
+    expect(itemMatchesStateFilter({ terms: [], seen: false }, false, true)).toBe(false);
+  });
+
+  test("operators combine (starred:yes seen:no = pinned-but-unread)", () => {
+    const parsed = { terms: [], starred: true, seen: false };
+    expect(itemMatchesStateFilter(parsed, true, false)).toBe(true);
+    expect(itemMatchesStateFilter(parsed, true, true)).toBe(false);
+    expect(itemMatchesStateFilter(parsed, false, false)).toBe(false);
+  });
+});
+
+describe("clientFilterQueryString", () => {
+  test("rebuilds terms then normalized operators; empty when nothing is set", () => {
+    expect(clientFilterQueryString({ terms: ["rust"], starred: true, seen: false })).toBe(
+      "rust starred:yes seen:no",
+    );
+    expect(clientFilterQueryString({ terms: [] })).toBe("");
+    expect(clientFilterQueryString(null)).toBe("");
+  });
+});
+
 describe("itemMatchesFilter", () => {
   test("no terms matches everything (clearing the input restores all items)", () => {
     expect(itemMatchesFilter([], "anything")).toBe(true);
@@ -235,6 +302,20 @@ describe("itemMatchesFilter", () => {
     }
     expect(searchFeedUrl(undefined, "rust")).toBeNull();
     expect(searchFeedUrl(null, "rust")).toBeNull();
+  });
+
+  test("searchFeedUrl carries normalized starred:/seen: operators into the feed", () => {
+    expect(searchFeedUrl("", "rust STARRED:YES")).toBe(
+      "/api/search.rss?q=rust%20starred%3Ayes",
+    );
+    // Operator-only queries are valid server-side, so they are subscribable.
+    expect(searchFeedUrl("", "starred:yes seen:no")).toBe(
+      "/api/search.rss?q=starred%3Ayes%20seen%3Ano",
+    );
+    // Last-wins normalization: only the surviving operator is in the feed.
+    expect(searchFeedUrl("", "seen:yes seen:no")).toBe(
+      "/api/search.rss?q=seen%3Ano",
+    );
   });
 
   test("round-trips with parseFilterQuery", () => {
