@@ -24,10 +24,18 @@ Examples:
   pace search rust async
   pace search seen:no panel:hacker-news
   pace search --json --limit 5 starred:yes
+  pace search --rss rust seen:no
 
 Options:
   --json                Emit hits as JSON (the /api/search shape plus
                         starred/seen booleans) instead of text lines
+  --rss                 Print the saved-search feed URL (/api/search.rss)
+                        for the query instead of searching, ready to paste
+                        into a feed reader. Points at http://localhost:<port>
+                        (see --port); swap in your own origin/base_path when
+                        the dashboard is served behind a proxy. A panel:
+                        operator stays in the URL and resolves server-side.
+  -p, --port <number>   Port for the --rss feed URL (default: 7453, or $PORT)
   -n, --limit <n>       Maximum hits to return (1-500, default 50)
   -c, --config <path>   Path to config file (default: ./config.yaml)
   -P, --preset <name>   Use a bundled preset config
@@ -123,6 +131,21 @@ export function formatSearchJson(
     };
   });
   return JSON.stringify({ query, count: rows.length, items }, null, 2);
+}
+
+/**
+ * The saved-search feed URL for `--rss`: the query (terms + operators,
+ * normalized by parseSearchQuery) URL-encoded into /api/search.rss's `?q=`,
+ * plus `&limit=` when one was given. A `panel:` operator stays inside `q` —
+ * the endpoint resolves it at fetch time (shared query grammar), so
+ * printing the URL needs neither the config nor the database. The host is
+ * `http://localhost:<port>` — the server's own default origin; deployments
+ * behind a proxy swap in their origin/base_path.
+ */
+export function formatSearchFeedUrl(query: string, port: number, limit?: number): string {
+  const params = new URLSearchParams({ q: query });
+  if (limit !== undefined) params.set("limit", String(limit));
+  return `http://localhost:${port}/api/search.rss?${params.toString()}`;
 }
 
 /** Stderr summary line, mirroring the export/import command style. */

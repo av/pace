@@ -342,6 +342,9 @@
 - label: pace panels list prints the active config's panels in layout order (resolved panel id, display name, and resolved source names, with source: all panels marked all-sources) so users can discover the ids the panel: operator, ?panel=, /api/panels/<id>.rss, and refresh routes accept; summary goes to stderr, a panel-less layout is a clear error, and serve-only options are rejected
   command: bun test src/cli-panels.test.ts
   tags: [spec, implemented]
+- label: pace search --rss prints the query's /api/search.rss saved-search feed URL (query normalized through the shared grammar, panel: kept in the URL for server-side resolution, --limit carried as ?limit=) at http://localhost:<port> from --port or $PORT (default 7453) instead of searching, touching neither config nor database; --rss with --json is an error and --port without --rss is an error
+  command: bun test src/cli-search.test.ts --test-name-pattern 'rss|FeedUrl'
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server

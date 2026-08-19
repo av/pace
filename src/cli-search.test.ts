@@ -4,6 +4,7 @@ import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
+  formatSearchFeedUrl,
   formatSearchHit,
   formatSearchJson,
   formatSearchResults,
@@ -164,15 +165,29 @@ describe("formatSearchJson", () => {
   });
 });
 
+describe("formatSearchFeedUrl", () => {
+  test("URL-encodes the query into /api/search.rss on the given port", () => {
+    expect(formatSearchFeedUrl("rust seen:no", 7453)).toBe(
+      "http://localhost:7453/api/search.rss?q=rust+seen%3Ano",
+    );
+  });
+
+  test("keeps a panel: operator inside q and appends the limit when given", () => {
+    expect(formatSearchFeedUrl("rust panel:tech-panel", 8080, 5)).toBe(
+      "http://localhost:8080/api/search.rss?q=rust+panel%3Atech-panel&limit=5",
+    );
+  });
+});
+
 describe("pace search CLI", () => {
   // Spawn against the test's temp database (installTempDbHooks sets
   // PACE_DB_PATH), so hits seeded in-process are visible to the subprocess.
-  function runSearch(args: string[], cwd?: string) {
+  function runSearch(args: string[], cwd?: string, env?: Record<string, string | undefined>) {
     return spawnSync(process.execPath, [join(process.cwd(), "src/cli.ts"), "search", ...args], {
       encoding: "utf8" as const,
       stdio: "pipe" as const,
       cwd: cwd ?? process.cwd(),
-      env: { ...process.env },
+      env: { ...process.env, ...env },
     });
   }
 
@@ -271,6 +286,37 @@ describe("pace search CLI", () => {
     expect(bad.stderr).toContain("search: limit must be between 1 and 500");
   });
 
+  test("--rss prints the saved-search feed URL without touching config or db", () => {
+    const res = runSearch(["--rss", "rust", "seen:no"], undefined, { PORT: undefined });
+    expect(res.status).toBe(0);
+    expect(res.stdout.trim()).toBe("http://localhost:7453/api/search.rss?q=rust+seen%3Ano");
+    expect(res.stderr).toBe("");
+  });
+
+  test("--rss honors --port / $PORT and --limit, and normalizes the query", () => {
+    const flag = runSearch(["--rss", "--port", "9000", "-n", "5", "Rust", "SEEN:no"], undefined, {
+      PORT: undefined,
+    });
+    expect(flag.status).toBe(0);
+    expect(flag.stdout.trim()).toBe(
+      "http://localhost:9000/api/search.rss?q=Rust+seen%3Ano&limit=5",
+    );
+
+    const env = runSearch(["--rss", "rust"], undefined, { PORT: "8123" });
+    expect(env.status).toBe(0);
+    expect(env.stdout.trim()).toBe("http://localhost:8123/api/search.rss?q=rust");
+  });
+
+  test("--rss rejects --json, and --port without --rss is an error", () => {
+    const combined = runSearch(["--rss", "--json", "rust"]);
+    expect(combined.status).toBe(1);
+    expect(combined.stderr).toContain("search: --rss and --json cannot be combined");
+
+    const port = runSearch(["--port", "9000", "rust"]);
+    expect(port.status).toBe(1);
+    expect(port.stderr).toContain("search: --port is only meaningful with --rss");
+  });
+
   test("invalid operators and a missing query fail with clear errors", () => {
     const bad = runSearch(["seen:ys"]);
     expect(bad.status).toBe(1);
@@ -283,8 +329,8 @@ describe("pace search CLI", () => {
   });
 
   test("serve-only options are rejected", () => {
-    const res = runSearch(["rust", "--port", "8080"]);
+    const res = runSearch(["rust", "--renderer-url", "http://x"]);
     expect(res.status).toBe(1);
-    expect(res.stderr).toContain("Unknown option(s) for this command: --port");
+    expect(res.stderr).toContain("Unknown option(s) for this command: --renderer-url");
   });
 });

@@ -38,6 +38,7 @@ import {
   selectNotifyTestRules,
 } from "./cli-notify";
 import {
+  formatSearchFeedUrl,
   formatSearchJson,
   formatSearchResults,
   formatSearchSummary,
@@ -55,7 +56,7 @@ import {
 } from "./cli-panels";
 import { countDedupedItemsByPanel, initDb, searchItems } from "./db";
 import { DEFAULT_API_SEARCH_LIMIT, parseSearchQuery } from "./server/api-search";
-import { errorMessage, normalizeParamBoolean, parseCliPort } from "./utils";
+import { errorMessage, normalizeParamBoolean, parseCliPort, parsePort } from "./utils";
 import {
   exportStaticDashboard,
   formatExportStaticDashboardResult,
@@ -116,6 +117,7 @@ export const CLI_PARSE_OPTIONS = {
   "output-dir": { type: "string", short: "o" },
   "single-file": { type: "boolean" },
   json: { type: "boolean" },
+  rss: { type: "boolean" },
   limit: { type: "string", short: "n" },
   help: { type: "boolean", short: "h" },
   version: { type: "boolean", short: "v" },
@@ -153,6 +155,7 @@ export type CliParsedValues = Record<string, unknown> & {
   outputDir?: string;
   singleFile?: boolean;
   json?: boolean;
+  rss?: boolean;
   limit?: string;
 };
 
@@ -1106,8 +1109,14 @@ const CLI_COMMANDS: CliCommand[] = [
     usage: formatSearchUsage(),
     async run(positionals, values, ctx) {
       const usage = formatSearchUsage();
-      const SEARCH_ALLOWED = new Set(["config", "preset", "chdir", "json", "limit"]);
+      const SEARCH_ALLOWED = new Set(["config", "preset", "chdir", "json", "limit", "rss", "port"]);
       rejectInvalidCommandOptions(values, usage, SEARCH_ALLOWED);
+      if (values.rss === true && values.json === true) {
+        cliDie("search: --rss and --json cannot be combined");
+      }
+      if (values.port !== undefined && values.rss !== true) {
+        cliDie("search: --port is only meaningful with --rss (the feed URL's port)");
+      }
       if (positionals.length === 0) {
         cliFailWithHelp("Missing query\n", usage);
       }
@@ -1119,6 +1128,15 @@ const CLI_COMMANDS: CliCommand[] = [
         limitOverride = parseSearchCliLimit(values.limit);
       } catch (err) {
         cliDie(errorMessage(err));
+      }
+
+      if (values.rss === true) {
+        // Print the subscribable saved-search feed URL instead of searching.
+        // Needs neither the config nor the database: a panel: operator stays
+        // inside q and the endpoint resolves it at fetch time.
+        applyCliPortEnv(values.port);
+        const port = parsePort(process.env.PORT);
+        cliExitOk(formatSearchFeedUrl(parsed.query, port, limitOverride));
       }
 
       // The database lives under cwd (or PACE_DB_PATH) — the config is only
