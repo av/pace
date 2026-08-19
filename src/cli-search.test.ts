@@ -213,13 +213,27 @@ describe("searchHitSeenKeys / markSearchHitsSeen", () => {
 
   test("zero hits mark nothing", () => {
     expect(markSearchHitsSeen([])).toBe("search: nothing to mark seen");
+    expect(markSearchHitsSeen([], false)).toBe("search: nothing to mark unseen");
     expect(getSeenKeys()).toEqual([]);
   });
 
-  test("summary wording covers singular and plural", () => {
+  test("seen=false clears the read marks again, twins deduped", () => {
+    const rows = [
+      makeContentItemRow({ panel_id: "tech-panel", url: "https://ex.com/a" }),
+      makeContentItemRow({ panel_id: "all-panel", url: "https://ex.com/a" }),
+    ];
+    markSearchHitsSeen(rows);
+    expect(getSeenKeys()).toEqual(["https://ex.com/a"]);
+    expect(markSearchHitsSeen(rows, false)).toBe("search: marked 1 story unseen");
+    expect(getSeenKeys()).toEqual([]);
+  });
+
+  test("summary wording covers singular, plural, and both directions", () => {
     expect(formatMarkSeenSummary(1)).toBe("search: marked 1 story seen");
     expect(formatMarkSeenSummary(3)).toBe("search: marked 3 stories seen");
     expect(formatMarkSeenSummary(0)).toBe("search: nothing to mark seen");
+    expect(formatMarkSeenSummary(1, false)).toBe("search: marked 1 story unseen");
+    expect(formatMarkSeenSummary(0, false)).toBe("search: nothing to mark unseen");
   });
 });
 
@@ -452,6 +466,32 @@ describe("pace search CLI", () => {
     const res = runSearch(["--rss", "--mark-seen", "rust"]);
     expect(res.status).toBe(1);
     expect(res.stderr).toContain("search: --rss and --mark-seen cannot be combined");
+  });
+
+  test("--mark-unseen clears the read marks, printing the pre-mark state", () => {
+    seedItems();
+    runSearch(["--mark-seen", "ships"]);
+    expect(getSeenKeys().length).toBe(2);
+
+    const res = runSearch(["--mark-unseen", "ships"]);
+    expect(res.status).toBe(0);
+    expect(res.stderr).toContain("search: marked 2 stories unseen");
+    // Output reflects the state before the clearing: hits still show as read.
+    expect(res.stdout).toContain("· ");
+    expect(getSeenKeys()).toEqual([]);
+
+    const none = runSearch(["--mark-unseen", "nomatch"]);
+    expect(none.status).toBe(0);
+    expect(none.stderr).toContain("search: nothing to mark unseen");
+  });
+
+  test("--mark-unseen guards: not with --mark-seen, not with --rss", () => {
+    const both = runSearch(["--mark-seen", "--mark-unseen", "rust"]);
+    expect(both.status).toBe(1);
+    expect(both.stderr).toContain("search: --mark-seen and --mark-unseen cannot be combined");
+    const rss = runSearch(["--rss", "--mark-unseen", "rust"]);
+    expect(rss.status).toBe(1);
+    expect(rss.stderr).toContain("search: --rss and --mark-unseen cannot be combined");
   });
 
   test("serve-only options are rejected", () => {

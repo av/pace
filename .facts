@@ -348,6 +348,9 @@
 - label: pace search --mark-seen marks every hit of the search read after printing it, through the same dedup identity /api/seen and the dashboard x key write (cross-panel twins clear together); the printed hits show their pre-sweep state, a search: marked N stories seen summary goes to stderr (search: nothing to mark seen at zero hits), and --rss with --mark-seen is an error
   command: bun test src/cli-search.test.ts --test-name-pattern 'mark-seen|markSearchHitsSeen|searchHitSeenKeys'
   tags: [spec, implemented]
+- label: pace search --mark-unseen clears the read mark on every hit of the search after printing it (the inverse of --mark-seen), through the same dedup identity /api/seen and the dashboard x key write (cross-panel twins clear together); the printed hits show their pre-sweep state, a search: marked N stories unseen summary goes to stderr (search: nothing to mark unseen at zero hits), and --mark-seen with --mark-unseen or --rss with --mark-unseen are errors
+  command: bun test src/cli-search.test.ts --test-name-pattern 'mark-unseen|markSearchHitsSeen'
+  tags: [spec, implemented]
 - label: pace search --star stars every hit of the search after printing it and --unstar clears the marks, through the same dedup identity /api/star and the dashboard s key write (cross-panel twins star together); the printed hits show their pre-sweep state, a search: starred/unstarred N stories summary goes to stderr (search: nothing to star at zero hits), --star with --unstar is an error, and --rss with either is an error
   command: bun test src/cli-search.test.ts --test-name-pattern 'star|Starred'
   tags: [spec, implemented]

@@ -36,6 +36,8 @@ Options:
                         same read state as the dashboard's x key and
                         /api/seen; cross-panel twins clear together).
                         Output shows the state from before the marking.
+  --mark-unseen         Inverse of --mark-seen: clear the read mark on every
+                        hit, putting them back into the unread flow.
   --star                After printing the hits, star them all (the same
                         star state as the dashboard's s key and /api/star;
                         cross-panel twins star together). Output shows the
@@ -170,13 +172,14 @@ export function searchHitSeenKeys(rows: readonly ContentItemRow[]): string[] {
 }
 
 /**
- * Apply `--mark-seen` to a result set: marks every hit's story read in one
- * transaction and returns the stderr summary line. Zero hits mark nothing.
+ * Apply `--mark-seen` (or `--mark-unseen` with seen=false) to a result set:
+ * sets every hit's story read state in one transaction and returns the stderr
+ * summary line. Zero hits mark nothing.
  */
-export function markSearchHitsSeen(rows: readonly ContentItemRow[]): string {
+export function markSearchHitsSeen(rows: readonly ContentItemRow[], seen = true): string {
   const keys = searchHitSeenKeys(rows);
-  if (keys.length > 0) setItemsSeen(keys, true);
-  return formatMarkSeenSummary(keys.length);
+  if (keys.length > 0) setItemsSeen(keys, seen);
+  return formatMarkSeenSummary(keys.length, seen);
 }
 
 /**
@@ -200,10 +203,11 @@ export function formatStarSummary(count: number, starred: boolean): string {
   return `search: ${starred ? "starred" : "unstarred"} ${count} ${count === 1 ? "story" : "stories"}`;
 }
 
-/** Stderr summary line for `--mark-seen`, counting distinct stories marked. */
-export function formatMarkSeenSummary(count: number): string {
-  if (count === 0) return "search: nothing to mark seen";
-  return `search: marked ${count} ${count === 1 ? "story" : "stories"} seen`;
+/** Stderr summary line for `--mark-seen`/`--mark-unseen`, counting distinct stories. */
+export function formatMarkSeenSummary(count: number, seen = true): string {
+  const word = seen ? "seen" : "unseen";
+  if (count === 0) return `search: nothing to mark ${word}`;
+  return `search: marked ${count} ${count === 1 ? "story" : "stories"} ${word}`;
 }
 
 /** Stderr summary line, mirroring the export/import command style. */

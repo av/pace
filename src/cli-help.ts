@@ -121,6 +121,7 @@ export const CLI_PARSE_OPTIONS = {
   json: { type: "boolean" },
   rss: { type: "boolean" },
   "mark-seen": { type: "boolean" },
+  "mark-unseen": { type: "boolean" },
   star: { type: "boolean" },
   unstar: { type: "boolean" },
   limit: { type: "string", short: "n" },
@@ -146,6 +147,7 @@ const CAMEL_CASE_ALIAS_KEYS = new Set([
   "gistId",
   "outputDir",
   "markSeen",
+  "markUnseen",
 ]);
 
 function isCamelCaseAliasKey(key: string): boolean {
@@ -168,6 +170,7 @@ export type CliParsedValues = Record<string, unknown> & {
   json?: boolean;
   rss?: boolean;
   markSeen?: boolean;
+  markUnseen?: boolean;
   star?: boolean;
   unstar?: boolean;
   limit?: string;
@@ -192,6 +195,9 @@ export function normalizeCliParsedValues(values: CliParsedValues): void {
   }
   if (values["mark-seen"] !== undefined) {
     values.markSeen = normalizeParamBoolean(values, "mark-seen");
+  }
+  if (values["mark-unseen"] !== undefined) {
+    values.markUnseen = normalizeParamBoolean(values, "mark-unseen");
   }
 }
 
@@ -1135,6 +1141,7 @@ const CLI_COMMANDS: CliCommand[] = [
         "rss",
         "port",
         "mark-seen",
+        "mark-unseen",
         "star",
         "unstar",
       ]);
@@ -1144,6 +1151,12 @@ const CLI_COMMANDS: CliCommand[] = [
       }
       if (values.rss === true && values.markSeen === true) {
         cliDie("search: --rss and --mark-seen cannot be combined (--rss never searches)");
+      }
+      if (values.rss === true && values.markUnseen === true) {
+        cliDie("search: --rss and --mark-unseen cannot be combined (--rss never searches)");
+      }
+      if (values.markSeen === true && values.markUnseen === true) {
+        cliDie("search: --mark-seen and --mark-unseen cannot be combined");
       }
       if (values.star === true && values.unstar === true) {
         cliDie("search: --star and --unstar cannot be combined");
@@ -1200,8 +1213,8 @@ const CLI_COMMANDS: CliCommand[] = [
       // State marks are read BEFORE any --mark-seen mutation so the output
       // shows the read state the hits had when the search ran.
       const marks = loadSearchStateMarks();
-      if (values.markSeen === true) {
-        writeCliStderr(markSearchHitsSeen(rows));
+      if (values.markSeen === true || values.markUnseen === true) {
+        writeCliStderr(markSearchHitsSeen(rows, values.markSeen === true));
       }
       if (values.star === true || values.unstar === true) {
         writeCliStderr(markSearchHitsStarred(rows, values.star === true));
