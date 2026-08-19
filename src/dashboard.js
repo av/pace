@@ -142,8 +142,10 @@ export function itemMatchesFilter(terms, text) {
  * Parse a filter-bar query into text terms plus optional state operators,
  * mirroring the server's /api/search grammar: `starred:yes|no` and
  * `seen:yes|no` tokens (case-insensitive, last-wins when repeated) filter by
- * state, everything else is a text term. Tokens with invalid operator values
- * (`starred:ys`) stay plain text terms — the client filter has no way to
+ * state, `panel:<id>` scopes to one panel (the data-panel-id the refresh
+ * route uses — same identity /api/search's ?panel= resolves), everything
+ * else is a text term. Tokens with invalid operator values (`starred:ys`,
+ * a bare `panel:`) stay plain text terms — the client filter has no way to
  * report a 400, and a literal match is the least surprising fallback.
  */
 export function parseClientFilterQuery(raw) {
@@ -152,8 +154,11 @@ export function parseClientFilterQuery(raw) {
   for (const token of raw.toLowerCase().split(/\s+/)) {
     if (token.length === 0) continue;
     const match = token.match(/^(starred|seen):(yes|no)$/);
+    const panelMatch = token.match(/^panel:(.+)$/);
     if (match) {
       parsed[match[1]] = match[2] === "yes";
+    } else if (panelMatch) {
+      parsed.panel = panelMatch[1];
     } else {
       parsed.terms.push(token);
     }
@@ -178,6 +183,19 @@ export function itemMatchesStateFilter(parsed, starred, seen) {
 }
 
 /**
+ * True when an item's panel satisfies the query's panel: operator: the
+ * item's panel id (its .panel ancestor's data-panel-id) equals the operator
+ * value case-insensitively. Queries without the operator never exclude
+ * anything; with it, items outside any identified panel are excluded.
+ */
+export function itemMatchesPanelFilter(parsed, panelId) {
+  if (parsed === null || typeof parsed !== "object") return true;
+  if (typeof parsed.panel !== "string") return true;
+  if (typeof panelId !== "string" || panelId.length === 0) return false;
+  return panelId.toLowerCase() === parsed.panel;
+}
+
+/**
  * Rebuild the normalized query string a parsed filter represents: text terms
  * first, then the normalized operators. Empty ("") when the query has
  * neither, i.e. it matches everything.
@@ -191,6 +209,9 @@ export function clientFilterQueryString(parsed) {
   if (typeof parsed.seen === "boolean") {
     parts.push(`seen:${parsed.seen ? "yes" : "no"}`);
   }
+  if (typeof parsed.panel === "string" && parsed.panel.length > 0) {
+    parts.push(`panel:${parsed.panel}`);
+  }
   return parts.join(" ");
 }
 
@@ -200,13 +221,22 @@ export function clientFilterQueryString(parsed) {
  * query is normalized through parseClientFilterQuery so the feed searches
  * exactly what the bar shows — the server's /api/search shares the bar's
  * term and starred:/seen: operator semantics — and the base must be a
- * string (the api root, no trailing slash).
+ * string (the api root, no trailing slash). A panel: operator maps to the
+ * endpoint's ?panel= parameter; a panel:-only query yields null (the server
+ * requires terms or a state operator in q, and per-panel feeds already
+ * exist at /api/panels/<id>.rss).
  */
 export function searchFeedUrl(base, raw) {
   if (typeof base !== "string") return null;
-  const query = clientFilterQueryString(parseClientFilterQuery(raw));
+  const parsed = parseClientFilterQuery(raw);
+  const { panel, ...rest } = parsed;
+  const query = clientFilterQueryString(rest);
   if (query.length === 0) return null;
-  return `${base}/api/search.rss?q=${encodeURIComponent(query)}`;
+  const scope =
+    typeof panel === "string" && panel.length > 0
+      ? `&panel=${encodeURIComponent(panel)}`
+      : "";
+  return `${base}/api/search.rss?q=${encodeURIComponent(query)}${scope}`;
 }
 
 /** localStorage key holding the JSON array of collapsed panel ids. */
@@ -1491,13 +1521,15 @@ function applyFilter(raw) {
   let total = 0;
   for (const item of document.querySelectorAll(".panel-body .item")) {
     total += 1;
+    const panel = item.closest(".panel");
     const match =
       itemMatchesFilter(parsed.terms, item.textContent) &&
       itemMatchesStateFilter(
         parsed,
         item.classList.contains(STARRED_CLASS),
         item.classList.contains(SEEN_CLASS),
-      );
+      ) &&
+      itemMatchesPanelFilter(parsed, panel ? panel.getAttribute("data-panel-id") : null);
     item.hidden = !match;
     if (match) visible += 1;
   }
@@ -1527,10 +1559,10 @@ function buildFilterBar() {
   const input = document.createElement("input");
   input.type = "text";
   input.className = "item-filter-input";
-  input.placeholder = "Filter items… (starred:yes, seen:no)";
+  input.placeholder = "Filter items… (starred:yes, seen:no, panel:id)";
   input.setAttribute(
     "aria-label",
-    "Filter items across panels; starred:yes/no and seen:yes/no filter by state",
+    "Filter items across panels; starred:yes/no and seen:yes/no filter by state, panel:id scopes to one panel",
   );
   input.addEventListener("input", () => applyFilter(input.value));
   input.addEventListener("keydown", (event) => {

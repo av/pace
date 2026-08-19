@@ -28,6 +28,7 @@ export interface ClientFilterQuery {
   terms: string[];
   starred?: boolean;
   seen?: boolean;
+  panel?: string;
 }
 export declare function parseClientFilterQuery(raw: unknown): ClientFilterQuery;
 export declare function itemMatchesStateFilter(
@@ -35,6 +36,7 @@ export declare function itemMatchesStateFilter(
   starred: unknown,
   seen: unknown,
 ): boolean;
+export declare function itemMatchesPanelFilter(parsed: unknown, panelId: unknown): boolean;
 export declare function clientFilterQueryString(parsed: unknown): string;
 export declare function searchFeedUrl(base: unknown, raw: unknown): string | null;
 export declare function serviceWorkerUrl(moduleUrl: unknown): string;

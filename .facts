@@ -318,6 +318,9 @@
 - label: The dashboard's / filter bar accepts starred:yes/no and seen:yes/no tokens that filter the rendered items by star/seen state with the same case-insensitive last-wins semantics as /api/search (invalid values stay plain text terms), re-filters live when star or seen marks change while the bar is open, and carries the normalized operators into its RSS saved-search link
   command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'parseClientFilterQuery|itemMatchesStateFilter|clientFilterQueryString|operators'
   tags: [spec, implemented]
+- label: The dashboard's / filter bar accepts a panel:<id> token that scopes the filter to the panel with that data-panel-id (case-insensitive, last-wins, combinable with text terms and state operators; a bare panel: stays a literal text term), and its RSS saved-search link maps the operator onto /api/search.rss's ?panel= parameter while a panel:-only query offers no link
+  command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'panel:|itemMatchesPanelFilter'
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server

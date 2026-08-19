@@ -8,6 +8,7 @@ import {
   clientFilterQueryString,
   itemMatchesFilter,
   itemMatchesStateFilter,
+  itemMatchesPanelFilter,
   parseClientFilterQuery,
   keyMove,
   moveIndex,
@@ -233,6 +234,33 @@ describe("parseClientFilterQuery", () => {
       expect(parseClientFilterQuery(raw)).toEqual({ terms: [] });
     }
   });
+
+  test("panel: scopes to one panel id (case-insensitive, last-wins); bare panel: stays a text term", () => {
+    expect(parseClientFilterQuery("rust Panel:Hacker-News")).toEqual({
+      terms: ["rust"],
+      panel: "hacker-news",
+    });
+    expect(parseClientFilterQuery("panel:a panel:b")).toEqual({ terms: [], panel: "b" });
+    expect(parseClientFilterQuery("panel:")).toEqual({ terms: ["panel:"] });
+  });
+});
+
+describe("itemMatchesPanelFilter", () => {
+  test("queries without the operator never exclude anything", () => {
+    expect(itemMatchesPanelFilter({ terms: ["rust"] }, "hacker-news")).toBe(true);
+    expect(itemMatchesPanelFilter({ terms: [] }, null)).toBe(true);
+    expect(itemMatchesPanelFilter(null, "hacker-news")).toBe(true);
+  });
+
+  test("with the operator, only items in the named panel match (case-insensitive id)", () => {
+    const parsed = { terms: [], panel: "hacker-news" };
+    expect(itemMatchesPanelFilter(parsed, "hacker-news")).toBe(true);
+    expect(itemMatchesPanelFilter(parsed, "Hacker-News")).toBe(true);
+    expect(itemMatchesPanelFilter(parsed, "arxiv")).toBe(false);
+    // Items outside any identified panel are excluded while scoping.
+    expect(itemMatchesPanelFilter(parsed, null)).toBe(false);
+    expect(itemMatchesPanelFilter(parsed, "")).toBe(false);
+  });
 });
 
 describe("itemMatchesStateFilter", () => {
@@ -263,6 +291,11 @@ describe("clientFilterQueryString", () => {
     );
     expect(clientFilterQueryString({ terms: [] })).toBe("");
     expect(clientFilterQueryString(null)).toBe("");
+  });
+
+  test("a panel: operator is part of the normalized query", () => {
+    expect(clientFilterQueryString({ terms: ["rust"], panel: "hn" })).toBe("rust panel:hn");
+    expect(clientFilterQueryString({ terms: [], panel: "hn" })).toBe("panel:hn");
   });
 });
 
@@ -316,6 +349,18 @@ describe("itemMatchesFilter", () => {
     expect(searchFeedUrl("", "seen:yes seen:no")).toBe(
       "/api/search.rss?q=seen%3Ano",
     );
+  });
+
+  test("searchFeedUrl maps a panel: operator to the ?panel= parameter", () => {
+    expect(searchFeedUrl("", "rust panel:Hacker-News")).toBe(
+      "/api/search.rss?q=rust&panel=hacker-news",
+    );
+    expect(searchFeedUrl("/pace", "seen:no panel:arxiv")).toBe(
+      "/pace/api/search.rss?q=seen%3Ano&panel=arxiv",
+    );
+    // A panel:-only query has nothing for q, and per-panel feeds already
+    // exist at /api/panels/<id>.rss — no saved-search link is offered.
+    expect(searchFeedUrl("", "panel:arxiv")).toBeNull();
   });
 
   test("round-trips with parseFilterQuery", () => {
