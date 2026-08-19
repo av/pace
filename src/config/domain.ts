@@ -182,6 +182,12 @@ export interface ServerConfig {
    * Must be a positive integer, or 0 to disable pruning entirely.
    */
   retention_days?: number;
+  /**
+   * Whether opening an item's title link automatically marks it seen
+   * (default true). Set false to keep read state fully manual — only the
+   * x/a keys and the mark-seen buttons change it.
+   */
+  auto_mark_seen?: boolean;
 }
 
 export interface AppConfig {

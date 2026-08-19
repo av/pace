@@ -1,6 +1,9 @@
 import { describe, test, expect } from "bun:test";
 import { Hono } from "hono";
 import { initDb, saveItems } from "./db";
+import { validateParsedConfig } from "./config-validate";
+import { DEFAULT_LAYOUT } from "./config/domain";
+import { autoMarkSeenDisabled } from "./dashboard.js";
 import { securityHeadersMiddleware } from "./server/security-headers";
 import type { ServerRouteDeps } from "./server/routes";
 import type { RefreshResult } from "./refresh-result";
@@ -157,6 +160,49 @@ describe("GET / dashboard", () => {
     expectDashboardPanelHeading(html, "Everything");
     expectDashboardItemTitle(html, "Alpha");
     expectDashboardItemTitle(html, "Beta");
+  });
+});
+
+describe("server.auto_mark_seen (mark-on-open opt-out)", () => {
+  installTempDbHooks({ prefix: "pace-server-autoseen-" });
+
+  function makeApp(autoMarkSeen?: boolean) {
+    const layout = testAppLayout(singlePanelLayout("Tech", "hackernews", { id: "tech-panel" }));
+    return createTestServerApp(makeServerRouteDeps({ layout, autoMarkSeen }));
+  }
+
+  test("accepts booleans and rejects everything else", () => {
+    const base = { adapters: [], layout: DEFAULT_LAYOUT };
+    expect(validateParsedConfig({ ...base, server: { auto_mark_seen: false } }, DEFAULT_LAYOUT).server)
+      .toEqual({ auto_mark_seen: false });
+    expect(validateParsedConfig({ ...base, server: { auto_mark_seen: true } }, DEFAULT_LAYOUT).server)
+      .toEqual({ auto_mark_seen: true });
+    for (const bad of ["false", 0, null, []]) {
+      expect(() =>
+        validateParsedConfig({ ...base, server: { auto_mark_seen: bad } }, DEFAULT_LAYOUT),
+      ).toThrow(/server\.auto_mark_seen must be a boolean/);
+    }
+  });
+
+  test("dashboard body carries no data-auto-seen by default (mark-on-open stays on)", async () => {
+    for (const app of [makeApp(), makeApp(true)]) {
+      const html = await (await requestDashboard(app)).text();
+      expect(html).not.toContain("data-auto-seen");
+    }
+  });
+
+  test("autoMarkSeen: false stamps data-auto-seen=\"off\" on the dashboard body", async () => {
+    const html = await (await requestDashboard(makeApp(false))).text();
+    expect(html).toContain('<body data-auto-seen="off">');
+  });
+
+  test("autoMarkSeenDisabled reads exactly the server-stamped attribute", () => {
+    const bodyWith = { getAttribute: (n: string) => (n === "data-auto-seen" ? "off" : null) };
+    const bodyWithout = { getAttribute: () => null };
+    expect(autoMarkSeenDisabled(bodyWith)).toBe(true);
+    expect(autoMarkSeenDisabled(bodyWithout)).toBe(false);
+    expect(autoMarkSeenDisabled(null)).toBe(false);
+    expect(autoMarkSeenDisabled(undefined)).toBe(false);
   });
 });
 

@@ -21,9 +21,15 @@ interface DashboardProps {
   notice?: string;
   /** "error" renders the notice as an alert (refresh failure); default "info". */
   noticeTone?: "info" | "error";
+  /**
+   * Whether opening an item's title link auto-marks it seen (default true;
+   * server.auto_mark_seen). False stamps data-auto-seen="off" on <body> so
+   * the client module keeps read state fully manual.
+   */
+  autoMarkSeen?: boolean;
 }
 
-const Dashboard: FC<DashboardProps> = ({ layout, panelData, updatedAt, cssHref, mode = "interactive", basePath = "", notice, noticeTone = "info" }) => (
+const Dashboard: FC<DashboardProps> = ({ layout, panelData, updatedAt, cssHref, mode = "interactive", basePath = "", notice, noticeTone = "info", autoMarkSeen = true }) => (
   <html lang="en">
     <head>
       <meta charset="utf-8" />
@@ -44,7 +50,10 @@ const Dashboard: FC<DashboardProps> = ({ layout, panelData, updatedAt, cssHref, 
           satisfy the CSP's default-src 'self' (inline scripts are blocked). */}
       {mode === "interactive" && <script type="module" src={`${basePath}/dashboard.js`}></script>}
     </head>
-    <body class={mode === "static" ? "static-dashboard" : undefined}>
+    <body
+      class={mode === "static" ? "static-dashboard" : undefined}
+      data-auto-seen={autoMarkSeen === false ? "off" : undefined}
+    >
       {notice ? (
         <div
           class={noticeTone === "error" ? "refresh-notice refresh-notice-error" : "refresh-notice"}

@@ -38,6 +38,7 @@ export declare function resolveTheme(
   systemPrefersLight: boolean,
 ): "dark" | "light";
 export declare const SEEN_CLASS: string;
+export declare function autoMarkSeenDisabled(body: unknown): boolean;
 export declare function autoSeenItem(target: unknown): object | null;
 export declare function parseSeenKeys(body: unknown): string[];
 export declare function panelSeenTarget(flags: unknown): boolean;

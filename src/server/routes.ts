@@ -33,6 +33,12 @@ export type ServerRouteDeps = {
   refreshSources: RefreshSourcesFn;
   basePath: string;
   /**
+   * Whether opening an item's title link auto-marks it seen (default true;
+   * from server.auto_mark_seen). False renders data-auto-seen="off" on the
+   * dashboard <body> so the client keeps read state fully manual.
+   */
+  autoMarkSeen?: boolean;
+  /**
    * Refresh-health snapshot for /health. Optional so embedders without a
    * scheduler keep the bare liveness payload.
    */
@@ -306,6 +312,7 @@ export function registerServerRoutes(app: Hono, deps: ServerRouteDeps): void {
       basePath: deps.basePath,
       notice,
       noticeTone: failedNotice ? "error" : "info",
+      autoMarkSeen: deps.autoMarkSeen,
     });
     return c.html(content);
   });

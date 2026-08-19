@@ -135,6 +135,7 @@ export async function bootstrapServer(
     panelIdToRefreshSourceNames,
     refreshSources: deps.refreshSources,
     basePath,
+    autoMarkSeen: config.server?.auto_mark_seen !== false,
     getRefreshHealth: deps.getRefreshHealth,
   });
 

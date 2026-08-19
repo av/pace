@@ -11,7 +11,8 @@
  * Enter activates the focused link natively (so target/rel are respected)
  * and opening an item's title link — by Enter, click, or middle-click —
  * automatically marks the item seen through the same /api/seen machinery
- * as the x key,
+ * as the x key (unless the server disabled it via server.auto_mark_seen:
+ * false, stamped as data-auto-seen="off" on <body>),
  * r refreshes the focused panel through its existing refresh form,
  * c collapses/expands the focused panel (persisted per panel in
  * localStorage), Shift+C collapses every panel at once (or expands them all
@@ -708,6 +709,18 @@ function restoreSeenItems() {
  * toggles it back to unread. Pure given a target exposing closest/classList,
  * so the test suite can exercise it without a DOM.
  */
+/**
+ * Whether mark-on-open is disabled for this page. The server stamps
+ * data-auto-seen="off" on <body> when the config sets
+ * server.auto_mark_seen: false, keeping read state fully manual (only the
+ * x/a keys and the mark-seen buttons change it). Pure given anything
+ * exposing getAttribute, so the test suite can exercise it without a DOM.
+ */
+export function autoMarkSeenDisabled(body) {
+  if (!body || typeof body.getAttribute !== "function") return false;
+  return body.getAttribute("data-auto-seen") === "off";
+}
+
 export function autoSeenItem(target) {
   if (!target || typeof target.closest !== "function") return null;
   const link = target.closest(".item-title a");
@@ -1231,6 +1244,7 @@ function injectToolbar() {
  * (ctrl/cmd) still open in a new tab and still count as read.
  */
 function autoMarkOpenedSeen(event) {
+  if (autoMarkSeenDisabled(document.body)) return;
   if (event.type === "auxclick" && event.button !== 1) return;
   const item = autoSeenItem(event.target);
   if (item) toggleItemSeen(item); // item is unseen, so this always marks seen

@@ -258,6 +258,9 @@
 - label: Static exports honor the viewer's OS prefers-color-scheme with the exact same light palette (theme tokens and source-badge colors) as the interactive light theme, via a media block scoped to body.static-dashboard so interactive pages stay governed by the t toggle; a parity test keeps the two palettes from drifting
   command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'static exports follow the OS light preference'
   tags: [spec, implemented]
+- label: Setting server.auto_mark_seen: false in the config disables mark-on-open: the server stamps data-auto-seen="off" on the dashboard body and opening an item's title link no longer marks it seen, leaving read state fully manual via the x/a keys and mark-seen buttons; defaults to true, non-boolean values fail config check, and the attribute is absent by default
+  command: bun test src/server.test.ts --test-name-pattern 'auto_mark_seen'
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server
