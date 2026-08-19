@@ -260,6 +260,7 @@ pace share export pace-share
 That writes `pace-share/index.html` and `pace-share/styles.css` for local review or manual upload.
 For email, chat, or other one-file transfers, use `pace share export pace-share --single-file`;
 the resulting `index.html` includes its stylesheet and can be moved by itself.
+Exported pages follow the viewer's OS light/dark preference (`prefers-color-scheme`) with the same palettes the interactive theme toggle uses — no JavaScript required.
 
 Publish the same snapshot to GitHub Gist and get a browser-rendered URL:
 

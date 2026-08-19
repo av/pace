@@ -850,6 +850,42 @@ describe("keyboard navigation CSS", () => {
     expect(badge![1]).toContain("currentColor");
   });
 
+  test("static exports follow the OS light preference with the exact same palette", () => {
+    // Static pages run no JS, so the light palette is delivered via a
+    // prefers-color-scheme media block scoped to body.static-dashboard.
+    // Its declarations must be a verbatim copy of the data-theme='light'
+    // blocks the interactive toggle uses — otherwise the palettes drift.
+    const declarations = (block: string | undefined) =>
+      [...(block ?? "").matchAll(/([\w-]+(?:--[\w-]+)?[\w-]*):\s*([^;]+);/g)]
+        .map((m) => `${m[1]}: ${m[2]!.trim()}`)
+        .sort();
+    const media = STYLES.match(
+      /@media \(prefers-color-scheme: light\)\s*\{\s*:root:has\(body\.static-dashboard\)\s*\{([^}]*)\}\s*\}/s,
+    );
+    expect(media).not.toBeNull();
+    const light = STYLES.match(/:root\[data-theme='light'\]\s*\{([^}]*)\}/s);
+    expect(declarations(media![1])).toEqual(declarations(light![1]));
+    expect(declarations(media![1]).length).toBeGreaterThan(0);
+    // Badge overrides must mirror too: every light badge rule has a
+    // static-export twin with identical declarations.
+    const lightBadges = [
+      ...STYLES.matchAll(/:root\[data-theme='light'\] (\.item-source[^\s{]*)\s*\{([^}]*)\}/gs),
+    ];
+    expect(lightBadges.length).toBeGreaterThan(10);
+    for (const [, selector, body] of lightBadges) {
+      const esc = selector!.replace(/[.*[\]']/g, (c) => `\\${c}`);
+      const twin = STYLES.match(
+        new RegExp(`:root:has\\(body\\.static-dashboard\\) ${esc}\\s*\\{([^}]*)\\}`, "s"),
+      );
+      expect(twin).not.toBeNull();
+      expect(declarations(twin![1])).toEqual(declarations(body));
+    }
+    // And the static twins live inside a prefers-color-scheme: light guard,
+    // never bare (which would force light onto dark-preferring viewers).
+    const bare = STYLES.split("@media (prefers-color-scheme: light)")[0]!;
+    expect(bare).not.toContain(":root:has(body.static-dashboard)");
+  });
+
   test("the server never renders a theme attribute (theme is client state only)", () => {
     for (const mode of ["interactive", "static"] as const) {
       expect(renderModeDashboard(mode)).not.toContain("data-theme");

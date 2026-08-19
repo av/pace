@@ -252,6 +252,9 @@
 - label: The server serves the plain pace monogram favicon at GET /favicon.svg (image/svg+xml, cacheable, base_path respected) sharing the exact SVG markup with the client's unread-dot rendering; the dashboard head links it on interactive pages while static exports embed the same icon as a self-contained data: URL, so no-JS visitors, bookmarks, and static exports all get an icon before any JavaScript runs
   command: bun test src/server.test.ts --test-name-pattern 'favicon'
   tags: [spec, implemented]
+- label: Static exports honor the viewer's OS prefers-color-scheme with the exact same light palette (theme tokens and source-badge colors) as the interactive light theme, via a media block scoped to body.static-dashboard so interactive pages stay governed by the t toggle; a parity test keeps the two palettes from drifting
+  command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'static exports follow the OS light preference'
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server

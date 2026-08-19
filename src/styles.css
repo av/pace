@@ -29,7 +29,7 @@
 /* Light theme — toggled with "t" (dashboard.js sets data-theme="light" on
    <html>; the OS prefers-color-scheme preference is followed until the first
    toggle pins an explicit choice in localStorage under pace.theme). Every
-   color below shadows a dark token above; static/no-JS pages stay dark. */
+   color below shadows a dark token above; interactive no-JS pages stay dark. */
 :root[data-theme='light'] {
   --bg-base: #f4f4f2;
   --bg-surface: #ececea;
@@ -43,6 +43,29 @@
   --hover: #111;
   --hover-bg: #e0e0dc;
   --accent: #3d708a;
+}
+
+/* Static exports follow the OS light/dark preference: no JS runs there, so
+   the light palette is applied straight from prefers-color-scheme, scoped to
+   exported pages (body.static-dashboard). Interactive pages are excluded —
+   there dashboard.js owns the choice via data-theme (which static pages never
+   set). Keep the declarations a verbatim copy of the :root[data-theme='light']
+   block above — a test enforces the parity. */
+@media (prefers-color-scheme: light) {
+  :root:has(body.static-dashboard) {
+    --bg-base: #f4f4f2;
+    --bg-surface: #ececea;
+    --bg-elevated: #e4e4e1;
+    --bg-card: #ffffff;
+    --text-primary: #24292e;
+    --text-secondary: #6a737d;
+    --text-muted: #767b81;
+    --border: #d8d8d4;
+    --border-light: #c9c9c4;
+    --hover: #111;
+    --hover-bg: #e0e0dc;
+    --accent: #3d708a;
+  }
 }
 
 /* scrollbars — thin, minimalist, theme-matched */
@@ -548,6 +571,31 @@ html.hide-seen .panel.all-seen {
 :root[data-theme='light'] .item-source.src-devto { color: #333333; }
 :root[data-theme='light'] .item-source.src-bookmarks { color: #22795f; }
 :root[data-theme='light'] .item-source.src-counter { color: #4d5c9e; }
+
+/* Same light badge palette for static exports following the OS preference
+   (see the static-export media block near the top). Keep these a verbatim
+   copy of the :root[data-theme='light'] badge rules above — a test enforces
+   the parity. */
+@media (prefers-color-scheme: light) {
+  :root:has(body.static-dashboard) .item-source[class*='src-'] {
+    background: color-mix(in srgb, currentColor 14%, transparent);
+  }
+  :root:has(body.static-dashboard) .item-source.src-hn { color: #b34a00; }
+  :root:has(body.static-dashboard) .item-source.src-reddit { color: #cc3700; }
+  :root:has(body.static-dashboard) .item-source.src-github { color: #24292e; }
+  :root:has(body.static-dashboard) .item-source.src-rss { color: #c14e17; }
+  :root:has(body.static-dashboard) .item-source.src-youtube { color: #c81e1e; }
+  :root:has(body.static-dashboard) .item-source.src-npm { color: #b03535; }
+  :root:has(body.static-dashboard) .item-source.src-wiki { color: #5d564a; }
+  :root:has(body.static-dashboard) .item-source.src-lemmy { color: #1d7a44; }
+  :root:has(body.static-dashboard) .item-source.src-ph { color: #cc5322; }
+  :root:has(body.static-dashboard) .item-source.src-pod { color: #7b46a3; }
+  :root:has(body.static-dashboard) .item-source.src-se { color: #8f6c10; }
+  :root:has(body.static-dashboard) .item-source.src-mast { color: #4353b8; }
+  :root:has(body.static-dashboard) .item-source.src-devto { color: #333333; }
+  :root:has(body.static-dashboard) .item-source.src-bookmarks { color: #22795f; }
+  :root:has(body.static-dashboard) .item-source.src-counter { color: #4d5c9e; }
+}
 
 .item-time {
   color: var(--text-muted);
