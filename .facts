@@ -282,6 +282,9 @@
 - label: A layout panel's own auto_mark_seen: true/false overrides the page-wide server.auto_mark_seen for that panel in either direction: the layout stamps data-auto-seen="on"/"off" on the panel element and the client checks the item's panel before the body, so panels without the field follow the server setting; non-boolean values fail config check
   command: bun test src/server.test.ts --test-name-pattern 'per-panel auto_mark_seen'
   tags: [spec, implemented]
+- label: Setting server.hide_seen: true starts the dashboard with hide-seen mode on for visitors with no stored preference: the server stamps data-hide-seen="on" on the interactive body and the client applies it on load, while an explicit Shift+X choice (now persisted in both directions) always wins; non-boolean values fail config check, and static exports never carry the stamp
+  command: bun test src/server.test.ts --test-name-pattern 'server.hide_seen'
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server

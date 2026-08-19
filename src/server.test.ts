@@ -262,6 +262,40 @@ describe("server.auto_mark_seen (mark-on-open opt-out)", () => {
   });
 });
 
+describe("server.hide_seen (first-visit hide-seen default)", () => {
+  installTempDbHooks({ prefix: "pace-server-hideseen-" });
+
+  function makeApp(hideSeenDefault?: boolean) {
+    const layout = testAppLayout(singlePanelLayout("Tech", "hackernews", { id: "tech-panel" }));
+    return createTestServerApp(makeServerRouteDeps({ layout, hideSeenDefault }));
+  }
+
+  test("accepts booleans and rejects everything else", () => {
+    const base = { adapters: [], layout: DEFAULT_LAYOUT };
+    for (const ok of [true, false]) {
+      expect(validateParsedConfig({ ...base, server: { hide_seen: ok } }, DEFAULT_LAYOUT).server)
+        .toEqual({ hide_seen: ok });
+    }
+    for (const bad of ["true", 1, null, []]) {
+      expect(() =>
+        validateParsedConfig({ ...base, server: { hide_seen: bad } }, DEFAULT_LAYOUT),
+      ).toThrow(/server\.hide_seen must be a boolean/);
+    }
+  });
+
+  test("dashboard body carries no data-hide-seen by default (seen items stay visible)", async () => {
+    for (const app of [makeApp(), makeApp(false)]) {
+      const html = await (await requestDashboard(app)).text();
+      expect(html).not.toContain("data-hide-seen");
+    }
+  });
+
+  test("hideSeenDefault: true stamps data-hide-seen=\"on\" on the dashboard body", async () => {
+    const html = await (await requestDashboard(makeApp(true))).text();
+    expect(html).toContain('<body data-hide-seen="on">');
+  });
+});
+
 describe("GET /favicon.svg", () => {
   installTempDbHooks({ prefix: "pace-server-favicon-" });
 

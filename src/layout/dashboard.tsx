@@ -27,9 +27,16 @@ interface DashboardProps {
    * the client module keeps read state fully manual.
    */
   autoMarkSeen?: boolean;
+  /**
+   * Whether the page starts with hide-seen mode on when the visitor has no
+   * stored preference (default false; server.hide_seen). True stamps
+   * data-hide-seen="on" on <body> so the client module hides seen items on
+   * first visit; a persisted Shift+X choice always wins over the stamp.
+   */
+  hideSeenDefault?: boolean;
 }
 
-const Dashboard: FC<DashboardProps> = ({ layout, panelData, updatedAt, cssHref, mode = "interactive", basePath = "", notice, noticeTone = "info", autoMarkSeen = true }) => (
+const Dashboard: FC<DashboardProps> = ({ layout, panelData, updatedAt, cssHref, mode = "interactive", basePath = "", notice, noticeTone = "info", autoMarkSeen = true, hideSeenDefault = false }) => (
   <html lang="en">
     <head>
       <meta charset="utf-8" />
@@ -64,6 +71,10 @@ const Dashboard: FC<DashboardProps> = ({ layout, panelData, updatedAt, cssHref, 
     <body
       class={mode === "static" ? "static-dashboard" : undefined}
       data-auto-seen={autoMarkSeen === false ? "off" : undefined}
+      /* Hide-seen is client state, so the stamp only carries the config's
+         first-visit default; static exports have no client module (or seen
+         state) to act on it, so they never render the attribute. */
+      data-hide-seen={hideSeenDefault === true && mode === "interactive" ? "on" : undefined}
     >
       {notice ? (
         <div

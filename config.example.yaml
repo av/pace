@@ -312,6 +312,7 @@ layout:
 #   retention_days: 30   # days to keep fetched items in SQLite; 0 disables pruning (default: 30)
 #   auto_mark_seen: true # opening an item marks it seen; false keeps read state fully manual (default: true)
 #                        # individual panels can override this either way with their own auto_mark_seen field
+#   hide_seen: false     # true starts the dashboard with seen items hidden (Shift+X); a visitor's own toggle always wins
 
 # Optional webhook notifications (POST JSON to any endpoint when matching items arrive):
 #

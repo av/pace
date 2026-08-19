@@ -932,7 +932,7 @@ export function validateParsedConfig(
     if (!isRecord(server)) {
       throw new Error(`config: server must be an object (got ${describeValue(server)})`);
     }
-    validateAllowedKeys(server, ["base_path", "retention_days", "auto_mark_seen"], (key) => `server.${key} is not a valid server field`);
+    validateAllowedKeys(server, ["base_path", "retention_days", "auto_mark_seen", "hide_seen"], (key) => `server.${key} is not a valid server field`);
     if (server.base_path !== undefined && typeof server.base_path !== "string") {
       throw new Error(`config: server.base_path must be a string (got ${describeValue(server.base_path)})`);
     }
@@ -947,6 +947,11 @@ export function validateParsedConfig(
     if (server.auto_mark_seen !== undefined && typeof server.auto_mark_seen !== "boolean") {
       throw new Error(
         `config: server.auto_mark_seen must be a boolean (false keeps read state fully manual) (got ${describeValue(server.auto_mark_seen)})`,
+      );
+    }
+    if (server.hide_seen !== undefined && typeof server.hide_seen !== "boolean") {
+      throw new Error(
+        `config: server.hide_seen must be a boolean (true starts the dashboard with seen items hidden) (got ${describeValue(server.hide_seen)})`,
       );
     }
   }

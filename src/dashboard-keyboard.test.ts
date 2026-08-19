@@ -42,6 +42,8 @@ import {
   HELP_BTN_CLASS,
   themeButtonLabel,
   hideSeenButtonLabel,
+  hideSeenDefaultOn,
+  initialHideSeen,
   HIDDEN_COUNT_CLASS,
   hiddenCountBadge,
   UNSEEN_COUNT_CLASS,
@@ -545,6 +547,43 @@ describe("hide-seen mode helpers", () => {
       expect(html).not.toContain(HIDE_SEEN_CLASS);
       expect(html).not.toContain("all-seen");
     }
+  });
+
+  test("hideSeenDefaultOn reads exactly the server-stamped body attribute", () => {
+    const bodyOn = { getAttribute: (n: string) => (n === "data-hide-seen" ? "on" : null) };
+    const bodyOther = { getAttribute: (n: string) => (n === "data-hide-seen" ? "off" : null) };
+    const bodyBare = { getAttribute: () => null };
+    expect(hideSeenDefaultOn(bodyOn)).toBe(true);
+    expect(hideSeenDefaultOn(bodyOther)).toBe(false);
+    expect(hideSeenDefaultOn(bodyBare)).toBe(false);
+    expect(hideSeenDefaultOn(null)).toBe(false);
+    expect(hideSeenDefaultOn(undefined)).toBe(false);
+  });
+
+  test("initialHideSeen: a stored choice always beats the config default", () => {
+    const bodyOn = { getAttribute: (n: string) => (n === "data-hide-seen" ? "on" : null) };
+    const bodyBare = { getAttribute: () => null };
+    // Explicit choices win in both directions.
+    expect(initialHideSeen("1", bodyBare)).toBe(true);
+    expect(initialHideSeen("0", bodyOn)).toBe(false);
+    // No stored choice: the config stamp decides.
+    expect(initialHideSeen(null, bodyOn)).toBe(true);
+    expect(initialHideSeen(null, bodyBare)).toBe(false);
+    // Garbage storage values fall back to the default too.
+    for (const raw of ["true", "", undefined, 1, {}]) {
+      expect(initialHideSeen(raw, bodyOn)).toBe(true);
+      expect(initialHideSeen(raw, bodyBare)).toBe(false);
+    }
+  });
+
+  test("static exports never carry the hide-seen default stamp", () => {
+    const layout = flexCfg("row", [panelCfg("Feed", "rss")]);
+    const item = makeItem({ title: "Story", source: "rss" });
+    const panelData = new Map<string, PanelData>([["Feed", { items: [item] }]]);
+    const staticHtml = renderDashboard({ layout, panelData, updatedAt: "now", mode: "static", hideSeenDefault: true });
+    expect(staticHtml).not.toContain("data-hide-seen");
+    const interactiveHtml = renderDashboard({ layout, panelData, updatedAt: "now", hideSeenDefault: true });
+    expect(interactiveHtml).toContain('data-hide-seen="on"');
   });
 });
 

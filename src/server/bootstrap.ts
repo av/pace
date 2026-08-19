@@ -136,6 +136,7 @@ export async function bootstrapServer(
     refreshSources: deps.refreshSources,
     basePath,
     autoMarkSeen: config.server?.auto_mark_seen !== false,
+    hideSeenDefault: config.server?.hide_seen === true,
     getRefreshHealth: deps.getRefreshHealth,
   });
 

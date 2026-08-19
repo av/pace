@@ -656,7 +656,10 @@ export const SEEN_CLASS = "item-seen";
 /** Root <html> class while hide-seen mode is on (seen items display: none). */
 export const HIDE_SEEN_CLASS = "hide-seen";
 
-/** localStorage key holding the hide-seen flag ("1"; absent = show seen items). */
+/**
+ * localStorage key holding the hide-seen flag ("1" = hide, "0" = show;
+ * absent = follow the config default stamped on <body>).
+ */
 export const HIDE_SEEN_STORAGE_KEY = "pace.hide-seen";
 
 /**
@@ -665,6 +668,28 @@ export const HIDE_SEEN_STORAGE_KEY = "pace.hide-seen";
  */
 export function parseStoredHideSeen(raw) {
   return raw === "1";
+}
+
+/**
+ * Whether the config asks the dashboard to start with hide-seen mode on:
+ * the layout stamps data-hide-seen="on" on <body> when server.hide_seen is
+ * true. Pure given a DOM-shaped body; anything else means "show seen items".
+ */
+export function hideSeenDefaultOn(body) {
+  if (!body || typeof body.getAttribute !== "function") return false;
+  return body.getAttribute("data-hide-seen") === "on";
+}
+
+/**
+ * The hide-seen state a fresh page load should apply: an explicit stored
+ * choice ("1" hide / "0" show) always wins; with no stored choice the
+ * config's data-hide-seen stamp on <body> decides. Pure so the precedence
+ * is testable without a DOM.
+ */
+export function initialHideSeen(raw, body) {
+  if (raw === "1") return true;
+  if (raw === "0") return false;
+  return hideSeenDefaultOn(body);
 }
 
 /**
@@ -964,8 +989,9 @@ function toggleHideSeen() {
   const on = !hideSeenActive();
   applyHideSeen(on);
   try {
-    if (on) window.localStorage.setItem(HIDE_SEEN_STORAGE_KEY, "1");
-    else window.localStorage.removeItem(HIDE_SEEN_STORAGE_KEY);
+    // Both directions store explicitly: an absent key means "no choice yet",
+    // which would let a server.hide_seen default re-hide after a toggle-off.
+    window.localStorage.setItem(HIDE_SEEN_STORAGE_KEY, on ? "1" : "0");
   } catch {
     // Storage unavailable: the toggle still works, it just won't persist.
   }
@@ -979,15 +1005,19 @@ function toggleHideSeen() {
   }
 }
 
-/** Re-apply the persisted hide-seen choice to the freshly rendered page. */
+/**
+ * Apply the persisted hide-seen choice — or, absent one, the config's
+ * server.hide_seen default — to the freshly rendered page.
+ */
 function restoreHideSeen() {
+  let raw = null;
   try {
-    if (parseStoredHideSeen(window.localStorage.getItem(HIDE_SEEN_STORAGE_KEY))) {
-      applyHideSeen(true);
-    }
+    raw = window.localStorage.getItem(HIDE_SEEN_STORAGE_KEY);
   } catch {
-    // Storage disabled (private mode, embedded webview): stay in show-all mode.
+    // Storage disabled (private mode, embedded webview): fall through with no
+    // stored choice, so the config default still applies.
   }
+  if (initialHideSeen(raw, document.body)) applyHideSeen(true);
 }
 
 let helpEl = null;

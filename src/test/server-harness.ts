@@ -24,6 +24,7 @@ export function makeServerRouteDeps(
     refreshSources: rest.refreshSources ?? (async () => []),
     basePath: rest.basePath ?? "",
     ...(rest.autoMarkSeen !== undefined && { autoMarkSeen: rest.autoMarkSeen }),
+    ...(rest.hideSeenDefault !== undefined && { hideSeenDefault: rest.hideSeenDefault }),
     ...(rest.getRefreshHealth !== undefined && { getRefreshHealth: rest.getRefreshHealth }),
   };
 }

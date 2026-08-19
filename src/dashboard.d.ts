@@ -48,6 +48,8 @@ export declare function panelSeenTarget(flags: unknown): boolean;
 export declare const HIDE_SEEN_CLASS: string;
 export declare const HIDE_SEEN_STORAGE_KEY: string;
 export declare function parseStoredHideSeen(raw: unknown): boolean;
+export declare function hideSeenDefaultOn(body: unknown): boolean;
+export declare function initialHideSeen(raw: unknown, body: unknown): boolean;
 export declare const COLLAPSE_BTN_CLASS: string;
 export declare const PANEL_SEEN_BTN_CLASS: string;
 export declare const ITEM_SEEN_BTN_CLASS: string;

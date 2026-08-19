@@ -40,6 +40,12 @@ export type ServerRouteDeps = {
    */
   autoMarkSeen?: boolean;
   /**
+   * Whether the dashboard starts with hide-seen mode on for visitors with no
+   * stored preference (default false; from server.hide_seen). True renders
+   * data-hide-seen="on" on the dashboard <body>.
+   */
+  hideSeenDefault?: boolean;
+  /**
    * Refresh-health snapshot for /health. Optional so embedders without a
    * scheduler keep the bare liveness payload.
    */
@@ -324,6 +330,7 @@ export function registerServerRoutes(app: Hono, deps: ServerRouteDeps): void {
       notice,
       noticeTone: failedNotice ? "error" : "info",
       autoMarkSeen: deps.autoMarkSeen,
+      hideSeenDefault: deps.hideSeenDefault,
     });
     return c.html(content);
   });

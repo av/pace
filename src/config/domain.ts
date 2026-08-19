@@ -188,6 +188,12 @@ export interface ServerConfig {
    * x/a keys and the mark-seen buttons change it.
    */
   auto_mark_seen?: boolean;
+  /**
+   * Whether the dashboard starts with hide-seen mode on (default false).
+   * Set true to open on unread items only; a visitor's own Shift+X toggle
+   * (persisted in localStorage) always wins over this default.
+   */
+  hide_seen?: boolean;
 }
 
 export interface AppConfig {
