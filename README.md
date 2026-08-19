@@ -372,7 +372,7 @@ The dashboard can be driven entirely from the keyboard; pressing `?` on a runnin
 | `r` | Refresh the focused panel |
 | `c` | Collapse or expand the focused panel (remembered per browser) |
 | `C` | Collapse all panels, or expand them all when everything is collapsed (Shift+c) |
-| `t` | Toggle light / dark theme (follows the OS preference until toggled; remembered per browser). Native browser UI — form controls, classic scrollbars, the overscroll background — follows the active theme via CSS `color-scheme` |
+| `t` | Toggle light / dark theme (follows the OS preference until toggled; remembered per browser). Native browser UI — form controls, classic scrollbars, the overscroll background — follows the active theme via CSS `color-scheme`, and mobile browser chrome (address bar, task switcher) follows it via `theme-color` |
 | `x` | Mark the focused item seen / unseen (dimmed; persisted server-side, shared across browsers) |
 | `a` | Mark the whole panel seen / unseen (all items at once; persisted server-side) |
 | `X` | Hide / show seen items across all panels (Shift+x; remembered per browser) |

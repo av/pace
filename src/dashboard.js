@@ -463,6 +463,14 @@ export function resolveTheme(storedChoice, systemPrefersLight) {
   return systemPrefersLight ? "light" : "dark";
 }
 
+/** Browser-chrome color per theme — must match styles.css --bg-base tokens. */
+export const THEME_COLORS = Object.freeze({ dark: "#111", light: "#f4f4f2" });
+
+/** The <meta name="theme-color"> content for a theme (unknown -> dark). */
+export function themeColorFor(theme) {
+  return THEME_COLORS[parseStoredTheme(theme)];
+}
+
 /* ------------------------------------------------------------------ */
 /* Panel collapse (toggled with "c", persisted in localStorage)        */
 /* ------------------------------------------------------------------ */
@@ -592,6 +600,12 @@ function systemPrefersLight() {
 function applyTheme(theme) {
   if (theme === "light") document.documentElement.setAttribute("data-theme", "light");
   else document.documentElement.removeAttribute("data-theme");
+  // The media-based theme-color pair in <head> follows the OS, not the
+  // data-theme override, so pin both to the active theme's color here —
+  // mobile browser chrome then matches the palette after a "t" toggle too.
+  for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
+    meta.setAttribute("content", themeColorFor(theme));
+  }
   // Keep the toolbar button's label naming the action a click will perform;
   // every theme mutation (toggle, restore, live OS change) funnels through here.
   const btn = document.querySelector(`.${THEME_BTN_CLASS}`);

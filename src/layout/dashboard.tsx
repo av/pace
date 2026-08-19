@@ -2,7 +2,7 @@
 import type { FC } from "hono/jsx";
 import type { DashboardRenderMode, LayoutNodeConfig, PanelData } from "./types";
 import { LayoutNode } from "./layout-node";
-import { faviconHref } from "../dashboard.js";
+import { faviconHref, THEME_COLORS } from "../dashboard.js";
 
 export type { PanelData } from "./types";
 
@@ -34,6 +34,11 @@ const Dashboard: FC<DashboardProps> = ({ layout, panelData, updatedAt, cssHref, 
     <head>
       <meta charset="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
+      {/* Mobile browser chrome (address bar, task switcher card) matches the
+          palette: the media pair follows the OS on static/no-JS pages, and
+          the client module pins both to the active theme after a "t" toggle. */}
+      <meta name="theme-color" media="(prefers-color-scheme: light)" content={THEME_COLORS.light} />
+      <meta name="theme-color" content={THEME_COLORS.dark} />
       <title>pace</title>
       <link rel="stylesheet" href={cssHref ?? `${basePath}/styles.css`} />
       {/* Interactive: the server-served plain monogram (the client swaps the

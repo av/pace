@@ -20,6 +20,8 @@ import {
   nextTheme,
   parseStoredThemeChoice,
   resolveTheme,
+  THEME_COLORS,
+  themeColorFor,
   SEEN_CLASS,
   autoSeenItem,
   panelSeenTarget,
@@ -351,6 +353,19 @@ describe("resolveTheme", () => {
     for (const raw of [null, undefined, "", "solarized"]) {
       expect(resolveTheme(raw, true)).toBe("light");
       expect(resolveTheme(raw, false)).toBe("dark");
+    }
+  });
+});
+
+describe("themeColorFor", () => {
+  test("maps each theme to its browser-chrome color", () => {
+    expect(themeColorFor("dark")).toBe(THEME_COLORS.dark);
+    expect(themeColorFor("light")).toBe(THEME_COLORS.light);
+  });
+
+  test("unknown values collapse to the dark default", () => {
+    for (const raw of [null, undefined, "", "solarized"]) {
+      expect(themeColorFor(raw)).toBe(THEME_COLORS.dark);
     }
   });
 });
@@ -913,6 +928,25 @@ describe("keyboard navigation CSS", () => {
     const block = (selector: RegExp) => STYLES.match(selector)?.[1] ?? "";
     expect(block(/:root\s*\{([^}]*)\}/s)).toContain("color-scheme: dark;");
     expect(block(/:root\[data-theme='light'\]\s*\{([^}]*)\}/s)).toContain("color-scheme: light;");
+  });
+
+  test("theme-color metas match the --bg-base tokens and render in every mode", () => {
+    // Mobile browser chrome (address bar, task switcher card) reads
+    // <meta name="theme-color">: the media pair follows the OS on
+    // static/no-JS pages, and applyTheme pins both after a "t" toggle.
+    // The colors must stay in lockstep with the stylesheet's --bg-base.
+    const block = (selector: RegExp) => STYLES.match(selector)?.[1] ?? "";
+    expect(block(/:root\s*\{([^}]*)\}/s)).toContain(`--bg-base: ${THEME_COLORS.dark};`);
+    expect(block(/:root\[data-theme='light'\]\s*\{([^}]*)\}/s)).toContain(
+      `--bg-base: ${THEME_COLORS.light};`,
+    );
+    for (const mode of ["interactive", "static"] as const) {
+      const html = renderModeDashboard(mode);
+      expect(html).toContain(
+        `<meta name="theme-color" media="(prefers-color-scheme: light)" content="${THEME_COLORS.light}"/>`,
+      );
+      expect(html).toContain(`<meta name="theme-color" content="${THEME_COLORS.dark}"/>`);
+    }
   });
 
   test("the server never renders a theme attribute (theme is client state only)", () => {

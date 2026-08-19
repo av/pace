@@ -37,6 +37,8 @@ export declare function resolveTheme(
   storedChoice: unknown,
   systemPrefersLight: boolean,
 ): "dark" | "light";
+export declare const THEME_COLORS: Readonly<{ dark: string; light: string }>;
+export declare function themeColorFor(theme: unknown): string;
 export declare const SEEN_CLASS: string;
 export declare function autoMarkSeenDisabled(body: unknown): boolean;
 export declare function autoSeenItem(target: unknown): object | null;

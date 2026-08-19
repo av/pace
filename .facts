@@ -273,6 +273,9 @@
 - label: The stylesheet declares CSS color-scheme per theme (dark on the base :root, light in both the data-theme='light' block and the static-export prefers-color-scheme block) so native browser UI - form controls, classic scrollbars, overscroll background - matches the active palette without JavaScript
   command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'color-scheme'
   tags: [spec, implemented]
+- label: The dashboard renders meta name=theme-color tags matching the --bg-base palette tokens (a prefers-color-scheme light media pair plus a dark default) so mobile browser chrome matches the theme on static/no-JS pages, and the client module pins both metas to the active theme on every theme change (t toggle, restore, live OS change)
+  command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'theme-color'
+  tags: [spec, implemented]
 
 ## refresh
 - Clicking the refresh button on a Panel immediately fetches the latest Items from its Sources and updates the view without restarting the server
