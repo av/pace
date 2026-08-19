@@ -53,7 +53,7 @@ import {
   formatPanelsSummary,
   formatPanelsUsage,
 } from "./cli-panels";
-import { initDb, searchItems } from "./db";
+import { countDedupedItemsByPanel, initDb, searchItems } from "./db";
 import { DEFAULT_API_SEARCH_LIMIT, parseSearchQuery } from "./server/api-search";
 import { errorMessage, normalizeParamBoolean, parseCliPort } from "./utils";
 import {
@@ -1079,7 +1079,11 @@ const CLI_COMMANDS: CliCommand[] = [
         try {
           applyCliConfigEnv(values, ctx.deps);
           const readConfig = ctx.deps.loadConfig ?? loadConfig;
-          rows = collectPanelsList(readConfig());
+          const config = readConfig();
+          // The database lives under cwd (or PACE_DB_PATH), same as `pace
+          // search` — a fresh one simply reports 0 stored items everywhere.
+          initDb();
+          rows = collectPanelsList(config, countDedupedItemsByPanel());
         } catch (err) {
           cliDie(errorMessage(err));
         }

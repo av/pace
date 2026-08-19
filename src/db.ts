@@ -478,6 +478,30 @@ export function searchItems(
   return db.prepare(sql).all(...params, ...termParams, options.limit) as ContentItemRow[];
 }
 
+/**
+ * Count the stored deduped items per panel — how many stories each panel view
+ * can show in total. The dedup window is applied within each panel (PARTITION
+ * BY panel_id + DEDUP_GROUP_EXPR), matching what getDedupedItems(panelId)
+ * would return for that panel; the ordering inside the window is irrelevant
+ * for counting. Panels with no stored rows are simply absent from the map.
+ */
+export function countDedupedItemsByPanel(): Map<string, number> {
+  const db = getDb();
+  const rows = db
+    .prepare(
+      `SELECT panel_id, COUNT(*) AS n FROM (
+        SELECT panel_id,
+          ROW_NUMBER() OVER (
+            PARTITION BY panel_id, ${DEDUP_GROUP_EXPR}
+            ORDER BY timestamp DESC
+          ) AS rn
+        FROM content_items
+      ) WHERE rn = 1 GROUP BY panel_id`,
+    )
+    .all() as { panel_id: string; n: number }[];
+  return new Map(rows.map((row) => [row.panel_id, row.n]));
+}
+
 // --- Seen/read item state ----------------------------------------------------
 
 /**

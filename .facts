@@ -333,6 +333,9 @@
 - label: the service worker cache name carries the pace package version, so a release upgrade retires the previous release's offline caches on activate instead of serving a stale app shell
   command: bun test src/server.test.ts --test-name-pattern 'cache version is wired'
   tags: [spec, implemented]
+- label: pace panels list includes each panel's stored deduped item count (an items column right-aligned in the text listing, an items field in --json, and a stored-items total in the stderr summary) counted per panel through the same dedup window the panel views use, reporting 0 for panels with nothing stored
+  command: bun test src/cli-panels.test.ts --test-name-pattern 'counts|items'
+  tags: [spec, implemented]
 - label: pace panels list --json emits the listing as one JSON document ({count, panels} with each panel's id, name, resolved sources, and an all flag for source-all panels) so scripts discover panel ids without parsing aligned columns; always parseable, summary still on stderr
   command: bun test src/cli-panels.test.ts --test-name-pattern 'json'
   tags: [spec, implemented]
