@@ -420,8 +420,8 @@ a:hover {
   right: 2.4rem;
 }
 
-.item:focus-within .item-seen-btn,
-.item:focus-within .item-star-btn {
+.item:is(:focus-visible, :has(:focus-visible), [data-touch-controls]:focus-within) .item-seen-btn,
+.item:is(:focus-visible, :has(:focus-visible), [data-touch-controls]:focus-within) .item-star-btn {
   opacity: 1;
   pointer-events: auto;
 }
@@ -461,7 +461,7 @@ a:hover {
   pointer-events: none;
 }
 
-.page-toolbar:focus-within > .refresh-btn {
+.page-toolbar:is(:focus-visible, :has(:focus-visible), [data-touch-controls]:focus-within) > .refresh-btn {
   opacity: 1;
   pointer-events: auto;
 }

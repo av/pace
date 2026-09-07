@@ -1444,7 +1444,7 @@ describe("mouse affordance CSS", () => {
     // A transparent button over the title corner must not intercept clicks.
     expect(base![1]).toContain("pointer-events: none");
     const reveal = STYLES.match(
-      /\.item:focus-within \.item-seen-btn,\s*\.item:focus-within \.item-star-btn\s*\{([^}]*)\}/s,
+      /\.item:is\(:focus-visible, :has\(:focus-visible\), \[data-touch-controls\]:focus-within\) \.item-seen-btn,\s*\.item:is\(:focus-visible, :has\(:focus-visible\), \[data-touch-controls\]:focus-within\) \.item-star-btn\s*\{([^}]*)\}/s,
     );
     expect(reveal).not.toBeNull();
     expect(reveal![1]).toContain("opacity: 1");
@@ -1474,7 +1474,7 @@ describe("mouse affordance CSS", () => {
     const idle = STYLES.match(/\n\.page-toolbar > \.refresh-btn\s*\{([^}]*)\}/s);
     expect(idle![1]).toContain("opacity: 0");
     expect(idle![1]).toContain("pointer-events: none");
-    const focus = STYLES.match(/\.page-toolbar:focus-within > \.refresh-btn\s*\{([^}]*)\}/s);
+    const focus = STYLES.match(/\.page-toolbar:is\(:focus-visible, :has\(:focus-visible\), \[data-touch-controls\]:focus-within\) > \.refresh-btn\s*\{([^}]*)\}/s);
     expect(focus![1]).toContain("opacity: 1");
     expect(focus![1]).toContain("pointer-events: auto");
   });

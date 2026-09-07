@@ -11,7 +11,7 @@
 ## Desktop hover and keyboard
 
 1. Load `/` and move the mouse outside all items and the toolbar. Every `.item-seen-btn`, `.item-star-btn` and `.page-toolbar > .refresh-btn` has computed opacity `0` and pointer-events `none`.
-2. Hover the first item: both controls have opacity `1` and pointer-events `auto`; other items stay hidden. Hover the toolbar: all its controls reveal. Move away with focus outside either surface: icons hide again.
+2. Hover the first item: both controls have opacity `1` and pointer-events `auto`; other items stay hidden. Click star, then move the pointer outside the item without blurring or moving focus: both controls return to opacity `0` and pointer-events `none`. Repeat hover, click theme, pointer exit on the toolbar: all its controls hide despite the clicked button retaining focus.
 3. Focus an item title using Tab or `j`: its controls reveal. Focus `.page-toolbar` and Tab through its buttons: controls remain visible and have non-empty accessible labels.
 4. Click seen and star. Their `aria-pressed` values become `true`; GET `/api/seen` and `/api/star` include the item's `data-seen-key`. Move the mouse and focus elsewhere: pressed controls still hide. Reload and verify persisted marks.
 5. Every action button contains a decorative SVG with `aria-hidden=true`, `focusable=false`, and a 24×24 viewBox. No Unicode glyph substitutes remain in item, panel or toolbar buttons.

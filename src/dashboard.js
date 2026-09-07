@@ -1778,6 +1778,12 @@ let touchRevealSurface = null;
 
 function revealTouchControls(event) {
   touchRevealSurface = null;
+  // Only deliberate touch reveal may retain pointer-acquired focus visibility.
+  document.querySelectorAll("[data-touch-controls]").forEach((surface) => {
+    if (event.pointerType !== "touch" || !surface.contains(event.target)) {
+      surface.removeAttribute("data-touch-controls");
+    }
+  });
   if (event.pointerType !== "touch") return;
   const target = event.target;
   const surface = target.closest(".item[data-seen-key], .page-toolbar");
@@ -1787,6 +1793,7 @@ function revealTouchControls(event) {
     // A browser can retarget the ensuing click onto a newly revealed button.
     // The reveal gesture itself must never activate that button.
     touchRevealSurface = surface;
+    surface.setAttribute("data-touch-controls", "");
     surface.focus({ preventScroll: true });
   }
 }
