@@ -34,7 +34,7 @@
  * header (plus an unseen-count badge next to the title that tracks how many
  * items are still unread), and a per-item mark-seen button that appears on
  * hover/focus. A
- * small fixed toolbar in the top-right corner mirrors the page-wide keys —
+ * small toolbar above the panels mirrors the page-wide keys —
  * theme toggle (t), hide-seen (Shift+X, with a badge counting the items the
  * mode currently hides), the item filter (/), and help (?). All of these are
  * client-injected so static exports never render them. The browser-tab title

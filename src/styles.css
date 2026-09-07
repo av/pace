@@ -440,12 +440,13 @@ a:hover {
 
 /* Top-corner toolbar (injected by dashboard.js): clickable equivalents of
    the page-wide keys — theme toggle (t), hide-seen (Shift+X), help (?).
-   Fixed so it stays reachable while scrolling; elevated background keeps it
-   readable over panel content. Server-rendered pages never contain it. */
+   Its own flex row reserves the actual control height, including touch targets,
+   so it cannot cover panel actions. Server-rendered pages never contain it. */
 .page-toolbar {
-  position: fixed;
-  top: 0.5rem;
-  right: 0.5rem;
+  order: -1;
+  align-self: flex-end;
+  flex-shrink: 0;
+  margin-bottom: 0.5rem;
   z-index: 10;
   display: flex;
   gap: 0.3rem;

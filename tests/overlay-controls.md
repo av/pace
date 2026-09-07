@@ -15,7 +15,7 @@
 3. Focus an item title using Tab or `j`: its controls reveal. Focus `.page-toolbar` and Tab through its buttons: controls remain visible and have non-empty accessible labels.
 4. Click seen and star. Their `aria-pressed` values become `true`; GET `/api/seen` and `/api/star` include the item's `data-seen-key`. Move the mouse and focus elsewhere: pressed controls still hide. Reload and verify persisted marks.
 5. Every action button contains a decorative SVG with `aria-hidden=true`, `focusable=false`, and a 24×24 viewBox. No Unicode glyph substitutes remain in item, panel or toolbar buttons.
-6. Exercise collapse/expand, theme, hide seen, starred-only, filter, help and refresh. Assert the corresponding panel class/ARIA state, root theme, body filter classes, filter visibility, help visibility and successful refresh response.
+6. Exercise collapse/expand, theme, hide seen, starred-only, filter, help and refresh. Assert the corresponding panel class/ARIA state, root theme, body filter classes, filter visibility, help visibility and successful refresh response. Use normal pointer clicks for panel collapse/expand and refresh (no force or keyboard fallback). Check that the toolbar rectangle does not intersect either panel button and that elementFromPoint at each button center resolves to that button or its child, both before and after toolbar reveal.
 
 ## Touch
 
@@ -23,6 +23,7 @@
 2. Tap star and seen: each performs exactly its own action. Both bounding rectangles are at least 44×44 CSS pixels and do not intersect.
 3. Tap outside the item: its controls hide. Tap a story title from idle: normal link navigation still works without requiring a reveal tap.
 4. Tap the quiet top-right toolbar surface: icons reveal with no action triggered. Tap theme: theme toggles. Tap outside: icons hide.
+5. The toolbar occupies a separate row above the panels. Check its rectangle does not intersect panel collapse or refresh targets, both idle and revealed. Tap collapse, expand and refresh normally; assert expanded state and refresh response. Repeat panel hit-testing after scrolling a long fixture; toolbar must not cover panel controls. All toolbar targets are at least 44×44, do not overlap each other, and fit the viewport.
 
 ## Appearance and regression
 

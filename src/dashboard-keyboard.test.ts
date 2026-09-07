@@ -1492,13 +1492,12 @@ describe("mouse affordance CSS", () => {
     expect(STYLES.slice(start)).toContain(".collapse-btn");
   });
 
-  test("toolbar is fixed in the top-right corner on an elevated background", () => {
+  test("toolbar reserves a row above the panels on an elevated background", () => {
     const bar = STYLES.match(/\n\.page-toolbar\s*\{([^}]*)\}/s);
     expect(bar).not.toBeNull();
-    expect(bar![1]).toContain("position: fixed");
-    expect(bar![1]).toContain("top:");
-    expect(bar![1]).toContain("right:");
-    // Panels scroll under it, so it needs its own opaque backdrop.
+    expect(bar![1]).toContain("order: -1");
+    expect(bar![1]).toContain("align-self: flex-end");
+    expect(bar![1]).toContain("flex-shrink: 0");
     expect(bar![1]).toContain("var(--bg-elevated)");
   });
 
