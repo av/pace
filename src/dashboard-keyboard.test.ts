@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   HELP_ROWS,
+  actionIcon,
   KEY_MOVES,
   isTypingTarget,
   clientFilterQueryString,
@@ -1419,6 +1420,17 @@ describe("keyboard navigation CSS", () => {
 });
 
 describe("mouse affordance CSS", () => {
+  test("custom action icons share accessible decorative SVG geometry", () => {
+    const icons = ["seen", "collapse", "star", "theme", "hide", "filter", "help", "close"].map(actionIcon);
+    expect(new Set(icons).size).toBe(8);
+    for (const icon of icons) {
+      expect(icon).toContain('viewBox="0 0 24 24"');
+      expect(icon).toContain('aria-hidden="true"');
+      expect(icon).toContain('focusable="false"');
+      expect(icon).toContain('stroke="currentColor"');
+      expect(icon).not.toContain("undefined");
+    }
+  });
   test("collapse chevron rotates when its panel is collapsed", () => {
     const rotated = STYLES.match(/\.panel-collapsed \.collapse-btn\s*\{([^}]*)\}/s);
     expect(rotated).not.toBeNull();
@@ -1432,19 +1444,39 @@ describe("mouse affordance CSS", () => {
     // A transparent button over the title corner must not intercept clicks.
     expect(base![1]).toContain("pointer-events: none");
     const reveal = STYLES.match(
-      /\.item:hover \.item-seen-btn,\s*\.item:focus-within \.item-seen-btn,\s*\.item:hover \.item-star-btn,\s*\.item:focus-within \.item-star-btn\s*\{([^}]*)\}/s,
+      /\.item:focus-within \.item-seen-btn,\s*\.item:focus-within \.item-star-btn\s*\{([^}]*)\}/s,
     );
     expect(reveal).not.toBeNull();
     expect(reveal![1]).toContain("opacity: 1");
     expect(reveal![1]).toContain("pointer-events: auto");
   });
 
-  test("coarse pointers (no hover) get the item seen and star buttons always visible", () => {
+  test("touch controls stay hidden until focus with separate 44px targets", () => {
     const coarse = STYLES.match(
-      /@media \(pointer: coarse\)\s*\{\s*\.item \.item-seen-btn,\s*\.item \.item-star-btn\s*\{([^}]*)\}/s,
+      /@media \(pointer: coarse\)\s*\{\s*\.item \.item-star-btn\s*\{([^}]*)\}/s,
     );
     expect(coarse).not.toBeNull();
-    expect(coarse![1]).toContain("opacity: 1");
+    expect(coarse![1]).toContain("right: 3.5rem");
+    expect(coarse![1]).not.toContain("opacity: 1");
+  });
+
+  test("hover reveal is limited to devices with hover and covers all overlays", () => {
+    const hover = STYLES.match(/@media \(hover: hover\)\s*\{([^}]*\})/s);
+    expect(hover).not.toBeNull();
+    for (const selector of [".item:hover .item-seen-btn", ".item:hover .item-star-btn", ".page-toolbar:hover > .refresh-btn"]) {
+      expect(hover![1]).toContain(selector);
+    }
+    expect(hover![1]).toContain("opacity: 1");
+    expect(hover![1]).toContain("pointer-events: auto");
+  });
+
+  test("toolbar icons are inert at rest and reveal with keyboard focus", () => {
+    const idle = STYLES.match(/\n\.page-toolbar > \.refresh-btn\s*\{([^}]*)\}/s);
+    expect(idle![1]).toContain("opacity: 0");
+    expect(idle![1]).toContain("pointer-events: none");
+    const focus = STYLES.match(/\.page-toolbar:focus-within > \.refresh-btn\s*\{([^}]*)\}/s);
+    expect(focus![1]).toContain("opacity: 1");
+    expect(focus![1]).toContain("pointer-events: auto");
   });
 
   test("pressed item seen and star buttons surface the accent so state is visible", () => {

@@ -1457,7 +1457,7 @@ function buildHelp() {
   close.type = "button";
   close.className = "kbd-help-close";
   close.setAttribute("aria-label", "Close keyboard shortcuts");
-  close.textContent = "×";
+  close.innerHTML = actionIcon("close");
   close.addEventListener("click", closeHelp);
   overlay.appendChild(close);
 
@@ -1630,12 +1630,28 @@ function closeFilter() {
 /* Mouse affordances (injected buttons mirroring the c/a/x keys)       */
 /* ------------------------------------------------------------------ */
 
-function makeAffordanceButton(className, glyph, label) {
+// Hand-drawn on the same 24px grid; geometry is static, never user content.
+const ACTION_PATHS = {
+  close: "m6 6 12 12M18 6 6 18",
+  seen: "m5 12 4.5 4.5L19 7",
+  collapse: "m6 9 6 6 6-6",
+  star: "m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z",
+  theme: "M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9Z",
+  hide: "M3 12s3-6 9-6 9 6 9 6-3 6-9 6-9-6-9-6Zm9-3a3 3 0 1 0 0 6 3 3 0 0 0 0-6",
+  filter: "M10.5 3.5a7 7 0 1 0 0 14 7 7 0 0 0 0-14ZM16 16l5 5",
+  help: "M9 8a3 3 0 0 1 6 0c0 2-3 2-3 5m0 4v.1M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20",
+};
+
+export function actionIcon(name) {
+  return `<svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="${ACTION_PATHS[name]}"/></svg>`;
+}
+
+function makeAffordanceButton(className, icon, label) {
   const btn = document.createElement("button");
   btn.type = "button";
   // Share the refresh button's look; the extra class carries behavior/state.
   btn.className = `refresh-btn ${className}`;
-  btn.textContent = glyph;
+  btn.innerHTML = actionIcon(icon);
   btn.setAttribute("aria-label", label);
   btn.title = label;
   return btn;
@@ -1656,7 +1672,7 @@ function injectMouseAffordances() {
     if (panel.querySelector(".panel-body .item[data-seen-key]")) {
       const seenBtn = makeAffordanceButton(
         PANEL_SEEN_BTN_CLASS,
-        "✓",
+        "seen",
         panelSeenButtonLabel(title),
       );
       seenBtn.addEventListener("click", () => togglePanelSeen(panel));
@@ -1674,7 +1690,7 @@ function injectMouseAffordances() {
     const collapsed = panel.classList.contains("panel-collapsed");
     const chevron = makeAffordanceButton(
       COLLAPSE_BTN_CLASS,
-      "▾",
+      "collapse",
       collapseButtonLabel(title, collapsed),
     );
     chevron.setAttribute("aria-expanded", collapsed ? "false" : "true");
@@ -1683,17 +1699,19 @@ function injectMouseAffordances() {
   }
   for (const item of document.querySelectorAll(".panel-body .item[data-seen-key]")) {
     const seen = item.classList.contains(SEEN_CLASS);
-    const btn = makeAffordanceButton(ITEM_SEEN_BTN_CLASS, "✓", itemSeenButtonLabel(seen));
+    const btn = makeAffordanceButton(ITEM_SEEN_BTN_CLASS, "seen", itemSeenButtonLabel(seen));
     btn.tabIndex = -1;
     btn.setAttribute("aria-pressed", seen ? "true" : "false");
     btn.addEventListener("click", () => toggleItemSeen(item));
     item.appendChild(btn);
     const starred = item.classList.contains(STARRED_CLASS);
-    const starBtn = makeAffordanceButton(ITEM_STAR_BTN_CLASS, "★", itemStarButtonLabel(starred));
+    const starBtn = makeAffordanceButton(ITEM_STAR_BTN_CLASS, "star", itemStarButtonLabel(starred));
     starBtn.tabIndex = -1;
     starBtn.setAttribute("aria-pressed", starred ? "true" : "false");
     starBtn.addEventListener("click", () => toggleItemStarred(item));
     item.appendChild(starBtn);
+    // Tapping non-link space reveals actions without consuming a story link.
+    item.tabIndex = -1;
   }
 }
 
@@ -1710,14 +1728,16 @@ function injectToolbar() {
   bar.className = TOOLBAR_CLASS;
   bar.setAttribute("role", "toolbar");
   bar.setAttribute("aria-label", "Dashboard controls");
+  bar.tabIndex = 0;
+  bar.title = "Dashboard controls";
 
   // Labels here are the pre-restore defaults (dark theme, seen items shown);
   // applyTheme/applyHideSeen overwrite them the moment state is known.
-  const theme = makeAffordanceButton(THEME_BTN_CLASS, "◐", themeButtonLabel("dark"));
+  const theme = makeAffordanceButton(THEME_BTN_CLASS, "theme", themeButtonLabel("dark"));
   theme.addEventListener("click", toggleTheme);
   bar.appendChild(theme);
 
-  const hideSeen = makeAffordanceButton(HIDE_SEEN_BTN_CLASS, "◎", hideSeenButtonLabel(false));
+  const hideSeen = makeAffordanceButton(HIDE_SEEN_BTN_CLASS, "hide", hideSeenButtonLabel(false));
   hideSeen.setAttribute("aria-pressed", "false");
   // Count badge: shows how many seen items the mode currently hides. The
   // label carries the number too, so the visual badge is decoration only.
@@ -1730,21 +1750,21 @@ function injectToolbar() {
 
   const starredOnly = makeAffordanceButton(
     STARRED_ONLY_BTN_CLASS,
-    "★",
+    "star",
     starredOnlyButtonLabel(false),
   );
   starredOnly.setAttribute("aria-pressed", "false");
   starredOnly.addEventListener("click", toggleStarredOnly);
   bar.appendChild(starredOnly);
 
-  const filter = makeAffordanceButton(FILTER_BTN_CLASS, "⌕", "Filter items");
+  const filter = makeAffordanceButton(FILTER_BTN_CLASS, "filter", "Filter items");
   filter.addEventListener("click", () => {
     if (filterOpen()) closeFilter();
     else openFilter();
   });
   bar.appendChild(filter);
 
-  const help = makeAffordanceButton(HELP_BTN_CLASS, "?", "Keyboard shortcuts");
+  const help = makeAffordanceButton(HELP_BTN_CLASS, "help", "Keyboard shortcuts");
   help.addEventListener("click", () => {
     if (helpOpen()) closeHelp();
     else openHelp();
@@ -1752,6 +1772,31 @@ function injectToolbar() {
   bar.appendChild(help);
 
   document.body.appendChild(bar);
+}
+
+let touchRevealSurface = null;
+
+function revealTouchControls(event) {
+  touchRevealSurface = null;
+  if (event.pointerType !== "touch") return;
+  const target = event.target;
+  const surface = target.closest(".item[data-seen-key], .page-toolbar");
+  // Blur the previous surface when tapping elsewhere, including page space.
+  if (!surface?.contains(document.activeElement)) document.activeElement?.blur();
+  if (surface && !target.closest("a, button, input, select, textarea")) {
+    // A browser can retarget the ensuing click onto a newly revealed button.
+    // The reveal gesture itself must never activate that button.
+    touchRevealSurface = surface;
+    surface.focus({ preventScroll: true });
+  }
+}
+
+function guardTouchRevealClick(event) {
+  if (touchRevealSurface?.contains(event.target)) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+  touchRevealSurface = null;
 }
 
 /**
@@ -1837,6 +1882,8 @@ if (typeof document !== "undefined" && typeof window !== "undefined") {
   document.addEventListener("keydown", onKeydown);
   document.addEventListener("click", autoMarkOpenedSeen);
   document.addEventListener("auxclick", autoMarkOpenedSeen);
+  document.addEventListener("pointerdown", revealTouchControls);
+  document.addEventListener("click", guardTouchRevealClick, true);
   injectMouseAffordances();
   injectToolbar();
   restoreCollapsedPanels();

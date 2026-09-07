@@ -153,6 +153,8 @@
 - label: Until t pins an explicit theme choice in localStorage, an interactive dashboard resolves its theme from the OS prefers-color-scheme preference and follows live OS appearance changes; an explicit stored light or dark choice always wins over the OS preference
   command: bun test src/dashboard-keyboard.test.ts --test-name-pattern 'resolveTheme|parseStoredThemeChoice'
   tags: [spec, rendering, theme-system-default, implemented]
+- Item seen and star overlays and dashboard toolbar icons remain hidden at rest, reveal on hover or keyboard focus, and support deliberate touch reveal without intercepting item links or overlapping touch targets @spec @overlay-icons @implemented
+- Dashboard action controls use coordinated custom line icons with accessible text labels and preserved pressed and expanded states @spec @overlay-icons @implemented
 
 # packaging
 

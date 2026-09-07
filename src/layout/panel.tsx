@@ -88,7 +88,11 @@ export const PanelHeader: FC<{
       {lastRefreshedAt && <Timestamp timestamp={lastRefreshedAt} mode={mode} class="panel-refreshed" />}
       {mode === "interactive" && (
         <form method="post" action={`${basePath}/refresh/${encodeURIComponent(panelId)}`}>
-          <button type="submit" class="refresh-btn" title={`Refresh ${title}`} aria-label={`Refresh ${title}`}>↻</button>
+          <button type="submit" class="refresh-btn" title={`Refresh ${title}`} aria-label={`Refresh ${title}`}>
+            <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <path d="M20 10a8 8 0 1 0-1 7M20 4v6h-6" />
+            </svg>
+          </button>
         </form>
       )}
     </div>

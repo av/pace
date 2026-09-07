@@ -354,14 +354,24 @@ a:hover {
 }
 
 .refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 8px;
   color: var(--text-muted);
-  padding: 0.1rem 0.3rem;
+  padding: 0.3rem;
   cursor: pointer;
   line-height: 1;
   transition: color 0.15s, border-color 0.15s;
+}
+
+.action-icon {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  pointer-events: none;
 }
 
 .refresh-btn:hover {
@@ -390,8 +400,7 @@ a:hover {
 
 /* The per-item mark-seen button sits in the item's top-right corner and only
    materializes on hover/focus (pointer-events too, so the hidden button never
-   swallows clicks meant for the title). Touch screens have no hover, so
-   coarse pointers get it always-on. */
+   swallows clicks meant for the title). Touch reveals through focus. */
 .item {
   position: relative;
 }
@@ -411,9 +420,7 @@ a:hover {
   right: 2.4rem;
 }
 
-.item:hover .item-seen-btn,
 .item:focus-within .item-seen-btn,
-.item:hover .item-star-btn,
 .item:focus-within .item-star-btn {
   opacity: 1;
   pointer-events: auto;
@@ -426,10 +433,8 @@ a:hover {
 }
 
 @media (pointer: coarse) {
-  .item .item-seen-btn,
   .item .item-star-btn {
-    opacity: 1;
-    pointer-events: auto;
+    right: 3.5rem;
   }
 }
 
@@ -448,6 +453,26 @@ a:hover {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 6px;
+}
+
+/* The quiet toolbar surface stays discoverable; icons appear on interaction. */
+.page-toolbar > .refresh-btn {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.page-toolbar:focus-within > .refresh-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (hover: hover) {
+  .item:hover .item-seen-btn,
+  .item:hover .item-star-btn,
+  .page-toolbar:hover > .refresh-btn {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 .page-toolbar .hide-seen-btn[aria-pressed="true"] {
