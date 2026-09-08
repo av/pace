@@ -2,7 +2,7 @@
 
 Notable changes per release, newest first. Also published as [GitHub releases](https://github.com/av/pace/releases).
 
-## Unreleased
+## v0.8.0
 
 ### New features
 
