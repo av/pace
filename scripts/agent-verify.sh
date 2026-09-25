@@ -6,6 +6,11 @@ set -eu
 
 cd "$(dirname "$0")/.."
 
+# agent-setup.sh may have installed bun to ~/.bun/bin in an earlier shell.
+if ! command -v bun >/dev/null 2>&1; then
+  PATH="$HOME/.bun/bin:$PATH"
+fi
+
 echo "== typecheck"
 bun run typecheck
 
