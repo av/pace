@@ -42,3 +42,6 @@ jobs:
 
       - name: Test
         run: bun test
+
+      - name: Serve smoke
+        run: sh scripts/smoke-serve.sh
