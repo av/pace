@@ -37,7 +37,9 @@ layout:
       source: links
 EOF
 
-port=${PACE_SMOKE_PORT:-$(bun -e 'const s = Bun.serve({ port: 0, fetch: () => new Response() }); console.log(s.port); s.stop(true);')}
+# process.stdout.write, not console.log: with FORCE_COLOR set (some agent
+# sandboxes), console.log wraps numbers in ANSI colour codes.
+port=${PACE_SMOKE_PORT:-$(bun -e 'const s = Bun.serve({ port: 0, fetch: () => new Response() }); process.stdout.write(String(s.port)); s.stop(true);')}
 
 # Drop pace's env overrides so an agent's or user's environment cannot point
 # the smoke run at a real config or database.

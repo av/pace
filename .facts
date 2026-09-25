@@ -632,3 +632,12 @@
 - label: CI runs scripts/smoke-serve.sh after the test step so the documented smoke check keeps working
   command: grep -q 'scripts/smoke-serve.sh' .github/workflows/ci.yml
   tags: [spec, cloud-ready]
+- label: bun test clears FORCE_COLOR and CLICOLOR_FORCE via a bunfig.toml test preload, so CLI subprocess tests compare plain stderr in sandboxes that force colour
+  command: grep -q 'preload = \["./src/test/preload.ts"\]' bunfig.toml && FORCE_COLOR=1 CLICOLOR_FORCE=1 bun test src/cli.test.ts -t 'missing file rejected' >/dev/null 2>&1
+  tags: [spec, cloud-ready]
+- label: scripts/smoke-serve.sh passes when FORCE_COLOR is set (the port is printed with process.stdout.write, not console.log)
+  command: FORCE_COLOR=1 CLICOLOR_FORCE=1 sh scripts/smoke-serve.sh >/dev/null 2>&1
+  tags: [spec, cloud-ready]
+- label: The pace-setup skill's troubleshooting table says 'config: file not found' comes from an explicit --config or PACE_CONFIG path, and that pace otherwise falls back to config.example.yaml
+  command: grep -q 'doesn.t exist (with neither set, pace falls back to .config.example.yaml.' skills/pace-setup/SKILL.md
+  tags: [spec, cloud-ready]
