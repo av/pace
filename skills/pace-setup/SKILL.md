@@ -193,7 +193,7 @@ curl http://localhost:7453/api/panels/hackernews.rss
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `config: file not found` | No config.yaml and no PACE_CONFIG set | `cp config.example.yaml config.yaml` |
+| `config: file not found: <path>` | The file named by `--config` or `PACE_CONFIG` doesn't exist (with neither set, pace falls back to `config.example.yaml` in the working directory) | Fix the path, or `cp config.example.yaml config.yaml` |
 | `config: ...` prefixed error | Invalid YAML or schema error in config | Run `pace config check config.yaml` for fast diagnosis without starting the server |
 | `scheduler: adapter type "X" is configured but no matching adapter module was discovered` | Typo in adapter type name | Run `pace adapters list` to see all valid types |
 | Panels show but no content | Adapters haven't refreshed yet | Wait for refresh_interval or POST to `/refresh/<panel-id>` |
