@@ -42,7 +42,7 @@ Skills for working with pace dashboards live in `skills/` (the copies bundled wi
 - **pace-setup** — install, run, and deploy pace (Bun dev, Docker, Docker Compose, CLI flags, troubleshooting)
 - **pace-config** — generate or modify `config.yaml` from a natural-language description of interests
 
-Use `/pace-setup` when asked to install or run pace. Use `/pace-config` when asked to configure, customize, or add feeds to a dashboard.
+Use `/pace-setup` when a user asks to install or run pace as a dashboard. To set up this repo for development or verify a change, follow "Cloud sandboxes" above instead. Use `/pace-config` when asked to configure, customize, or add feeds to a dashboard.
 
 ## Example dashboards
 
