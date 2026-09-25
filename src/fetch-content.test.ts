@@ -4,6 +4,27 @@ import { lookupWithAbort } from "./fetch-content";
 import { makeContentItemRow as makeRow } from "./test/content-items";
 import * as piAi from "@mariozechner/pi-ai";
 import { spyOn } from "bun:test";
+import * as dnsPromises from "node:dns/promises";
+
+// The private-network guard resolves hostnames before fetching. Answer the
+// hostnames these tests use locally so they pass without network access
+// (offline CI, cloud agent sandboxes); anything else goes to the real resolver.
+const realDns = { ...dnsPromises };
+const realLookup = realDns.lookup;
+const STUB_ADDRESSES: Record<string, string> = {
+  "example.com": "93.184.216.34",
+  "localhost": "127.0.0.1",
+  "localhost.": "127.0.0.1",
+};
+mock.module("node:dns/promises", () => ({
+  ...realDns,
+  lookup: (hostname: string, options: { all: true; verbatim: true }) => {
+    const address = STUB_ADDRESSES[hostname.toLowerCase()];
+    return address
+      ? Promise.resolve([{ address, family: 4 }])
+      : realLookup(hostname, options);
+  },
+}));
 
 const fakeModel = { id: "fake" } as piAi.Model<piAi.Api>;
 
