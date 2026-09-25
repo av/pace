@@ -19,6 +19,22 @@ pace panels list                 # list the active config's panels (ids, names, 
 pace skill [name]                # list or print bundled agent skills
 ```
 
+## Cloud sandboxes
+
+For a fresh clone with nothing set up (Muse Code, Grok, Cursor cloud agents, CI). No secrets, `config.yaml` or `data/` needed. Don't create them to make checks pass.
+
+```bash
+scripts/agent-setup.sh     # installs pinned bun if missing, then bun install --frozen-lockfile (the only step that needs network)
+scripts/agent-verify.sh    # typecheck + bun test (max 8 concurrent) + serve smoke; works offline
+scripts/smoke-serve.sh     # just the smoke: serves a bookmarks-only config from a temp dir, checks /health and /api/panels
+```
+
+**How to verify a change:** run `scripts/agent-verify.sh` and the facts for your tag (`facts check --tags <tag>`; if `facts` is missing: `npm install -g @avcodes/facts`). Tests must pass with no network: stub `fetch` and DNS as `src/fetch-content.test.ts` does, and don't rely on file permissions that root ignores. For machine-readable output use `pace search --json` and `pace panels list --json`, or the server's `/health` and `/api/*` JSON. `pace config check <path>` exits non-zero with a `config:` message on bad configs.
+
+In a sandbox, run the CLI as `bun src/cli.ts <command>`. The `npm link` step under "After making changes" is for Ivan's machine only.
+
+Per-agent details (which files each agent reads, sandbox and network limits) are in [docs/agents.md](docs/agents.md).
+
 ## Skills
 
 Skills for working with pace dashboards live in `skills/` (the copies bundled with the CLI via `pace skill`); `.agents/skills/pace-setup` and `.agents/skills/pace-config` are symlinks to them, and `.claude/skills` is a symlink to `.agents/skills`:
