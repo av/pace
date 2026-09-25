@@ -601,43 +601,43 @@
 ## cloud-sandbox
 - label: scripts/agent-setup.sh installs pinned dependencies non-interactively (bun install --frozen-lockfile), is idempotent, needs no secrets, and never creates config.yaml or data/
   command: sh -n scripts/agent-setup.sh && grep -q 'bun install --frozen-lockfile' scripts/agent-setup.sh && ! grep -Eq '(>|cp .*|touch .*)config\.yaml' scripts/agent-setup.sh
-  tags: [spec, cloud-ready]
+  tags: [spec, cloud-ready, implemented]
 - label: scripts/smoke-serve.sh starts pace serve from a temp directory with an offline bookmarks-only config on a free port, checks /health and /api/panels, and never reads or writes the repo's config.yaml or data/
   command: sh -n scripts/smoke-serve.sh && grep -q 'mktemp -d' scripts/smoke-serve.sh && grep -q '/health' scripts/smoke-serve.sh && grep -q 'type: bookmarks' scripts/smoke-serve.sh && sh scripts/smoke-serve.sh >/dev/null 2>&1
-  tags: [spec, cloud-ready]
+  tags: [spec, cloud-ready, implemented]
 - label: scripts/agent-verify.sh runs typecheck, bun test capped at 8 concurrent tests, and the serve smoke check, and exits non-zero on the first failure
   command: sh -n scripts/agent-verify.sh && grep -q 'bun run typecheck' scripts/agent-verify.sh && grep -q 'max-concurrency=8' scripts/agent-verify.sh && grep -q 'smoke-serve.sh' scripts/agent-verify.sh && grep -q 'set -e' scripts/agent-verify.sh
-  tags: [spec, cloud-ready]
+  tags: [spec, cloud-ready, implemented]
 - label: fetch-content tests stub DNS resolution for their hostnames, so they pass with no network (a cloud sandbox after install)
   command: grep -q 'mock.module("node:dns/promises"' src/fetch-content.test.ts && bun test src/fetch-content.test.ts >/dev/null 2>&1
-  tags: [spec, cloud-ready]
+  tags: [spec, cloud-ready, implemented]
 - label: The unreadable-config test is skipped when running as root, where chmod 000 does not block reads (cloud sandboxes often run as root)
   command: grep -q 'skipIf' src/config.test.ts && grep -q 'getuid' src/config.test.ts
-  tags: [spec, cloud-ready]
+  tags: [spec, cloud-ready, implemented]
 - label: AGENTS.md has a Cloud sandboxes section naming the setup and verify scripts, the offline test expectation, and a link to docs/agents.md
   command: grep -q '^## Cloud sandboxes' AGENTS.md && grep -q 'scripts/agent-setup.sh' AGENTS.md && grep -q 'scripts/agent-verify.sh' AGENTS.md && grep -q 'docs/agents.md' AGENTS.md
-  tags: [spec, cloud-ready]
+  tags: [spec, cloud-ready, implemented]
 - label: docs/agents.md documents Muse Code, Grok Build and Grok Bot with a compatibility table and links to primary sources (dev.meta.ai, docs.x.ai, github.com/xai-org/grok-build)
   command: grep -q '^## Compatibility' docs/agents.md && grep -q 'dev.meta.ai/docs/muse-code' docs/agents.md && grep -q 'docs.x.ai' docs/agents.md && grep -q 'github.com/xai-org/grok-build' docs/agents.md
-  tags: [spec, cloud-ready]
+  tags: [spec, cloud-ready, implemented]
 - label: The repo has no CLAUDE.md; AGENTS.md is the single instruction file because Muse Code and Grok Build both read AGENTS.md and Grok loads every matching file, so a CLAUDE.md copy or symlink would load twice
   command: test ! -e CLAUDE.md && test ! -e .agents/AGENTS.md
-  tags: [spec, cloud-ready]
+  tags: [spec, cloud-ready, implemented]
 - label: pace-setup and pace-config skills resolve through .agents/skills (read by Muse Code and Grok Build) and .claude/skills (read by Grok Build and Claude Code)
   command: test -f .agents/skills/pace-setup/SKILL.md && test -f .agents/skills/pace-config/SKILL.md && test -f .claude/skills/pace-setup/SKILL.md && test -f .claude/skills/pace-config/SKILL.md
-  tags: [spec, cloud-ready]
+  tags: [spec, cloud-ready, implemented]
 - label: .cursor/environment.json points Cursor-hosted cloud agents (the machines Grok Bot runs on) at scripts/agent-setup.sh as the install step
   command: bun -e 'const e=require("./.cursor/environment.json"); if(!String(e.install).includes("scripts/agent-setup.sh")) process.exit(1)'
-  tags: [spec, cloud-ready]
+  tags: [spec, cloud-ready, implemented]
 - label: CI runs scripts/smoke-serve.sh after the test step so the documented smoke check keeps working
   command: grep -q 'scripts/smoke-serve.sh' .github/workflows/ci.yml
-  tags: [spec, cloud-ready]
+  tags: [spec, cloud-ready, implemented]
 - label: bun test clears FORCE_COLOR and CLICOLOR_FORCE via a bunfig.toml test preload, so CLI subprocess tests compare plain stderr in sandboxes that force colour
   command: grep -q 'preload = \["./src/test/preload.ts"\]' bunfig.toml && FORCE_COLOR=1 CLICOLOR_FORCE=1 bun test src/cli.test.ts -t 'missing file rejected' >/dev/null 2>&1
-  tags: [spec, cloud-ready]
+  tags: [spec, cloud-ready, implemented]
 - label: scripts/smoke-serve.sh passes when FORCE_COLOR is set (the port is printed with process.stdout.write, not console.log)
   command: FORCE_COLOR=1 CLICOLOR_FORCE=1 sh scripts/smoke-serve.sh >/dev/null 2>&1
-  tags: [spec, cloud-ready]
+  tags: [spec, cloud-ready, implemented]
 - label: The pace-setup skill's troubleshooting table says 'config: file not found' comes from an explicit --config or PACE_CONFIG path, and that pace otherwise falls back to config.example.yaml
   command: grep -q 'doesn.t exist (with neither set, pace falls back to .config.example.yaml.' skills/pace-setup/SKILL.md
-  tags: [spec, cloud-ready]
+  tags: [spec, cloud-ready, implemented]
