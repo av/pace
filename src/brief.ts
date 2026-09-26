@@ -9,7 +9,8 @@
  * `pace brief`). The schema is documented in docs/brief.md; anything that
  * changes a field's meaning must bump BRIEF_SCHEMA.
  */
-import { basename } from "node:path";
+import { existsSync } from "node:fs";
+import { basename, join } from "node:path";
 import { htmlToText } from "./html-to-text";
 import { stripClusterAnnotationPrefixes } from "./cluster-signals";
 import {
@@ -245,8 +246,15 @@ export function resolveBriefPanelIds(
  * "preset:<name>", anything else its file name (never a full path, so the
  * brief does not leak the host's directory layout).
  */
-export function briefConfigLabel(configPath: string | undefined): string {
-  if (configPath === undefined || configPath === "") return "config.yaml";
+export function briefConfigLabel(
+  configPath: string | undefined,
+  cwdHasConfig: () => boolean = () => existsSync(join(process.cwd(), "config.yaml")),
+): string {
+  // No explicit config: loadConfig reads ./config.yaml, else falls back to
+  // the bundled example.
+  if (configPath === undefined || configPath === "") {
+    return cwdHasConfig() ? "config.yaml" : "config.example.yaml";
+  }
   const preset = /(?:^|[\\/])presets[\\/]config\.([\w-]+)\.yaml$/.exec(configPath);
   if (preset) return `preset:${preset[1]}`;
   if (!configPath.includes("/") && !configPath.includes("\\") && !configPath.endsWith(".yaml")) {

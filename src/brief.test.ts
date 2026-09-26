@@ -134,7 +134,8 @@ describe("brief schema", () => {
     expect(briefConfigLabel("/app/presets/config.ml-ai.yaml")).toBe("preset:ml-ai");
     expect(briefConfigLabel("ml-ai")).toBe("preset:ml-ai");
     expect(briefConfigLabel("/home/me/secret/dash.yaml")).toBe("dash.yaml");
-    expect(briefConfigLabel(undefined)).toBe("config.yaml");
+    expect(briefConfigLabel(undefined, () => true)).toBe("config.yaml");
+    expect(briefConfigLabel(undefined, () => false)).toBe("config.example.yaml");
   });
 });
 
