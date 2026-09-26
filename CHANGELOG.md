@@ -2,6 +2,33 @@
 
 Notable changes per release, newest first. Also published as [GitHub releases](https://github.com/av/pace/releases).
 
+## Unreleased
+
+No changes to the dashboard, CLI, config format or Docker image. This release makes the repo work for cloud coding agents (Muse Code, Grok Build, Grok Bot, Cursor cloud agents) that clone it into a fresh sandbox and work unattended.
+
+### Tooling
+
+- `scripts/agent-setup.sh`: zero-interaction setup for a fresh clone. Installs the pinned Bun 1.3.9 if none is on `PATH` (official installer, npm as a fallback), then `bun install --frozen-lockfile`. Idempotent, needs no secrets, and creates no `config.yaml` or `data/`.
+- `scripts/agent-verify.sh`: typecheck, the full test suite (at most 8 concurrent tests) and the serve smoke check in one command. Works offline once dependencies are installed.
+- `scripts/smoke-serve.sh`: starts `pace serve` from a temp directory with a bookmarks-only config (no network fetches) on a free port, and checks `/health` and `/api/panels`. It never reads or writes the repo's `config.yaml` or `data/`.
+- `.cursor/environment.json` runs `scripts/agent-setup.sh` as the install step on Cursor cloud agents.
+
+### Documentation
+
+- `docs/agents.md`: which instruction files, skill directories, MCP config and environment Muse Code, Grok Build and Grok Bot use, with a compatibility table and links to the vendors' docs.
+- AGENTS.md has a "Cloud sandboxes" section: setup, how to verify a change, and machine-readable outputs. It also says the `pace-setup` skill is for users installing pace, and repo setup uses the scripts.
+- The `pace-setup` skill's troubleshooting table no longer says a missing `config.yaml` causes `config: file not found`. That error comes from an explicit `--config` or `PACE_CONFIG` path; otherwise pace falls back to `config.example.yaml`.
+
+### Testing
+
+- The suite now passes with no network. The fetch_content tests stubbed `fetch` but still resolved `example.com` and `LOCALHOST.` through real DNS; those lookups are now answered locally.
+- The suite now passes as root, which many sandboxes use. The unreadable-config test relies on `chmod 000`, which root ignores, so it is skipped for uid 0.
+- A `bun test` preload clears `FORCE_COLOR` and `CLICOLOR_FORCE`. Some agent shells set them, which made Bun wrap CLI stderr in ANSI codes and broke byte-exact assertions.
+
+### CI
+
+- CI runs `scripts/smoke-serve.sh` after the test suite.
+
 ## v0.8.0
 
 ### New features

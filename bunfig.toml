@@ -2,3 +2,6 @@
 runtime = "classic"
 factory = "jsx"
 fragment = "Fragment"
+
+[test]
+preload = ["./src/test/preload.ts"]

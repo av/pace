@@ -1270,7 +1270,8 @@ layout:
     expect(() => loadConfig()).toThrow(/config: failed to parse YAML from/);
   });
 
-  test("throws config-prefixed error when config file is unreadable", () => {
+  // chmod 000 does not stop root from reading, and cloud sandboxes often run as root.
+  test.skipIf(process.getuid?.() === 0)("throws config-prefixed error when config file is unreadable", () => {
     setConfig("layout:\n  direction: row\n  children: []\n");
     fs.chmodSync(cfgPath, 0o000);
     try {
