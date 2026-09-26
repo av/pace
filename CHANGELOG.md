@@ -2,9 +2,9 @@
 
 Notable changes per release, newest first. Also published as [GitHub releases](https://github.com/av/pace/releases).
 
-## Unreleased
+## v0.8.1
 
-No changes to the dashboard, CLI, config format or Docker image. This release makes the repo work for cloud coding agents (Muse Code, Grok Build, Grok Bot, Cursor cloud agents) that clone it into a fresh sandbox and work unattended.
+No changes to the dashboard, CLI behaviour or config format; the only change inside the Docker image is the corrected `pace-setup` skill text. This release makes the repo work for cloud coding agents (Muse Code, Grok Build, Grok Bot, Cursor cloud agents) that clone it into a fresh sandbox and work unattended.
 
 ### Tooling
 
