@@ -180,6 +180,7 @@ If you're an agent, start here:
   pace skill               list agent skills
   pace skill pace-setup    set up / run a dashboard
   pace skill pace-config   create or edit config.yaml
+  pace skill pace-brief    read the digest instead of browsing
 
 Usage:
   pace [command] [options]
@@ -201,6 +202,7 @@ Commands:
   notify test [rule]       Send a test delivery to notify webhooks
   panels list              List the active config's panels
   search <query...>        Search stored dashboard items
+  brief                    Print the agent brief (Markdown or --json)
 
 Options:
   -c, --config <path>   Path to config file (default: ./config.yaml)

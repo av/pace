@@ -26,6 +26,7 @@ export function makeServerRouteDeps(
     ...(rest.autoMarkSeen !== undefined && { autoMarkSeen: rest.autoMarkSeen }),
     ...(rest.hideSeenDefault !== undefined && { hideSeenDefault: rest.hideSeenDefault }),
     ...(rest.getRefreshHealth !== undefined && { getRefreshHealth: rest.getRefreshHealth }),
+    ...(rest.brief !== undefined && { brief: rest.brief }),
   };
 }
 

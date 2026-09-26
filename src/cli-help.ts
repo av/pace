@@ -57,6 +57,7 @@ import {
   formatPanelsUsage,
 } from "./cli-panels";
 import { countDedupedItemsByPanel, initDb, searchItems } from "./db";
+import { formatBriefUsage, runBriefCli } from "./cli-brief";
 import { DEFAULT_API_SEARCH_LIMIT, parseSearchQuery } from "./server/api-search";
 import { errorMessage, normalizeParamBoolean, parseCliPort, parsePort } from "./utils";
 import {
@@ -125,6 +126,10 @@ export const CLI_PARSE_OPTIONS = {
   star: { type: "boolean" },
   unstar: { type: "boolean" },
   limit: { type: "string", short: "n" },
+  md: { type: "boolean" },
+  panel: { type: "string", multiple: true },
+  since: { type: "string" },
+  "per-panel": { type: "string" },
   help: { type: "boolean", short: "h" },
   version: { type: "boolean", short: "v" },
 } as const;
@@ -148,6 +153,7 @@ const CAMEL_CASE_ALIAS_KEYS = new Set([
   "outputDir",
   "markSeen",
   "markUnseen",
+  "perPanel",
 ]);
 
 function isCamelCaseAliasKey(key: string): boolean {
@@ -174,6 +180,10 @@ export type CliParsedValues = Record<string, unknown> & {
   star?: boolean;
   unstar?: boolean;
   limit?: string;
+  md?: boolean;
+  panel?: string[];
+  since?: string;
+  perPanel?: string;
 };
 
 /** Map kebab-case flags from parseArgs (e.g. list-presets) onto camelCase fields. */
@@ -198,6 +208,9 @@ export function normalizeCliParsedValues(values: CliParsedValues): void {
   }
   if (values["mark-unseen"] !== undefined) {
     values.markUnseen = normalizeParamBoolean(values, "mark-unseen");
+  }
+  if (typeof values["per-panel"] === "string") {
+    values.perPanel = values["per-panel"];
   }
 }
 
@@ -298,7 +311,12 @@ export function resolveCliServeErrors(
  */
 export function resolveCliMissingValueError(values: Record<string, unknown>): string | null {
   const missing = Object.entries(CLI_PARSE_OPTIONS)
-    .filter(([key, spec]) => spec.type === "string" && values[key] === true)
+    .filter(([key, spec]) => {
+      if (spec.type !== "string") return false;
+      const value = values[key];
+      // Multiple-value options collect a valueless occurrence as `true`.
+      return value === true || (Array.isArray(value) && value.includes(true));
+    })
     .map(([key]) => "--" + key);
   if (missing.length === 0) return null;
   return `Option(s) missing required value: ${missing.join(", ")}\n`;
@@ -1229,6 +1247,42 @@ const CLI_COMMANDS: CliCommand[] = [
     },
   },
   {
+    name: "brief",
+    summary: "Print the agent brief from stored items",
+    usage: formatBriefUsage(),
+    async run(positionals, values, ctx) {
+      const usage = formatBriefUsage();
+      const BRIEF_ALLOWED = new Set([
+        "config",
+        "preset",
+        "chdir",
+        "json",
+        "md",
+        "panel",
+        "since",
+        "limit",
+        "per-panel",
+      ]);
+      rejectInvalidCommandOptions(values, usage, BRIEF_ALLOWED);
+      if (positionals.length > 0) {
+        cliFailWithHelp(`Unknown argument: ${positionals[0]}\n`, usage);
+      }
+      let result;
+      try {
+        applyCliConfigEnv(values, ctx.deps);
+        const readConfig = ctx.deps.loadConfig ?? loadConfig;
+        const config = readConfig();
+        // Same database as pace search: under cwd (or PACE_DB_PATH).
+        initDb();
+        result = runBriefCli(config, values, process.env.PACE_CONFIG);
+      } catch (err) {
+        cliDie(errorMessage(err));
+      }
+      writeCliStderr(result.summary);
+      cliExitOk(result.output);
+    },
+  },
+  {
     name: "config",
     summary: "Validate config file",
     usage: formatConfigUsage(),
@@ -1328,6 +1382,7 @@ If you're an agent, start here:
   pace skill               list agent skills
   pace skill pace-setup    set up / run a dashboard
   pace skill pace-config   create or edit config.yaml
+  pace skill pace-brief    read the digest instead of browsing
 
 Usage:
   pace [command] [options]
@@ -1349,6 +1404,7 @@ Commands:
   notify test [rule]       Send a test delivery to notify webhooks
   panels list              List the active config's panels
   search <query...>        Search stored dashboard items
+  brief                    Print the agent brief (Markdown or --json)
 
 Options:
   -c, --config <path>   Path to config file (default: ./config.yaml)

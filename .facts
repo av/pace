@@ -367,6 +367,52 @@
 - The Dashboard works with zero configuration using the built-in example (or any Preset) and requires no database setup beyond the automatically created data/ directory
 - A user can go from zero to a useful personalized tech/news/research Dashboard in under a minute by running the Docker image with --preset tech-news or ml-ai
 
+## brief
+- label: The brief is a versioned pace.brief/v1 document: a header with schema, generated_at, config label, scope (panels, since, window, limit, per_panel), counts (panels, candidates, duplicates merged, older than window, selected, cut by limits), a chars/4 token estimate for both renderings, and per-panel rows; each item carries n, id, title, url, source, panel, also_in, score, summary, why_ranked, published_at, fetched_at, and discussion_url
+  id: brf-schema
+  command: bun test src/brief.test.ts --test-name-pattern 'schema'
+  tags: [spec, agent-brief, implemented]
+- label: The brief draws candidates from what each dashboard panel shows (panel limit, same dedup window), skipping panels fed only by bookmarks or counter adapters unless a panel filter names them, and dropping items older than the since window
+  id: brf-scope
+  command: bun test src/brief.test.ts --test-name-pattern 'scope'
+  tags: [spec, agent-brief, implemented]
+- label: Brief items are deduped across panels by the dashboard's dedup identity (normalized URL) and by normalized title; each kept item is homed on an adapter panel before a pipeline panel before a source-all panel, and the other panels it appeared in are listed in also_in
+  id: brf-dedupe
+  command: bun test src/brief.test.ts --test-name-pattern 'dedupe'
+  tags: [spec, agent-brief, implemented]
+- label: Brief scores are a deterministic 0-100 blend of engagement (log-normalized points/comments within the brief), recency (24h half-life from generated_at), and cross-panel presence, averaged with the llm-rank score when one is stored; selection takes each panel's best items round-robin up to per_panel and limit, and why_ranked states the signals (engagement counts, llm score, keyword-score/cluster annotations, other panels, age) in plain words
+  id: brf-rank
+  command: bun test src/brief.test.ts --test-name-pattern 'rank'
+  tags: [spec, agent-brief, implemented]
+- label: Brief summaries use the stored LLM summary when present, otherwise a plain-text excerpt of the body with HTML, engagement metadata, author/discussion fields, and transform annotations removed (arXiv abstracts keep only the abstract), capped at 280 characters; items with nothing left get a null summary rather than invented text
+  id: brf-summary
+  command: bun test src/brief.test.ts --test-name-pattern 'summary'
+  tags: [spec, agent-brief, implemented]
+- label: The Markdown brief is written for one LLM read: a header with generation time, window, counts, and token estimate, then one section per panel in layout order with items numbered [n] across the whole brief (title, URL, source, age, score, why line, summary), no HTML tags, and a note for panels whose items were all listed elsewhere or fell outside the window
+  id: brf-markdown
+  command: bun test src/brief.test.ts --test-name-pattern 'markdown'
+  tags: [spec, agent-brief, implemented]
+- label: GET /api/brief serves the brief as JSON and GET /brief.md as text/markdown, both honoring panel (id or display name, repeatable or comma-separated), limit (1-200, default 40), per_panel (1-50, default 8), and since (duration like 90m/24h/3d/1w, an ISO date, or all; default 72h); invalid values are a 400 and an unknown panel a 404, and existing /api routes are unchanged
+  id: brf-api
+  command: bun test src/server/api-brief.test.ts
+  tags: [spec, agent-brief, implemented]
+- label: pace brief prints the brief offline from the stored database (Markdown by default, --json for the JSON document, --md explicit) with --panel, --since, --limit, --per-panel and the usual -c/-P/-C config flags; the output matches what the endpoints serve for the same options, a brief: summary goes to stderr, and invalid options are clear errors
+  id: brf-cli
+  command: bun test src/cli-brief.test.ts
+  tags: [spec, agent-brief, implemented]
+- label: docs/brief.md documents the pace.brief/v1 schema field by field, the endpoints, the CLI, the query parameters, the score formula, and the compatibility promise for the version string
+  id: brf-doc
+  command: grep -q 'pace.brief/v1' docs/brief.md && grep -q 'why_ranked' docs/brief.md && grep -q '/brief.md' docs/brief.md && grep -q 'pace brief' docs/brief.md && grep -q 'round-robin' docs/brief.md
+  tags: [spec, agent-brief]
+- label: The bundled pace-brief skill (listed by pace skill, symlinked under .agents/skills) tells an agent to read the Pace brief once, narrate it with [n] citations and URLs, and web_search only for a gap the user or brief names; it gives the curl and pace brief commands and every endpoint, flag, and schema field it mentions exists
+  id: brf-skill
+  command: bun test src/skills-sync.test.ts --test-name-pattern 'pace-brief' && test -L .agents/skills/pace-brief
+  tags: [spec, agent-brief]
+- label: scripts/brief-demo runs the same question with an agent using web search/fetch tools and the same agent and model reading the ml-ai brief, at least three runs each, recording input/output tokens, tool calls, wall time, and cost per run with transcripts saved and a results table
+  id: brf-demo
+  command: test -x scripts/brief-demo/run.sh && test -f scripts/brief-demo/results.md && grep -q 'input tokens' scripts/brief-demo/results.md && ls scripts/brief-demo/transcripts/*.jsonl >/dev/null
+  tags: [spec, agent-brief]
+
 # llm
 
 ## user-experience

@@ -18,6 +18,7 @@ import { parsePort, getAdapterName } from "../utils";
 import { normalizeBasePath } from "../config/domain";
 import { logServerListening } from "../server-log";
 import { createServerApp } from "./app";
+import { briefConfigLabel, buildBriefConfigInfo } from "../brief";
 
 /** How long shutdown waits for in-flight refreshes before closing the DB. */
 export const SHUTDOWN_DRAIN_TIMEOUT_MS = 10_000;
@@ -138,6 +139,7 @@ export async function bootstrapServer(
     autoMarkSeen: config.server?.auto_mark_seen !== false,
     hideSeenDefault: config.server?.hide_seen === true,
     getRefreshHealth: deps.getRefreshHealth,
+    brief: buildBriefConfigInfo(config, briefConfigLabel(process.env.PACE_CONFIG)),
   });
 
   const port = deps.resolvePort();
