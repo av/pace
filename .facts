@@ -407,7 +407,7 @@
 - label: The bundled pace-brief skill (listed by pace skill, symlinked under .agents/skills) tells an agent to read the Pace brief once, narrate it with [n] citations and URLs, and web_search only for a gap the user or brief names; it gives the curl and pace brief commands and every endpoint, flag, and schema field it mentions exists
   id: brf-skill
   command: bun test src/skills-sync.test.ts --test-name-pattern 'pace-brief' && test -L .agents/skills/pace-brief
-  tags: [spec, agent-brief]
+  tags: [spec, agent-brief, implemented]
 - label: scripts/brief-demo runs the same question with an agent using web search/fetch tools and the same agent and model reading the ml-ai brief, at least three runs each, recording input/output tokens, tool calls, wall time, and cost per run with transcripts saved and a results table
   id: brf-demo
   command: test -x scripts/brief-demo/run.sh && test -f scripts/brief-demo/results.md && grep -q 'input tokens' scripts/brief-demo/results.md && ls scripts/brief-demo/transcripts/*.jsonl >/dev/null
