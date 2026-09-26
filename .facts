@@ -410,8 +410,8 @@
   tags: [spec, agent-brief, implemented]
 - label: scripts/brief-demo runs the same question with an agent using web search/fetch tools and the same agent and model reading the ml-ai brief, at least three runs each, recording input/output tokens, tool calls, wall time, and cost per run with transcripts saved and a results table
   id: brf-demo
-  command: test -x scripts/brief-demo/run.sh && test -f scripts/brief-demo/results.md && grep -q 'input tokens' scripts/brief-demo/results.md && ls scripts/brief-demo/transcripts/*.jsonl >/dev/null
-  tags: [spec, agent-brief]
+  command: test -x scripts/brief-demo/run.sh && test -f scripts/brief-demo/results.md && grep -qi 'input tokens' scripts/brief-demo/results.md && ls scripts/brief-demo/transcripts/*.jsonl >/dev/null
+  tags: [spec, agent-brief, implemented]
 
 # llm
 
@@ -609,6 +609,10 @@
 - label: README.md describes Pace in plain concrete language: self-hosted dashboard, YAML config, Bun or Docker runtime, optional LLM transforms, and no hype phrases like revolutionary, game-changing, internet you actually follow, or noisy sources
   command: grep -q 'self-hosted dashboard' README.md && grep -q 'YAML' README.md && grep -q 'Bun process or Docker container' README.md && grep -q 'optional' README.md && ! grep -Ei '\b(revolutionary|game-changing|next-generation|supercharge|unlock|internet you actually follow|noisy sources|dashboard you own)\b' README.md
   tags: [spec, implemented]
+- label: README.md opens with the one-liner (the digest your agent reads so it doesn't have to hunt) and a The brief section before Why Pace holding the Docker preset + pace-brief skill + curl quickstart, the approaches table, and the measured demo numbers linked to scripts/brief-demo
+  id: brf-readme
+  command: python3 -c "from pathlib import Path; t=Path('README.md').read_text(); lines=t.splitlines(); pos=lambda s: next((i for i,l in enumerate(lines) if l.strip()==s), 999999); assert \"The digest your agent reads so it doesn't have to hunt.\" in t; assert pos('## The brief') < pos('## Why Pace'); b=t[t.index('## The brief'):t.index('## Why Pace')]; assert '--preset ml-ai' in b and 'npx skills add av/pace --skill pace-brief' in b and 'curl -s localhost:7453/brief.md' in b; assert '| Pace |' in b; assert 'scripts/brief-demo' in b; assert '{{DEMO' not in t"
+  tags: [spec, agent-brief, implemented]
 
 # static-dashboards
 - label: Large static snapshots mark their document mode and use browser-native off-screen panel rendering containment, keeping every panel and item in the portable HTML while avoiding initial layout and paint work for panels outside the viewport
