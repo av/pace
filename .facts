@@ -403,7 +403,7 @@
 - label: docs/brief.md documents the pace.brief/v1 schema field by field, the endpoints, the CLI, the query parameters, the score formula, and the compatibility promise for the version string
   id: brf-doc
   command: grep -q 'pace.brief/v1' docs/brief.md && grep -q 'why_ranked' docs/brief.md && grep -q '/brief.md' docs/brief.md && grep -q 'pace brief' docs/brief.md && grep -q 'round-robin' docs/brief.md
-  tags: [spec, agent-brief]
+  tags: [spec, agent-brief, implemented]
 - label: The bundled pace-brief skill (listed by pace skill, symlinked under .agents/skills) tells an agent to read the Pace brief once, narrate it with [n] citations and URLs, and web_search only for a gap the user or brief names; it gives the curl and pace brief commands and every endpoint, flag, and schema field it mentions exists
   id: brf-skill
   command: bun test src/skills-sync.test.ts --test-name-pattern 'pace-brief' && test -L .agents/skills/pace-brief
