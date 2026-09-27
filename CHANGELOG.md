@@ -2,6 +2,21 @@
 
 Notable changes per release, newest first. Also published as [GitHub releases](https://github.com/av/pace/releases).
 
+## v0.9.0
+
+Pace now serves a brief: what your panels show, packed into one bounded document an agent reads once instead of browsing. The dashboard stays the view of exactly what the agent sees. No existing endpoint, CLI command or config key changes behaviour.
+
+### New features
+
+- **The agent brief: `GET /brief.md` and `GET /api/brief`** — the items your panels show, narrowed to a time window (`?since=`, default `72h`; also `90m`, `24h`, `3d`, `1w`, an ISO date, or `all`), deduped across panels by URL and normalized title, ranked, and capped (`?limit=`, default 40; `?per_panel=`, default 8). `?panel=` picks panels by id or name (repeat it or comma-separate); panels fed only by `bookmarks` or `counter` adapters are skipped unless named. `/brief.md` is Markdown written for one LLM read: a header with generation time, window, counts and a token estimate, then one section per panel with items numbered `[n]` across the brief, each with its URL, source, age, score, a `why:` line and a plain-text summary. No HTML. `/api/brief` is the same brief as versioned JSON (`pace.brief/v1`). Invalid parameters are a 400 and an unknown panel a 404.
+- **`pace brief`** — prints the same brief from the local database without a server (Markdown by default, `--json` for the document), with `--panel`, `--since`, `--limit`, `--per-panel` and the usual `-c`/`-P`/`-C`. A `brief:` summary with the item count and token estimate goes to stderr.
+- **`pace.brief/v1` schema** — documented field by field in [docs/brief.md](docs/brief.md). Each item carries `n`, `id`, `title`, `url`, `source`, `panel`, `also_in`, `score` (0-100), `llm_score`, `engagement`, `summary`, `why_ranked`, `published_at`, `fetched_at` and `discussion_url`. Within v1, fields are only added. Ranking is deterministic and offline: engagement, recency (24h half-life) and cross-panel presence, averaged with the `llm-rank` score when one is stored. Panels take turns so a busy panel can't crowd out the rest, and one source gets at most 3 picks per panel before the panel's other sources have had a turn.
+- **`pace-brief` skill** — `npx skills add av/pace --skill pace-brief` (or `pace skill pace-brief`). It tells an agent to fetch the brief once, narrate it with `[n]` citations and links, check freshness, and use web search only for something the user or the brief names that the brief doesn't cover.
+
+### Docs
+
+- README leads with the brief: the one-liner, a Docker preset + skill + curl quickstart, and measured numbers from `scripts/brief-demo/` (the same question asked by an agent with web tools and by the same agent reading the brief, with transcripts and every answer).
+
 ## v0.8.1
 
 No changes to the dashboard, CLI behaviour or config format; the only change inside the Docker image is the corrected `pace-setup` skill text. This release makes the repo work for cloud coding agents (Muse Code, Grok Build, Grok Bot, Cursor cloud agents) that clone it into a fresh sandbox and work unattended.
