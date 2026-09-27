@@ -39,14 +39,14 @@ The `pace-brief` skill tells your agent to read the brief once, cite items as `[
 | Asking a chatbot "what's new in AI?" | It doesn't know your sources |
 | Pace | Fetched and filtered offline on a schedule; the agent reads one bounded, structured brief |
 
-Measured with Claude Sonnet 5 as a headless Claude Code agent, asking "what's new in ML/AI today that matters to me?" 5 times each way ([script, transcripts, caveats](scripts/brief-demo/)):
+Measured with Claude Sonnet 5 as a headless Claude Code agent on 2026-09-27, asking "what's new in ML/AI today that matters to me?" 5 times each way ([script, transcripts, caveats](scripts/brief-demo/)):
 
 | Mean per run | Tool calls | Wall time | Input tokens | Cost |
 |--------------|-----------:|----------:|-------------:|-----:|
-| Web tools, given the user's source list | 16 | 47s | 343k | $0.45 |
-| Same agent reading the `ml-ai` brief | 1 | 11s | 14k | $0.03 |
+| Web tools, given the user's source list | 14.6 | 51s | 270k | $0.42 |
+| Same agent reading the `ml-ai` brief | 1 | 15s | 22k | $0.03 |
 
-Most of the search arm's input tokens are read by the small model behind Claude Code's `WebFetch`; the answering model itself saw about 2x more input, not 25x. The search answers were not worse. They covered older releases the brief's 72h window leaves out.
+Most of the search arm's input tokens are read by the small model behind Claude Code's `WebFetch`; the answering model itself saw about 1.6x more input. The search answers covered more ground, including posts and releases older than the brief's window, and also passed off week-old launches as today's news.
 
 The brief is Markdown at `/brief.md` and versioned JSON (`pace.brief/v1`) at `/api/brief`, with `?since=24h`, `?panel=`, `?limit=` and `?per_panel=`. `pace brief` prints the same thing from the local database without a server. Schema, parameters and ranking: [docs/brief.md](docs/brief.md).
 
