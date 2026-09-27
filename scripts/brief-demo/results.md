@@ -36,6 +36,7 @@ Every run starts clean: empty working directory, no user settings, no MCP server
 | search / pace | 12.6x | 1.6x | 7.7x | 14.6x | 3.3x | 12.4x |
 | search-cold / pace | 1.7x | 0.4x | 2.2x | 2.4x | 1.5x | 2.5x |
 
+Run date (UTC): 2026-09-27.
 Total spend: $2.66 across 15 runs. Model: claude-sonnet-5.
 
 ## Answers

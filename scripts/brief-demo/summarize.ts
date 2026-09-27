@@ -1,7 +1,7 @@
 // Summarize brief-demo transcripts (Claude Code stream-json) into a Markdown
 // results table: tokens, tool calls, wall time and cost per run, plus means.
 // Usage: bun scripts/brief-demo/summarize.ts <transcripts-dir>
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 type ModelUsage = {
@@ -144,6 +144,12 @@ if (cold.runs > 0) {
   lines.push(`| search-cold / pace | ${ratio(cold.input, pace.input)} | ${ratio(cold.mainInput, pace.mainInput)} | ${ratio(cold.output, pace.output)} | ${ratio(cold.tools, pace.tools)} | ${ratio(cold.seconds, pace.seconds)} | ${ratio(cold.cost, pace.cost)} |`);
 }
 lines.push("");
+const runDates = [...new Set(
+  readdirSync(dir)
+    .filter((f) => /^(search-cold|search|pace)-\d+\.jsonl$/.test(f))
+    .map((f) => statSync(join(dir, f)).mtime.toISOString().slice(0, 10)),
+)].sort();
+lines.push(`Run date (UTC): ${runDates.join(", ")}.`);
 lines.push(`Total spend: $${arms.reduce((acc, a) => acc + a.total, 0).toFixed(2)} across ${runs.length} runs. Model: ${[...new Set(runs.map((r) => r.model))].join(", ")}.`);
 
 console.log(lines.join("\n"));
