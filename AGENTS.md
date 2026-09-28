@@ -16,6 +16,7 @@ pace export [output.opml]        # export configured feed URLs as OPML
 pace notify test [rule]          # send a test delivery to notify webhooks
 pace search <query...>           # search stored items (same grammar as /api/search; --json, --limit N, --rss prints the saved-search feed URL, --mark-seen/--mark-unseen set read marks, --star/--unstar set star marks)
 pace panels list                 # list the active config's panels (ids, names, stored item counts, sources; --json for machine output)
+pace brief                       # the agent brief from stored items (Markdown; --json, --panel, --since, --limit, --per-panel)
 pace skill [name]                # list or print bundled agent skills
 ```
 
@@ -37,10 +38,11 @@ Per-agent details (which files each agent reads, sandbox and network limits) are
 
 ## Skills
 
-Skills for working with pace dashboards live in `skills/` (the copies bundled with the CLI via `pace skill`); `.agents/skills/pace-setup` and `.agents/skills/pace-config` are symlinks to them, and `.claude/skills` is a symlink to `.agents/skills`:
+Skills for working with pace dashboards live in `skills/` (the copies bundled with the CLI via `pace skill`); `.agents/skills/pace-setup`, `.agents/skills/pace-config` and `.agents/skills/pace-brief` are symlinks to them, and `.claude/skills` is a symlink to `.agents/skills`:
 
 - **pace-setup** — install, run, and deploy pace (Bun dev, Docker, Docker Compose, CLI flags, troubleshooting)
 - **pace-config** — generate or modify `config.yaml` from a natural-language description of interests
+- **pace-brief** — answer "what's new" from the Pace brief (`/brief.md` or `pace brief`) instead of browsing
 
 Use `/pace-setup` when a user asks to install or run pace as a dashboard. To set up this repo for development or verify a change, follow "Cloud sandboxes" above instead. Use `/pace-config` when asked to configure, customize, or add feeds to a dashboard.
 

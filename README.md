@@ -1,8 +1,8 @@
 # pace
 
-**A self-hosted dashboard for feeds, repos, papers, videos, and links.**
+**The digest your agent reads so it doesn't have to hunt.**
 
-Pace collects content from Hacker News, RSS, GitHub, Lemmy, Mastodon, YouTube, arXiv, npm, Wikipedia, podcasts, Product Hunt, and more. You configure sources, transforms, ranking, summaries, and layout in YAML. It runs as one Bun process or Docker container, and every panel it renders is also available as JSON or RSS.
+Pace is a self-hosted dashboard that fetches the sources you follow on a schedule (Hacker News, RSS, GitHub, arXiv, Lemmy, Mastodon, YouTube, npm, Wikipedia, podcasts, Product Hunt, and more), filters and ranks them with rules you keep in YAML, and serves the result as one bounded brief. Your agent reads `/brief.md` once and tells you what happened, instead of fetching a dozen pages every time you ask. It runs as one Bun process or Docker container, LLM transforms are optional, and the dashboard shows exactly what the agent will read.
 
 <p align="center">
   <a href="https://www.youtube.com/watch?v=UElmyC06ryM"><img src="./assets/splash.jpg" alt="Pace dashboard showing multiple feed panels in a configurable layout" width="100%"></a>
@@ -10,6 +10,8 @@ Pace collects content from Hacker News, RSS, GitHub, Lemmy, Mastodon, YouTube, a
 
 <p align="center">
   <a href="https://www.youtube.com/watch?v=UElmyC06ryM"><strong>Watch the 2-minute demo</strong></a>
+  ·
+  <a href="#the-brief">The brief</a>
   ·
   <a href="#presets">Presets</a>
   ·
@@ -20,6 +22,34 @@ Pace collects content from Hacker News, RSS, GitHub, Lemmy, Mastodon, YouTube, a
   <a href="#example-dashboards">Examples</a>
 </p>
 
+## The brief
+
+```bash
+docker run -d -p 7453:7453 -v pace-data:/app/data ghcr.io/av/pace:latest --preset ml-ai
+npx skills add av/pace --skill pace-brief
+curl -s localhost:7453/brief.md    # the first fetch takes about a minute
+```
+
+The `pace-brief` skill tells your agent to read the brief once, cite items as `[n]` with their links, and search the web only for something the brief doesn't cover.
+
+| Approach | What it costs |
+|----------|---------------|
+| Agent searches and fetches live | Tokens, tool calls and flaky pages, every session |
+| A page someone vibe-coded | No stable schema; the agent re-parses HTML |
+| Asking a chatbot "what's new in AI?" | It doesn't know your sources |
+| Pace | Fetched and filtered offline on a schedule; the agent reads one bounded, structured brief |
+
+Measured with Claude Sonnet 5 as a headless Claude Code agent on 2026-09-27, asking "what's new in ML/AI today that matters to me?" 5 times each way ([script, transcripts, caveats](scripts/brief-demo/)):
+
+| Mean per run | Tool calls | Wall time | Input tokens | Cost |
+|--------------|-----------:|----------:|-------------:|-----:|
+| Web tools, given the user's source list | 14.6 | 51s | 270k | $0.42 |
+| Same agent reading the `ml-ai` brief | 1 | 15s | 22k | $0.03 |
+
+Most of the search arm's input tokens are read by the small model behind Claude Code's `WebFetch`; the answering model itself saw about 1.6x more input. The search answers covered more ground, including posts and releases older than the brief's window, and also passed off week-old launches as today's news.
+
+The brief is Markdown at `/brief.md` and versioned JSON (`pace.brief/v1`) at `/api/brief`, with `?since=24h`, `?panel=`, `?limit=` and `?per_panel=`. `pace brief` prints the same thing from the local database without a server. Schema, parameters and ranking: [docs/brief.md](docs/brief.md).
+
 ## Why Pace
 
 - **One dashboard** - combine feeds, repos, releases, papers, videos, podcasts, metrics, and hand-picked links.
@@ -27,7 +57,7 @@ Pace collects content from Hacker News, RSS, GitHub, Lemmy, Mastodon, YouTube, a
 - **Flexible layout** - arrange panels, counters, markdown, images, and iframes with a recursive flexbox layout.
 - **Portable output** - server-rendered HTML, SQLite storage, a JSON and RSS endpoint for every panel, webhook notifications for high-signal items, and static snapshots you can export or publish through Gist.
 - **Practical tooling** - `pace doctor` fetch-checks every configured source, `pace import` / `pace export` convert between OPML feed-reader exports and pace configs in both directions, and the dashboard is fully keyboard-navigable.
-- **Agent-readable config** - bundled skills document setup and configuration workflows for coding agents.
+- **Agent-readable** - the brief (`/brief.md`, `/api/brief`, `pace brief`) is what an agent reads instead of browsing, and bundled skills cover reading it, setting pace up, and writing configs.
 
 ## Presets
 
@@ -65,6 +95,7 @@ If you use a coding agent, install the bundled skills so it can follow the local
 ```bash
 npx skills add av/pace --skill pace-setup
 npx skills add av/pace --skill pace-config
+npx skills add av/pace --skill pace-brief
 ```
 
 List all available skills: `npx skills add av/pace --list`.
@@ -78,6 +109,7 @@ bun install && npm link
 pace skill
 pace skill pace-setup
 pace skill pace-config
+pace skill pace-brief
 ```
 
 The Docker image also ships skills: `docker run --rm ghcr.io/av/pace pace skill`.
@@ -204,6 +236,14 @@ The database (`data/pace.db`) is a cache: deleting it is always safe, and conten
 ```
 
 `status` is `degraded` when any source's latest completed run failed; per-source `status` is `ok`, `failing`, or `pending` (no run completed yet, e.g. right after startup). Per-source extras appear once available: `lastError` (message from the most recent failure), `lastDurationMs` (duration of the latest completed run, success or failure), and `lastItemCount` (items produced by the latest successful run — fetched items for adapters, gathered input items for pipelines — retained through later failures as context). The HTTP status stays `200` as long as the server is up — it serves cached data even when upstreams fail, and a restart would not fix a bad upstream — so container healthchecks keep passing while monitors can alert on the body.
+
+### `/brief.md` and `/api/brief` - the agent brief
+
+What the panels show, packed for one read: items from the last 72 hours (`?since=`), deduped across panels, ranked, and capped at 40 items (`?limit=`) and 8 per panel (`?per_panel=`), with `?panel=` to pick panels. `/brief.md` is Markdown with `[n]` citation numbers and a why line per item; `/api/brief` is the same brief as `pace.brief/v1` JSON. `pace brief` (`--json`, `--panel`, `--since`, `--limit`, `--per-panel`) reads it from the local database. Field reference: [docs/brief.md](docs/brief.md).
+
+```bash
+curl 'http://localhost:7453/brief.md?since=24h&limit=20'
+```
 
 ### `/api/panels` - JSON panel data
 
@@ -425,7 +465,7 @@ These are reference dashboards: useful for seeing what pace can express, studyin
 
 ## For agents
 
-See [Get Started](#get-started): humans install skills with `npx skills add av/pace`; agents clone pace and use `pace skill`. The [`examples/`](examples/) directory pairs screenshots with reference configs to study when writing `config.yaml`.
+Agents that want to know what's new read [the brief](#the-brief) (`/brief.md`, or `pace brief`) with the `pace-brief` skill. For setup, see [Get Started](#get-started): humans install skills with `npx skills add av/pace`; agents clone pace and use `pace skill`. The [`examples/`](examples/) directory pairs screenshots with reference configs to study when writing `config.yaml`.
 
 ## Tech stack
 

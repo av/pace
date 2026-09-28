@@ -17,6 +17,8 @@ import {
 } from "./refresh-panel";
 import type { RefreshHealth } from "../scheduler-runtime";
 import { handleApiPanelItems, handleApiPanelList } from "./api-panels";
+import { handleApiBrief, handleBriefMarkdown } from "./api-brief";
+import type { BriefConfigInfo } from "../brief";
 import { handleApiSearch } from "./api-search";
 import { handleApiSearchRss } from "./api-search-rss";
 import { handleApiPanelRss, RSS_PANEL_SUFFIX } from "./api-panels-rss";
@@ -53,6 +55,12 @@ export type ServerRouteDeps = {
    * scheduler keep the bare liveness payload.
    */
   getRefreshHealth?: () => RefreshHealth;
+  /**
+   * Config facts for the agent brief (config label, non-feed sources,
+   * pipeline names). Optional so embedders and tests without a loaded config
+   * still serve a brief with neutral defaults.
+   */
+  brief?: BriefConfigInfo;
 };
 
 /**
@@ -275,6 +283,10 @@ export function registerServerRoutes(app: Hono, deps: ServerRouteDeps): void {
   // Read-only JSON API over the same cached snapshots the dashboard renders,
   // for scripts, widgets, and monitors that want data instead of HTML.
   app.get("/api/panels", (c) => handleApiPanelList(c, deps));
+  // The agent brief: what the panels show, windowed, deduped across panels,
+  // ranked, and bounded, as versioned JSON or as Markdown for one LLM read.
+  app.get("/api/brief", (c) => handleApiBrief(c, deps));
+  app.get("/brief.md", (c) => handleBriefMarkdown(c, deps));
   // Server-side search over the stored (deduped) items — reaches everything
   // in the database, not just what the dashboard currently renders.
   app.get("/api/search", (c) => handleApiSearch(c, deps));

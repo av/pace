@@ -1,0 +1,4 @@
+
+The user runs Pace at {{PACE_URL}} (the ml-ai preset). Follow this skill:
+
+{{SKILL}}

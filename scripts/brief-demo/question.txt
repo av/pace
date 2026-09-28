@@ -1,0 +1,3 @@
+What's new in ML/AI today that matters to me?
+
+For context, the sources I follow: arXiv cs.AI, cs.LG and cs.CL; AI stories on the Hacker News front page; the localllama community on Lemmy; the blogs of Lilian Weng, Simon Willison, Interconnects and Hugging Face; and releases of huggingface/transformers, vllm, llama.cpp, ollama, pytorch and anthropic-sdk-python.

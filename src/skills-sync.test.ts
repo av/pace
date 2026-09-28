@@ -1,12 +1,21 @@
 import { describe, test, expect, spyOn } from "bun:test";
-import { readFileSync, readdirSync, statSync } from "fs";
+import { lstatSync, readFileSync, readdirSync, readlinkSync, statSync } from "fs";
 import { join } from "path";
 import yaml from "js-yaml";
 import { ADAPTER_TYPES, isAdapterType } from "./adapters/params";
 import { TRANSFORM_TYPES } from "./transform-schema";
 import { validateParsedConfig } from "./config-validate";
 import { DEFAULT_LAYOUT } from "./config/domain";
-import { CLI_PARSE_OPTIONS, getCliCommand } from "./cli-help";
+import { CLI_PARSE_OPTIONS, getCliCommand, listSkills } from "./cli-help";
+import { formatBriefUsage } from "./cli-brief";
+import {
+  BRIEF_SCHEMA,
+  DEFAULT_BRIEF_LIMIT,
+  DEFAULT_BRIEF_PER_PANEL,
+  DEFAULT_BRIEF_SINCE,
+} from "./brief";
+import { createTestServerApp, makeServerRouteDeps } from "./test/server-harness";
+import { installTempDbHooks } from "./test/temp-db";
 import { DEFAULT_REFRESH_INTERVAL_MIN } from "./scheduler-runtime";
 import { parsePort } from "./utils";
 
@@ -425,5 +434,52 @@ describe("skills-sync: pace-setup matches CLI behavior", () => {
   test("documented default refresh interval matches the scheduler default", () => {
     expect(setupSkill).toContain(`default ${DEFAULT_REFRESH_INTERVAL_MIN}`);
     expect(configSkill).toContain(`default ${DEFAULT_REFRESH_INTERVAL_MIN}`);
+  });
+});
+
+describe("skills-sync: pace-brief", () => {
+  installTempDbHooks({ prefix: "pace-skills-brief-" });
+  const briefSkill = readFileSync(join(ROOT, "skills/pace-brief/SKILL.md"), "utf-8");
+
+  test("pace-brief is bundled, listed by pace skill, and linked for repo agents", () => {
+    expect(listSkills().map((s) => s.name)).toContain("pace-brief");
+    expect(lstatSync(join(ROOT, ".agents/skills/pace-brief")).isSymbolicLink()).toBe(true);
+    expect(readlinkSync(join(ROOT, ".agents/skills/pace-brief"))).toBe("../../skills/pace-brief");
+  });
+
+  test("pace-brief states the read-once, cite, search-only-for-a-gap contract", () => {
+    expect(briefSkill).toContain("curl -s localhost:7453/brief.md");
+    expect(briefSkill).toContain("pace brief");
+    expect(briefSkill).toMatch(/Fetch once per question/);
+    expect(briefSkill).toMatch(/Cite every item you mention as `\[n\]` with its URL/);
+    expect(briefSkill).toMatch(/Search only for a named gap/);
+    expect(briefSkill).toContain(BRIEF_SCHEMA);
+  });
+
+  test("every endpoint the skill names is served", async () => {
+    const paths = new Set([...briefSkill.matchAll(/(\/(?:api\/[a-z]+|brief\.md))\b/g)].map((m) => m[1]!));
+    expect([...paths].sort()).toEqual(["/api/brief", "/api/panels", "/brief.md"]);
+    const app = createTestServerApp(makeServerRouteDeps({ layout: DEFAULT_LAYOUT }));
+    for (const path of paths) {
+      expect((await app.request(path)).status, `${path} is served`).toBe(200);
+    }
+  });
+
+  test("every query parameter and pace brief flag the skill names exists", () => {
+    const params = new Set([...briefSkill.matchAll(/[?&]([a-z_]+)=/g)].map((m) => m[1]!));
+    expect([...params].sort()).toEqual(["limit", "panel", "per_panel", "since"]);
+    const usage = formatBriefUsage();
+    const flags = new Set([...briefSkill.matchAll(/`pace brief[^`]*`|--[a-z-]+ \S+`/g)]
+      .flatMap((m) => [...m[0].matchAll(/(--[a-z-]+|-[A-Za-z])\b/g)].map((f) => f[1]!)));
+    expect(flags.size).toBeGreaterThan(3);
+    for (const flag of flags) {
+      expect(usage, `${flag} is a pace brief option`).toContain(flag);
+    }
+  });
+
+  test("the skill's defaults match the code", () => {
+    expect(briefSkill).toContain(`default \`${DEFAULT_BRIEF_SINCE}\``);
+    expect(briefSkill).toContain(`default ${DEFAULT_BRIEF_LIMIT} items`);
+    expect(briefSkill).toContain(`default ${DEFAULT_BRIEF_PER_PANEL})`);
   });
 });
