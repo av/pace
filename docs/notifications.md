@@ -1,0 +1,25 @@
+# Webhook notifications
+
+Pace can push high-signal items to any webhook as they arrive, so the best of your feeds finds you between dashboard visits. Add top-level `notify:` rules; after every refresh, new items on the refreshed panels that match a rule are POSTed as JSON to its URL:
+
+```yaml
+notify:
+  - url: https://ntfy.sh/my-pace-alerts   # https, or http on localhost
+    name: high-signal                     # optional label used in the payload and logs
+    min_score: 8                          # only items ranked at/above this (llm-rank / keyword-score)
+    keywords: [rust, wasm]                # and/or: any keyword in title/body/summary (case-insensitive)
+    panels: [tech-feed]                   # optional: restrict to these panel ids
+    format: ntfy                          # optional delivery format: json (default), ntfy, discord, slack, template
+    # template: "ALERT {{matched}}: {{items}}"  # custom body, required with format: template
+    # item_template: "{{title}} — {{url}}"      # optional per-item line for {{items}}
+    headers:                              # optional extra HTTP headers, e.g. auth
+      Authorization: Bearer ${NTFY_TOKEN} # ${VAR} env expansion keeps tokens out of the file
+```
+
+Each rule needs `min_score` and/or `keywords` (when both are set, both must match). The default delivery body is `{"rule": "...", "matched": N, "items": [...]}` with the newest 20 matches at most; each item carries `title`, `url`, `source`, `panel`, `timestamp`, `score`, and `summary`. Every item notifies at most once per rule: the ledger lives in SQLite keyed by the item's dedup identity, so cross-panel duplicates and re-fetches never re-notify, failed deliveries (non-2xx, or a 10s timeout) are retried on the next refresh, and ledger entries age out with `server.retention_days` alongside the items they cover. Pairs well with `llm-rank` pipelines: score your merged feeds against your interests, then get pinged only above your threshold.
+
+Set `format` to skip the translation shim for popular services: `ntfy` posts plain text with ntfy's title and click-to-open headers, `discord` posts a Discord-webhook markdown message (kept under Discord's 2000-character limit by folding overflow into an "…and N more" line), and `slack` posts a Slack incoming-webhook mrkdwn message with clickable links. When no preset fits, `format: template` posts the rule's own `template` string with `{{placeholder}}` substitution — `{{rule}}` (label), `{{matched}}` (count), `{{headline}}` (the standard one-line summary), and `{{items}}` (plain-text bullet list, overflow folded into an "…and N more" line); an optional `item_template` reshapes `{{items}}` into one rendered line per item — `{{title}}`, `{{url}}`, `{{source}}`, `{{score}}` (empty when unscored), and `{{meta}}` ("source" / "source, score N") substituted per item, the overflow line kept — so the item list itself can match the receiving service's syntax. Every placeholder in both templates also has a `{{name_json}}` twin that substitutes a JSON literal — strings escaped and quoted, `{{matched_json}}` a bare number, `{{score_json}}` a number or `null` — so a template like `{"text": {{headline_json}}}` stays valid JSON no matter what quotes or newlines a feed title carries; `{{items_json_array}}` goes further and substitutes the matched items as a real JSON array of item objects (the same shape the `json` format sends), for receivers that want structured items instead of a text blob — and takes an optional field selection, `{{items_json_array:title,url,score}}`, that narrows each object to just the listed fields in the listed order (say, dropping the bulky `summary`). Unknown placeholders in either template fail `pace config check` up front, and since you own the body there, `template` rules may also set a custom `Content-Type` header (say `application/json` for a service expecting a JSON envelope). Format is presentation only — it never changes what a rule matches or the at-most-once ledger, so you can switch formats freely without re-notifying.
+
+Endpoints that need authentication get it via a rule's optional `headers` map: every delivery (and `pace notify test`) sends them, merged over the format preset's own headers with yours winning case-insensitively — `Content-Type` excepted, which the format owns (unless `format: template`, where the body is yours). Use `${VAR}` env expansion to keep tokens out of the config file. Header values are validated at config load (real header-name tokens, no newlines), and headers — like `format` and `name` — never affect the delivery ledger, so rotating a token never re-notifies.
+
+Verify your endpoints with `pace notify test` — it sends a sample delivery (same payload shape, clearly marked as a test in its title and summary) to every configured rule, or just one with `pace notify test <rule-name>`, without touching the at-most-once delivery ledger. Exits non-zero when any delivery fails, so you find out about a broken webhook now instead of when a high-signal item silently disappears.

@@ -64,7 +64,7 @@ Key options: `-c/--config <path>` (default `./config.yaml`), `-p/--port <number>
 
 Environment variables `PACE_CONFIG` (config file path), `PORT` (server port), and `PACE_DB_PATH` (SQLite database path, default `data/pace.db`) provide overrides; CLI flags take precedence over environment variables.
 
-Server behavior is also configurable via an optional `server:` block in config.yaml: `server.base_path` (URL prefix for reverse-proxy deployments, e.g. `/pace` — works whether or not the proxy strips the prefix) and `server.retention_days` (prune items older than N days; default 30, `0` disables). See the "Server Configuration" section of the README for details and nginx examples.
+Server behavior is also configurable via an optional `server:` block in config.yaml: `server.base_path` (URL prefix for reverse-proxy deployments, e.g. `/pace` — works whether or not the proxy strips the prefix) and `server.retention_days` (prune items older than N days; default 30, `0` disables). See [docs/server.md](https://github.com/av/pace/blob/main/docs/server.md) for details and nginx examples.
 
 ### Global install
 
