@@ -68,15 +68,15 @@ Start from a preset or [`config.example.yaml`](config.example.yaml), or have you
 The brief comes with a dashboard that shows the same data. It's the debug view: if an item is in the brief, it's on a panel, so you can see what your agent will read and why.
 
 <p align="center">
-  <a href="https://www.youtube.com/watch?v=UElmyC06ryM"><img src="./assets/splash.jpg" alt="Pace dashboard showing multiple feed panels in a configurable layout" width="100%"></a>
+  <img src="./assets/preset-ml-ai.png" alt="Pace dashboard running the ml-ai preset: panels for arXiv papers, Hacker News AI stories, AI blogs, the local-LLM community and releases" width="100%">
 </p>
 
 Open http://localhost:7453, or [watch the 2-minute demo](https://www.youtube.com/watch?v=UElmyC06ryM). It is also a keyboard-driven feed reader with read state, stars, per-panel JSON and RSS, saved-search feeds, webhook alerts and static snapshots you can share.
 
 ## Docs
 
-| | |
-|---|---|
+| Doc | Covers |
+|-----|--------|
 | [brief.md](docs/brief.md) | The agent brief: endpoints, parameters, ranking, `pace.brief/v1` schema |
 | [install.md](docs/install.md) | Agent skills, Docker, presets, from source, custom config |
 | [server.md](docs/server.md) | Port, env vars, `server:` block, reverse proxy, retention, `/health` |
