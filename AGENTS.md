@@ -32,7 +32,7 @@ scripts/smoke-serve.sh     # just the smoke: serves a bookmarks-only config from
 
 **How to verify a change:** run `scripts/agent-verify.sh`. If you added facts for the change, also run `facts check --tags <tag>` (if `facts` is missing: `npm install -g @avcodes/facts`). Tests must pass with no network: stub `fetch` and DNS as `src/fetch-content.test.ts` does, and don't rely on file permissions that root ignores. For machine-readable output use `pace search --json` and `pace panels list --json`, or the server's `/health` and `/api/*` JSON. `pace config check <path>` exits non-zero with a `config:` message on bad configs.
 
-In a sandbox, run the CLI as `bun src/cli.ts <command>`. The `pace-setup` skill and the README describe installing pace for a user (`config.yaml`, `npm link`, Docker); for working on the repo, use the scripts above. The `npm link` step under "After making changes" is for Ivan's machine only.
+In a sandbox, run the CLI as `bun src/cli.ts <command>`. The `pace-setup` skill and `docs/install.md` describe installing pace for a user (`config.yaml`, `npm link`, Docker); for working on the repo, use the scripts above. The `npm link` step under "After making changes" is for Ivan's machine only.
 
 Per-agent details (which files each agent reads, sandbox and network limits) are in [docs/agents.md](docs/agents.md).
 
@@ -48,7 +48,7 @@ Use `/pace-setup` when a user asks to install or run pace as a dashboard. To set
 
 ## Example dashboards
 
-`examples/` pairs showcase configs (`<name>.yaml`) with screenshots (`<name>.png`). README preset images live separately in `assets/preset-<name>.png`.
+`examples/` pairs showcase configs (`<name>.yaml`) with screenshots (`<name>.png`). Preset images for `docs/presets.md` live separately in `assets/preset-<name>.png`.
 
 **Edit a config:** change `examples/<name>.yaml`, then `pace config check examples/<name>.yaml`.
 
@@ -60,7 +60,7 @@ python3 examples/screenshot.py
 
 For each `*.yaml` in `examples/`, the script copies it to a temp dir, starts `pace serve` on port 17453, waits for adapters to fetch, and overwrites the matching `.png` (1920×1080 full-page).
 
-**Refresh preset screenshots** (README `assets/` images):
+**Refresh preset screenshots** (`assets/` images used by `docs/presets.md`):
 
 ```bash
 scripts/screenshot-presets.sh
